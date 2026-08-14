@@ -11,7 +11,6 @@
       pycell-markdown-command "pandoc -f gfm -t html"
       pycell-max-lines 14)
 (menu-bar-mode -1) (tool-bar-mode -1) (scroll-bar-mode -1)
-(load-theme 'modus-vivendi t)
 (set-frame-font "Source Code Pro 13" nil t)
 (set-frame-size (selected-frame) 1120 680 t)
 (set-frame-position (selected-frame) 0 0)
