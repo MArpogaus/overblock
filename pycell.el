@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "29.1") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
 ;; URL: https://github.com/MArpogaus/pycell
@@ -76,12 +76,17 @@ It inherits the cell boundary face, so results match the cells.")
 (defface pycell-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
-(defcustom pycell-markdown-command "markdown"
-  "Shell command that turns Markdown on standard input into HTML.
-Any converter will do, for example \"markdown\", \"cmark-gfm\" or
-\"pandoc -f gfm -t html\".  Markdown cells stay plain text while the
-program is not in the variable `exec-path'."
-  :type 'string)
+(defcustom pycell-markdown-command
+  '("markdown" "pandoc" "markdown_py" "cmark" "cmark-gfm")
+  "How to turn Markdown into HTML.
+Either one shell command as a string, or a list of candidates, of
+which the first one found in the variable `exec-path' is used.  The
+program reads Markdown on standard input and writes HTML on standard
+output, so arguments are allowed: \"pandoc -f gfm -t html\".
+
+Markdown cells stay plain text while no candidate is installed."
+  :type '(choice (string :tag "Shell command")
+                 (repeat (string :tag "Candidate command"))))
 
 (defcustom pycell-max-lines 12
   "Number of result lines that show inline.
@@ -472,8 +477,13 @@ A fragment that fails to render stays plain."
    text t t))
 
 (defun pycell--md-program ()
-  "Return `pycell-markdown-command' split into program and arguments."
-  (split-string-shell-command pycell-markdown-command))
+  "Return the markdown converter as a list of program and arguments.
+The first candidate of `pycell-markdown-command' that is installed
+wins; the result is nil when none of them is."
+  (seq-some (lambda (command)
+              (let ((argv (split-string-shell-command command)))
+                (and (executable-find (car argv)) argv)))
+            (ensure-list pycell-markdown-command)))
 
 (defun pycell--md-rendered (md)
   "Render the markdown MD to a propertized string.
@@ -563,7 +573,7 @@ is why the =# %%= line stays visible."
   "Render every markdown cell in the buffer.
 A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
   (interactive)
-  (let ((usable (executable-find (car (pycell--md-program))))
+  (let ((program (pycell--md-program))
         missed)
     (save-excursion
       (goto-char (point-min))
@@ -574,11 +584,11 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
                        (pos-bol)
                      (point-max))))
           (when (< beg end)
-            (if usable (pycell--md-show beg end) (setq missed t)))
+            (if program (pycell--md-show beg end) (setq missed t)))
           (goto-char end))))
     (when missed
-      (message "pycell: %s not found, markdown cells stay plain"
-               (car (pycell--md-program))))))
+      (message "pycell: no markdown converter found (%s), cells stay plain"
+               (string-join (ensure-list pycell-markdown-command) ", ")))))
 
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
