@@ -97,8 +97,14 @@ simple formulas into text on its own and passes the rest through, and
 
 (defcustom pycell-max-lines 12
   "Number of result lines that show inline.
-Large display blocks make redisplay and scrolling slow.  Use
-`pycell-pop-output' to see the full result."
+A result block is one buffer line however tall it is, so a long
+result makes one long step for `next-line' and for the wheel.  Use
+`pycell-pop-output' to see the whole of it.
+
+Length is not what costs redisplay its time.  Measured in a 1000x700
+window, forty lines of plain output scroll as cheaply as none, while
+twelve lines full of face changes cost three times as much: the work
+follows the number of face runs the text carries, not its size."
   :type 'natnum)
 
 ;;;; Block display, shared by results and markdown cells

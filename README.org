@@ -234,14 +234,19 @@ the blocks themselves.  Bind what you use, for example in
   rest waits in the popup buffer.
 - One cell runs at a time per inferior process.  Sending a cell while
   another is still running is refused.
-- A rendered block makes every scroll event more expensive.  Measured
+- A rendered markdown cell makes every scroll event more expensive.
+  Measured
   on demo/scrolling.py in a 1000x700 window: 2.0 ms per event
   downwards and 4.9 ms upwards, against 0.6 and 1.0 ms in the same
   file with the blocks off.  A trackpad sends 60 to 120 events per
   second, so the motion can still stutter on a slow machine, while
   the positions themselves stay correct.  What is left is the layout
   of the lines actually on screen: rendered Markdown carries several
-  hundred face runs where source code carries a handful.  =M-x
+  hundred face runs where source code carries a handful.  Result
+  blocks stay cheap whatever their height, because plain output
+  carries almost no face runs: forty lines of it scroll as fast as
+  none, while twelve lines full of face changes cost three times as
+  much.  =M-x
   pycell-md-unrender= gives the plain source and the speed back for a
   buffer, and =pycell-md-render-all= brings the blocks back.
 - Scrolling up across a markdown cell used to land the view a block
