@@ -383,5 +383,44 @@ cell."
       (delete-process proc)
       (kill-buffer shell))))
 
+(ert-deftest pycell-test-clean-strips-a-prompt-on-the-same-line ()
+  "A prompt that follows output on one line goes too.
+Output that ends without a newline leaves the shell's prompt on the
+same line, and `comint-prompt-regexp' anchors to the start of one."
+  (with-temp-buffer
+    (setq-local comint-prompt-regexp "^\\(>>> \\|In \\[[0-9]+\\]: \\)")
+    (should (equal (pycell--clean "abc>>> ") "abc"))
+    (should (equal (pycell--clean "a\nb\n\nIn [9]: ") "a\nb"))
+    (should (equal (pycell--clean ">>> ") ""))
+    ;; nothing to take off
+    (should (equal (pycell--clean "a\nb") "a\nb"))))
+
+(ert-deftest pycell-test-filter-copies-all-the-output ()
+  "The finished cell gets everything the shell printed.
+`comint-last-prompt' is no use as the end of the region: comint calls
+the last line without a newline a prompt, so a chunk that arrives
+split leaves it inside the output, and the rest would be dropped
+without a word."
+  (let ((shell (generate-new-buffer "*pycell test shell*"))
+        ended)
+    (unwind-protect
+        (with-current-buffer shell
+          (setq-local comint-prompt-regexp "^\\(>>> \\|In \\[[0-9]+\\]: \\)")
+          (insert "In [1]: ")
+          (let ((start (point-max-marker)))
+            (insert "line 0\nline 1\nline 2\n\nIn [2]: ")
+            ;; as comint leaves it after a split chunk: inside the output
+            (setq-local comint-last-prompt
+                        (cons (copy-marker (+ start 7)) (copy-marker (+ start 13))))
+            (setq pycell--run (list start nil nil "" (float-time) nil))
+            (cl-letf (((symbol-function 'python-shell-comint-end-of-output-p)
+                       (lambda (&rest _) t))
+                      ((symbol-function 'pycell--end)
+                       (lambda (text &rest _) (setq ended text))))
+              (pycell--filter "\nIn [2]: "))))
+      (kill-buffer shell))
+    (should (equal (substring-no-properties (or ended ""))
+                   "line 0\nline 1\nline 2"))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

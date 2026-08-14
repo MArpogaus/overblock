@@ -243,6 +243,16 @@ would delete it.  Call this in the shell buffer, where
                 (> (match-end 0) 0))
       (setq text (substring text (match-end 0))))
     (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
+      (setq text (substring text 0 (match-beginning 0))))
+    ;; Output that ends without a newline leaves the prompt on the
+    ;; same line, where the rule above cannot see it: it looks for a
+    ;; newline in front, and `comint-prompt-regexp' anchors to the
+    ;; start of a line.  A plain python3 shell does that after a
+    ;; `sys.stdout.write' without a newline.  Take that one off.
+    (when (string-match (concat "\\(?:" (string-remove-prefix
+                                         "^" comint-prompt-regexp)
+                                "\\)[ \t]*\\'")
+                        text)
       (setq text (substring text 0 (match-beginning 0)))))
   (setq text (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text))
   (let* ((beg 0)
@@ -955,12 +965,15 @@ no cell runs; the live mirroring is the ticker's job."
       (setf (nth 3 pycell--run)
             (substring tail (max 0 (- (length tail) 256))))
       (when (python-shell-comint-end-of-output-p tail)
+        ;; Copy to the end of the buffer and let `pycell--clean' take
+        ;; the prompt off.  `comint-last-prompt' cannot serve as the
+        ;; end: comint calls the last line without a newline a prompt,
+        ;; so a chunk that arrives split leaves the marker inside the
+        ;; output, and everything after it would be dropped without a
+        ;; word.
         (pycell--end
          (pycell--clean
-          (buffer-substring (car pycell--run)
-                            (if comint-last-prompt
-                                (car comint-last-prompt)
-                              (point-max)))))))))
+          (buffer-substring (car pycell--run) (point-max))))))))
 
 (defun pycell--send (proc start end)
   "Send START..END to PROC as the running cell and track it.
