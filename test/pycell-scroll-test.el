@@ -59,9 +59,12 @@ Enough prose that each rendered block is taller than the window."
 
 (defun pycell-scroll-test--reversals ()
   "Scroll the window up to the top, 40 pixels at a time.
-Return the steps where the window moved down instead, as a list of
-strings.  Scrolling up may only lower the window start, or keep it
-and lower the vscroll."
+Return the steps that went wrong, as a list of strings.  Scrolling up
+may only lower the window start, or keep it and lower the vscroll,
+and it may not signal on the way: a line of no height, or a hidden
+run that begins a line, stops `pixel-scroll-precision-scroll-up' with
+a beginning-of-buffer error in the middle of a cell, which is a
+refusal to scroll and not the end of the buffer."
   (goto-char (point-max))
   (set-window-start nil (point))
   (set-window-vscroll nil 0 t)
@@ -70,7 +73,14 @@ and lower the vscroll."
         (steps 0)
         reversals)
     (while (< (cl-incf steps) 250)
-      (ignore-errors (pixel-scroll-precision-scroll-up 40))
+      (condition-case err
+          (pixel-scroll-precision-scroll-up 40)
+        ;; At the top of the buffer the refusal is the right answer.
+        (beginning-of-buffer
+         (unless (= (window-start) (point-min))
+           (push (format "step %d: %S at line %d" steps (car err)
+                         (line-number-at-pos (window-start)))
+                 reversals))))
       (redisplay t)
       (let ((now (cons (window-start) (window-vscroll nil t))))
         (when (or (> (car now) (car previous))
