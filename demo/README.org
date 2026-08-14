@@ -22,7 +22,10 @@ picture.
 
 The script drives the whole session and captures deterministically:
 one frame per scroll step, and ten frames per second while a state is
-held.  Nothing samples on a timer, so the motion in the frames is as
+held.  The final pan is recorded downwards into =frames-pan/= and the
+animation plays it in reverse: scrolling up across the first markdown
+block trips an Emacs measurement bug (see Known Limits in the main
+README), scrolling down does not.  Nothing samples on a timer, so the motion in the frames is as
 even as the steps that produced it.  A trace of the stages lands in
 =/tmp/demo/trace=.
 

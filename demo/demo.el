@@ -32,21 +32,44 @@
     (redisplay t)
     (demo--snap)
     (sit-for 0.02)))
-(defun demo--pan (direction &optional pixels)
-  "Scroll one even step per frame in DIRECTION, over PIXELS in total.
-With PIXELS nil, scroll up until the window is at the very top."
-  (let ((step 26) (moved 0) (guard 0))
-    (while (and (< (cl-incf guard) 400)
-                (if pixels (< moved pixels)
-                  (not (and (= (window-start) (point-min))
-                            (zerop (window-vscroll nil t))))))
-      (ignore-errors
-        (if (eq direction 'down)
-            (pixel-scroll-precision-scroll-down step)
-          (pixel-scroll-precision-scroll-up step)))
-      (cl-incf moved step)
+(defvar demo--pan-frame 0)
+(defun demo--pan-snap ()
+  (cl-incf demo--pan-frame)
+  (let ((coding-system-for-write 'binary))
+    (write-region (x-export-frames nil 'png) nil
+                  (format "/tmp/demo/frames-pan/p%04d.png" demo--pan-frame)
+                  nil 'quiet)))
+
+(defun demo--pan ()
+  "Record the way from the current view to the top — backwards.
+Scrolling up across the first markdown block lands the view a block
+too low: `pixel-scroll-precision-scroll-up' measures the room above
+with `window-text-pixel-size', which counts invisible text as if it
+were shown.  Scrolling down has no such measurement, so the pan is
+recorded downwards, from the top to the current view, into its own
+directory; the animation plays those frames in reverse."
+  (let ((target (window-start))
+        (make-cursor-line-fully-visible nil)
+        (guard 0))
+    (make-directory "/tmp/demo/frames-pan" t)
+    (goto-char (point-min))
+    (set-window-start nil (point-min))
+    (set-window-vscroll nil 0 t t)
+    (redisplay t)
+    (demo--pan-snap)
+    (while (and (< (cl-incf guard) 300)
+                (< (window-start) target))
+      (goto-char (window-start))
+      (ignore-errors (pixel-scroll-precision-scroll-down 26))
       (redisplay t)
-      (demo--snap))))
+      (when (< (window-start) target)
+        (demo--pan-snap)))
+    ;; land exactly on the view the hold before the pan showed
+    (set-window-start nil target)
+    (set-window-vscroll nil 0 t t)
+    (goto-char target)
+    (redisplay t)
+    (demo--log "pan frames=%d" demo--pan-frame)))
 
 (defun demo--frame-cell ()
   "Pan until the boundary line of the cell at point is at the top."
@@ -133,12 +156,25 @@ With PIXELS nil, scroll up until the window is at the very top."
   (demo--hold 2.0)
   (call-interactively #'code-cells-eval)
   (demo--hold 8.0)
+  ;; comint-mime renders the figure most of the time; when the image
+  ;; is not there, one more evaluation settles it.
+  (unless (seq-some (lambda (o) (and (overlay-get o 'after-string)
+                                     (pycell--image
+                                      (overlay-get o 'after-string))))
+                    (overlays-in (point-min) (point-max)))
+    (demo--log "no image, evaluating the figure cell again")
+    (call-interactively #'code-cells-eval)
+    (demo--hold 6.0))
   ;; keep the figure cell at the top, so cell and figure show together
   (demo--log "f%04d figure result" demo--frame)
+  (demo--log "python tail: %S"
+             (with-current-buffer (process-buffer (python-shell-get-process))
+               (buffer-substring-no-properties
+                (max (point-min) (- (point-max) 400)) (point-max))))
   (demo--hold 5.0)
   ;; 5. scroll back up through the blocks, one even step per frame
   (demo--log "f%04d scroll up" demo--frame)
-  (demo--pan 'up)
+  (demo--pan)
   (demo--log "f%04d at top" demo--frame)
   (demo--hold 3.0)
   (demo--log "frames=%d" demo--frame)
