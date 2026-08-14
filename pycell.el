@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "29.1") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
 ;; URL: https://github.com/MArpogaus/pycell
@@ -38,8 +38,9 @@
 ;;
 ;; Markdown cells, the `# %% [markdown]' ones that jupytext writes, are
 ;; rendered in place.  Their source turns invisible, an external
-;; markdown command and shr produce the block, and LaTeX fragments
-;; become preview images through the formula machinery of Org mode.
+;; markdown command and shr produce the block, and the formulas that
+;; the converter passed through become preview images through the
+;; formula machinery of Org mode.
 ;;
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
@@ -84,7 +85,11 @@ which the first one found in the variable `exec-path' is used.  The
 program reads Markdown on standard input and writes HTML on standard
 output, so arguments are allowed: \"pandoc -f gfm -t html\".
 
-Markdown cells stay plain text while no candidate is installed."
+Markdown cells stay plain text while no candidate is installed.
+
+Leave the math alone when choosing arguments.  Pandoc, for one, turns
+simple formulas into text on its own and passes the rest through, and
+`pycell--md-mathify' then makes preview images of what is left."
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command"))))
 
@@ -429,6 +434,9 @@ this block's commands instead of following the URL."
   (mapconcat (lambda (l) (if (string-empty-p l) "#" (concat "# " l)))
              (split-string text "\n") "\n"))
 
+(defvar pycell--md-latex-warned nil
+  "Non-nil once a failed LaTeX preview was reported in this session.")
+
 (defun pycell--md-latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
 Org's formula machinery renders it.  The cache lives under ~/.cache,
@@ -458,15 +466,30 @@ the host's /tmp."
                   (list :foreground fg :background "Transparent"))
                  (current-buffer))))
             (create-image file nil nil :ascent 'center))
-        (error (message "pycell: LaTeX preview failed: %s"
-                        (error-message-string err))
+        ;; Report once: without a LaTeX installation, every fragment of
+        ;; every cell would report the same thing.
+        (error (unless pycell--md-latex-warned
+                 (setq pycell--md-latex-warned t)
+                 (message "pycell: no LaTeX preview (%s), formulas stay as text"
+                          (error-message-string err)))
                nil)))))
 
+(defconst pycell--md-math-regexp
+  (rx (or (seq "$$" (+? anychar) "$$")
+          (seq "$" (not (any "$" space)) (*? (not (any "$" "\n"))) "$")
+          (seq "\\(" (+? anychar) "\\)")
+          (seq "\\[" (+? anychar) "\\]")))
+  "What a LaTeX fragment looks like in rendered markdown.
+Most converters leave the dollar delimiters alone.  Pandoc renders
+simple formulas as text and passes the rest through, either in dollars
+or, when told to use MathJax, in parentheses and brackets.")
+
 (defun pycell--md-mathify (text)
-  "Replace $…$ and $$…$$ fragments in TEXT with preview images.
-A fragment that fails to render stays plain."
+  "Replace the LaTeX fragments in TEXT with preview images.
+Only fragments the converter left behind reach this function; a
+fragment that fails to render here stays plain."
   (replace-regexp-in-string
-   "\\$\\$[^$]+\\$\\$\\|\\$[^$[:space:]][^$\n]*\\$"
+   pycell--md-math-regexp
    (lambda (frag)
      ;; `replace-regexp-in-string' uses the match data after the
      ;; replacement function returns; rendering must not touch it.
@@ -493,9 +516,11 @@ fragments become preview images."
   (let* ((program (pycell--md-program))
          (dom (with-temp-buffer
                 (insert md)
+                ;; Send standard error nowhere: pandoc warns about math
+                ;; it cannot convert, and the text would land in the HTML.
                 (let ((status (apply #'call-process-region
                                      (point-min) (point-max) (car program)
-                                     t t nil (cdr program))))
+                                     t '(t nil) nil (cdr program))))
                   (unless (eq status 0)
                     (error "%s exited with status %s" (car program) status)))
                 (libxml-parse-html-region (point-min) (point-max)))))
