@@ -229,12 +229,13 @@ the blocks themselves.  Bind what you use, for example in
   rest waits in the popup buffer.
 - One cell runs at a time per inferior process.  Sending a cell while
   another is still running is refused.
-- Wheel-scrolling up across the first markdown cell of the buffer can
-  land the view one block too low, once.  That is an Emacs
-  measurement: =pixel-scroll-precision-scroll-up= sizes the room above
-  through =window-text-pixel-size=, which counts invisible text as if
-  it were shown.  =demo/demo.el= carries a reproducer in
-  =demo--pan='s commentary.
+- Wheel-scrolling up across the first markdown cell of the buffer has
+  been seen to land the view one block too low, once, in the recorded
+  demo.  The cause is not established: =window-text-pixel-size=, the
+  measurement =pixel-scroll-precision-scroll-up= relies on, was
+  suspected but measured innocent — it does not count invisible text.
+  Scrolling down over the same stretch is unaffected, which is why the
+  demo records that pan downwards and plays it in reverse.
 
 ** Comparison with Other Packages
 
