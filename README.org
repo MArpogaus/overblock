@@ -169,6 +169,14 @@ With =outline-minor-mode=, folding a cell hides the code and leaves
 the result below the heading, where its own fold button still works.
 Code and output fold separately.
 
+A cell may hold IPython syntax — =%matplotlib inline= and other
+magics, =!ls= and =print?= — which jupytext files carry as a matter of
+course.  Such a cell goes to IPython's own reader instead of through
+the compile wrapper Emacs normally uses, so it runs as if typed.  Two
+things follow: its tracebacks count lines from the top of the cell
+rather than the top of the file, and a shell that is not IPython
+answers that it does not know =get_ipython=.
+
 *** Markdown Cells
 
 A cell whose boundary line reads =# %% [markdown]= renders in place: the
