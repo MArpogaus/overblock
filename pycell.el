@@ -141,12 +141,17 @@ next to it, so every block needs at least a base face."
   string)
 
 (defun pycell--glyph (&rest candidates)
-  "Return the first of CANDIDATES that this frame has a glyph for.
+  "Return the first of CANDIDATES this frame has a glyph for.
 The last candidate is the answer when none of them has one.
 `char-displayable-p' answers for the character set and not for the
-font, so it says yes to characters that then draw as a hex box."
+font, so it says yes to characters that then draw as a hex box.
+
+Every character of a candidate has to be there, not just the first:
+several of them lead with a space, and a space is always available."
   (or (and (display-graphic-p)
-           (seq-find (lambda (c) (internal-char-font nil (aref c 0)))
+           (seq-find (lambda (c)
+                       (seq-every-p (lambda (ch) (internal-char-font nil ch))
+                                    c))
                      candidates))
       (car (last candidates))))
 
@@ -296,15 +301,18 @@ while the cell runs.  IMAGEP marks a result with an image."
                                       "Copy this result"
                                       #'pycell-copy-output))
                  (when (> total 0)
-                   (pycell--button "↗" "Show this result in its own buffer"
+                   (pycell--button (pycell--glyph "↗" "⇗" "^")
+                                      "Show this result in its own buffer"
                                       #'pycell-pop-output))
-                 (pycell--button "✕" "Discard this result"
+                 (pycell--button (pycell--glyph "✕" "×" "x")
+                                    "Discard this result"
                                     #'pycell-discard-output)))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (state (cond ((eq running t)
-                       (string ?\s (aref "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-                                         (mod (truncate runtime 0.2) 10))))
-                      ((eq running 'died) " ⚠")
+                       (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
+                         (string ?\s (aref frames (mod (truncate runtime 0.2)
+                                                       (length frames))))))
+                      ((eq running 'died) (pycell--glyph " ⚠" " !"))
                       ;; A single line can still be tall: one image is
                       ;; one line, and that is the block worth folding.
                       ((> total 0)
@@ -313,7 +321,7 @@ while the cell runs.  IMAGEP marks a result with an image."
                                          (pycell--glyph " ▾" " ▼" " v"))
                                           "Fold or unfold this result"
                                           #'pycell-toggle-output))
-                      ((zerop total) " ✓")
+                      ((zerop total) (pycell--glyph " ✓" " √" " ."))
                       (t " ")))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
@@ -728,9 +736,11 @@ Only the word =markdown= of the boundary line carries the header, so
                 "markdown"
                 (pycell--icons
                  (pycell--button
-                  "↗" "Edit this markdown cell in its own buffer"
+                  (pycell--glyph "↗" "⇗" "^")
+                  "Edit this markdown cell in its own buffer"
                   #'pycell-md-edit)
-                 (pycell--button "✕" "Show the plain source"
+                 (pycell--button (pycell--glyph "✕" "×" "x")
+                                    "Show the plain source"
                                     #'pycell-md-raw))))
          (ov (pycell--make-overlay start end))
          (bov (overlay-get ov 'pycell-body))
