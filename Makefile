@@ -4,6 +4,7 @@
 #   make checkdoc  documentation style
 #   make lint      package-lint, the MELPA rules
 #   make test      ERT test suite
+#   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
 #
 # The checks install their tools and this package's dependencies into
@@ -32,7 +33,7 @@ checkdoc = (progn (require (quote checkdoc)) \
 
 BATCH = $(EMACS) -Q --batch -L . -L test --eval '$(init)'
 
-.PHONY: all compile checkdoc lint test clean
+.PHONY: all compile checkdoc lint test scroll clean
 
 all: compile checkdoc lint test
 
@@ -56,5 +57,16 @@ lint: $(SANDBOX)
 test: $(SANDBOX)
 	@$(BATCH) $(addprefix -l ,$(TEST)) -f ert-run-tests-batch-and-exit
 
+# A block is one buffer line and can be taller than the window, and only
+# a graphical frame gives a line a pixel height.  These tests therefore
+# run in a real frame, under `xvfb-run' where there is no display.
+XVFB := $(shell command -v xvfb-run 2>/dev/null)
+
+scroll: $(SANDBOX)
+	@rm -f scroll-report.txt
+	@$(XVFB) $(EMACS) -Q -L . -L test --eval '$(init)' \
+	  -l test/run-scroll.el; status=$$?; \
+	  cat scroll-report.txt 2>/dev/null; exit $$status
+
 clean:
-	@rm -rf $(SANDBOX) ./*.elc test/*.elc
+	@rm -rf $(SANDBOX) ./*.elc test/*.elc scroll-report.txt

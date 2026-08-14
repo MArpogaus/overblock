@@ -154,17 +154,6 @@
       (should-not (pycell--overlays (point-min) (point-max)))
       (should-not (overlay-buffer bov)))))
 
-(ert-deftest pycell-test-cursor-line-visibility ()
-  "The mode lets the cursor line stay partly visible, and gives that back.
-A block taller than the window cannot be scrolled into full view, and
-the attempt throws the window start back below the block."
-  (pycell-test--with-cells
-    (pycell-mode 1)
-    (should-not make-cursor-line-fully-visible)
-    (should (local-variable-p 'make-cursor-line-fully-visible))
-    (pycell-mode -1)
-    (should-not (local-variable-p 'make-cursor-line-fully-visible))))
-
 ;;;; Markdown cells
 
 (ert-deftest pycell-test-md-comment-round-trip ()

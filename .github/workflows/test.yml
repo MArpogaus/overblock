@@ -23,3 +23,8 @@ jobs:
         run: emacs --version
       - name: Byte-compile, checkdoc, package-lint and test
         run: make
+      - name: Scrolling tests, in a virtual display
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq xvfb
+          make scroll
