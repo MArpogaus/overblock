@@ -1019,13 +1019,17 @@ first prompt."
         (when pycell--queue (pycell--run-next)))
     (if-let* ((proc (python-shell-get-process)))
         (pycell--send proc start end)
-      (run-python)
-      (with-current-buffer
-          (process-buffer (python-shell-get-process-or-error))
-        (setq pycell--cold-cell (cons (copy-marker start)
-                                         (copy-marker end t)))
-        (add-hook 'python-shell-first-prompt-hook
-                  #'pycell--run-cold 90 t))
+      ;; Mark the cell here, while its buffer is still current:
+      ;; `copy-marker' on a number answers for whatever buffer that
+      ;; is, and below it is the shell's.  Markers into the shell
+      ;; would send its start-up banner as the cell.
+      (let ((cell (cons (copy-marker start) (copy-marker end t))))
+        (run-python)
+        (with-current-buffer
+            (process-buffer (python-shell-get-process-or-error))
+          (setq pycell--cold-cell cell)
+          (add-hook 'python-shell-first-prompt-hook
+                    #'pycell--run-cold 90 t)))
       (message "pycell: starting the interpreter…"))))
 
 (defun pycell-interrupt ()
