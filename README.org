@@ -87,10 +87,7 @@ Install from MELPA with the built in package manager:
     ;; A block is one buffer line, so a long result makes a long jump
     ;; when scrolled past.  Keep the inline part short.
     (pycell-max-lines 12)
-    (pycell-markdown-command "pandoc -f gfm -t html")
-    ;; Recommended: keeps `line-move' from vscrolling part way into a
-    ;; tall block, which reads as erratic jumping.
-    (auto-window-vscroll nil))
+    (pycell-markdown-command "pandoc -f gfm -t html"))
 
   ;; IPython, when the project provides one, gives rich output.
   (use-package python
@@ -174,10 +171,15 @@ the blocks themselves.  Bind what you use, for example in
 
 ** Known Limits
 
-- A result block belongs to a single buffer line, because it is a
-  display string.  Emacs cannot place point or the window start inside
-  one, so scrolling past a large result jumps by its height.
-  =pycell-max-lines= bounds that.
+- A block belongs to a single buffer line, because it is a display
+  string.  The mouse wheel still moves through it a pixel at a time,
+  but =next-line= and =previous-line= cross it in one step, because a
+  window can only start at a buffer position.  =pycell-max-lines=
+  bounds how far a result reaches.
+- The mode sets =make-cursor-line-fully-visible= to nil in its buffers.
+  A block can be taller than the window, and while redisplay tries to
+  bring the whole cursor line into view it puts the window start back
+  below the block, which reads as a jump while you scroll up.
 - Display properties do not nest.  A result that contains an image
   therefore rides the overlay's after-string, which scrolls less
   smoothly than the text path.  At most one figure is drawn inline; the
