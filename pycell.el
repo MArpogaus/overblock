@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; Version: 0.1.2
+;; Version: 0.1.3
 ;; Package-Requires: ((emacs "29.1") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
 ;; URL: https://github.com/MArpogaus/pycell
@@ -45,9 +45,10 @@
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
 ;;
-;; Blocks are display strings, and Emacs cannot place point inside one.
-;; Setting `auto-window-vscroll' to nil keeps `line-move' from vscrolling
-;; part way into a tall block, which reads as erratic jumping.
+;; Blocks are display strings on a single buffer line, and Emacs cannot
+;; place point inside one.  The mouse wheel scrolls through a block a
+;; pixel at a time, but `next-line' and `previous-line' cross it in one
+;; step, because a window can only start at a buffer position.
 
 ;;; Code:
 
@@ -936,7 +937,14 @@ the code-cells maps."
   ;; positional INIT-VALUE argument.
   :lighter " pycell"
   (if pycell-mode
-      (pycell-md-render-all)
+      (progn
+        ;; A block can be taller than the window, so no scroll can get
+        ;; the whole cursor line into view.  While it tries, redisplay
+        ;; puts the window start back below the block, which reads as a
+        ;; jump while you scroll up through it.
+        (setq-local make-cursor-line-fully-visible nil)
+        (pycell-md-render-all))
+    (kill-local-variable 'make-cursor-line-fully-visible)
     (pycell-remove-overlays)
     (pycell-md-unrender)))
 
