@@ -491,7 +491,9 @@ guess at the range that any one fold command uses, follow the call."
           (when bov
             (overlay-put bov 'display (nth 1 saved))
             (overlay-put bov 'after-string (nth 2 saved)))
-          (dolist (part parts) (overlay-put part 'invisible nil))
+          ;; The cloak over the spare lines stays what it was.
+          (dolist (part parts)
+            (overlay-put part 'invisible (overlay-get part 'pycell-cloak)))
           (overlay-put ov 'pycell-folded nil))))))
 
 ;; At load, not at activation: by the time this file loads, the user
@@ -608,6 +610,15 @@ fragments become preview images."
   "<mouse-2>" #'pycell-md-edit
   "<mouse-1>" #'pycell-md-raw)
 
+(defun pycell--md-cloak (beg end)
+  "Return an overlay that hides BEG..END and stays hidden.
+It carries `pycell-cloak' so that unfolding leaves it alone."
+  (let ((ov (make-overlay beg end nil t)))
+    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'invisible t)
+    (overlay-put ov 'pycell-cloak t)
+    ov))
+
 (defun pycell--md-parts (beg end text)
   "Show TEXT over the source lines BEG..END, a piece to a line.
 Return the overlays that carry the pieces.
@@ -616,38 +627,53 @@ Emacs lays a display string out whole on every redisplay, however
 little of it the window shows.  One string for a whole cell therefore
 costs as much per scroll event as the cell is tall, and a tall cell
 is what makes a trackpad stutter.  A piece to a line costs only what
-is on screen: the fixture in demo/ goes from 5.1 to 2.0 milliseconds
-an event that way.  Hanging the text on the source lines also makes
+is on screen.  Hanging the text on the source lines also makes
 folding work by itself, since a fold covers those very lines.
 
-A cell rarely renders to exactly as many lines as it has, so the
-pieces divide the rendering evenly over the lines there are."
+A piece covers the text of its line and leaves the newline alone, so
+the buffer keeps its line structure and every line keeps its height.
+A line without text cannot carry a piece — there is nothing to put
+the display property on — and a cell rarely renders to as many lines
+as it has anyway.  Those lines go under a cloak: an invisible run
+from the newline of the line above to the end of the last line it
+hides, which leaves that line's newline to end the line.  A cloak has
+to start at the end of a visible line like that: `scroll-down'
+answers a run that begins a line with a beginning-of-buffer error, in
+the middle of the cell."
   (let* ((lines (split-string (string-trim text "\n" "\n") "\n"))
-         (slots (max 1 (count-lines beg end)))
          (count (length lines))
-         parts)
-    (save-excursion
-      (goto-char beg)
-      (dotimes (k slots)
-        (let* ((from (point))
-               (to (min end (progn (forward-line 1) (point))))
-               (chunk (seq-subseq lines
-                                  (/ (* k count) slots)
-                                  (/ (* (1+ k) count) slots)))
-               (ov (make-overlay from to nil t)))
-          (overlay-put ov 'evaporate t)
-          (overlay-put ov 'keymap pycell-md-map)
-          (overlay-put ov 'help-echo (get-text-property 0 'help-echo text))
-          ;; The piece replaces the line's own newline, so it brings
-          ;; one of its own.  An empty piece drops the line entirely,
-          ;; which is what should happen when the rendering is shorter
-          ;; than the source.
-          (overlay-put ov 'display
-                       (if chunk
-                           (concat (string-join chunk "\n")
-                                   (and (eq (char-before to) ?\n) "\n"))
-                         ""))
-          (push ov parts))))
+         (rows (save-excursion
+                 (goto-char beg)
+                 (let (rows)
+                   (while (< (point) end)
+                     (push (cons (point) (min end (pos-eol))) rows)
+                     (forward-line 1))
+                   (nreverse rows))))
+         (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
+         (taken 0)
+         parts spare)
+    (dolist (row rows)
+      (pcase-let* ((`(,from . ,to) row)
+                   (chunk (when (> to from)
+                            (prog1 (seq-subseq lines
+                                               (/ (* taken count) slots)
+                                               (/ (* (1+ taken) count) slots))
+                              (setq taken (1+ taken))))))
+        (if (null chunk)
+            ;; Nothing to show on this line.  Open a cloak at the
+            ;; newline above, or leave the open one to grow.
+            (unless spare (setq spare (max (point-min) (1- from))))
+          (when spare
+            (push (pycell--md-cloak spare (1- from)) parts)
+            (setq spare nil))
+          (let ((ov (make-overlay from to nil t)))
+            (overlay-put ov 'evaporate t)
+            (overlay-put ov 'keymap pycell-md-map)
+            (overlay-put ov 'help-echo (get-text-property 0 'help-echo text))
+            (overlay-put ov 'display (string-join chunk "\n"))
+            (push ov parts)))))
+    (when spare
+      (push (pycell--md-cloak spare (max spare (1- end))) parts))
     (nreverse parts)))
 
 (defun pycell--md-show (beg end)
@@ -718,13 +744,15 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string head)
-    (if (pycell--image text)
-        ;; Display properties do not nest, so an image has to ride the
-        ;; after-string, and that one string needs the source hidden
-        ;; as a single run.
-        (progn (overlay-put ov 'invisible t)
-               (pycell--attach ov "" text))
-      (overlay-put ov 'pycell-parts (pycell--md-parts beg end text)))))
+    (if-let* ((parts (unless (pycell--image text)
+                       (pycell--md-parts beg end text))))
+        (overlay-put ov 'pycell-parts parts)
+      ;; Display properties do not nest, so an image has to ride the
+      ;; after-string, and that one string needs the source hidden as
+      ;; a single run.  A cell that renders to nothing takes the same
+      ;; path: there are no pieces to hang anywhere.
+      (overlay-put ov 'invisible t)
+      (pycell--attach ov "" text))))
 
 ;;;###autoload
 (defun pycell-md-render-all ()

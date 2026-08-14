@@ -235,8 +235,8 @@ the blocks themselves.  Bind what you use, for example in
 - One cell runs at a time per inferior process.  Sending a cell while
   another is still running is refused.
 - A rendered block makes every scroll event more expensive.  Measured
-  on demo/scrolling.py in a 1000x700 window: 2.2 ms per event
-  downwards and 5.1 ms upwards, against 0.6 and 2.0 ms in the same
+  on demo/scrolling.py in a 1000x700 window: 2.0 ms per event
+  downwards and 4.9 ms upwards, against 0.6 and 1.0 ms in the same
   file with the blocks off.  A trackpad sends 60 to 120 events per
   second, so the motion can still stutter on a slow machine, while
   the positions themselves stay correct.  What is left is the layout
