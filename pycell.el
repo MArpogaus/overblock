@@ -30,8 +30,8 @@
 ;; Notebook style results for Python code cells, built from python.el
 ;; and comint-mime alone -- no Jupyter kernel and no zmq module.
 ;;
-;; `pycell-mode' turns on with `code-cells-mode' in Python buffers.
-;; Evaluating a cell sends it to the inferior Python process as usual,
+;; Add `pycell-mode-maybe' to `code-cells-mode-hook' and the mode is on
+;; in every Python buffer with cells.  Evaluating a cell sends it to the inferior Python process as usual,
 ;; so the REPL keeps the full log.  While the cell runs, the result
 ;; grows below it: a header bar with a spinner, a stopwatch and buttons,
 ;; and the output as comint-mime rendered it, images included.
@@ -1009,7 +1009,13 @@ the code-cells maps."
 
 ;;;###autoload
 (defun pycell-mode-maybe ()
-  "Enable `pycell-mode' in Python cell buffers."
+  "Enable `pycell-mode' in Python cell buffers.
+Made for `code-cells-mode-hook', where your configuration adds it:
+
+  (add-hook \='code-cells-mode-hook #\='pycell-mode-maybe)
+
+The package installs no hook itself: installing it must not change
+how Emacs behaves."
   (when (derived-mode-p 'python-base-mode)
     (pycell-mode)))
 
@@ -1017,9 +1023,6 @@ the code-cells maps."
 ;; stock python entry, `python-shell-send-region'.
 (setf (alist-get 'pycell-mode code-cells-eval-region-commands)
       #'pycell-eval-region)
-
-;;;###autoload
-(add-hook 'code-cells-mode-hook #'pycell-mode-maybe)
 
 (provide 'pycell)
 ;;; pycell.el ends here
