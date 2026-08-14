@@ -170,6 +170,26 @@
     (forward-line 1)
     (should-not (pycell--md-head (point)))))
 
+(ert-deftest pycell-test-md-program ()
+  "A string and a list of candidates both resolve to a program."
+  (let ((pycell-markdown-command "definitely-not-installed-xyz"))
+    (should-not (pycell--md-program)))
+  (let ((pycell-markdown-command (list "definitely-not-installed-xyz"
+                                       (concat (car (split-string-shell-command
+                                                     "emacs"))
+                                               " --version"))))
+    (should (equal (car (pycell--md-program)) "emacs"))))
+
+(ert-deftest pycell-test-md-rendered ()
+  "Markdown becomes text, when a converter is installed.
+Pixel filling needs font metrics, which a batch session has none of."
+  (skip-unless (pycell--md-program))
+  (let* ((shr-use-fonts nil)
+         (shr-width 60)
+         (out (pycell--md-rendered "# Title\n\nSome *text* here.\n")))
+    (should (string-match-p "Title" out))
+    (should (string-match-p "Some text here" out))))
+
 (ert-deftest pycell-test-md-fill-prop ()
   "Properties are filled in only where the string carries none.
 The rendered markdown keeps the keymap that shr gave its links."

@@ -61,8 +61,9 @@ buffer, so files, LSP and undo are unaffected.
 - [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]], both installed as dependencies.
 - IPython for rich output.  A plain =python3= shell yields text only,
   because comint-mime installs its renderers through IPython.
-- A markdown to HTML converter for markdown cells, for example
-  =markdown=, =cmark-gfm= or =pandoc=.  See =pycell-markdown-command=.
+- A markdown to HTML converter for markdown cells: pycell looks for
+  =markdown=, =pandoc=, =markdown_py=, =cmark= and =cmark-gfm=, in that
+  order.  See =pycell-markdown-command=.
 - =latex= and =dvipng= or =dvisvgm= for LaTeX previews in markdown cells.
 
 *** Installation
