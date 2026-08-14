@@ -523,5 +523,25 @@ writes between cells belongs to it and has to be written back."
       (when (buffer-live-p edit) (kill-buffer edit))
       (kill-buffer notebook))))
 
+(ert-deftest pycell-test-body-lines-cut-a-long-line ()
+  "A line longer than the cap is cut and the cut is marked.
+One long line is one line, so the line cap does not bound it, and the
+block costs what it holds: a hundred thousand characters on one line
+were a fifth of a second a wheel event."
+  (let ((pycell-max-lines 12)
+        (pycell-max-line-length 10))
+    (should (equal (pycell--body-lines (list "short" (make-string 30 ?x)))
+                   (list "short" (concat (make-string 10 ?x)
+                                         (pycell--glyph "…" "...")))))
+    ;; a line with an image on it keeps every character: the image may
+    ;; sit past the cut
+    (let ((line (concat (make-string 30 ?x) pycell-test--image)))
+      (should (equal (pycell--body-lines (list line)) (list line)))))
+  ;; zero cuts nothing
+  (let ((pycell-max-lines 12)
+        (pycell-max-line-length 0))
+    (should (equal (pycell--body-lines (list (make-string 30 ?x)))
+                   (list (make-string 30 ?x))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
