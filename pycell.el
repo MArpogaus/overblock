@@ -442,6 +442,28 @@ this block's commands instead of following the URL."
         (setq pos next))))
   string)
 
+(defun pycell--md-fold (from to flag)
+  "Hide the markdown blocks between FROM and TO when FLAG says so.
+A block hangs on the newline that ends its cell, and
+`outline-flag-region' stops one character short of that, so the fold
+never covers it.  Rather than guess at the range that any one fold
+command uses, follow the call and take the block along."
+  (dolist (ov (pycell--overlays from to 'pycell-md))
+    (when-let* ((bov (overlay-get ov 'pycell-body)))
+      (if flag
+          (unless (overlay-get bov 'pycell-folded)
+            (overlay-put bov 'pycell-folded
+                         (list (overlay-get bov 'display)
+                               (overlay-get bov 'after-string)))
+            (overlay-put bov 'display nil)
+            (overlay-put bov 'after-string nil))
+        (when-let* ((saved (overlay-get bov 'pycell-folded)))
+          (overlay-put bov 'display (nth 0 saved))
+          (overlay-put bov 'after-string (nth 1 saved))
+          (overlay-put bov 'pycell-folded nil))))))
+
+(advice-add 'outline-flag-region :after #'pycell--md-fold)
+
 (defun pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
   (replace-regexp-in-string "^# ?" "" text))

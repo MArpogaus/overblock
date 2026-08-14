@@ -1,0 +1,43 @@
+* Demo Recording
+
+=img/demo.gif= is recorded from a real Emacs, without a screen recorder.
+Emacs exports its own frame ten times a second through =x-export-frames=,
+which keeps the mouse pointer and the window decoration out of the
+picture.
+
+** What You Need
+
+- Emacs with X support, and a display.  A headless machine can use
+  =Xvfb :99 -screen 0 1280x900x24= and =DISPLAY=:99=.
+- IPython, matplotlib and numpy, for the cells that produce output.
+- pandoc, for the markdown cells.
+- ffmpeg and gifsicle, to turn the frames into the animation.
+
+** How to Record
+
+#+begin_src shell
+  emacs -Q -l demo.el          # writes /tmp/demo/ready, then waits
+  touch /tmp/demo/go           # starts the demo and the frame capture
+#+end_src
+
+The script drives the whole session on a timer: it starts the REPL
+before the capture begins, renders the markdown cells, evaluates three
+cells, and scrolls back through the result blocks.  It leaves a trace
+in =/tmp/demo/trace= and one line per frame in =/tmp/demo/pos.log=, which
+records the window start, the vscroll and the line point is on.  That
+log is how a jump in the animation gets found: a step where the window
+start moves the wrong way is a jump.
+
+** How to Build the Animation
+
+#+begin_src shell
+  ffmpeg -framerate 14 -start_number 1 -i frames/f%04d.png \
+      -filter_complex "[0:v]fps=10,scale=820:-1:flags=lanczos,split[a][b];\
+                       [a]palettegen=max_colors=128[p];[b][p]paletteuse" \
+      -loop 0 raw.gif
+  gifsicle -O3 --lossy=80 raw.gif -o ../img/demo.gif
+#+end_src
+
+The frames are captured at ten per second.  Feeding them to ffmpeg at
+fourteen plays the result about one and a half times faster, which is
+how the pace is set without recording again.
