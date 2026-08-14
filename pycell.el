@@ -877,9 +877,20 @@ and renders it; \\[pycell-md-abort] discards the edit."
       (user-error "The cell's buffer is gone"))
     (with-current-buffer src
       (save-excursion
-        (goto-char beg)
-        (delete-region beg end)
-        (insert (pycell--md-comment md) "\n"))
+        ;; The cell reaches to the next boundary line, so it holds the
+        ;; blank line that jupytext writes between cells.  Put back
+        ;; what stood after the body rather than one newline, or
+        ;; committing an edit that changed nothing would still close
+        ;; the gap.
+        (let ((tail (buffer-substring-no-properties
+                     (save-excursion
+                       (goto-char end)
+                       (skip-chars-backward " \t\n" beg)
+                       (point))
+                     end)))
+          (goto-char beg)
+          (delete-region beg end)
+          (insert (pycell--md-comment md) tail)))
       (pycell--md-show beg end))
     (quit-window t)))
 
