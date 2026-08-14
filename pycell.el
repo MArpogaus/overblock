@@ -659,16 +659,18 @@ the middle of the cell."
          (taken 0)
          parts spare)
     (dolist (row rows)
-      (pcase-let* ((`(,from . ,to) row)
-                   (chunk (when (> to from)
-                            (prog1 (seq-subseq lines
-                                               (/ (* taken count) slots)
-                                               (/ (* (1+ taken) count) slots))
-                              (setq taken (1+ taken))))))
+      (let ((from (car row))
+            (to (cdr row))
+            chunk)
+        (when (> to from)                    ; a line with text to cover
+          (setq chunk (seq-subseq lines
+                                  (/ (* taken count) slots)
+                                  (/ (* (1+ taken) count) slots))
+                taken (1+ taken)))
         (if (null chunk)
             ;; Nothing to show on this line.  Open a cloak at the
             ;; newline above, or leave the open one to grow.
-            (unless spare (setq spare (max (point-min) (1- from))))
+            (unless spare (setq spare (1- from)))
           (when spare
             (push (pycell--md-cloak spare (1- from)) parts)
             (setq spare nil))
@@ -679,7 +681,7 @@ the middle of the cell."
             (overlay-put ov 'display (string-join chunk "\n"))
             (push ov parts)))))
     (when spare
-      (push (pycell--md-cloak spare (max spare (1- end))) parts))
+      (push (pycell--md-cloak spare (1- end)) parts))
     (nreverse parts)))
 
 (defun pycell--md-show (beg end)
