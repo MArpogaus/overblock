@@ -53,7 +53,9 @@ text properties, images and all.
 The result is drawn as a =display= property over the newline that ends
 the cell.  Display properties anchored to real buffer text scroll
 smoothly, unlike tall overlay strings.  Nothing is written to the
-buffer, so files, LSP and undo are unaffected.
+buffer, so files, LSP and undo are unaffected — with one exception:
+the last cell of a buffer gets a final newline when it lacks one,
+because the block needs that character to hang on.
 
 ** Getting Started
 
