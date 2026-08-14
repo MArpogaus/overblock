@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Emacs and a virtual display
+      - name: Install Emacs, a virtual display and a markdown converter
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -yqq xvfb emacs-gtk
+          sudo apt-get install -yqq xvfb emacs-gtk pandoc
       - name: Show version
         run: emacs --version
       - name: Scrolling tests
