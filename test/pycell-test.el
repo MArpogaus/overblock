@@ -155,10 +155,10 @@
       (should-not (pycell--overlays (point-min) (point-max)))
       (should-not (overlay-buffer bov)))))
 
-(ert-deftest pycell-test-fold-round-trip ()
-  "An outline fold hides the block, and unfolding brings it back.
-`outline-flag-region' stops short of the newline the block hangs on,
-so the advice has to take the block along."
+(ert-deftest pycell-test-fold-keeps-result ()
+  "An outline fold hides the code and leaves the result in place.
+The block below the fold keeps its own fold button, so the two fold
+separately."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "a\nb" 0.1)
@@ -166,13 +166,51 @@ so the advice has to take the block along."
              (bov (overlay-get ov 'pycell-body))
              (head (overlay-get ov 'after-string))
              (body (overlay-get bov 'display)))
-        (should body)
         (outline-flag-region beg (1- end) t)
-        (should-not (overlay-get ov 'after-string))
-        (should-not (overlay-get bov 'display))
-        (outline-flag-region beg (1- end) nil)
         (should (equal (overlay-get ov 'after-string) head))
+        (should (equal (overlay-get bov 'display) body))
+        (outline-flag-region beg (1- end) nil)
         (should (equal (overlay-get bov 'display) body))))))
+
+(ert-deftest pycell-test-fold-shrinks-at-buffer-end ()
+  "A fold to the end of the buffer stops before the block's newline.
+Only there does `outline-flag-region' cover it; mid-buffer it stops
+one character short on its own."
+  (with-temp-buffer
+    (insert "# %%\nx = 1\ny = x + 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (pcase-let ((`(,beg ,end) (progn (goto-char (point-min))
+                                     (code-cells--bounds nil nil t))))
+      (pycell--show beg end "42" 0.1)
+      (let ((bov (overlay-get (car (pycell--overlays (point-min) (point-max)))
+                              'pycell-body)))
+        (outline-flag-region beg (point-max) t)
+        (should-not
+         (seq-some (lambda (o) (and (eq (overlay-get o 'invisible) 'outline)
+                                    (> (overlay-end o) (overlay-start bov))))
+                   (overlays-in (overlay-start bov) (overlay-end bov))))))))
+
+(ert-deftest pycell-test-fold-md-round-trip ()
+  "An outline fold takes a markdown block along, and gives it back."
+  (skip-unless (pycell--md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (goto-char (point-min))
+    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
+           (bov (overlay-get ov 'pycell-body))
+           (body (or (overlay-get bov 'display)
+                     (overlay-get bov 'after-string))))
+      (should body)
+      (outline-flag-region (pos-eol) (overlay-end ov) t)
+      (should-not (or (overlay-get bov 'display)
+                      (overlay-get bov 'after-string)))
+      (outline-flag-region (pos-eol) (overlay-end ov) nil)
+      (should (or (overlay-get bov 'display)
+                  (overlay-get bov 'after-string))))))
 
 ;;;; Markdown cells
 

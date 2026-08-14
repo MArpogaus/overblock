@@ -443,15 +443,28 @@ this block's commands instead of following the URL."
   string)
 
 (defun pycell--fold (from to flag)
-  "Hide the blocks between FROM and TO when FLAG says so.
+  "Hide the markdown blocks between FROM and TO when FLAG says so.
 A block hangs on the newline that ends its cell, and
 `outline-flag-region' stops one character short of that newline, so a
-fold never covers it: the source would go away and the rendered block
-would stay.  Rather than guess at the range that any one fold command
-uses, follow the call and take the blocks along, results and markdown
-cells alike."
-  (dolist (ov (pycell--overlays from to 'pycell-body))
-    (let ((bov (overlay-get ov 'pycell-body)))
+fold never covers it.  For a markdown cell the block is the content,
+so it goes with the fold.  A result block stays: the fold hides the
+code, and the block below keeps its own fold button.  Rather than
+guess at the range that any one fold command uses, follow the call."
+  ;; A fold that reaches the end of the buffer covers the newline a
+  ;; result block hangs on; mid-buffer folds stop short of it.  Shrink
+  ;; the fold there, so the last cell keeps its block like every other.
+  (when flag
+    (dolist (main (pycell--overlays from to 'pycell))
+      (when-let* ((bov (overlay-get main 'pycell-body))
+                  ((<= (overlay-end bov) to)))
+        (dolist (o (overlays-in (overlay-start bov) (overlay-end bov)))
+          (when (and (eq (overlay-get o 'invisible) 'outline)
+                     (> (overlay-end o) (overlay-start bov)))
+            (move-overlay o (overlay-start o)
+                          (max (overlay-start o)
+                               (overlay-start bov))))))))
+  (dolist (ov (pycell--overlays from to 'pycell-md))
+    (when-let* ((bov (overlay-get ov 'pycell-body)))
       (if flag
           (unless (overlay-get ov 'pycell-folded)
             (overlay-put ov 'pycell-folded
