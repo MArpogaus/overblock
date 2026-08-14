@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'outline)
 (require 'pycell)
 
 (defconst pycell-test--image
@@ -153,6 +154,25 @@
       (pycell-remove-overlays)
       (should-not (pycell--overlays (point-min) (point-max)))
       (should-not (overlay-buffer bov)))))
+
+(ert-deftest pycell-test-fold-round-trip ()
+  "An outline fold hides the block, and unfolding brings it back.
+`outline-flag-region' stops short of the newline the block hangs on,
+so the advice has to take the block along."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "a\nb" 0.1)
+      (let* ((ov (car (pycell--overlays (point-min) (point-max))))
+             (bov (overlay-get ov 'pycell-body))
+             (head (overlay-get ov 'after-string))
+             (body (overlay-get bov 'display)))
+        (should body)
+        (outline-flag-region beg (1- end) t)
+        (should-not (overlay-get ov 'after-string))
+        (should-not (overlay-get bov 'display))
+        (outline-flag-region beg (1- end) nil)
+        (should (equal (overlay-get ov 'after-string) head))
+        (should (equal (overlay-get bov 'display) body))))))
 
 ;;;; Markdown cells
 
