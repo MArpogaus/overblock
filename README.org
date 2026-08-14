@@ -6,7 +6,7 @@
 [[https://github.com/MArpogaus/pycell/stargazers][https://img.shields.io/github/stars/MArpogaus/pycell.svg?style=flat-square]]
 [[https://github.com/MArpogaus/pycell/issues][https://img.shields.io/github/issues/MArpogaus/pycell.svg?style=flat-square]]
 [[https://github.com/MArpogaus/pycell/blob/main/COPYING][https://img.shields.io/github/license/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/pycell/test.yml?branch=main&style=flat-square&label=tests]]
+[[https://github.com/MArpogaus/pycell/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/pycell/test.yml.svg?branch=main&label=tests&style=flat-square]]
 [[https://melpa.org/#/pycell][https://melpa.org/packages/pycell-badge.svg?style=flat-square]]
 [[https://linkedin.com/in/MArpogaus][https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555]]
 
