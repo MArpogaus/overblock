@@ -131,3 +131,6 @@ $RECYCLE.BIN/
 ### This project ###
 # tool sandbox created by the Makefile
 /.sandbox/
+
+# report the scrolling test runner writes
+/scroll-report.txt
