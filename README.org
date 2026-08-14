@@ -121,13 +121,15 @@ off and evaluation falls back to =python-shell-send-region=.
 
 *** Scrolling
 
-A block is one buffer line, and it can be taller than the window.  The
-package leaves the scroll options alone; with their default values the
-window moves through blocks in one direction, and =make scroll= proves
-that in the CI.  Two settings matter, both yours to make:
+A result block is one buffer line, and it can be taller than the
+window.  A markdown cell is not: its rendering hangs on the source
+lines it replaces, a piece to a line.  The package leaves the scroll
+options alone; with their default values the window moves through
+blocks in one direction, and =make scroll= proves that in the CI.  Two
+settings matter, both yours to make:
 
-1. Turn on pixel scrolling, or the wheel crosses a whole block in one
-   step instead of moving through it:
+1. Turn on pixel scrolling, or the wheel crosses a whole result block
+   in one step instead of moving through it:
 
    #+begin_src emacs-lisp
      (pixel-scroll-precision-mode 1)
@@ -218,11 +220,14 @@ the blocks themselves.  Bind what you use, for example in
 
 ** Known Limits
 
-- A block belongs to a single buffer line, because it is a display
-  string.  =next-line= and =previous-line= therefore cross it in one
-  step, whatever the scroll settings are, because a window can only
-  start at a buffer position.  The mouse wheel does better, see
+- A result block belongs to a single buffer line, because it is one
+  display string.  =next-line= and =previous-line= therefore cross it
+  in one step, whatever the scroll settings are, because a window can
+  only start at a buffer position.  The mouse wheel does better, see
   [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches.
+  A markdown cell is not affected: its rendering hangs on the source
+  lines, a piece to a line, so it keeps a height in lines and moves
+  like ordinary text.
 - Display properties do not nest.  A result that contains an image
   therefore rides the overlay's after-string, which scrolls less
   smoothly than the text path.  At most one figure is drawn inline; the
@@ -230,14 +235,15 @@ the blocks themselves.  Bind what you use, for example in
 - One cell runs at a time per inferior process.  Sending a cell while
   another is still running is refused.
 - A rendered block makes every scroll event more expensive.  Measured
-  on demo/scrolling.py in a 1000x700 window: 6.5 ms per event
-  downwards and 7 ms upwards, against 0.6 ms in the same file with
-  the blocks off.  A trackpad sends 60 to 120 events per second, so
-  a large buffer of blocks can outrun redisplay and the motion
-  stutters, while the positions themselves stay correct.  The cost
-  grows with the height of the block.  =M-x pycell-md-unrender= gives
-  the plain source and the speed back for a buffer, and
-  =pycell-md-render-all= brings the blocks back.
+  on demo/scrolling.py in a 1000x700 window: 2.2 ms per event
+  downwards and 5.1 ms upwards, against 0.6 and 2.0 ms in the same
+  file with the blocks off.  A trackpad sends 60 to 120 events per
+  second, so the motion can still stutter on a slow machine, while
+  the positions themselves stay correct.  What is left is the layout
+  of the lines actually on screen: rendered Markdown carries several
+  hundred face runs where source code carries a handful.  =M-x
+  pycell-md-unrender= gives the plain source and the speed back for a
+  buffer, and =pycell-md-render-all= brings the blocks back.
 - Wheel-scrolling up across the first markdown cell of the buffer has
   been seen to land the view one block too low, once, in the recorded
   demo.  The cause is not established: =window-text-pixel-size=, the
