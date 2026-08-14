@@ -102,6 +102,9 @@ refusal to scroll and not the end of the buffer."
 Two block shapes on purpose: text blocks taller than the window, and
 a short one after them, which is where redisplay changes lines."
   (skip-unless (display-graphic-p))
+  ;; Without a converter the cells stay plain source and the test
+  ;; would pass without a single block in the buffer.
+  (skip-unless (pycell--md-program))
   (let ((buffer (generate-new-buffer "*pycell scroll*")))
     (unwind-protect
         (progn
@@ -113,6 +116,11 @@ a short one after them, which is where redisplay changes lines."
           (code-cells-mode)
           (pycell-mode 1)
           (redisplay t)
+          ;; The blocks are the point of the test.
+          (should (= (length (seq-filter
+                              (lambda (o) (overlay-get o 'pycell-parts))
+                              (pycell--overlays (point-min) (point-max) 'pycell-md)))
+                     3))
           (should (equal (pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 
