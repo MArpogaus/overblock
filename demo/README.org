@@ -20,24 +20,25 @@ picture.
   touch /tmp/demo/go           # starts the demo and the frame capture
 #+end_src
 
-The script drives the whole session on a timer: it starts the REPL
-before the capture begins, renders the markdown cells, evaluates three
-cells, and scrolls back through the result blocks.  It leaves a trace
-in =/tmp/demo/trace= and one line per frame in =/tmp/demo/pos.log=, which
-records the window start, the vscroll and the line point is on.  That
-log is how a jump in the animation gets found: a step where the window
-start moves the wrong way is a jump.
+The script drives the whole session and captures deterministically:
+one frame per scroll step, and ten frames per second while a state is
+held.  Nothing samples on a timer, so the motion in the frames is as
+even as the steps that produced it.  A trace of the stages lands in
+=/tmp/demo/trace=.
 
 ** How to Build the Animation
 
 #+begin_src shell
-  ffmpeg -framerate 14 -start_number 1 -i frames/f%04d.png \
-      -filter_complex "[0:v]fps=10,scale=820:-1:flags=lanczos,split[a][b];\
+  ffmpeg -framerate 13 -start_number 1 -i frames/f%04d.png \
+      -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=2.5,\
+                       scale=820:-1:flags=lanczos,split[a][b];\
                        [a]palettegen=max_colors=128[p];[b][p]paletteuse" \
       -loop 0 raw.gif
   gifsicle -O3 --lossy=80 raw.gif -o ../img/demo.gif
 #+end_src
 
-The frames are captured at ten per second.  Feeding them to ffmpeg at
-fourteen plays the result about one and a half times faster, which is
-how the pace is set without recording again.
+The frames stand for a tenth of a second each; playing them at
+thirteen per second sets the pace.  Never resample with the =fps=
+filter: it drops every few frames unevenly and the motion stutters.
+The =tpad= holds the final view, so the loop restart reads as a
+restart and not as a jump.
