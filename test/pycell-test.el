@@ -493,5 +493,35 @@ None keeps the result object out of the block."
                    code))
     (should (string-suffix-p "None\n" sent))))
 
+(ert-deftest pycell-test-md-commit-keeps-the-gap ()
+  "Committing an edit that changed nothing leaves the file alone.
+A cell reaches to the next boundary line, so the blank line jupytext
+writes between cells belongs to it and has to be written back."
+  (skip-unless (pycell--md-program))
+  (let ((text "# %% [markdown]\n# ## Heading\n#\n# The prose.\n\n# %%\nx = 1\n")
+        (notebook (generate-new-buffer "*pycell test notebook*"))
+        edit)
+    (unwind-protect
+        (progn
+          (with-current-buffer notebook
+            (insert text)
+            (python-mode)
+            (code-cells-mode)
+            (pycell-md-render-all)
+            (goto-char (point-min))
+            (forward-line 1)
+            (let ((name (format "*pycell md: %s*" (buffer-name))))
+              ;; `pycell-md-edit' pops to its buffer, which leaves that
+              ;; buffer current for the rest of this form.
+              (save-window-excursion (pycell-md-edit))
+              (setq edit (get-buffer name))))
+          (should edit)
+          (with-current-buffer edit (pycell-md-commit))
+          (with-current-buffer notebook
+            (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                           text))))
+      (when (buffer-live-p edit) (kill-buffer edit))
+      (kill-buffer notebook))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
