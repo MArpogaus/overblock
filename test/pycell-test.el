@@ -101,6 +101,17 @@
   (should (equal (pycell--glyph "⤓" "↧" "↓") "↓"))
   (should (equal (pycell--glyph "x") "x")))
 
+(ert-deftest pycell-test-glyph-weighs-every-character ()
+  "A leading space must not answer for the glyph behind it.
+Several candidates lead with one, and a space is always there, so
+asking the first character alone accepted every candidate."
+  (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+            ;; a frame with the space and two of the three arrows
+            ((symbol-function 'internal-char-font)
+             (lambda (_frame ch) (memq ch '(?\s ?▶ ?>)))))
+    (should (equal (pycell--glyph " ▸" " ▶" " >") " ▶"))
+    (should (equal (pycell--glyph " ▸" " ▴" " >") " >"))))
+
 (ert-deftest pycell-test-faced ()
   "A block string carries a base face, so it inherits none."
   (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
