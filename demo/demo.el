@@ -42,12 +42,12 @@
 
 (defun demo--pan ()
   "Record the way from the current view to the top — backwards.
-Scrolling up across the first markdown block lands the view a block
-too low: `pixel-scroll-precision-scroll-up' measures the room above
-with `window-text-pixel-size', which counts invisible text as if it
-were shown.  Scrolling down has no such measurement, so the pan is
-recorded downwards, from the top to the current view, into its own
-directory; the animation plays those frames in reverse."
+Scrolling up across the first markdown block has been seen to land
+the view a block too low; scrolling down over the same stretch is
+clean.  The cause is not established, so the pan avoids the direction
+that misbehaves: it is recorded downwards, from the top to the
+current view, into its own directory, and the animation plays those
+frames in reverse."
   (let ((target (window-start))
         (make-cursor-line-fully-visible nil)
         (guard 0))
