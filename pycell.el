@@ -114,6 +114,7 @@ With PROP, return the overlays that carry PROP instead."
   (dolist (prop '(pycell-body pycell-head))
     (when-let* ((o (overlay-get ov prop)))
       (delete-overlay o)))
+  (mapc #'delete-overlay (overlay-get ov 'pycell-parts))
   (delete-overlay ov))
 
 (defun pycell-remove-overlays (&optional beg end prop)
@@ -469,20 +470,28 @@ guess at the range that any one fold command uses, follow the call."
                           (max (overlay-start o)
                                (overlay-start bov))))))))
   (dolist (ov (pycell--overlays from to 'pycell-md))
-    (when-let* ((bov (overlay-get ov 'pycell-body)))
+    (let ((bov (overlay-get ov 'pycell-body))
+          ;; The fold covers the lines the pieces hang on, but stops
+          ;; one character short of the last newline, so the last
+          ;; piece would stay on screen.  Hide them along.
+          (parts (overlay-get ov 'pycell-parts)))
       (if flag
           (unless (overlay-get ov 'pycell-folded)
             (overlay-put ov 'pycell-folded
                          (list (overlay-get ov 'after-string)
-                               (overlay-get bov 'display)
-                               (overlay-get bov 'after-string)))
+                               (and bov (overlay-get bov 'display))
+                               (and bov (overlay-get bov 'after-string))))
             (overlay-put ov 'after-string nil)
-            (overlay-put bov 'display nil)
-            (overlay-put bov 'after-string nil))
+            (when bov
+              (overlay-put bov 'display nil)
+              (overlay-put bov 'after-string nil))
+            (dolist (part parts) (overlay-put part 'invisible t)))
         (when-let* ((saved (overlay-get ov 'pycell-folded)))
           (overlay-put ov 'after-string (nth 0 saved))
-          (overlay-put bov 'display (nth 1 saved))
-          (overlay-put bov 'after-string (nth 2 saved))
+          (when bov
+            (overlay-put bov 'display (nth 1 saved))
+            (overlay-put bov 'after-string (nth 2 saved)))
+          (dolist (part parts) (overlay-put part 'invisible nil))
           (overlay-put ov 'pycell-folded nil))))))
 
 ;; At load, not at activation: by the time this file loads, the user
@@ -599,14 +608,58 @@ fragments become preview images."
   "<mouse-2>" #'pycell-md-edit
   "<mouse-1>" #'pycell-md-raw)
 
+(defun pycell--md-parts (beg end text)
+  "Show TEXT over the source lines BEG..END, a piece to a line.
+Return the overlays that carry the pieces.
+
+Emacs lays a display string out whole on every redisplay, however
+little of it the window shows.  One string for a whole cell therefore
+costs as much per scroll event as the cell is tall, and a tall cell
+is what makes a trackpad stutter.  A piece to a line costs only what
+is on screen: the fixture in demo/ goes from 5.1 to 2.0 milliseconds
+an event that way.  Hanging the text on the source lines also makes
+folding work by itself, since a fold covers those very lines.
+
+A cell rarely renders to exactly as many lines as it has, so the
+pieces divide the rendering evenly over the lines there are."
+  (let* ((lines (split-string (string-trim text "\n" "\n") "\n"))
+         (slots (max 1 (count-lines beg end)))
+         (count (length lines))
+         parts)
+    (save-excursion
+      (goto-char beg)
+      (dotimes (k slots)
+        (let* ((from (point))
+               (to (min end (progn (forward-line 1) (point))))
+               (chunk (seq-subseq lines
+                                  (/ (* k count) slots)
+                                  (/ (* (1+ k) count) slots)))
+               (ov (make-overlay from to nil t)))
+          (overlay-put ov 'evaporate t)
+          (overlay-put ov 'keymap pycell-md-map)
+          (overlay-put ov 'help-echo (get-text-property 0 'help-echo text))
+          ;; The piece replaces the line's own newline, so it brings
+          ;; one of its own.  An empty piece drops the line entirely,
+          ;; which is what should happen when the rendering is shorter
+          ;; than the source.
+          (overlay-put ov 'display
+                       (if chunk
+                           (concat (string-join chunk "\n")
+                                   (and (eq (char-before to) ?\n) "\n"))
+                         ""))
+          (push ov parts))))
+    (nreverse parts)))
+
 (defun pycell--md-show (beg end)
   "Show the markdown cell body BEG..END rendered, in place.
-The block is built exactly like a result block — the overlay just
-grows by one character, the boundary line's newline, and hides its
-text.  The invisible run must start at the end of a visible line:
-`scroll-down' fails with a beginning-of-buffer error when it has to
-move the window start over a run that begins at a line start, which
-is why the =# %%= line stays visible.
+The rendering hangs on the source lines themselves, a piece to a
+line \(see `pycell--md-parts'), so the cell keeps its height and
+scrolls like ordinary text.  A cell with an image is the exception:
+it falls back to the single string a result block uses, and hides
+its source as one invisible run.  That run must start at the end of
+a visible line — `scroll-down' fails with a beginning-of-buffer
+error when it has to move the window start over a run that begins at
+a line start — which is why the =# %%= line stays visible.
 
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= keeps the look of every other cell boundary and
@@ -647,7 +700,6 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; above the cell and ends before the final newline.
     (overlay-put ov 'pycell-md
                  (cons (copy-marker beg) (copy-marker end t)))
-    (overlay-put ov 'invisible t)
     (overlay-put ov 'keymap pycell-md-map)
     (when bov
       (overlay-put bov 'keymap pycell-md-map)
@@ -666,7 +718,13 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string head)
-    (pycell--attach ov "" text)))
+    (if (pycell--image text)
+        ;; Display properties do not nest, so an image has to ride the
+        ;; after-string, and that one string needs the source hidden
+        ;; as a single run.
+        (progn (overlay-put ov 'invisible t)
+               (pycell--attach ov "" text))
+      (overlay-put ov 'pycell-parts (pycell--md-parts beg end text)))))
 
 ;;;###autoload
 (defun pycell-md-render-all ()

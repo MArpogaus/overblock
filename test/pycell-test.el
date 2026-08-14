@@ -224,16 +224,38 @@ one character short on its own."
     (pycell-md-render-all)
     (goto-char (point-min))
     (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
-           (bov (overlay-get ov 'pycell-body))
-           (body (or (overlay-get bov 'display)
-                     (overlay-get bov 'after-string))))
-      (should body)
+           (parts (overlay-get ov 'pycell-parts))
+           (shown (lambda ()
+                    (seq-some (lambda (p) (not (overlay-get p 'invisible)))
+                              parts))))
+      (should parts)
+      (should (funcall shown))
       (outline-flag-region (pos-eol) (overlay-end ov) t)
-      (should-not (or (overlay-get bov 'display)
-                      (overlay-get bov 'after-string)))
+      (should-not (funcall shown))
       (outline-flag-region (pos-eol) (overlay-end ov) nil)
-      (should (or (overlay-get bov 'display)
-                  (overlay-get bov 'after-string))))))
+      (should (funcall shown)))))
+
+(ert-deftest pycell-test-md-keeps-its-lines ()
+  "A rendered markdown cell stays as many lines as its source.
+One display string for the whole cell would collapse it to one line,
+and every scroll event would then lay the whole thing out again."
+  (skip-unless (pycell--md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
+           (parts (overlay-get ov 'pycell-parts)))
+      (should (> (length parts) 1))
+      (should-not (overlay-get ov 'invisible))
+      ;; Together the pieces cover the whole cell body, and every one
+      ;; of them shows something or drops its line.
+      (pcase-let ((`(,beg . ,end) (overlay-get ov 'pycell-md)))
+        (should (= (overlay-start (car parts)) (marker-position beg)))
+        (should (= (overlay-end (car (last parts))) (marker-position end))))
+      (should (seq-every-p (lambda (p) (stringp (overlay-get p 'display)))
+                           parts)))))
 
 ;;;; Markdown cells
 
