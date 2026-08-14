@@ -218,9 +218,13 @@ event."
 
 (defun pycell--at-point (event prop)
   "Return the PROP overlay at point, or at the click in EVENT.
-A click also selects its window and moves point there."
+A click also selects its window and moves point there.  Anything else
+leaves point where it is: the commands read EVENT from
+`last-input-event', so it can be any event at all, and a
+`switch-frame' is a cons whose start is a frame rather than a place."
   (when-let* (((consp event))
               (posn (event-start event))
+              ((consp posn))
               (pos (posn-point posn)))
     (select-window (posn-window posn))
     (goto-char pos))

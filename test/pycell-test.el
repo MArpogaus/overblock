@@ -422,5 +422,20 @@ without a word."
     (should (equal (substring-no-properties (or ended ""))
                    "line 0\nline 1\nline 2"))))
 
+(ert-deftest pycell-test-at-point-survives-a-frame-switch ()
+  "An event that carries no place leaves point alone instead of failing.
+The commands read their event from `last-input-event', so it can be
+any event at all.  A `switch-frame' is a cons like a click, but its
+start is a frame, and asking that for a position signals."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "42" 0.1))
+    (goto-char (point-min))
+    (forward-line 1)
+    (let ((here (point)))
+      (should (eq (pycell--at-point (list 'switch-frame (selected-frame)) 'pycell)
+                  (pycell--at-point nil 'pycell)))
+      (should (= (point) here)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
