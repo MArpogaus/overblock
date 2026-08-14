@@ -110,7 +110,7 @@ With PROP, return the overlays that carry PROP instead."
 
 (defun pycell--delete (ov)
   "Delete the block overlay OV together with its helper overlays."
-  (dolist (prop '(pycell-body pycell-head pycell-rest))
+  (dolist (prop '(pycell-body pycell-head))
     (when-let* ((o (overlay-get ov prop)))
       (delete-overlay o)))
   (delete-overlay ov))
@@ -442,27 +442,32 @@ this block's commands instead of following the URL."
         (setq pos next))))
   string)
 
-(defun pycell--md-fold (from to flag)
-  "Hide the markdown blocks between FROM and TO when FLAG says so.
+(defun pycell--fold (from to flag)
+  "Hide the blocks between FROM and TO when FLAG says so.
 A block hangs on the newline that ends its cell, and
-`outline-flag-region' stops one character short of that, so the fold
-never covers it.  Rather than guess at the range that any one fold
-command uses, follow the call and take the block along."
-  (dolist (ov (pycell--overlays from to 'pycell-md))
-    (when-let* ((bov (overlay-get ov 'pycell-body)))
+`outline-flag-region' stops one character short of that newline, so a
+fold never covers it: the source would go away and the rendered block
+would stay.  Rather than guess at the range that any one fold command
+uses, follow the call and take the blocks along, results and markdown
+cells alike."
+  (dolist (ov (pycell--overlays from to 'pycell-body))
+    (let ((bov (overlay-get ov 'pycell-body)))
       (if flag
-          (unless (overlay-get bov 'pycell-folded)
-            (overlay-put bov 'pycell-folded
-                         (list (overlay-get bov 'display)
+          (unless (overlay-get ov 'pycell-folded)
+            (overlay-put ov 'pycell-folded
+                         (list (overlay-get ov 'after-string)
+                               (overlay-get bov 'display)
                                (overlay-get bov 'after-string)))
+            (overlay-put ov 'after-string nil)
             (overlay-put bov 'display nil)
             (overlay-put bov 'after-string nil))
-        (when-let* ((saved (overlay-get bov 'pycell-folded)))
-          (overlay-put bov 'display (nth 0 saved))
-          (overlay-put bov 'after-string (nth 1 saved))
-          (overlay-put bov 'pycell-folded nil))))))
+        (when-let* ((saved (overlay-get ov 'pycell-folded)))
+          (overlay-put ov 'after-string (nth 0 saved))
+          (overlay-put bov 'display (nth 1 saved))
+          (overlay-put bov 'after-string (nth 2 saved))
+          (overlay-put ov 'pycell-folded nil))))))
 
-(advice-add 'outline-flag-region :after #'pycell--md-fold)
+(advice-add 'outline-flag-region :after #'pycell--fold)
 
 (defun pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
@@ -575,17 +580,16 @@ fragments become preview images."
 
 (defun pycell--md-show (beg end)
   "Show the markdown cell body BEG..END rendered, in place.
-Only the =markdown= word of the boundary line carries the header, so
-`outline-minor-mode' still finds a heading line where it expects one.
+The block is built exactly like a result block — the overlay just
+grows by one character, the boundary line's newline, and hides its
+text.  The invisible run must start at the end of a visible line:
+`scroll-down' fails with a beginning-of-buffer error when it has to
+move the window start over a run that begins at a line start, which
+is why the =# %%= line stays visible.
 
-The block hangs on the last newline inside the cell, not on the one
-that ends it.  `outline-flag-region' hides up to the end of the last
-line and stops one character short of that final newline, so a block
-anchored there would survive the fold.
-
-The overlay that hides the source may not cover the anchor: an
-invisible overlay hides the display of every overlay below it.  The
-source is therefore hidden in two runs, one on each side of it."
+Only the word =markdown= of the boundary line carries the header, so
+=# %%= keeps the look of every other cell boundary and
+`outline-minor-mode' still finds a heading line where it expects one."
   (let* ((start (1- beg))
          (_ (pycell-remove-overlays start end 'pycell-md))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
@@ -606,56 +610,42 @@ source is therefore hidden in two runs, one on each side of it."
                   #'pycell-md-edit)
                  (pycell--button "✕" "Show the plain source"
                                     #'pycell-md-raw))))
-         (tip (if (eq (char-before end) ?\n) (1- end) end))
-         ;; The anchor: the last line end inside the folded range.
-         (anchor (or (save-excursion (goto-char tip)
-                                     (search-backward "\n" beg t))
-                     start))
-         (ov (make-overlay start anchor nil t))
-         (bov (make-overlay anchor (1+ anchor) nil t))
-         (rest (and (< (1+ anchor) tip)
-                    (make-overlay (1+ anchor) tip nil t)))
-         ;; The header covers the =markdown= word alone, so =# %%= keeps
-         ;; the look of every other cell boundary.  The overlay stops
-         ;; before the newline: the invisible run starts there, and it
-         ;; would hide the bar with it.
+         (ov (pycell--make-overlay start end))
+         (bov (overlay-get ov 'pycell-body))
+         ;; The header covers the =markdown= word alone.  Its overlay
+         ;; stops before the newline: the invisible run starts there,
+         ;; and it would hide the bar with it.
          (hov (make-overlay (save-excursion
                               (goto-char (pycell--md-head beg))
                               (if (re-search-forward "\\[markdown\\]"
                                                      (pos-eol) t)
                                   (match-beginning 0)
                                 (pos-eol)))
-                            start))
-         (image (text-property-not-all 0 (length text) 'display nil text)))
+                            start)))
+    ;; The property carries the body bounds: the overlay starts
+    ;; above the cell and ends before the final newline.
+    (overlay-put ov 'pycell-md
+                 (cons (copy-marker beg) (copy-marker end t)))
     (overlay-put ov 'invisible t)
-    (when rest (overlay-put rest 'invisible t))
-    (overlay-put ov 'pycell-body bov)
+    (overlay-put ov 'keymap pycell-md-map)
+    (when bov
+      (overlay-put bov 'keymap pycell-md-map)
+      (overlay-put bov 'help-echo help))
     (overlay-put ov 'pycell-head hov)
-    (overlay-put ov 'pycell-rest rest)
-    ;; A click lands on whichever overlay draws that spot, so each one
-    ;; answers for the block and points back at the one that holds the
-    ;; bounds.
-    (dolist (o (delq nil (list ov bov hov rest)))
-      (overlay-put o 'evaporate t)
-      (overlay-put o 'keymap pycell-md-map)
-      (overlay-put o 'help-echo help)
-      (overlay-put o 'pycell-md t)
-      (overlay-put o 'pycell-main ov))
-    ;; On the main overlay the same property carries the body bounds,
-    ;; so an edit knows what to replace.
-    (overlay-put ov 'pycell-md (cons (copy-marker beg) (copy-marker end t)))
+    (overlay-put hov 'evaporate t)
+    (overlay-put hov 'keymap pycell-md-map)
+    ;; A click on the header resolves to this overlay, so it must
+    ;; answer for the block: mark it, and point back at the main
+    ;; overlay, which holds the cell bounds.
+    (overlay-put hov 'pycell-md t)
+    (overlay-put hov 'pycell-main ov)
     ;; A zero-width display property hides the word, and the bar draws
     ;; in its place as a string.  It has to be a string: a display
     ;; string ignores `(space :align-to (- right ...))', and the icons
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string head)
-    ;; Display properties do not nest, so a body with images rides a
-    ;; string.  Either way it hangs on the anchor.
-    (if image
-        (overlay-put bov 'after-string (concat "\n" text))
-      (overlay-put bov 'display (concat "\n" text)))))
-
+    (pycell--attach ov "" text)))
 ;;;###autoload
 (defun pycell-md-render-all ()
   "Render every markdown cell in the buffer.
