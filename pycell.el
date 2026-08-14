@@ -989,14 +989,40 @@ no cell runs; the live mirroring is the ticker's job."
          (pycell--clean
           (buffer-substring (car pycell--run) (point-max))))))))
 
-(defun pycell--ipython-syntax-p (code)
-  "Return non-nil when CODE holds syntax that only IPython reads.
-A line that begins with % or !, or ends in ?, is a magic, a shell
-escape or a help request.  Plain Python matches now and then, a
-continuation line inside brackets may begin with either character,
-and that costs nothing: such a cell takes the same road and IPython
-runs it exactly as it would have."
-  (string-match-p "^[ \t]*[%!]\\|[^ \t\n]\\?[ \t]*$" code))
+(defun pycell--ipython-syntax-p (beg end)
+  "Return non-nil when BEG..END holds syntax that only IPython reads.
+A magic, a shell escape or a help request: a line that begins with %
+or !, or one that ends in ?.
+
+Only where the character means that, which is why this reads the
+buffer instead of the text.  A continuation line inside brackets may
+begin with a modulo, a comment may ask a question, and a docstring
+may do either; there the character is Python's own and the cell has
+to keep to the ordinary road.  A shell without IPython would answer
+the other one with a NameError, so a cell of plain Python must never
+be sent down it."
+  (save-excursion
+    (goto-char beg)
+    (catch 'found
+      (while (< (point) end)
+        (let ((state (syntax-ppss (point)))
+              (eol (min end (pos-eol))))
+          ;; the line starts as code, not inside a string, a comment
+          ;; or a bracket left open above
+          (when (and (not (nth 3 state)) (not (nth 4 state))
+                     (zerop (nth 0 state)))
+            (when (looking-at-p "[ \t]*[%!]")
+              (throw 'found t))
+            (let ((last (save-excursion
+                          (goto-char eol)
+                          (skip-chars-backward " \t" (point))
+                          (point))))
+              (when (and (eq (char-before last) ??)
+                         (let ((s (syntax-ppss (1- last))))
+                           (and (not (nth 3 s)) (not (nth 4 s)))))
+                (throw 'found t)))))
+        (forward-line 1))
+      nil)))
 
 (defun pycell--send-to-ipython (proc code)
   "Send CODE to PROC the way typing it would.
@@ -1039,12 +1065,12 @@ Call this with the cell's buffer current."
         (setq pycell--run (list (copy-marker (process-mark proc))
                                    beg fin "" (float-time) timer))))
     (pycell--show beg fin "" 0.0 t)
-    (let ((code (buffer-substring-no-properties beg fin)))
-      (if (pycell--ipython-syntax-p code)
-          (pycell--send-to-ipython proc code)
-        ;; `python-shell-send-region' pads the code, so traceback line
-        ;; numbers match the buffer.
-        (python-shell-send-region beg fin)))))
+    (if (pycell--ipython-syntax-p beg fin)
+        (pycell--send-to-ipython
+         proc (buffer-substring-no-properties beg fin))
+      ;; `python-shell-send-region' pads the code, so traceback line
+      ;; numbers match the buffer.
+      (python-shell-send-region beg fin))))
 
 (defun pycell--run-cold ()
   "Evaluate the cell that waited for the interpreter.

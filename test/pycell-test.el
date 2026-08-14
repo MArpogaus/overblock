@@ -448,18 +448,35 @@ start is a frame, and asking that for a position signals."
                   (pycell--at-point nil 'pycell)))
       (should (= (point) here)))))
 
+(defun pycell-test--ipython-syntax-p (code)
+  "Return non-nil when CODE would take the IPython road."
+  (with-temp-buffer
+    (insert code)
+    (python-mode)
+    (pycell--ipython-syntax-p (point-min) (point-max))))
+
 (ert-deftest pycell-test-ipython-syntax ()
-  "Magics, shell escapes and help are told apart from plain Python."
-  (should (pycell--ipython-syntax-p "%matplotlib inline"))
-  (should (pycell--ipython-syntax-p "x = 1\n%time f()"))
-  (should (pycell--ipython-syntax-p "%%time\nsum(range(10))"))
-  (should (pycell--ipython-syntax-p "!echo hi"))
-  (should (pycell--ipython-syntax-p "print?"))
-  (should (pycell--ipython-syntax-p "  %cd /tmp"))
-  (should-not (pycell--ipython-syntax-p "print('plain')"))
-  (should-not (pycell--ipython-syntax-p "x = a % b"))
-  (should-not (pycell--ipython-syntax-p "if a != b:\n    pass"))
-  (should-not (pycell--ipython-syntax-p "print('what?')")))
+  "Magics, shell escapes and help are told apart from plain Python.
+Where the character means something to Python it stays Python: a
+shell without IPython would answer the other road with a NameError."
+  (let ((ipython #'pycell-test--ipython-syntax-p))
+    (should (funcall ipython "%matplotlib inline"))
+    (should (funcall ipython "x = 1\n%time f()"))
+    (should (funcall ipython "%%time\nsum(range(10))"))
+    (should (funcall ipython "!echo hi"))
+    (should (funcall ipython "print?"))
+    (should (funcall ipython "  %cd /tmp"))
+    (should-not (funcall ipython "print('plain')"))
+    (should-not (funcall ipython "x = a % b"))
+    (should-not (funcall ipython "if a != b:\n    pass"))
+    (should-not (funcall ipython "print('what?')"))
+    ;; a comment may ask a question
+    (should-not (funcall ipython "# is this right?\nprint('yes')"))
+    ;; a continuation line may begin with a modulo
+    (should-not (funcall ipython "total = (1\n         % 2)"))
+    ;; and a docstring may do either
+    (should-not (funcall ipython "s = \"\"\"why?\nmore\"\"\"\n"))
+    (should-not (funcall ipython "s = \"\"\"a\n% b\n\"\"\"\n"))))
 
 (ert-deftest pycell-test-send-to-ipython-carries-the-source ()
   "The cell reaches `run_cell' as it was written, quotes and all.
