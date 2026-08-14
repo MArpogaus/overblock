@@ -354,5 +354,34 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 0 'keymap s) 'pycell-md-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
+(ert-deftest pycell-test-cold-cell-belongs-to-its-buffer ()
+  "The cell that waits for a cold interpreter is marked in its own buffer.
+`copy-marker' on a number answers for the current buffer, so marking
+the cell inside the shell's buffer would remember a stretch of the
+shell instead, and the start-up banner would go to Python as the
+cell."
+  (let* ((shell (generate-new-buffer "*pycell test shell*"))
+         (proc (make-pipe-process :name "pycell test" :buffer shell
+                                  :noquery t :filter #'ignore)))
+    (unwind-protect
+        (let ((notebook (current-buffer)))
+          (pycell-test--with-cells
+            (setq notebook (current-buffer))
+            (with-current-buffer shell
+              (insert "Python 3.14.6 | packaged by conda-forge\nIn [1]: "))
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (cl-letf (((symbol-function 'python-shell-get-process)
+                         (lambda (&rest _) nil))
+                        ((symbol-function 'python-shell-get-process-or-error)
+                         (lambda (&rest _) proc))
+                        ((symbol-function 'run-python) (lambda (&rest _) shell)))
+                (pycell-eval-region beg end)))
+            (let ((cell (buffer-local-value 'pycell--cold-cell shell)))
+              (should cell)
+              (should (eq (marker-buffer (car cell)) notebook))
+              (should (eq (marker-buffer (cdr cell)) notebook)))))
+      (delete-process proc)
+      (kill-buffer shell))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
