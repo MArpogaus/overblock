@@ -104,7 +104,23 @@ result makes one long step for `next-line' and for the wheel.  Use
 Length is not what costs redisplay its time.  Measured in a 1000x700
 window, forty lines of plain output scroll as cheaply as none, while
 twelve lines full of face changes cost three times as much: the work
-follows the number of face runs the text carries, not its size."
+follows the number of face runs the text carries, not its size.
+
+Width is another matter: see `pycell-max-line-length'."
+  :type 'natnum)
+
+(defcustom pycell-max-line-length 2000
+  "Number of characters of a result line that show inline.
+Zero shows all of them.  A line longer than this is cut, and the cut
+is marked with an ellipsis; `pycell-pop-output' has the whole of it.
+
+One long line is one line, so `pycell-max-lines' does not bound it,
+and a block laid out on every redisplay costs what it holds.
+Measured in a 1200x800 window: a thousand characters on one line cost
+1.4 milliseconds a wheel event, five thousand 2.4, twenty thousand
+12.8, and a hundred thousand 226 — a fifth of a second an event, with
+the wheel sending them by the dozen.  A `print' of a wide row, a long
+list or a base64 blob is one such line."
   :type 'natnum)
 
 ;;;; Block display, shared by results and markdown cells
@@ -272,17 +288,30 @@ would delete it.  Call this in the shell buffer, where
     (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
     (substring text beg end)))
 
+(defun pycell--shorten (line)
+  "Return LINE cut to `pycell-max-line-length' characters.
+The cut is marked with an ellipsis.  See the option for what a line
+left whole costs the scroller."
+  (if (or (not (natnump pycell-max-line-length))
+          (zerop pycell-max-line-length)
+          (<= (length line) pycell-max-line-length))
+      line
+    (concat (substring line 0 pycell-max-line-length)
+            (pycell--glyph "…" "..."))))
+
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
-At most `pycell-max-lines', and nothing after the first line that
-carries an image: more inline figures would grow the block, and the
-scroll jump with it, without bound."
+At most `pycell-max-lines', each cut to `pycell-max-line-length', and
+nothing after the first line that carries an image: more inline
+figures would grow the block, and the scroll jump with it, without
+bound.  A line with an image on it is left whole, since the image may
+sit past the cut."
   (let (shown stop)
     (while (and lines (not stop) (< (length shown) pycell-max-lines))
-      (let ((l (pop lines)))
-        (push l shown)
-        (when (pycell--image l)
-          (setq stop t))))
+      (let* ((l (pop lines))
+             (image (pycell--image l)))
+        (push (if image l (pycell--shorten l)) shown)
+        (when image (setq stop t))))
     (nreverse shown)))
 
 (defun pycell--header (folded total shown runtime running imagep)

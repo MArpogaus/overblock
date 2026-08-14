@@ -222,6 +222,7 @@ the blocks themselves.  Bind what you use, for example in
 | Option                     | Meaning                                          |
 |----------------------------+--------------------------------------------------|
 | =pycell-max-lines=         | result lines drawn inline, the rest in the popup |
+| =pycell-max-line-length=   | characters of a result line drawn inline         |
 | =pycell-markdown-command=  | shell command that turns Markdown into HTML      |
 | =pycell-header=            | face of the header bar                           |
 | =pycell-output=            | face of the result body                          |
@@ -232,7 +233,10 @@ the blocks themselves.  Bind what you use, for example in
   display string.  =next-line= and =previous-line= therefore cross it
   in one step, whatever the scroll settings are, because a window can
   only start at a buffer position.  The mouse wheel does better, see
-  [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches.
+  [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches,
+  and =pycell-max-line-length= how wide: one long line is one line, so
+  the line cap alone leaves a hundred thousand characters of =print=
+  output in the block, at a fifth of a second a wheel event.
   A markdown cell is not affected: its rendering hangs on the source
   lines, a piece to a line, so it keeps a height in lines and moves
   like ordinary text.
