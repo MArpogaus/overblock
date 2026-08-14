@@ -979,6 +979,34 @@ no cell runs; the live mirroring is the ticker's job."
          (pycell--clean
           (buffer-substring (car pycell--run) (point-max))))))))
 
+(defun pycell--ipython-syntax-p (code)
+  "Return non-nil when CODE holds syntax that only IPython reads.
+A line that begins with % or !, or ends in ?, is a magic, a shell
+escape or a help request.  Plain Python matches now and then, a
+continuation line inside brackets may begin with either character,
+and that costs nothing: such a cell takes the same road and IPython
+runs it exactly as it would have."
+  (string-match-p "^[ \t]*[%!]\\|[^ \t\n]\\?[ \t]*$" code))
+
+(defun pycell--send-to-ipython (proc code)
+  "Send CODE to PROC the way typing it would.
+`python-shell-send-region' wraps the cell in a compile call, so the
+interpreter reads it as plain Python and IPython's own reader, which
+is what turns %, ! and ? into calls, never sees it.  Handing the
+source to `run_cell' puts the reader back in.  It travels base64
+encoded, which keeps the cell's own quotes and newlines out of the
+way, and the trailing None stops the result object from showing up as
+the value of the cell.
+
+Tracebacks then count lines from the top of the cell rather than the
+top of the file, and a shell without IPython answers that it does not
+know `get_ipython'."
+  (python-shell-send-string
+   (format "get_ipython().run_cell(__import__(\"base64\")\
+.b64decode(\"%s\").decode(\"utf-8\"))\nNone\n"
+           (base64-encode-string (encode-coding-string code 'utf-8) t))
+   proc))
+
 (defun pycell--send (proc start end)
   "Send START..END to PROC as the running cell and track it.
 Call this with the cell's buffer current."
@@ -1001,9 +1029,12 @@ Call this with the cell's buffer current."
         (setq pycell--run (list (copy-marker (process-mark proc))
                                    beg fin "" (float-time) timer))))
     (pycell--show beg fin "" 0.0 t)
-    ;; `python-shell-send-region' pads the code, so traceback line
-    ;; numbers match the buffer.
-    (python-shell-send-region beg fin)))
+    (let ((code (buffer-substring-no-properties beg fin)))
+      (if (pycell--ipython-syntax-p code)
+          (pycell--send-to-ipython proc code)
+        ;; `python-shell-send-region' pads the code, so traceback line
+        ;; numbers match the buffer.
+        (python-shell-send-region beg fin)))))
 
 (defun pycell--run-cold ()
   "Evaluate the cell that waited for the interpreter.

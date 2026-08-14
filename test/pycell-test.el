@@ -437,5 +437,33 @@ start is a frame, and asking that for a position signals."
                   (pycell--at-point nil 'pycell)))
       (should (= (point) here)))))
 
+(ert-deftest pycell-test-ipython-syntax ()
+  "Magics, shell escapes and help are told apart from plain Python."
+  (should (pycell--ipython-syntax-p "%matplotlib inline"))
+  (should (pycell--ipython-syntax-p "x = 1\n%time f()"))
+  (should (pycell--ipython-syntax-p "%%time\nsum(range(10))"))
+  (should (pycell--ipython-syntax-p "!echo hi"))
+  (should (pycell--ipython-syntax-p "print?"))
+  (should (pycell--ipython-syntax-p "  %cd /tmp"))
+  (should-not (pycell--ipython-syntax-p "print('plain')"))
+  (should-not (pycell--ipython-syntax-p "x = a % b"))
+  (should-not (pycell--ipython-syntax-p "if a != b:\n    pass"))
+  (should-not (pycell--ipython-syntax-p "print('what?')")))
+
+(ert-deftest pycell-test-send-to-ipython-carries-the-source ()
+  "The cell reaches `run_cell' as it was written, quotes and all.
+It travels base64 encoded for exactly that reason, and the trailing
+None keeps the result object out of the block."
+  (let ((code "%time f('a\"b')\nx = 1\n")
+        sent)
+    (cl-letf (((symbol-function 'python-shell-send-string)
+               (lambda (string &rest _) (setq sent string))))
+      (pycell--send-to-ipython nil code))
+    (should (string-match "b64decode(\"\\([^\"]+\\)\")" sent))
+    (should (equal (decode-coding-string
+                    (base64-decode-string (match-string 1 sent)) 'utf-8)
+                   code))
+    (should (string-suffix-p "None\n" sent))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
