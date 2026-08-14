@@ -193,9 +193,13 @@ user types at the end of the cell."
 HEAD goes into the after-string.  BODY without images goes onto the
 newline after OV — real buffer text, which scrolls smoothly.  BODY
 with images goes into the after-string: display properties do not
-nest, a display string would swallow the images."
-  (let ((image (and body (text-property-not-all 0 (length body)
-                                                'display nil body)))
+nest, a display string would swallow the images.
+
+Only a real image sends it there.  Any display property would also
+catch the raised text shr makes of a superscript, and inline math is
+full of those; the string path costs five times as much per scroll
+event."
+  (let ((image (and body (pycell--image body)))
         (bov (overlay-get ov 'pycell-body)))
     (overlay-put ov 'after-string
                  (concat head (when (and body image) (concat "\n" body))))
@@ -251,7 +255,7 @@ scroll jump with it, without bound."
     (while (and lines (not stop) (< (length shown) pycell-max-lines))
       (let ((l (pop lines)))
         (push l shown)
-        (when (text-property-not-all 0 (length l) 'display nil l)
+        (when (pycell--image l)
           (setq stop t))))
     (nreverse shown)))
 

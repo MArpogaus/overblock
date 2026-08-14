@@ -133,6 +133,29 @@
         (should (pycell--image (overlay-get ov 'after-string)))
         (should-not (overlay-get bov 'display))))))
 
+(ert-deftest pycell-test-raised-text-is-not-an-image ()
+  "Superscripts do not push a result onto the string path.
+shr raises a superscript with a display property, and inline math is
+full of those; only a real image belongs in the after-string."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end
+                       (concat "E = mc"
+                               (propertize "2" 'display '(raise 0.2)))
+                       0.1)
+      (let* ((ov (car (pycell--overlays (point-min) (point-max))))
+             (bov (overlay-get ov 'pycell-body)))
+        ;; the cheap path: the body rides the newline
+        (should (overlay-get bov 'display))
+        (should (string-match-p "mc" (overlay-get bov 'display)))))))
+
+(ert-deftest pycell-test-body-lines-keep-raised-text ()
+  "Raised text does not cut the inline part short; an image does."
+  (let ((pycell-max-lines 10))
+    (should (equal (pycell--body-lines
+                    (list "x" (propertize "2" 'display '(raise 0.2)) "y"))
+                   (list "x" (propertize "2" 'display '(raise 0.2)) "y")))))
+
 (ert-deftest pycell-test-show-keeps-fold-state ()
   "Replacing a result keeps whether it was folded."
   (pycell-test--with-cells
