@@ -17,6 +17,7 @@
     - [[#prerequisites][Prerequisites]]
     - [[#installation][Installation]]
     - [[#example-configuration][Example Configuration]]
+    - [[#scrolling][Scrolling]]
   - [[#usage][Usage]]
     - [[#results][Results]]
     - [[#markdown-cells][Markdown Cells]]
@@ -101,6 +102,29 @@ Install from MELPA with the built in package manager:
 and =code-cells-eval= routes through it while the mode is on.  Turn the
 mode off and cell evaluation falls back to =python-shell-send-region=.
 
+*** Scrolling
+
+A block is one buffer line, and it can be taller than the window.  Only
+pixel scrolling moves through such a line a part at a time, so turn it
+on for the mouse wheel:
+
+#+begin_src emacs-lisp
+  (pixel-scroll-precision-mode 1)
+#+end_src
+
+Measured on a rendered markdown cell of 1262 pixels in a window of 680
+pixels: with the mode on, the wheel walks through the block in steps of
+40 pixels.  Without it, line scrolling crosses the whole block in one
+step and never shows a part of it.
+
+The mode also sets =make-cursor-line-fully-visible= to nil in its
+buffers.  No scroll can bring the whole cursor line into view when the
+block is taller than the window, and while redisplay tries, it puts the
+window start back below the block.  You see that as a jump while you
+scroll up.  Nothing else helped in the same measurement:
+=scroll-conservatively=, =auto-window-vscroll= and
+=scroll-up-aggressively= all made no difference.
+
 ** Usage
 
 *** Results
@@ -172,14 +196,10 @@ the blocks themselves.  Bind what you use, for example in
 ** Known Limits
 
 - A block belongs to a single buffer line, because it is a display
-  string.  The mouse wheel still moves through it a pixel at a time,
-  but =next-line= and =previous-line= cross it in one step, because a
-  window can only start at a buffer position.  =pycell-max-lines=
-  bounds how far a result reaches.
-- The mode sets =make-cursor-line-fully-visible= to nil in its buffers.
-  A block can be taller than the window, and while redisplay tries to
-  bring the whole cursor line into view it puts the window start back
-  below the block, which reads as a jump while you scroll up.
+  string.  =next-line= and =previous-line= therefore cross it in one
+  step, whatever the scroll settings are, because a window can only
+  start at a buffer position.  The mouse wheel does better, see
+  [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches.
 - Display properties do not nest.  A result that contains an image
   therefore rides the overlay's after-string, which scrolls less
   smoothly than the text path.  At most one figure is drawn inline; the
