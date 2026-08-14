@@ -39,6 +39,8 @@ Evaluate a cell and the result grows below it — text, tables and
 figures — while the =*Python*= buffer keeps the complete log.  Markdown
 cells render in place, LaTeX fragments included.
 
+[[file:img/demo.gif]]
+
 *** How It Works
 
 =python-shell-send-string= wraps the code in =__PYTHON_EL_eval=, which
