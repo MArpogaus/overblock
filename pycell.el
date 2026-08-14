@@ -999,14 +999,7 @@ the code-cells maps."
   ;; positional INIT-VALUE argument.
   :lighter " pycell"
   (if pycell-mode
-      (progn
-        ;; A block can be taller than the window, so no scroll can get
-        ;; the whole cursor line into view.  While it tries, redisplay
-        ;; puts the window start back below the block, which reads as a
-        ;; jump while you scroll up through it.
-        (setq-local make-cursor-line-fully-visible nil)
-        (pycell-md-render-all))
-    (kill-local-variable 'make-cursor-line-fully-visible)
+      (pycell-md-render-all)
     (pycell-remove-overlays)
     (pycell-md-unrender)))
 

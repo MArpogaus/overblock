@@ -106,26 +106,24 @@ mode off and cell evaluation falls back to =python-shell-send-region=.
 
 *** Scrolling
 
-A block is one buffer line, and it can be taller than the window.  Only
-pixel scrolling moves through such a line a part at a time, so turn it
-on for the mouse wheel:
+A block is one buffer line, and it can be taller than the window.  The
+package leaves the scroll options alone; with their default values the
+window moves through blocks in one direction, and =make scroll= proves
+that in the CI.  Two settings matter, both yours to make:
 
-#+begin_src emacs-lisp
-  (pixel-scroll-precision-mode 1)
-#+end_src
+1. Turn on pixel scrolling, or the wheel crosses a whole block in one
+   step instead of moving through it:
 
-Measured on a rendered markdown cell of 1262 pixels in a window of 680
-pixels: with the mode on, the wheel walks through the block in steps of
-40 pixels.  Without it, line scrolling crosses the whole block in one
-step and never shows a part of it.
+   #+begin_src emacs-lisp
+     (pixel-scroll-precision-mode 1)
+   #+end_src
 
-The mode also sets =make-cursor-line-fully-visible= to nil in its
-buffers.  No scroll can bring the whole cursor line into view when the
-block is taller than the window, and while redisplay tries, it puts the
-window start back below the block.  You see that as a jump while you
-scroll up.  Nothing else helped in the same measurement:
-=scroll-conservatively=, =auto-window-vscroll= and
-=scroll-up-aggressively= all made no difference.
+2. Keep =scroll-conservatively= at 100 or below.  Above 100 redisplay
+   is forbidden to recenter, and when two blocks taller than the
+   window sit next to each other, it hands the window from one to the
+   other and back with every scroll event, endlessly.  A
+   =scroll-margin= of 1 or more also breaks that loop, if you want to
+   keep the higher value.
 
 ** Usage
 

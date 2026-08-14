@@ -1,0 +1,110 @@
+;;; pycell-scroll-test.el --- Scrolling regression test -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Marcel Arpogaus
+
+;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
+;; Assisted-by: Claude:claude-opus-5
+;; Assisted-by: Claude:claude-fable-5
+;; URL: https://github.com/MArpogaus/pycell
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Run with: make scroll
+;;
+;; A block is one buffer line and can be taller than the window, which
+;; is the case redisplay gets wrong.  This test scrolls a window up
+;; over such blocks and fails when the window ever moves down.  It
+;; guards the promise the package makes: with the scroll options at
+;; their defaults, the wheel moves through blocks in one direction.
+;;
+;; The test needs a graphical frame, because only there does a line
+;; have a pixel height and can a window show part of one.  A batch
+;; session skips it; without a display, run it under `xvfb-run', which
+;; is what the CI does.
+
+;;; Code:
+
+(require 'ert)
+(require 'pycell)
+(require 'pixel-scroll)
+
+(defun pycell-scroll-test--source (cells paragraphs)
+  "Return buffer text of CELLS markdown cells of PARAGRAPHS each.
+Enough prose that each rendered block is taller than the window."
+  (mapconcat
+   (lambda (n)
+     (concat (format "# %%%% [markdown]\n# ## Cell %d\n#\n" n)
+             (mapconcat
+              (lambda (i)
+                (format "# Paragraph %d, with prose that runs on for a\n\
+# while so the block grows past the window height.\n#\n" i))
+              (number-sequence 1 paragraphs) "")
+             (format "\n# %%%%\ny%d = %d\nprint(y%d)\n\n" n n n)))
+   (number-sequence 1 cells) ""))
+
+(defun pycell-scroll-test--reversals ()
+  "Scroll the window up to the top, 40 pixels at a time.
+Return the steps where the window moved down instead, as a list of
+strings.  Scrolling up may only lower the window start, or keep it
+and lower the vscroll."
+  (goto-char (point-max))
+  (set-window-start nil (point))
+  (set-window-vscroll nil 0 t)
+  (redisplay t)
+  (let ((previous (cons (window-start) (window-vscroll nil t)))
+        (steps 0)
+        reversals)
+    (while (< (cl-incf steps) 250)
+      (ignore-errors (pixel-scroll-precision-scroll-up 40))
+      (redisplay t)
+      (let ((now (cons (window-start) (window-vscroll nil t))))
+        (when (or (> (car now) (car previous))
+                  (and (= (car now) (car previous))
+                       (> (cdr now) (cdr previous))))
+          (push (format "step %d: %d+%d to %d+%d" steps
+                        (line-number-at-pos (car previous)) (cdr previous)
+                        (line-number-at-pos (car now)) (cdr now))
+                reversals))
+        ;; Stop at the top; what the scroll command does once there is
+        ;; not this test's business.
+        (when (= (car now) (point-min))
+          (setq steps 999))
+        (setq previous now)))
+    (nreverse reversals)))
+
+(ert-deftest pycell-scroll-test-defaults ()
+  "With the scroll options at their defaults the window never reverses.
+Two block shapes on purpose: text blocks taller than the window, and
+a short one after them, which is where redisplay changes lines."
+  (skip-unless (display-graphic-p))
+  (let ((buffer (generate-new-buffer "*pycell scroll*")))
+    (unwind-protect
+        (progn
+          (switch-to-buffer buffer)
+          (delete-other-windows)
+          (insert (pycell-scroll-test--source 2 14)
+                  "# %% [markdown]\n# A short one.\n\n# %%\nz = 3\n")
+          (python-mode)
+          (code-cells-mode)
+          (pycell-mode 1)
+          (redisplay t)
+          (should (equal (pycell-scroll-test--reversals) nil)))
+      (kill-buffer buffer))))
+
+(provide 'pycell-scroll-test)
+;;; pycell-scroll-test.el ends here
