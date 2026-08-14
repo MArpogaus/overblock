@@ -249,13 +249,37 @@ and every scroll event would then lay the whole thing out again."
            (parts (overlay-get ov 'pycell-parts)))
       (should (> (length parts) 1))
       (should-not (overlay-get ov 'invisible))
-      ;; Together the pieces cover the whole cell body, and every one
-      ;; of them shows something or drops its line.
-      (pcase-let ((`(,beg . ,end) (overlay-get ov 'pycell-md)))
-        (should (= (overlay-start (car parts)) (marker-position beg)))
-        (should (= (overlay-end (car (last parts))) (marker-position end))))
-      (should (seq-every-p (lambda (p) (stringp (overlay-get p 'display)))
+      (pcase-let ((`(,beg . ,_) (overlay-get ov 'pycell-md)))
+        (should (= (overlay-start (car parts)) (marker-position beg))))
+      ;; Every piece shows text; what is left over is cloaked.
+      (should (seq-every-p (lambda (p) (or (stringp (overlay-get p 'display))
+                                           (overlay-get p 'pycell-cloak)))
                            parts)))))
+
+(ert-deftest pycell-test-md-cloak-starts-on-a-newline ()
+  "A hidden run starts at the end of a visible line, never at a start.
+`scroll-down' answers a run that begins a line with a
+beginning-of-buffer error, and a piece with nothing to show would
+leave a line of no height, which stops scrolling up the same way."
+  (skip-unless (pycell--md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# ## A\n#\n#\n#\n# Text here.\n#\n#\n\n# %%\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
+           (parts (overlay-get ov 'pycell-parts))
+           (cloaks (seq-filter (lambda (p) (overlay-get p 'pycell-cloak)) parts)))
+      (should parts)
+      (should cloaks)
+      (dolist (part parts)
+        (if (overlay-get part 'pycell-cloak)
+            (should (eq (char-after (overlay-start part)) ?\n))
+          ;; A piece covers the text of its line and nothing else, so
+          ;; the line keeps its own newline and its height with it.
+          (should-not (string-search "\n" (buffer-substring
+                                           (overlay-start part)
+                                           (overlay-end part)))))))))
 
 ;;;; Markdown cells
 
