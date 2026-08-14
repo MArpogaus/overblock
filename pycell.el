@@ -132,6 +132,16 @@ next to it, so every block needs at least a base face."
   (add-face-text-property 0 (length string) face t string)
   string)
 
+(defun pycell--glyph (&rest candidates)
+  "Return the first of CANDIDATES that this frame has a glyph for.
+The last candidate is the answer when none of them has one.
+`char-displayable-p' answers for the character set and not for the
+font, so it says yes to characters that then draw as a hex box."
+  (or (and (display-graphic-p)
+           (seq-find (lambda (c) (internal-char-font nil (aref c 0)))
+                     candidates))
+      (car (last candidates))))
+
 (defun pycell--button (label help command)
   "Return LABEL as a button.
 A left click calls COMMAND, and HELP becomes the tooltip."
@@ -252,10 +262,12 @@ the time in seconds since the cell started.  RUNNING is non-nil
 while the cell runs.  IMAGEP marks a result with an image."
   (let* ((icons (pycell--icons
                  (when imagep
-                   (pycell--button "⤓" "Save the result's image to a file"
+                   (pycell--button (pycell--glyph "⤓" "↧" "⇩" "↓")
+                                      "Save the result's image to a file"
                                       #'pycell-save-image))
                  (when (> total 0)
-                   (pycell--button "⧉" "Copy this result"
+                   (pycell--button (pycell--glyph "⧉" "❐" "▤" "≡")
+                                      "Copy this result"
                                       #'pycell-copy-output))
                  (when (> total 0)
                    (pycell--button "↗" "Show this result in its own buffer"
@@ -267,8 +279,12 @@ while the cell runs.  IMAGEP marks a result with an image."
                        (string ?\s (aref "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
                                          (mod (truncate runtime 0.2) 10))))
                       ((eq running 'died) " ⚠")
-                      ((> total 1)
-                       (pycell--button (if folded " ▸" " ▾")
+                      ;; A single line can still be tall: one image is
+                      ;; one line, and that is the block worth folding.
+                      ((> total 0)
+                       (pycell--button (if folded
+                                           (pycell--glyph " ▸" " ▶" " >")
+                                         (pycell--glyph " ▾" " ▼" " v"))
                                           "Fold or unfold this result"
                                           #'pycell-toggle-output))
                       ((zerop total) " ✓")
@@ -537,6 +553,9 @@ fragments become preview images."
 
 (defun pycell--md-show (beg end)
   "Show the markdown cell body BEG..END rendered, in place.
+Only the =[markdown]= word carries the header, so `outline-minor-mode'
+still finds a heading line where it expects one.
+
 The block is built exactly like a result block — the overlay just
 grows by one character, the boundary line's newline, and hides its
 text.  The invisible run must start at the end of a visible line:
@@ -556,7 +575,7 @@ is why the =# %%= line stays visible."
                  'keymap pycell-md-map)
                 'help-echo help))
          (head (pycell--bar
-                " markdown"
+                "[markdown]"
                 (pycell--icons
                  (pycell--button
                   "↗" "Edit this markdown cell in its own buffer"
@@ -565,10 +584,17 @@ is why the =# %%= line stays visible."
                                     #'pycell-md-raw))))
          (ov (pycell--make-overlay start end))
          (bov (overlay-get ov 'pycell-body))
-         ;; The header rides on the boundary line, so it draws over
-         ;; the =# %%= comment without touching the invisible run —
-         ;; which must keep starting at a line end.
-         (hov (make-overlay (pycell--md-head beg) beg)))
+         ;; The header covers the =[markdown]= word alone, so =# %%=
+         ;; keeps the look of every other cell boundary.  The overlay
+         ;; must stop before the newline: the invisible run starts
+         ;; there, and it would hide the bar with it.
+         (hov (make-overlay (save-excursion
+                              (goto-char (pycell--md-head beg))
+                              (if (re-search-forward "\\[markdown\\]"
+                                                     (pos-eol) t)
+                                  (match-beginning 0)
+                                (pos-eol)))
+                            (1- beg))))
     ;; The property carries the body bounds: the overlay starts
     ;; above the cell and ends before the final newline.
     (overlay-put ov 'pycell-md
@@ -586,10 +612,10 @@ is why the =# %%= line stays visible."
     ;; overlay, which holds the cell bounds.
     (overlay-put hov 'pycell-md t)
     (overlay-put hov 'pycell-main ov)
-    ;; The header covers the =# %%= text.  `invisible' on that text
-    ;; would move the start of the invisible run to a line start,
-    ;; where `scroll-down' fails; the before-string draws the header
-    ;; and a zero-width display property hides the comment.
+    ;; A zero-width display property hides the word, and the bar
+    ;; draws in its place as a before-string.  It has to be a string:
+    ;; a display string ignores `(space :align-to (- right ...))', and
+    ;; the icons then sit next to the label instead of at the edge.
     (overlay-put hov 'before-string head)
     (overlay-put hov 'display "")
     (pycell--attach ov "" text)))

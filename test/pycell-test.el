@@ -94,6 +94,12 @@
   (should (equal (pycell--icons "a" nil "b") "a  b "))
   (should (equal (pycell--icons nil) " ")))
 
+(ert-deftest pycell-test-glyph ()
+  "A candidate without a glyph is skipped, and the last one always answers."
+  ;; A batch session has no graphical frame, so the fallback decides.
+  (should (equal (pycell--glyph "⤓" "↧" "↓") "↓"))
+  (should (equal (pycell--glyph "x") "x")))
+
 (ert-deftest pycell-test-faced ()
   "A block string carries a base face, so it inherits none."
   (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
