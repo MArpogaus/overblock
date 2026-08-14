@@ -30,9 +30,10 @@
 ;; Notebook style results for Python code cells, built from python.el
 ;; and comint-mime alone -- no Jupyter kernel and no zmq module.
 ;;
-;; Add `pycell-mode-maybe' to `code-cells-mode-hook' and the mode is on
-;; in every Python buffer with cells.  Evaluating a cell sends it to the inferior Python process as usual,
-;; so the REPL keeps the full log.  While the cell runs, the result
+;; Add `pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
+;; on in every Python buffer with cells.  Evaluating a cell sends it
+;; to the inferior Python process as usual, so the REPL keeps the full
+;; log.  While the cell runs, the result
 ;; grows below it: a header bar with a spinner, a stopwatch and buttons,
 ;; and the output as comint-mime rendered it, images included.
 ;;
@@ -480,6 +481,9 @@ guess at the range that any one fold command uses, follow the call."
           (overlay-put bov 'after-string (nth 2 saved))
           (overlay-put ov 'pycell-folded nil))))))
 
+;; At load, not at activation: by the time this file loads, the user
+;; has turned the mode on.  The advice is inert in buffers without
+;; blocks, because it filters on the block properties.
 (advice-add 'outline-flag-region :after #'pycell--fold)
 
 (defun pycell--md-uncomment (text)
