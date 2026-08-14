@@ -83,7 +83,17 @@ Install from MELPA with the built in package manager:
 
 *** Example Configuration
 
+A minimal, working setup.  code-cells recognizes the =# %%= cells in a
+plain Python file, and =pycell-mode= turns itself on with
+=code-cells-mode= — its autoloads install the hook, so there is
+nothing to enable by hand.
+
 #+begin_src emacs-lisp
+  ;; Cells in plain Python files, the "# %%" convention.
+  (use-package code-cells
+    :ensure t
+    :hook (python-base-mode . code-cells-mode-maybe))
+
   (use-package pycell
     :ensure t
     :custom
@@ -98,11 +108,14 @@ Install from MELPA with the built in package manager:
     :custom
     (python-shell-interpreter "ipython")
     (python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
+
+  ;; The wheel moves through tall blocks only with pixel scrolling.
+  (pixel-scroll-precision-mode 1)
 #+end_src
 
-=pycell-mode= turns itself on with =code-cells-mode= in Python buffers,
-and =code-cells-eval= routes through it while the mode is on.  Turn the
-mode off and cell evaluation falls back to =python-shell-send-region=.
+Open a Python file that contains =# %%= cells and evaluate one with
+=code-cells-eval=; the result grows below the cell.  Turn =pycell-mode=
+off and evaluation falls back to =python-shell-send-region=.
 
 *** Scrolling
 
@@ -148,11 +161,16 @@ The header bar carries buttons, aligned right:
 =TAB= at the end of a cell folds as well.  When the interpreter dies
 mid-cell, the header shows =⚠= and the result ends with a notice.
 
+With =outline-minor-mode=, folding a cell hides the code and leaves
+the result below the heading, where its own fold button still works.
+Code and output fold separately.
+
 *** Markdown Cells
 
 A cell whose boundary line reads =# %% [markdown]= renders in place: the
 commented source turns invisible and the header bar takes the place of
-the =# %%= line.  =$…$= and =$$…$$= fragments become preview images,
+the =[markdown]= word, so the =# %%= keeps the look of every other cell
+boundary.  An outline fold takes the whole rendered cell along.  =$…$= and =$$…$$= fragments become preview images,
 cached under =~/.cache/pycell-math=.
 
 Formulas take the shortest road: whatever the converter renders stays
