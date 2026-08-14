@@ -3,6 +3,8 @@
 ;; Copyright (C) 2026 Marcel Arpogaus
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
+;; Assisted-by: Claude:claude-opus-5
+;; Assisted-by: Claude:claude-fable-5
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "29.1") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
