@@ -84,9 +84,9 @@ Install from MELPA with the built in package manager:
 *** Example Configuration
 
 A minimal, working setup.  code-cells recognizes the =# %%= cells in a
-plain Python file, and =pycell-mode= turns itself on with
-=code-cells-mode= — its autoloads install the hook, so there is
-nothing to enable by hand.
+plain Python file, and the hook brings =pycell-mode= up with it.  The
+package installs no hook on its own: installing it must not change how
+Emacs behaves.
 
 #+begin_src emacs-lisp
   ;; Cells in plain Python files, the "# %%" convention.
@@ -96,6 +96,7 @@ nothing to enable by hand.
 
   (use-package pycell
     :ensure t
+    :hook (code-cells-mode . pycell-mode-maybe)
     :custom
     ;; A block is one buffer line, so a long result makes a long jump
     ;; when scrolled past.  Keep the inline part short.
