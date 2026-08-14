@@ -256,6 +256,29 @@ and every scroll event would then lay the whole thing out again."
                                            (overlay-get p 'pycell-cloak)))
                            parts)))))
 
+(ert-deftest pycell-test-md-parts-lose-no-line ()
+  "The pieces together show the rendering, whole and in order.
+A cell has as many lines as its author wrote and the rendering has as
+many as it needs, so the two rarely match either way."
+  (let ((shown (lambda (parts)
+                 (mapconcat (lambda (p) (overlay-get p 'display))
+                            (seq-remove (lambda (p) (overlay-get p 'pycell-cloak))
+                                        parts)
+                            "\n"))))
+    ;; more rendering than lines to put it on
+    (with-temp-buffer
+      (insert "aaa\nbbb\n")
+      (let ((text "one\ntwo\nthree\nfour\nfive"))
+        (should (equal (funcall shown (pycell--md-parts (point-min) (point-max) text))
+                       text))))
+    ;; more lines than rendering
+    (with-temp-buffer
+      (insert "aaa\nbbb\nccc\nddd\neee\n")
+      (let* ((text "one\ntwo")
+             (parts (pycell--md-parts (point-min) (point-max) text)))
+        (should (equal (funcall shown parts) text))
+        (should (seq-some (lambda (p) (overlay-get p 'pycell-cloak)) parts))))))
+
 (ert-deftest pycell-test-md-cloak-starts-on-a-newline ()
   "A hidden run starts at the end of a visible line, never at a start.
 `scroll-down' answers a run that begins a line with a
