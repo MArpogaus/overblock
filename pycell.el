@@ -646,6 +646,7 @@ Only the word =markdown= of the boundary line carries the header, so
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string head)
     (pycell--attach ov "" text)))
+
 ;;;###autoload
 (defun pycell-md-render-all ()
   "Render every markdown cell in the buffer.
