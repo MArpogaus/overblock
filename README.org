@@ -64,7 +64,10 @@ buffer, so files, LSP and undo are unaffected.
 - A markdown to HTML converter for markdown cells: pycell looks for
   =markdown=, =pandoc=, =markdown_py=, =cmark= and =cmark-gfm=, in that
   order.  See =pycell-markdown-command=.
-- =latex= and =dvipng= or =dvisvgm= for LaTeX previews in markdown cells.
+- =latex= and =dvipng= or =dvisvgm= for the formulas your converter
+  cannot handle.  Pandoc, for one, renders simple math as text by
+  itself; only the rest becomes a preview image, and without a LaTeX
+  installation it stays as written.
 
 *** Installation
 
@@ -130,6 +133,9 @@ A cell whose boundary line reads =# %% [markdown]= renders in place: the
 commented source turns invisible and the header bar takes the place of
 the =# %%= line.  =$…$= and =$$…$$= fragments become preview images,
 cached under =~/.cache/pycell-math=.
+
+Formulas take the shortest road: whatever the converter renders stays
+text, and only what it passes through becomes a preview image.
 
 =RET= or =mouse-2= opens the cell in its own buffer for editing, as
 =org-edit-special= does for source blocks; =C-c C-c= puts it back and
