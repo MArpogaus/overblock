@@ -20,27 +20,43 @@
 (blink-cursor-mode -1)
 
 (defvar demo--frame 0)
-(defvar demo--timer nil)
 (defun demo--snap ()
+  "Capture one frame.  Every frame is 0.1 s of the animation."
   (cl-incf demo--frame)
-  (write-region (format "%d %s %s %s\n" demo--frame
-                        (line-number-at-pos (window-start))
-                        (window-vscroll nil t)
-                        (line-number-at-pos (point)))
-                nil "/tmp/demo/pos.log" t 'quiet)
   (let ((coding-system-for-write 'binary))
     (write-region (x-export-frames nil 'png) nil
                   (format "/tmp/demo/frames/f%04d.png" demo--frame)
                   nil 'quiet)))
+(defun demo--hold (seconds)
+  "Show the current state for SECONDS."
+  (dotimes (_ (round (* 10 seconds)))
+    (redisplay t)
+    (demo--snap)
+    (sit-for 0.02)))
+(defun demo--pan (direction &optional pixels)
+  "Scroll one even step per frame in DIRECTION, over PIXELS in total.
+With PIXELS nil, scroll up until the window is at the very top."
+  (let ((step 26) (moved 0) (guard 0))
+    (while (and (< (cl-incf guard) 400)
+                (if pixels (< moved pixels)
+                  (not (and (= (window-start) (point-min))
+                            (zerop (window-vscroll nil t))))))
+      (ignore-errors
+        (if (eq direction 'down)
+            (pixel-scroll-precision-scroll-down step)
+          (pixel-scroll-precision-scroll-up step)))
+      (cl-incf moved step)
+      (redisplay t)
+      (demo--snap))))
 
 (defun demo--frame-cell ()
-  "Scroll until the boundary line of the cell at point is at the top.
-A scroll instead of a jump, so the eye can follow."
+  "Pan until the boundary line of the cell at point is at the top."
   (let ((target (save-excursion (search-backward "# %%") (pos-bol)))
-        (n 0))
-    (while (and (< (cl-incf n) 300) (< (window-start) target))
+        (guard 0))
+    (while (and (< (cl-incf guard) 400) (< (window-start) target))
       (ignore-errors (pixel-scroll-precision-scroll-down 26))
-      (sit-for 0.045))
+      (redisplay t)
+      (demo--snap))
     (set-window-start nil target)
     (redisplay t)))
 
@@ -74,7 +90,7 @@ A scroll instead of a jump, so the eye can follow."
 (defun demo--type (text)
   "Insert TEXT the way a person types it."
   (dolist (ch (string-to-list text))
-    (insert ch) (sit-for 0.04)))
+    (insert ch) (redisplay t) (demo--snap)))
 
 (defun demo ()
   (demo--log "demo start")
@@ -91,62 +107,41 @@ A scroll instead of a jump, so the eye can follow."
   (demo--wait "/tmp/demo/go")
   (message nil)
   (make-directory "/tmp/demo/frames" t)
-  (setq demo--timer (run-with-timer 0 0.1 #'demo--snap))
   (demo--log "f%04d plain source" demo--frame)
-  (sit-for 3.5)
+  (demo--hold 3.0)
   ;; 1. markdown cells render in place
   (pycell-mode 1)
   (demo--log "f%04d markdown rendered" demo--frame)
-  (sit-for 5.5)
+  (demo--hold 5.0)
   ;; 2. evaluate the numpy cell
   (goto-char (point-min))
   (search-forward "import numpy")
   (demo--frame-cell)
-  (sit-for 1.8)
+  (demo--hold 1.5)
   (demo--log "f%04d eval numpy" demo--frame)
   (call-interactively #'code-cells-eval)
-  (sit-for 6.5)
+  (demo--hold 6.0)
   ;; 3. a cell that takes its time, so the spinner and the stopwatch show
   (search-forward "import time")
   (demo--frame-cell)
   (demo--log "f%04d eval sleep" demo--frame)
-  (sit-for 1.8)
+  (demo--hold 1.5)
   (call-interactively #'code-cells-eval)
-  (sit-for 7.0)
+  (demo--hold 6.5)
   ;; 4. evaluate the figure cell, with room below it for the figure
   (search-forward "fig, ax = plt.subplots")
   (demo--frame-cell)
-  (sit-for 2.0)
+  (demo--hold 2.0)
   (call-interactively #'code-cells-eval)
-  (sit-for 9.0)
+  (demo--hold 8.0)
   ;; keep the figure cell at the top, so cell and figure show together
   (demo--log "f%04d figure result" demo--frame)
-  (sit-for 6.0)
-  ;; 5. scroll back up through the blocks, a pixel at a time
+  (demo--hold 5.0)
+  ;; 5. scroll back up through the blocks, one even step per frame
   (demo--log "f%04d scroll up" demo--frame)
-  (catch 'top
-    (dotimes (_ 160)
-      (let ((before (cons (window-start) (window-vscroll nil t))))
-        (ignore-errors (pixel-scroll-precision-scroll-up 16))
-        (unless (pos-visible-in-window-p (point))
-          (goto-char (window-start)))
-        (let ((now (cons (window-start) (window-vscroll nil t))))
-          (demo--log "scroll %s+%s -> %s+%s%s"
-                     (line-number-at-pos (car before)) (cdr before)
-                     (line-number-at-pos (car now)) (cdr now)
-                     (cond ((equal before now) "  STUCK")
-                           ((or (> (car now) (car before))
-                                (and (= (car now) (car before))
-                                     (> (cdr now) (cdr before)))) "  BACK")
-                           (t "")))
-          (when (or (equal before now)
-                    (and (= (window-start) (point-min))
-                         (zerop (window-vscroll nil t))))
-            (throw 'top nil))))
-      (sit-for 0.07)))
+  (demo--pan 'up)
   (demo--log "f%04d at top" demo--frame)
-  (sit-for 3.0)
-  (cancel-timer demo--timer)
+  (demo--hold 3.0)
   (demo--log "frames=%d" demo--frame)
   (demo--log "blocks=%d md=%d images=%d"
              (length (pycell--overlays (point-min) (point-max)))
@@ -156,7 +151,6 @@ A scroll instead of a jump, so the eye can follow."
                                        (pycell--image (overlay-get o 'after-string))))
                       (overlays-in (point-min) (point-max)))))
   (write-region "" nil "/tmp/demo/done")
-  (sit-for 1.0)
   (kill-emacs 0))
 (run-with-timer 0.5 nil
                 (lambda ()
