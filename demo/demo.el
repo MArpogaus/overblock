@@ -32,44 +32,31 @@
     (redisplay t)
     (demo--snap)
     (sit-for 0.02)))
-(defvar demo--pan-frame 0)
-(defun demo--pan-snap ()
-  (cl-incf demo--pan-frame)
-  (let ((coding-system-for-write 'binary))
-    (write-region (x-export-frames nil 'png) nil
-                  (format "/tmp/demo/frames-pan/p%04d.png" demo--pan-frame)
-                  nil 'quiet)))
-
 (defun demo--pan ()
-  "Record the way from the current view to the top — backwards.
-Scrolling up across the first markdown block has been seen to land
-the view a block too low; scrolling down over the same stretch is
-clean.  The cause is not established, so the pan avoids the direction
-that misbehaves: it is recorded downwards, from the top to the
-current view, into its own directory, and the animation plays those
-frames in reverse."
-  (let ((target (window-start))
-        (make-cursor-line-fully-visible nil)
-        (guard 0))
-    (make-directory "/tmp/demo/frames-pan" t)
-    (goto-char (point-min))
+  "Record the way from the current view up to the top.
+One frame per scroll step, so the motion in the frames is as even as
+the steps that produced it.  Any refusal to scroll stops the pan and
+lands in the trace: scrolling up over a rendered cell is exactly what
+used to fail."
+  (let ((guard 0)
+        (make-cursor-line-fully-visible nil))
+    ;; The last evaluation left its "Sent: ..." in the echo area, and
+    ;; it would sit there for the whole pan.
+    (message nil)
+    (goto-char (window-start))
+    (while (and (< (cl-incf guard) 400) (> (window-start) (point-min)))
+      (condition-case err
+          (pixel-scroll-precision-scroll-up 26)
+        (error (demo--log "pan stopped at line %d: %S"
+                          (line-number-at-pos (window-start)) err)
+               (setq guard 999)))
+      (redisplay t)
+      (demo--snap))
     (set-window-start nil (point-min))
     (set-window-vscroll nil 0 t t)
+    (goto-char (point-min))
     (redisplay t)
-    (demo--pan-snap)
-    (while (and (< (cl-incf guard) 300)
-                (< (window-start) target))
-      (goto-char (window-start))
-      (ignore-errors (pixel-scroll-precision-scroll-down 26))
-      (redisplay t)
-      (when (< (window-start) target)
-        (demo--pan-snap)))
-    ;; land exactly on the view the hold before the pan showed
-    (set-window-start nil target)
-    (set-window-vscroll nil 0 t t)
-    (goto-char target)
-    (redisplay t)
-    (demo--log "pan frames=%d" demo--pan-frame)))
+    (demo--snap)))
 
 (defun demo--frame-cell ()
   "Pan until the boundary line of the cell at point is at the top."

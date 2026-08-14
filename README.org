@@ -244,13 +244,12 @@ the blocks themselves.  Bind what you use, for example in
   hundred face runs where source code carries a handful.  =M-x
   pycell-md-unrender= gives the plain source and the speed back for a
   buffer, and =pycell-md-render-all= brings the blocks back.
-- Wheel-scrolling up across the first markdown cell of the buffer has
-  been seen to land the view one block too low, once, in the recorded
-  demo.  The cause is not established: =window-text-pixel-size=, the
-  measurement =pixel-scroll-precision-scroll-up= relies on, was
-  suspected but measured innocent — it does not count invisible text.
-  Scrolling down over the same stretch is unaffected, which is why the
-  demo records that pan downwards and plays it in reverse.
+- Scrolling up across a markdown cell used to land the view a block
+  too low, back when a rendered cell was one buffer line.  It is not
+  one any more, and the pan in the demo, 26 steps up across two
+  rendered cells and three result blocks, now moves exactly 26 pixels
+  per step in one direction.  =make scroll= keeps watch: it fails on
+  a window that moves the wrong way, and on a refusal to move at all.
 
 ** Comparison with Other Packages
 

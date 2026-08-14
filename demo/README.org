@@ -22,27 +22,17 @@ picture.
 
 The script drives the whole session and captures deterministically:
 one frame per scroll step, and ten frames per second while a state is
-held.  The final pan is recorded downwards into =frames-pan/= and the
-animation plays it in reverse: scrolling up across the first markdown
-block trips an Emacs measurement bug (see Known Limits in the main
-README), scrolling down does not.  Nothing samples on a timer, so the motion in the frames is as
+held.  Nothing samples on a timer, so the motion in the frames is as
 even as the steps that produced it.  A trace of the stages lands in
-=/tmp/demo/trace=.
+=/tmp/demo/trace=; a pan that stops early says so there.
 
 ** How to Build the Animation
 
-Put the main frames and the reversed pan into one sequence first; the
-trace names the frame where the pan starts:
+The frames are one sequence in the order they were recorded, the pan
+included:
 
 #+begin_src shell
-  mkdir -p seq && n=0
-  last=$(grep -oP 'f\K[0-9]+(?= scroll up)' /tmp/demo/trace)
-  for f in $(ls frames/f*.png | head -n "$last"; ls frames-pan/p*.png | sort -r)
-  do cp "$f" "seq/s$(printf %04d $((++n))).png"; done
-#+end_src
-
-#+begin_src shell
-  ffmpeg -framerate 13 -start_number 1 -i seq/s%04d.png \
+  ffmpeg -framerate 13 -start_number 1 -i frames/f%04d.png \
       -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=2.5,\
                        scale=820:-1:flags=lanczos,split[a][b];\
                        [a]palettegen=max_colors=128[p];[b][p]paletteuse" \
