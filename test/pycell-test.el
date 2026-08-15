@@ -664,5 +664,26 @@ and cannot be scrolled past at all."
                                      :max-height)))))
       (kill-buffer buffer))))
 
+(ert-deftest pycell-test-fit-caps-a-buried-notebook ()
+  "A cell that finishes while its notebook is elsewhere is capped too.
+A run of all cells works down the notebook while the user reads
+something else, and no window at all would leave the figure at full
+size, which is the block the wheel cannot get past."
+  (let ((elsewhere (get-buffer-create "*pycell test elsewhere*"))
+        (notebook (get-buffer-create "*pycell test notebook*")))
+    (unwind-protect
+        (progn
+          (set-window-buffer (selected-window) elsewhere)
+          (with-current-buffer notebook
+            (let* ((pycell-max-image-height 0.5)
+                   (line (concat "x" pycell-test--image))
+                   (fitted (pycell--fit line)))
+              (should-not (get-buffer-window notebook t))
+              (should (= (plist-get (cdr (pycell--image fitted)) :max-height)
+                         (round (* 0.5 (window-body-height
+                                        (selected-window) t))))))))
+      (kill-buffer elsewhere)
+      (kill-buffer notebook))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

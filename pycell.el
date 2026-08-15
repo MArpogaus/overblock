@@ -132,8 +132,9 @@ backwards.  The difference is the two lines of text a block carries
 besides the figure.
 
 The share is taken when the block is drawn, from the window showing
-the buffer then; a window resized afterwards keeps the size the
-figure had."
+the buffer then, or from the selected window when the notebook is not
+on screen; a window resized afterwards keeps the size the figure
+had."
   :type 'number)
 
 (defcustom pycell-max-line-length 2000
@@ -336,7 +337,13 @@ The line kept for `pycell-pop-output' is not touched: this copies
 before it caps."
   (if-let* (((numberp pycell-max-image-height))
             ((> pycell-max-image-height 0))
-            (window (get-buffer-window nil t))
+            ;; A cell can finish while its notebook is elsewhere —
+            ;; sent and switched away from, or one of a whole run —
+            ;; and no window at all would mean no cap and a block the
+            ;; wheel cannot get past.  The selected window is a guess
+            ;; at the size the notebook will have, and a guess that
+            ;; comes out small only draws a smaller figure.
+            (window (or (get-buffer-window nil t) (selected-window)))
             (limit (round (* pycell-max-image-height
                              (window-body-height window t))))
             ((> limit 0))
