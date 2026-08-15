@@ -558,12 +558,17 @@ Each cell gets one buffer, so results are comparable side by side."
 ;;;; Markdown cells
 
 (defconst pycell--md-boundary
-  "\\s<+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
+  "#+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
   "What marks a cell boundary line as a markdown cell.
 Loose where `code-cells-boundary-regexp\=' is loose: any number of
 comment characters, with or without a space, since VS Code and Spyder
 write =#%% [markdown]= where jupytext writes =# %% [markdown]=.  A
-tag list or a title may follow, as they may on a code cell.")
+tag list or a title may follow, as they may on a code cell.
+
+The comment character is spelled out rather than asked of the syntax
+table: this package reads Python and nothing else, and a caller with
+another table current — a test, or a buffer whose mode has not been
+set yet — would otherwise get a different answer.")
 
 (defun pycell--md-head (pos)
   "Return the start of the =# %% [markdown]= line above POS, or nil.
