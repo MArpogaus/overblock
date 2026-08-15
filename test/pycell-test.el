@@ -64,6 +64,18 @@
   (let ((comint-prompt-regexp "^"))
     (should (equal (pycell--clean "text") "text"))))
 
+(ert-deftest pycell-test-clean-keeps-a-leading-image ()
+  "A figure that is the whole output survives the prompt strip.
+comint-mime renders an image as one space with a display property,
+and the run of whitespace before a prompt would take it along, which
+left a cell whose only output is a figure with an empty block."
+  (let* ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)")
+         (result (pycell--clean (concat pycell-test--image "\n\nIn [5]: "))))
+    (should (= (length result) 1))
+    (should (pycell--image result))
+    ;; a prompt with nothing to show before it still goes
+    (should (equal (pycell--clean "In [5]: 42") "42"))))
+
 (ert-deftest pycell-test-clean-keeps-images ()
   "Whitespace that carries a display property is part of the result."
   (let* ((comint-prompt-regexp "^>>> ")

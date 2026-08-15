@@ -272,9 +272,13 @@ would delete it.  Call this in the shell buffer, where
 `comint-prompt-regexp' has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop if the prompt regexp
-    ;; matches the empty string.
+    ;; matches the empty string.  The last one keeps a figure: a cell
+    ;; whose only output is one arrives as a space carrying it, which
+    ;; the whitespace before the prompt would otherwise swallow, and
+    ;; the block would come out empty.
     (while (and (string-match (concat "\\`[ \t\n]*" rx) text)
-                (> (match-end 0) 0))
+                (> (match-end 0) 0)
+                (not (text-property-not-all 0 (match-end 0) 'display nil text)))
       (setq text (substring text (match-end 0))))
     (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
       (setq text (substring text 0 (match-beginning 0))))
