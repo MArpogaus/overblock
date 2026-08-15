@@ -246,9 +246,16 @@ the blocks themselves.  Bind what you use, for example in
   lines, a piece to a line, so it keeps a height in lines and moves
   like ordinary text.
 - Display properties do not nest.  A result that contains an image
-  therefore rides the overlay's after-string, which scrolls less
-  smoothly than the text path.  At most one figure is drawn inline; the
-  rest waits in the popup buffer.
+  therefore rides the overlay's after-string, and the wheel does not
+  cross that symmetrically: scrolling down over such a block and back
+  up by the same amount does not return the view where it started,
+  and the error repeats on every crossing.  Measured on a forty cell
+  notebook, twenty crossings of six 25 pixel events each: a block of
+  plain text of the same height comes back to the pixel, a block with
+  an image is 26 characters and 69 pixels further down.  No scroll
+  option avoids it; scrolling by lines does, and so does folding the
+  block or reading it with =pycell-pop-output=.  At most one figure is
+  drawn inline; the rest waits in the popup buffer.
 - One cell runs at a time per inferior process.  Sending a cell while
   another is still running is refused.
 - A rendered markdown cell makes every scroll event more expensive.
