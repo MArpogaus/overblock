@@ -824,10 +824,11 @@ line \(see `pycell--md-parts'), so the cell scrolls like ordinary
 text and stands as tall as its source, unless the rendering is
 shorter and the lines left over go under a cloak.  A cell with an
 image is the exception: it falls back to the single string a result
-block uses, and hides its source as one invisible run.  That run must start at the end of
-a visible line — `scroll-down' fails with a beginning-of-buffer
-error when it has to move the window start over a run that begins at
-a line start — which is why the =# %%= line stays visible.
+block uses, and hides its source as one invisible run.  That run
+must start at the end of a visible line — `scroll-down' fails with a
+beginning-of-buffer error when it has to move the window start over a
+run that begins at a line start — which is why the =# %%= line stays
+visible.
 
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= keeps the look of every other cell boundary and
