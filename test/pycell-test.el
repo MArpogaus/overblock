@@ -338,7 +338,10 @@ leave a line of no height, which stops scrolling up the same way."
     (should-not (pycell--md-head (point)))))
 
 (ert-deftest pycell-test-md-program ()
-  "A string and a list of candidates both resolve to a program."
+  "A string and a list of candidates both resolve to a program.
+Only where there is a parser to read the converter's HTML with: see
+`pycell-test-md-program-needs-libxml' for the other direction."
+  (skip-unless (fboundp 'libxml-parse-html-region))
   (let ((pycell-markdown-command "definitely-not-installed-xyz"))
     (should-not (pycell--md-program)))
   (let ((pycell-markdown-command (list "definitely-not-installed-xyz"

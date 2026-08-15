@@ -72,6 +72,13 @@
 (defvar org-preview-latex-process-alist)
 (defvar org-format-latex-options)
 
+;; shr parses the converter's HTML with this, and an Emacs built
+;; without libxml2 does not have it; `pycell--md-program' answers nil
+;; there and no markdown cell is rendered at all.  Declared so the
+;; file still compiles on such a build.
+(declare-function libxml-parse-html-region "xml.c"
+                  (start end &optional base-url discard-comments))
+
 (defgroup pycell nil "Inline results for Python code cells." :group 'python)
 
 (defface pycell-header '((t :inherit code-cells-header-line))
