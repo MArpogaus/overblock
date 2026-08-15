@@ -1005,7 +1005,11 @@ and renders it; \\[pycell-md-abort] discards the edit."
                      end)))
           (goto-char beg)
           (delete-region beg end)
-          (insert (pycell--md-comment md) tail)))
+          ;; An empty cell has no line to comment: `pycell--md-comment'
+          ;; would write a bare # where the author left nothing, and a
+          ;; commit that changed nothing would change the file.
+          (insert (if (string-empty-p md) "" (pycell--md-comment md))
+                  tail)))
       (pycell--md-show beg end))
     (quit-window t)))
 

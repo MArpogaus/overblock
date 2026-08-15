@@ -697,5 +697,33 @@ size, which is the block the wheel cannot get past."
       (kill-buffer elsewhere)
       (kill-buffer notebook))))
 
+(ert-deftest pycell-test-md-commit-keeps-an-empty-cell-empty ()
+  "Committing an empty cell writes nothing where there was nothing.
+An empty text has no line to comment, and `pycell--md-comment' turns
+it into a bare #, so a commit that changed nothing changed the file."
+  (skip-unless (pycell--md-program))
+  (let ((text "# %% [markdown]\n\n# %%\nx = 1\n")
+        (notebook (generate-new-buffer "*pycell test notebook*"))
+        edit)
+    (unwind-protect
+        (progn
+          (with-current-buffer notebook
+            (insert text)
+            (python-mode)
+            (code-cells-mode)
+            (pycell-md-render-all)
+            (goto-char (point-min))
+            (forward-line 1)
+            (let ((name (format "*pycell md: %s*" (buffer-name))))
+              (save-window-excursion (pycell-md-edit))
+              (setq edit (get-buffer name))))
+          (should edit)
+          (with-current-buffer edit (pycell-md-commit))
+          (with-current-buffer notebook
+            (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                           text))))
+      (when (buffer-live-p edit) (kill-buffer edit))
+      (kill-buffer notebook))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
