@@ -185,9 +185,12 @@ answers that it does not know =get_ipython=.
 A cell whose boundary line reads =# %% [markdown]= renders in place:
 the rendering hangs on the commented source lines, a piece to a line,
 and the header bar takes the place of the =[markdown]= word, so the
-=# %%= keeps the look of every other cell boundary.  The cell keeps a
-height in lines and moves like ordinary text, and an outline fold
-takes the whole of it along.  =$…$= and =$$…$$= fragments become
+=# %%= keeps the look of every other cell boundary.  The cell moves
+like ordinary text rather than as one tall line, and an outline fold
+takes the whole of it along.  It keeps the height of its source
+unless the rendering is shorter — a three line table that renders as
+one, a fenced block that renders as its contents — and then the spare
+lines go under a cloak and the cell shrinks by that much.  =$…$= and =$$…$$= fragments become
 preview images, cached under =~/.cache/pycell-math=.
 
 Formulas take the shortest road: whatever the converter renders stays
@@ -244,8 +247,9 @@ the blocks themselves.  Bind what you use, for example in
   the line cap alone leaves a hundred thousand characters of =print=
   output in the block, at a fifth of a second a wheel event.
   A markdown cell is not affected: its rendering hangs on the source
-  lines, a piece to a line, so it keeps a height in lines and moves
-  like ordinary text.
+  lines, a piece to a line, so it has a height in lines and moves
+  like ordinary text.  That height is the source's unless the
+  rendering is shorter, when the spare lines are hidden.
 - Display properties do not nest.  A result that contains an image
   therefore rides the overlay's after-string, and a window start
   cannot be put inside an overlay string.  Two things follow, both

@@ -50,8 +50,9 @@
 ;; Emacs cannot place point inside one.  The mouse wheel scrolls
 ;; through it a pixel at a time, but `next-line' and `previous-line'
 ;; cross it in one step, because a window can only start at a buffer
-;; position.  A rendered markdown cell keeps its lines and moves like
-;; ordinary text.
+;; position.  A rendered markdown cell has lines of its own and moves
+;; like ordinary text; it stands as tall as its source unless the
+;; rendering is shorter, when the lines left over are hidden.
 
 ;;; Code:
 
@@ -819,10 +820,11 @@ the middle of the cell."
 (defun pycell--md-show (beg end)
   "Show the markdown cell body BEG..END rendered, in place.
 The rendering hangs on the source lines themselves, a piece to a
-line \(see `pycell--md-parts'), so the cell keeps its height and
-scrolls like ordinary text.  A cell with an image is the exception:
-it falls back to the single string a result block uses, and hides
-its source as one invisible run.  That run must start at the end of
+line \(see `pycell--md-parts'), so the cell scrolls like ordinary
+text and stands as tall as its source, unless the rendering is
+shorter and the lines left over go under a cloak.  A cell with an
+image is the exception: it falls back to the single string a result
+block uses, and hides its source as one invisible run.  That run must start at the end of
 a visible line — `scroll-down' fails with a beginning-of-buffer
 error when it has to move the window start over a run that begins at
 a line start — which is why the =# %%= line stays visible.
