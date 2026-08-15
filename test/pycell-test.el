@@ -786,5 +786,30 @@ nothing but their number says whether they did."
             (should (equal batched (funcall displays)))))
       (kill-buffer buffer))))
 
+(ert-deftest pycell-test-md-boundary-shapes ()
+  "Every boundary `code-cells' takes as markdown is taken as markdown.
+VS Code and Spyder write =#%% [markdown]= where jupytext writes
+=# %% [markdown]=, and a tag list or a title may follow either."
+  (with-temp-buffer
+    (python-mode)
+    (dolist (line '("# %% [markdown]"
+                    "#%% [markdown]"
+                    "## %% [markdown]"
+                    "#  %%  [markdown]"
+                    "# %% [markdown] tags=[\"note\"]"
+                    "# %% [markdown] The heading of the cell"))
+      (erase-buffer)
+      (insert line "\n# prose\n")
+      (goto-char (point-min))
+      (forward-line 1)
+      (should (pycell--md-head (point))))
+    ;; and a code cell is not one, whatever it is called
+    (dolist (line '("# %%" "#%%" "# %% A title" "# %% tags=[\"parameters\"]"))
+      (erase-buffer)
+      (insert line "\nx = 1\n")
+      (goto-char (point-min))
+      (forward-line 1)
+      (should-not (pycell--md-head (point))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

@@ -557,13 +557,21 @@ Each cell gets one buffer, so results are comparable side by side."
 
 ;;;; Markdown cells
 
+(defconst pycell--md-boundary
+  "\\s<+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
+  "What marks a cell boundary line as a markdown cell.
+Loose where `code-cells-boundary-regexp\=' is loose: any number of
+comment characters, with or without a space, since VS Code and Spyder
+write =#%% [markdown]= where jupytext writes =# %% [markdown]=.  A
+tag list or a title may follow, as they may on a code cell.")
+
 (defun pycell--md-head (pos)
   "Return the start of the =# %% [markdown]= line above POS, or nil.
 A non-nil value marks POS as the body of a markdown cell."
   (save-excursion
     (goto-char pos)
     (forward-line -1)
-    (and (looking-at-p "# %% \\[markdown\\]") (point))))
+    (and (looking-at-p pycell--md-boundary) (point))))
 
 (defun pycell--fill-prop (string prop value)
   "Set PROP to VALUE where STRING does not carry PROP yet.
@@ -944,7 +952,7 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
         cells missed)
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward "^# %% \\[markdown\\]" nil t)
+      (while (re-search-forward (concat "^" pycell--md-boundary) nil t)
         (forward-line 1)
         (let ((beg (point))
               (end (if (re-search-forward code-cells-boundary-regexp nil t)
