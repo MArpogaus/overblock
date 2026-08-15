@@ -93,9 +93,19 @@ left a cell whose only output is a figure with an empty block."
 
 (ert-deftest pycell-test-body-lines-stop-after-image ()
   "Nothing after the first image line shows inline."
-  (let ((pycell-max-lines 10))
-    (should (equal (pycell--body-lines (list "text" pycell-test--image "more"))
-                   (list "text" pycell-test--image)))))
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
+    (let ((pycell-max-lines 10))
+      (should (equal (pycell--body-lines (list "text" pycell-test--image "more"))
+                     (list "text" pycell-test--image))))))
+
+(ert-deftest pycell-test-body-lines-run-on-without-images ()
+  "A display that cannot draw an image has nothing to stop for.
+In a terminal the image is the space it rides on, so stopping there
+would hide the rest of the output and buy no height back."
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
+    (let ((pycell-max-lines 10))
+      (should (equal (pycell--body-lines (list "before" pycell-test--image "after"))
+                     (list "before" pycell-test--image "after"))))))
 
 (ert-deftest pycell-test-image ()
   "The first image of a result is found, and plain text has none."
@@ -549,9 +559,11 @@ were a fifth of a second a wheel event."
                    (list "short" (concat (make-string 10 ?x)
                                          (pycell--glyph "…" "...")))))
     ;; a line with an image on it keeps every character: the image may
-    ;; sit past the cut
-    (let ((line (concat (make-string 30 ?x) pycell-test--image)))
-      (should (equal (pycell--body-lines (list line)) (list line)))))
+    ;; sit past the cut.  Only where the display can draw one — in a
+    ;; terminal it is a space like any other and the line is cut.
+    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
+      (let ((line (concat (make-string 30 ?x) pycell-test--image)))
+        (should (equal (pycell--body-lines (list line)) (list line))))))
   ;; zero cuts nothing
   (let ((pycell-max-lines 12)
         (pycell-max-line-length 0))

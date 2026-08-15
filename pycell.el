@@ -368,15 +368,20 @@ before it caps."
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
 At most `pycell-max-lines', each cut to `pycell-max-line-length', and
-nothing after the first line that carries an image: more inline
-figures would grow the block, and the scroll jump with it, without
-bound.  A line with an image on it is not cut, since the image may
+nothing after the first line that carries an image it can draw: more
+inline figures would grow the block, and the scroll jump with it,
+without bound.  A display that shows no images has nothing to stop
+for.  A line with an image on it is not cut, since the image may
 sit past the cut; its images are capped to
 `pycell-max-image-height' instead."
   (let (shown stop)
     (while (and lines (not stop) (< (length shown) pycell-max-lines))
       (let* ((l (pop lines))
-             (image (pycell--image l)))
+             ;; Only where an image can be drawn.  A terminal shows
+             ;; the space it rides on and nothing else, so stopping
+             ;; there would cost the rest of the output and buy no
+             ;; height back.
+             (image (and (display-images-p) (pycell--image l))))
         (push (if image (pycell--fit l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
