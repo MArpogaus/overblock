@@ -228,6 +228,7 @@ the blocks themselves.  Bind what you use, for example in
 |----------------------------+--------------------------------------------------|
 | =pycell-max-lines=         | result lines drawn inline, the rest in the popup |
 | =pycell-max-line-length=   | characters of a result line drawn inline         |
+| =pycell-max-image-height=  | share of the window an inline image may take     |
 | =pycell-markdown-command=  | shell command that turns Markdown into HTML      |
 | =pycell-header=            | face of the header bar                           |
 | =pycell-output=            | face of the result body                          |
@@ -257,6 +258,13 @@ the blocks themselves.  Bind what you use, for example in
     twenty crossings of six 25 pixel events, a block of plain text of
     the same height comes back to the pixel, one with an image is 26
     characters and 69 pixels further down.
+  - A block taller than the window is worse than either: the wheel
+    bounces backwards off it and starts over, and the buffer below
+    stays out of reach.  A figure at 0.9 of a 437 pixel text area
+    bounced 40 times in 399 events of 25 pixels and never got past;
+    that is why =pycell-max-image-height= caps an inline figure at
+    0.8 of the window, which goes by in 94 events without one step
+    backwards.
   - Scrolling by lines does not get past it at all.
     =scroll-up-line= stops at the line above and stays there; driven
     from the top of the buffer it stopped after 119 commands and the

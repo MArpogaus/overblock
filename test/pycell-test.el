@@ -641,5 +641,28 @@ x = 1
 x = 1
 "))))
 
+(ert-deftest pycell-test-fit-caps-an-image ()
+  "An image drawn inline is capped to a share of the window.
+A block taller than the window bounces the wheel backwards off itself
+and cannot be scrolled past at all."
+  (let ((buffer (get-buffer-create "*pycell test fit*")))
+    (unwind-protect
+        (with-current-buffer buffer
+          (set-window-buffer (selected-window) buffer)
+          (let ((line (concat "x" pycell-test--image)))
+            (let* ((pycell-max-image-height 0.5)
+                   (fitted (pycell--fit line)))
+              (should (= (plist-get (cdr (pycell--image fitted)) :max-height)
+                         (round (* 0.5 (window-body-height
+                                        (selected-window) t)))))
+              ;; the line kept for the popup is not touched
+              (should-not (plist-get (cdr (pycell--image line)) :max-height)))
+            ;; zero draws it at its own size
+            (let* ((pycell-max-image-height 0)
+                   (fitted (pycell--fit line)))
+              (should-not (plist-get (cdr (pycell--image fitted))
+                                     :max-height)))))
+      (kill-buffer buffer))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
