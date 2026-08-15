@@ -737,5 +737,54 @@ it into a bare #, so a commit that changed nothing changed the file."
       (when (buffer-live-p edit) (kill-buffer edit))
       (kill-buffer notebook))))
 
+(ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()
+  "The cells come back from one converter call, one piece each."
+  (skip-unless (pycell--md-program))
+  (let ((htmls (pycell--md-htmls '("# One\n\nfirst" "second" "*third*"))))
+    (should (= (length htmls) 3))
+    (should (string-match-p "first" (nth 0 htmls)))
+    (should (string-match-p "second" (nth 1 htmls)))
+    (should (string-match-p "third" (nth 2 htmls)))
+    ;; nothing of one cell leaks into the next
+    (should-not (string-match-p "second" (nth 0 htmls))))
+  ;; a cell that holds the marker sends everyone the ordinary way
+  (should-not (pycell--md-htmls (list "text" pycell--md-marker))))
+
+(ert-deftest pycell-test-md-htmls-gives-up-when-the-marker-changes ()
+  "A converter that reshapes the marker sends every cell its own way.
+The batch is only safe while the pieces come back one to a cell, and
+nothing but their number says whether they did."
+  (cl-letf (((symbol-function 'pycell--md-html)
+             (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
+    (should-not (pycell--md-htmls '("one" "two")))))
+
+(ert-deftest pycell-test-md-render-all-matches-one-by-one ()
+  "Converting the buffer at once renders what one call per cell does."
+  (skip-unless (pycell--md-program))
+  (let ((buffer (generate-new-buffer "*pycell test notebook*"))
+        (displays (lambda ()
+                    (mapcar (lambda (ov)
+                              (mapconcat (lambda (part)
+                                           (or (overlay-get part 'display) ""))
+                                         (overlay-get ov 'pycell-parts) "|"))
+                            (seq-filter (lambda (ov) (overlay-get ov 'pycell-parts))
+                                        (pycell--overlays (point-min) (point-max)
+                                                          'pycell-md))))))
+    (unwind-protect
+        (with-current-buffer buffer
+          (dotimes (i 3)
+            (insert (format "# %%%% [markdown]\n# ## Section %d\n#\n# Prose *here*.\n\n# %%%%\nx%d = %d\n\n" i i i)))
+          (python-mode)
+          (code-cells-mode)
+          (pycell-md-render-all)
+          (let ((batched (funcall displays)))
+            (should (= (length batched) 3))
+            (pycell-md-unrender)
+            ;; the same buffer with the batch turned down
+            (cl-letf (((symbol-function 'pycell--md-htmls) (lambda (_texts) nil)))
+              (pycell-md-render-all))
+            (should (equal batched (funcall displays)))))
+      (kill-buffer buffer))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

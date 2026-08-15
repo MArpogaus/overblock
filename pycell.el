@@ -723,22 +723,55 @@ have."
                      (and (executable-find (car argv)) argv)))
                  (ensure-list pycell-markdown-command))))
 
-(defun pycell--md-rendered (md)
+(defconst pycell--md-marker "pycellcellbreak8f2b1c"
+  "What stands between cells when they go to the converter together.
+A word of its own in a paragraph of its own: every converter passes
+that through as a paragraph, where anything with markup would be
+reshaped into something else.")
+
+(defun pycell--md-html (md)
+  "Return the HTML `pycell-markdown-command' makes of MD."
+  (let ((program (pycell--md-program)))
+    (with-temp-buffer
+      (insert md)
+      ;; Send standard error nowhere: pandoc warns about math it cannot
+      ;; convert, and the text would land in the HTML.
+      (let ((status (apply #'call-process-region
+                           (point-min) (point-max) (car program)
+                           t '(t nil) nil (cdr program))))
+        (unless (eq status 0)
+          (error "%s exited with status %s" (car program) status)))
+      (buffer-string))))
+
+(defun pycell--md-htmls (texts)
+  "Return the HTML of each of TEXTS, converted in one go.
+Opening a notebook renders every markdown cell, and a converter
+process costs more than the markdown: 44 milliseconds a cell with
+`markdown_py\=', which is two seconds for fifty cells and nine for two
+hundred.  One process for the buffer costs that once.
+
+Nil when the marker does not come back once between every pair of
+cells, or when a cell holds it already; the caller then asks for one
+call per cell, as it always did."
+  (unless (seq-some (lambda (text) (string-search pycell--md-marker text))
+                    texts)
+    (let* ((joined (string-join texts (format "\n\n%s\n\n"
+                                             pycell--md-marker)))
+           (pieces (split-string
+                    (pycell--md-html joined)
+                    (format "<p>[ \t\n]*%s[ \t\n]*</p>" pycell--md-marker))))
+      (and (= (length pieces) (length texts)) pieces))))
+
+(defun pycell--md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
-`pycell-markdown-command' produces HTML, shr renders it, and LaTeX
-fragments become preview images."
+`pycell-markdown-command\=' produces HTML, shr renders it, and LaTeX
+fragments become preview images.  With HTML, that is rendered instead
+and MD is not converted again: `pycell-md-render-all\=' converts the
+whole buffer at once."
   (require 'shr)
-  (let* ((program (pycell--md-program))
-         (dom (with-temp-buffer
-                (insert md)
-                ;; Send standard error nowhere: pandoc warns about math
-                ;; it cannot convert, and the text would land in the HTML.
-                (let ((status (apply #'call-process-region
-                                     (point-min) (point-max) (car program)
-                                     t '(t nil) nil (cdr program))))
-                  (unless (eq status 0)
-                    (error "%s exited with status %s" (car program) status)))
-                (libxml-parse-html-region (point-min) (point-max)))))
+  (let ((dom (with-temp-buffer
+               (insert (or html (pycell--md-html md)))
+               (libxml-parse-html-region (point-min) (point-max)))))
     (with-temp-buffer
       (shr-insert-document dom)
       (pycell--md-mathify (string-trim (buffer-string))))))
@@ -817,8 +850,10 @@ the middle of the cell."
       (push (pycell--md-cloak spare (1- end)) parts))
     (nreverse parts)))
 
-(defun pycell--md-show (beg end)
+(defun pycell--md-show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.
+With HTML, the cell is not sent to the converter again: it was
+converted with the rest of the buffer.
 The rendering hangs on the source lines themselves, a piece to a
 line \(see `pycell--md-parts'), so the cell scrolls like ordinary
 text and stands as tall as its source, unless the rendering is
@@ -841,7 +876,8 @@ Only the word =markdown= of the boundary line carries the header, so
                  (pycell--faced
                   (pycell--md-rendered
                    (pycell--md-uncomment
-                    (buffer-substring-no-properties beg end)))
+                    (buffer-substring-no-properties beg end))
+                   html)
                   'default)
                  'keymap pycell-md-map)
                 'help-echo help))
@@ -905,7 +941,7 @@ Only the word =markdown= of the boundary line carries the header, so
 A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
   (interactive)
   (let ((program (pycell--md-program))
-        missed)
+        cells missed)
     (save-excursion
       (goto-char (point-min))
       (while (re-search-forward "^# %% \\[markdown\\]" nil t)
@@ -915,8 +951,21 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
                        (pos-bol)
                      (point-max))))
           (when (< beg end)
-            (if program (pycell--md-show beg end) (setq missed t)))
+            (if program (push (cons beg end) cells) (setq missed t)))
           (goto-char end))))
+    (setq cells (nreverse cells))
+    ;; One converter process for the buffer rather than one per cell.
+    ;; It answers nil where the marker between cells did not survive,
+    ;; and then each cell goes on its own, as before.
+    (let ((htmls (and (cdr cells)
+                      (pycell--md-htmls
+                       (mapcar (lambda (cell)
+                                 (pycell--md-uncomment
+                                  (buffer-substring-no-properties
+                                   (car cell) (cdr cell))))
+                               cells)))))
+      (dolist (cell cells)
+        (pycell--md-show (car cell) (cdr cell) (pop htmls))))
     (when missed
       (message "pycell: %s, cells stay plain"
                (if (fboundp 'libxml-parse-html-region)
