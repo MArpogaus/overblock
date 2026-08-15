@@ -543,5 +543,29 @@ were a fifth of a second a wheel event."
     (should (equal (pycell--body-lines (list (make-string 30 ?x)))
                    (list (make-string 30 ?x))))))
 
+(ert-deftest pycell-test-md-program-needs-libxml ()
+  "Without the parser there is no converter worth naming.
+shr reads the converter's HTML with `libxml-parse-html-region', which
+an Emacs built without libxml2 does not have.  Rendering signalled a
+void function there, on every markdown cell, instead of saying so and
+leaving the cells as text."
+  (cl-letf (((symbol-function 'libxml-parse-html-region) nil))
+    (should-not (fboundp 'libxml-parse-html-region))
+    (should-not (pycell--md-program))
+    ;; and rendering says so instead of failing
+    (with-temp-buffer
+      (insert "# %% [markdown]\n# ## Heading\n#\n# Prose.\n\n# %%\nx = 1\n")
+      (python-mode)
+      (code-cells-mode)
+      (let ((before (buffer-string))
+            said)
+        (cl-letf (((symbol-function 'message)
+                   (lambda (fmt &rest args)
+                     (setq said (and fmt (apply #'format fmt args))))))
+          (pycell-md-render-all))
+        (should (string-match-p "libxml" said))
+        (should (equal before (buffer-string)))
+        (should-not (pycell--overlays (point-min) (point-max) 'pycell-md))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

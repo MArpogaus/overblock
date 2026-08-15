@@ -67,7 +67,10 @@ because the block needs that character to hang on.
   because comint-mime installs its renderers through IPython.
 - A markdown to HTML converter for markdown cells: pycell looks for
   =markdown=, =pandoc=, =markdown_py=, =cmark= and =cmark-gfm=, in that
-  order.  See =pycell-markdown-command=.
+  order.  See =pycell-markdown-command=.  An Emacs built with libxml2
+  as well, since shr reads the converter's HTML with it; without
+  either, markdown cells stay plain text and the mode says which one
+  is missing.
 - =latex= and =dvipng= or =dvisvgm= for the formulas your converter
   cannot handle.  Pandoc, for one, renders simple math as text by
   itself; only the rest becomes a preview image, and without a LaTeX

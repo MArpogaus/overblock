@@ -635,11 +635,15 @@ fragment that fails to render here stays plain."
 (defun pycell--md-program ()
   "Return the markdown converter as a list of program and arguments.
 The first candidate of `pycell-markdown-command' that is installed
-wins; the result is nil when none of them is."
-  (seq-some (lambda (command)
-              (let ((argv (split-string-shell-command command)))
-                (and (executable-find (car argv)) argv)))
-            (ensure-list pycell-markdown-command)))
+wins; the result is nil when none of them is, and nil as well where
+this Emacs cannot read the HTML that comes back: shr parses it with
+`libxml-parse-html-region', which a build without libxml2 does not
+have."
+  (and (fboundp 'libxml-parse-html-region)
+       (seq-some (lambda (command)
+                   (let ((argv (split-string-shell-command command)))
+                     (and (executable-find (car argv)) argv)))
+                 (ensure-list pycell-markdown-command))))
 
 (defun pycell--md-rendered (md)
   "Render the markdown MD to a propertized string.
@@ -834,8 +838,13 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
             (if program (pycell--md-show beg end) (setq missed t)))
           (goto-char end))))
     (when missed
-      (message "pycell: no markdown converter found (%s), cells stay plain"
-               (string-join (ensure-list pycell-markdown-command) ", ")))))
+      (message "pycell: %s, cells stay plain"
+               (if (fboundp 'libxml-parse-html-region)
+                   (format "no markdown converter found (%s)"
+                           (string-join (ensure-list pycell-markdown-command)
+                                        ", "))
+                 "this Emacs was built without libxml, which shr reads \
+the converter\'s HTML with")))))
 
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
