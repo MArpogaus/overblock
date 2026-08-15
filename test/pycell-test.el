@@ -567,5 +567,33 @@ leaving the cells as text."
         (should (equal before (buffer-string)))
         (should-not (pycell--overlays (point-min) (point-max) 'pycell-md))))))
 
+(ert-deftest pycell-test-fold-md-image-at-buffer-end ()
+  "A cell with an image folds even where the buffer ends without one.
+The block of such a cell is a string on the main overlay, and only a
+cell followed by a newline has a body overlay as well.  Asking for
+the body first skipped the last cell of a buffer that ends without a
+newline, and its figure stayed on screen below the fold."
+  (skip-unless (pycell--md-program))
+  (dolist (trailing '("\n" ""))
+    (with-temp-buffer
+      (insert "# %% [markdown]\n# ## Prose\n#\n# Words.\n\n"
+              "# %%\nx = 1\n\n"
+              "# %% [markdown]\n# ## A figure\n#\n# ![pic](pic.png)" trailing)
+      (python-mode)
+      (code-cells-mode)
+      (pycell-md-render-all)
+      ;; the cell overlays in order; the last one holds the figure
+      (let* ((cells (seq-filter (lambda (o) (overlay-get o 'pycell-main))
+                                (pycell--overlays (point-min) (point-max)
+                                                  'pycell-md)))
+             (last (overlay-get (car (last cells)) 'pycell-main)))
+        (should last)
+        ;; the image took the string road, so there is one to hide
+        (should (> (length (or (overlay-get last 'after-string) "")) 0))
+        (outline-flag-region (point-min) (point-max) t)
+        (should (= (length (or (overlay-get last 'after-string) "")) 0))
+        (outline-flag-region (point-min) (point-max) nil)
+        (should (> (length (or (overlay-get last 'after-string) "")) 0))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
