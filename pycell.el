@@ -529,31 +529,31 @@ guess at the range that any one fold command uses, follow the call."
                           (max (overlay-start o)
                                (overlay-start bov))))))))
   (dolist (ov (pycell--overlays from to 'pycell-md))
-    (let ((bov (overlay-get ov 'pycell-body))
-          ;; The fold covers the lines the pieces hang on, but stops
-          ;; one character short of the last newline, so the last
-          ;; piece would stay on screen.  Hide them along.
-          (parts (overlay-get ov 'pycell-parts)))
-      (if flag
-          (unless (overlay-get ov 'pycell-folded)
-            (overlay-put ov 'pycell-folded
-                         (list (overlay-get ov 'after-string)
-                               (and bov (overlay-get bov 'display))
-                               (and bov (overlay-get bov 'after-string))))
-            (overlay-put ov 'after-string nil)
-            (when bov
+    (if-let* ((parts (overlay-get ov 'pycell-parts)))
+        ;; The fold covers the very lines the pieces hang on, but it
+        ;; stops one character short of the last newline, so the last
+        ;; piece would stay on screen.  Hide them along.  The cloak
+        ;; over the spare lines is invisible either way.
+        (dolist (part parts)
+          (overlay-put part 'invisible
+                       (or flag (overlay-get part 'pycell-cloak))))
+      ;; A cell with an image is one string on the newline below it,
+      ;; where no fold reaches.  Put it aside and give it back.
+      (when-let* ((bov (overlay-get ov 'pycell-body)))
+        (if flag
+            (unless (overlay-get ov 'pycell-folded)
+              (overlay-put ov 'pycell-folded
+                           (list (overlay-get ov 'after-string)
+                                 (overlay-get bov 'display)
+                                 (overlay-get bov 'after-string)))
+              (overlay-put ov 'after-string nil)
               (overlay-put bov 'display nil)
               (overlay-put bov 'after-string nil))
-            (dolist (part parts) (overlay-put part 'invisible t)))
-        (when-let* ((saved (overlay-get ov 'pycell-folded)))
-          (overlay-put ov 'after-string (nth 0 saved))
-          (when bov
+          (when-let* ((saved (overlay-get ov 'pycell-folded)))
+            (overlay-put ov 'after-string (nth 0 saved))
             (overlay-put bov 'display (nth 1 saved))
-            (overlay-put bov 'after-string (nth 2 saved)))
-          ;; The cloak over the spare lines stays what it was.
-          (dolist (part parts)
-            (overlay-put part 'invisible (overlay-get part 'pycell-cloak)))
-          (overlay-put ov 'pycell-folded nil))))))
+            (overlay-put bov 'after-string (nth 2 saved))
+            (overlay-put ov 'pycell-folded nil)))))))
 
 ;; At load, not at activation: by the time this file loads, the user
 ;; has turned the mode on.  The advice is inert in buffers without
