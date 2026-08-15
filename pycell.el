@@ -38,18 +38,20 @@
 ;; and the output as comint-mime rendered it, images included.
 ;;
 ;; Markdown cells, the `# %% [markdown]' ones that jupytext writes, are
-;; rendered in place.  Their source turns invisible, an external
-;; markdown command and shr produce the block, and the formulas that
-;; the converter passed through become preview images through the
-;; formula machinery of Org mode.
+;; rendered in place.  An external markdown command and shr produce
+;; the text, which then hangs on the source lines it replaces, a piece
+;; to a line, and the formulas that the converter passed through
+;; become preview images through the formula machinery of Org mode.
 ;;
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
 ;;
-;; Blocks are display strings on a single buffer line, and Emacs cannot
-;; place point inside one.  The mouse wheel scrolls through a block a
-;; pixel at a time, but `next-line' and `previous-line' cross it in one
-;; step, because a window can only start at a buffer position.
+;; A result block is a display string on a single buffer line, and
+;; Emacs cannot place point inside one.  The mouse wheel scrolls
+;; through it a pixel at a time, but `next-line' and `previous-line'
+;; cross it in one step, because a window can only start at a buffer
+;; position.  A rendered markdown cell keeps its lines and moves like
+;; ordinary text.
 
 ;;; Code:
 
