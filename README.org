@@ -182,11 +182,13 @@ answers that it does not know =get_ipython=.
 
 *** Markdown Cells
 
-A cell whose boundary line reads =# %% [markdown]= renders in place: the
-commented source turns invisible and the header bar takes the place of
-the =[markdown]= word, so the =# %%= keeps the look of every other cell
-boundary.  An outline fold takes the whole rendered cell along.  =$…$= and =$$…$$= fragments become preview images,
-cached under =~/.cache/pycell-math=.
+A cell whose boundary line reads =# %% [markdown]= renders in place:
+the rendering hangs on the commented source lines, a piece to a line,
+and the header bar takes the place of the =[markdown]= word, so the
+=# %%= keeps the look of every other cell boundary.  The cell keeps a
+height in lines and moves like ordinary text, and an outline fold
+takes the whole of it along.  =$…$= and =$$…$$= fragments become
+preview images, cached under =~/.cache/pycell-math=.
 
 Formulas take the shortest road: whatever the converter renders stays
 text, and only what it passes through becomes a preview image.
