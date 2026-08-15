@@ -537,22 +537,27 @@ guess at the range that any one fold command uses, follow the call."
         (dolist (part parts)
           (overlay-put part 'invisible
                        (or flag (overlay-get part 'pycell-cloak))))
-      ;; A cell with an image is one string on the newline below it,
-      ;; where no fold reaches.  Put it aside and give it back.
-      (when-let* ((bov (overlay-get ov 'pycell-body)))
+      ;; A cell with an image is one string below the cell, where no
+      ;; fold reaches.  Put it aside and give it back.  The string is
+      ;; the main overlay's; the body overlay carries the text of a
+      ;; cell that has one, and the last cell of a buffer that ends
+      ;; without a newline has none.
+      (let ((bov (overlay-get ov 'pycell-body)))
         (if flag
             (unless (overlay-get ov 'pycell-folded)
               (overlay-put ov 'pycell-folded
                            (list (overlay-get ov 'after-string)
-                                 (overlay-get bov 'display)
-                                 (overlay-get bov 'after-string)))
+                                 (and bov (overlay-get bov 'display))
+                                 (and bov (overlay-get bov 'after-string))))
               (overlay-put ov 'after-string nil)
-              (overlay-put bov 'display nil)
-              (overlay-put bov 'after-string nil))
+              (when bov
+                (overlay-put bov 'display nil)
+                (overlay-put bov 'after-string nil)))
           (when-let* ((saved (overlay-get ov 'pycell-folded)))
             (overlay-put ov 'after-string (nth 0 saved))
-            (overlay-put bov 'display (nth 1 saved))
-            (overlay-put bov 'after-string (nth 2 saved))
+            (when bov
+              (overlay-put bov 'display (nth 1 saved))
+              (overlay-put bov 'after-string (nth 2 saved)))
             (overlay-put ov 'pycell-folded nil)))))))
 
 ;; At load, not at activation: by the time this file loads, the user
