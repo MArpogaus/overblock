@@ -541,7 +541,13 @@ writes between cells belongs to it and has to be written back."
               (save-window-excursion (pycell-md-edit))
               (setq edit (get-buffer name))))
           (should edit)
-          (with-current-buffer edit (pycell-md-commit))
+          ;; `pycell-md-commit' ends by quitting its window, and the
+          ;; edit buffer is not displayed here, so that would kill
+          ;; whatever the selected window holds — and the next test
+          ;; would find a marker into a dead buffer.  The round trip
+          ;; is what this checks.
+          (cl-letf (((symbol-function 'quit-window) #'ignore))
+            (with-current-buffer edit (pycell-md-commit)))
           (with-current-buffer notebook
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
                            text))))
@@ -718,7 +724,13 @@ it into a bare #, so a commit that changed nothing changed the file."
               (save-window-excursion (pycell-md-edit))
               (setq edit (get-buffer name))))
           (should edit)
-          (with-current-buffer edit (pycell-md-commit))
+          ;; `pycell-md-commit' ends by quitting its window, and the
+          ;; edit buffer is not displayed here, so that would kill
+          ;; whatever the selected window holds — and the next test
+          ;; would find a marker into a dead buffer.  The round trip
+          ;; is what this checks.
+          (cl-letf (((symbol-function 'quit-window) #'ignore))
+            (with-current-buffer edit (pycell-md-commit)))
           (with-current-buffer notebook
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
                            text))))
