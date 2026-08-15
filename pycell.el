@@ -118,6 +118,24 @@ follows the number of face runs the text carries, not its size.
 Width is another matter: see `pycell-max-line-length'."
   :type 'natnum)
 
+(defcustom pycell-max-image-height 0.8
+  "How tall an image may be drawn inline, as a share of the window.
+Zero draws it at whatever size it came in.  `pycell-pop-output' and
+`pycell-save-image' always work from the original.
+
+A block taller than the window cannot be scrolled past: the wheel
+bounces backwards off it and starts over, and the buffer below it
+stays out of reach.  Measured in a 437 pixel text area, 25 pixels a
+step: a figure at 0.9 of the area bounced 40 times in 399 steps and
+never got past, one at 0.8 went by in 94 steps without a single step
+backwards.  The difference is the two lines of text a block carries
+besides the figure.
+
+The share is taken when the block is drawn, from the window showing
+the buffer then; a window resized afterwards keeps the size the
+figure had."
+  :type 'number)
+
 (defcustom pycell-max-line-length 2000
   "Number of characters of a result line that show inline.
 Zero shows all of them.  A line longer than this is cut, and the cut
@@ -312,18 +330,47 @@ left whole costs the scroller."
     (concat (substring line 0 pycell-max-line-length)
             (pycell--glyph "…" "..."))))
 
+(defun pycell--fit (line)
+  "Return LINE with its images capped to `pycell-max-image-height'.
+The line kept for `pycell-pop-output' is not touched: this copies
+before it caps."
+  (if-let* (((numberp pycell-max-image-height))
+            ((> pycell-max-image-height 0))
+            (window (get-buffer-window nil t))
+            (limit (round (* pycell-max-image-height
+                             (window-body-height window t))))
+            ((> limit 0))
+            ((pycell--image line)))
+      (let ((line (copy-sequence line))
+            (pos 0))
+        (while (< pos (length line))
+          (let ((next (or (next-single-property-change pos 'display line)
+                          (length line)))
+                (spec (get-text-property pos 'display line)))
+            (when (and (eq (car-safe spec) 'image)
+                       (not (plist-get (cdr spec) :max-height)))
+              (put-text-property pos next 'display
+                                 (cons 'image
+                                       (plist-put (copy-sequence (cdr spec))
+                                                  :max-height limit))
+                                 line))
+            (setq pos next)))
+        line)
+    line))
+
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
 At most `pycell-max-lines', each cut to `pycell-max-line-length', and
 nothing after the first line that carries an image: more inline
 figures would grow the block, and the scroll jump with it, without
-bound.  A line with an image on it is left whole, since the image may
-sit past the cut."
+bound.  A line with an image on it is not cut, since the image may
+sit past the cut; its images are capped to
+`pycell-max-image-height' instead."
   (let (shown stop)
     (while (and lines (not stop) (< (length shown) pycell-max-lines))
       (let* ((l (pop lines))
              (image (pycell--image l)))
-        (push (if image l (pycell--shorten l)) shown)
+        (push (if image (pycell--fit l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
 
