@@ -595,5 +595,36 @@ newline, and its figure stayed on screen below the fold."
         (outline-flag-region (point-min) (point-max) nil)
         (should (> (length (or (overlay-get last 'after-string) "")) 0))))))
 
+(ert-deftest pycell-test-show-gives-the-last-cell-a-newline ()
+  "The block needs a newline to hang on, and the last cell may lack one.
+This is the one change the package makes to a buffer, so it is worth
+holding to: one newline, only where there is none, and only at the
+end of the buffer."
+  (with-temp-buffer
+    (insert "# %%
+x = 1")                ; no newline at the end
+    (python-mode)
+    (code-cells-mode)
+    (goto-char (point-min))
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "42" 0.1))
+    (should (equal (buffer-string) "# %%
+x = 1
+"))
+    (should (pycell--overlays (point-min) (point-max))))
+  ;; a buffer that ends with one is left alone
+  (with-temp-buffer
+    (insert "# %%
+x = 1
+")
+    (python-mode)
+    (code-cells-mode)
+    (goto-char (point-min))
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "42" 0.1))
+    (should (equal (buffer-string) "# %%
+x = 1
+"))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
