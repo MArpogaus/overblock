@@ -783,6 +783,52 @@ the cell opened first, and unsaved writing went with it."
         (when (and name (get-buffer name)) (kill-buffer name)))
       (kill-buffer notebook))))
 
+(ert-deftest pycell-test-mirror-reads-only-what-it-shows ()
+  "The live mirror reads the head of the output, not all of it.
+Reading everything again on every tick is a pass over the whole
+output five times a second, which grows with the cell: 25ms a tick at
+the start of a sixty thousand line cell and 101ms at its end,
+measured against ipython, where the bounded mirror stays at 1ms
+throughout."
+  (let ((pycell-max-lines 4))
+    (with-temp-buffer
+      (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+      (let ((from (point-max-marker)))
+        (setq-local pycell--run (list from nil nil "" 0.0 nil nil nil))
+        (insert (mapconcat (lambda (i) (format "line %d" i))
+                           (number-sequence 1 200) "\n")
+                "\n")
+        ;; the head holds what shows and a little slack, not the rest
+        (let ((head (pycell--head from)))
+          (should (string-prefix-p "line 1\nline 2" head))
+          (should-not (string-match-p "line 100" head))
+          (should (< (length head) 100)))
+        ;; and it is kept, so the ticks that follow read nothing
+        (should (equal (nth 6 pycell--run) (pycell--head from)))
+        ;; the count is the whole output all the same, and counted
+        ;; only where it arrives: the position it reached is kept
+        (should (= (pycell--total from) 200))
+        (should (= (car (nth 7 pycell--run)) (point-max)))
+        (insert "line 201\nline 202")
+        (should (= (pycell--total from) 202))))))
+
+(ert-deftest pycell-test-mirror-keeps-nothing-while-it-has-nothing ()
+  "An empty head is not kept, so the text can still arrive.
+An escape sequence that has not arrived in full swallows everything
+after it until it does, and comint-mime renders it only when it is
+complete."
+  (let ((pycell-max-lines 2))
+    (with-temp-buffer
+      (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+      (let ((from (point-max-marker)))
+        (setq-local pycell--run (list from nil nil "" 0.0 nil nil nil))
+        (insert "\e]5151;{\"image/png\"\n")
+        (insert (mapconcat (lambda (i) (format "line %d" i))
+                           (number-sequence 1 20) "\n")
+                "\n")
+        (should (equal (pycell--head from) ""))
+        (should-not (nth 6 pycell--run))))))
+
 (ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()
   "The cells come back from one converter call, one piece each."
   (skip-unless (pycell--md-program))
