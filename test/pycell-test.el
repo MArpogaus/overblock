@@ -535,11 +535,14 @@ writes between cells belongs to it and has to be written back."
             (pycell-md-render-all)
             (goto-char (point-min))
             (forward-line 1)
-            (let ((name (format "*pycell md: %s*" (buffer-name))))
+            (let ((prefix (format "*pycell md: %s:" (buffer-name))))
               ;; `pycell-md-edit' pops to its buffer, which leaves that
-              ;; buffer current for the rest of this form.
+              ;; buffer current for the rest of this form.  The buffer
+              ;; is named after the cell, so look it up by its prefix.
               (save-window-excursion (pycell-md-edit))
-              (setq edit (get-buffer name))))
+              (setq edit (seq-find (lambda (b)
+                                     (string-prefix-p prefix (buffer-name b)))
+                                   (buffer-list)))))
           (should edit)
           ;; `pycell-md-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
@@ -720,9 +723,11 @@ it into a bare #, so a commit that changed nothing changed the file."
             (pycell-md-render-all)
             (goto-char (point-min))
             (forward-line 1)
-            (let ((name (format "*pycell md: %s*" (buffer-name))))
+            (let ((prefix (format "*pycell md: %s:" (buffer-name))))
               (save-window-excursion (pycell-md-edit))
-              (setq edit (get-buffer name))))
+              (setq edit (seq-find (lambda (b)
+                                     (string-prefix-p prefix (buffer-name b)))
+                                   (buffer-list)))))
           (should edit)
           ;; `pycell-md-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
@@ -735,6 +740,47 @@ it into a bare #, so a commit that changed nothing changed the file."
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
                            text))))
       (when (buffer-live-p edit) (kill-buffer edit))
+      (kill-buffer notebook))))
+
+(ert-deftest pycell-test-md-edit-keeps-another-cell-s-edit ()
+  "Opening a second cell\='s edit leaves the first one\='s text alone.
+One edit buffer for the whole file wrote the cell opened second over
+the cell opened first, and unsaved writing went with it."
+  (skip-unless (pycell--md-program))
+  (let ((notebook (generate-new-buffer "*pycell test notebook*"))
+        first second)
+    (unwind-protect
+        (with-current-buffer notebook
+          (insert "# %% [markdown]\n# First cell.\n\n"
+                  "# %% [markdown]\n# Second cell.\n")
+          (python-mode)
+          (code-cells-mode)
+          (pycell-md-render-all)
+          (goto-char (point-min))
+          (forward-line 1)
+          (save-window-excursion (pycell-md-edit))
+          (setq first (format "*pycell md: %s:2*" (buffer-name)))
+          (setq second (format "*pycell md: %s:5*" (buffer-name)))
+          (with-current-buffer first
+            (goto-char (point-max))
+            (insert "An hour of unsaved writing."))
+          (goto-char (point-min))
+          (forward-line 4)
+          (save-window-excursion (pycell-md-edit))
+          (should (get-buffer second))
+          (should (string-match-p "Second cell"
+                                  (with-current-buffer second (buffer-string))))
+          (should (string-match-p "An hour of unsaved writing"
+                                  (with-current-buffer first (buffer-string))))
+          ;; and coming back to a cell being edited returns the edit,
+          ;; rather than the text the file still holds
+          (goto-char (point-min))
+          (forward-line 1)
+          (save-window-excursion (pycell-md-edit))
+          (should (string-match-p "An hour of unsaved writing"
+                                  (with-current-buffer first (buffer-string)))))
+      (dolist (name (list first second))
+        (when (and name (get-buffer name)) (kill-buffer name)))
       (kill-buffer notebook))))
 
 (ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()

@@ -1032,19 +1032,29 @@ and renders it; \\[pycell-md-abort] discards the edit."
                (src (current-buffer))
                (md (pycell--md-uncomment
                     (buffer-substring-no-properties beg end)))
+               ;; A buffer per cell, as `pycell-pop-output' does with
+               ;; results: one buffer for the whole file would put the
+               ;; text of the cell opened second over the text of the
+               ;; cell opened first, and an hour of writing with it.
                (buf (get-buffer-create
-                     (format "*pycell md: %s*" (buffer-name)))))
+                     (format "*pycell md: %s:%d*" (buffer-name)
+                             (line-number-at-pos beg)))))
     (with-current-buffer buf
-      (erase-buffer)
-      (insert md)
-      (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
-      (pycell-md-edit-mode)
-      ;; The keys come from the keymap, so the hint stays true when
-      ;; the bindings or the prefix change.
-      (setq header-line-format
-            (substitute-command-keys
-             " Markdown cell — \\[pycell-md-commit] applies, \
+      ;; An edit of this very cell that is already under way is the
+      ;; edit the reader wants back, not a fresh copy of what the file
+      ;; still says.  Org answers the same, by asking.
+      (unless (and pycell-md-edit-mode (buffer-modified-p))
+        (erase-buffer)
+        (insert md)
+        (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
+        (pycell-md-edit-mode)
+        ;; The keys come from the keymap, so the hint stays true when
+        ;; the bindings or the prefix change.
+        (setq header-line-format
+              (substitute-command-keys
+               " Markdown cell — \\[pycell-md-commit] applies, \
   \\[pycell-md-abort] discards"))
+        (set-buffer-modified-p nil))
       (setq pycell--md-source (list src beg end)))
     (pop-to-buffer buf)))
 
