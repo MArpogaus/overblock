@@ -506,11 +506,27 @@ are counted."
   (interactive (list last-input-event))
   (pycell--delete (pycell--overlay event)))
 
+(defun pycell--text (ov)
+  "Return the text of the result overlay OV.
+The one reader of that field: a record that each caller takes apart
+by hand is a record that cannot change shape."
+  (nth 1 (overlay-get ov 'pycell)))
+
+(defun pycell--cell-buffer-name (kind position)
+  "Return the name of the KIND buffer for the cell at POSITION.
+KIND is the word after `pycell\=' in the name, or nil for a result.
+The name carries the line of the cell, so each cell has a buffer of
+its own and the buffers of two cells cannot collide."
+  (format "*pycell%s: %s:%d*"
+          (if kind (concat " " kind) "")
+          (buffer-name)
+          (line-number-at-pos position)))
+
 (defun pycell-copy-output (&optional event)
   "Copy the result at point, or the one clicked in EVENT.
 The copy keeps its text properties, so images survive a yank."
   (interactive (list last-input-event))
-  (kill-new (cadr (overlay-get (pycell--overlay event) 'pycell)))
+  (kill-new (pycell--text (pycell--overlay event)))
   (message "pycell: result copied"))
 
 (defun pycell--image (text)
@@ -530,7 +546,7 @@ The copy keeps its text properties, so images survive a yank."
 The file type comes from the image descriptor; `create-image' read
 it from the data's magic bytes."
   (interactive (list last-input-event))
-  (let* ((text (cadr (overlay-get (pycell--overlay event) 'pycell)))
+  (let* ((text (pycell--text (pycell--overlay event)))
          (img (or (pycell--image text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
@@ -548,9 +564,8 @@ it from the data's magic bytes."
 Each cell gets one buffer, so results are comparable side by side."
   (interactive (list last-input-event))
   (let* ((ov (pycell--overlay event))
-         (text (cadr (overlay-get ov 'pycell)))
-         (name (format "*pycell: %s:%d*" (buffer-name)
-                       (line-number-at-pos (overlay-start ov)))))
+         (text (pycell--text ov))
+         (name (pycell--cell-buffer-name nil (overlay-start ov))))
     (with-current-buffer (get-buffer-create name)
       (special-mode)
       (let ((inhibit-read-only t))
@@ -1041,8 +1056,7 @@ and renders it; \\[pycell-md-abort] discards the edit."
                ;; text of the cell opened second over the text of the
                ;; cell opened first, and an hour of writing with it.
                (buf (get-buffer-create
-                     (format "*pycell md: %s:%d*" (buffer-name)
-                             (line-number-at-pos beg)))))
+                     (pycell--cell-buffer-name "md" beg))))
     (with-current-buffer buf
       ;; An edit of this very cell that is already under way is the
       ;; edit the reader wants back, not a fresh copy of what the file
