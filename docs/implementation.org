@@ -1,0 +1,183 @@
+#+TITLE: How pycell works
+#+OPTIONS: toc:2
+
+This document describes the implementation.  The [[file:../README.org][README]] tells you how
+to use the package.
+
+The text uses these terms:
+
+- *cell*: a piece of a Python file between two cell markers.
+  code-cells finds the markers.
+- *block*: what pycell draws below a code cell to show the result.
+- *shell*: the inferior Python process that =python.el= starts.
+- *mirror*: the copy of the output that the block shows.
+
+* How a result gets into the buffer
+
+=python-shell-send-string= puts the code into =__PYTHON_EL_eval=.
+This function returns the value of a trailing expression.  The value
+goes through the display hook of IPython, where comint-mime has its
+renderers.
+
+The output therefore goes into the REPL as before.  pycell only
+mirrors it:
+
+1. It puts a marker at =process-mark= before it sends the cell.
+2. It waits for the next prompt.
+3. It copies the region up to the prompt out of the REPL.  The copy
+   keeps the text properties, and therefore the images.
+
+The block is a =display= property on the newline that ends the cell.
+A display property on real buffer text scrolls better than a tall
+overlay string.
+
+pycell writes nothing into the buffer.  Files, LSP and undo see no
+change.  There is one exception: the last cell of a buffer gets a
+final newline if it has none, because the block needs that character.
+
+* The live mirror
+
+A ticker runs each 0.2 seconds while a cell runs.  It shows the
+output so far, a spinner and a stopwatch.
+
+The block shows at most =pycell-max-lines= lines, and these are the
+first lines of the output.  The ticker therefore reads only the head
+of the output:
+
+- =pycell--head= reads the first lines and cleans them.  It keeps the
+  text as soon as all lines that show are there.  The ticks after
+  that read nothing.
+- =pycell--total= counts the new lines only.  It keeps the position
+  that it reached in the run state.
+
+An earlier version read the whole output on each tick.  The cost grew
+with the cell.  A cell with 60000 lines paid 25 ms for a tick at the
+start and 101 ms at the end.  A cell with 200000 lines did not
+finish.  The bounded mirror stays at 1 ms for both.
+
+The finished cell goes through one full read.  The result and the
+line count are therefore exact.
+
+* Cells with IPython syntax
+
+A cell can hold syntax that only IPython reads: a magic such as
+=%matplotlib inline=, a shell escape such as =!ls=, or a help request
+such as =print?=.  jupytext files hold such cells.
+
+=pycell--ipython-syntax-p= reads the buffer with =syntax-ppss=.  Only
+a line at the top level counts.  A continuation line inside brackets
+can start with a modulo sign.  A comment can end with a question
+mark.  A cell of plain Python must not go down the IPython road,
+because a shell without IPython answers with a =NameError=.
+
+Such a cell goes to =get_ipython().run_cell=.  pycell sends the code
+as base64, because this keeps quotes and newlines safe.  Two things
+follow: the tracebacks count the lines from the top of the cell, and
+a shell without IPython reports that it does not know =get_ipython=.
+
+* Markdown cells
+
+A cell with the marker =# %% [markdown]= renders in place.
+
+The rendering hangs on the source lines, one piece to a line.  A cell
+therefore has a height in lines and moves as normal text.  An earlier
+version drew the whole cell as one display string, and the view then
+jumped by a whole cell.
+
+The pieces cover the text of the line only.  A line that has no piece
+goes under a cloak.  A cloak is an invisible overlay that starts at
+the newline of the line above.  An invisible run that starts inside a
+line, or a line of no height, stops =scroll-down= with a
+=beginning-of-buffer= error in the middle of the cell.
+
+The cell keeps the height of its source, or it becomes shorter.  A
+three line table can render as one line, and the spare lines then go
+under a cloak.
+
+** The converter
+
+=pycell-markdown-command= names the command that turns Markdown into
+HTML.  pycell looks for =markdown=, =pandoc=, =markdown_py=, =cmark=
+and =cmark-gfm=, in this order.
+
+shr reads the HTML with libxml2.  Without libxml2 the markdown cells
+stay plain text, and the mode reports which part is missing.
+
+=pycell--md-htmls= sends all cells of a buffer to the converter in one
+call.  It puts a marker between the cells and splits the HTML at that
+marker.  One call for a buffer is much faster than one call for each
+cell.  pycell falls back to one call per cell if the number of pieces
+does not match the number of cells.
+
+** Formulas
+
+A =$...$= or =$$...$$= fragment becomes a preview image.  The images
+live in =~/.cache/pycell-math=.
+
+The formulas take the shortest road.  What the converter renders
+stays text.  Only the rest becomes an image.  pandoc renders simple
+math as text by itself.
+
+* Scrolling
+
+A result block is one buffer line, because it is one display string.
+=next-line= and =previous-line= cross it in one step.  A window can
+start at a buffer position only.
+
+A block that holds an image is worse.  Display properties do not
+nest, so such a block rides on the after-string of the overlay, and a
+window cannot start inside an overlay string.  Three measurements on
+a notebook of forty cells with one such block:
+
+- The wheel does not cross the block in a symmetric way.  Twenty
+  crossings of six events of 25 pixels bring a block of plain text
+  back to the pixel.  A block with an image ends 26 characters and 69
+  pixels lower.
+- A block that is taller than the window throws the wheel back.  A
+  figure at 0.9 of a text area of 437 pixels bounced 40 times in 399
+  events and never passed.  =pycell-max-image-height= therefore caps
+  an inline figure at 0.8 of the window.  The same figure then passes
+  in 94 events.
+- =scroll-up-line= does not pass such a block at all.  From the top
+  of the buffer it stopped after 119 commands, and the next 40
+  commands changed nothing.  The same buffer without the block
+  reaches the end in 134 commands.
+
+These commands do pass: =scroll-up= and =scroll-down=, which move a
+page, and =next-line=, which moves point.  A folded block also
+passes.  =pycell-pop-output= shows the figure in a buffer of its own.
+
+** The cost of a rendered markdown cell
+
+A rendered markdown cell makes each scroll event more expensive.
+Measured on =demo/scrolling.py= in a window of 1000x700 pixels: 2.0
+ms for an event downwards and 4.9 ms upwards.  The same file with the
+blocks off needs 0.6 ms and 1.0 ms.
+
+The cost comes from the face runs, and not from the height.  Rendered
+Markdown holds several hundred face runs in a line.  Source code
+holds a few.  Forty lines of plain output scroll as fast as none, and
+twelve lines with many face changes cost three times as much.
+
+=M-x pycell-md-unrender= gives the plain source and the speed back.
+=pycell-md-render-all= brings the blocks back.
+
+* The tests
+
+=make test= runs the batch suite in =test/pycell-test.el=.  It tests
+the parts that need no display: the clean of the output, the body
+lines, the cell markers, the markdown pieces, the edit buffers and
+the mirror.
+
+=make scroll= needs a graphic display.  It builds a buffer with
+markdown cells and scrolls through it with
+=pixel-scroll-precision-scroll-up= and
+=pixel-scroll-precision-scroll-down=.  The test fails on three
+things:
+
+- The window moves against the direction of the scroll.
+- The scroll command signals in the middle of a cell.
+- The end of the buffer stays out of reach.
+
+The test uses the default values of the scroll options.  The package
+does not change these options.

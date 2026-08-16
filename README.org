@@ -11,7 +11,6 @@
 
 * pycell :TOC_3_gh:noexport:
   - [[#about-the-project][About The Project]]
-    - [[#how-it-works][How It Works]]
   - [[#getting-started][Getting Started]]
     - [[#prerequisites][Prerequisites]]
     - [[#installation][Installation]]
@@ -24,61 +23,47 @@
   - [[#customization][Customization]]
   - [[#known-limits][Known Limits]]
   - [[#comparison-with-other-packages][Comparison with Other Packages]]
+  - [[#how-it-works][How It Works]]
   - [[#contributions][Contributions]]
   - [[#license][License]]
   - [[#contact][Contact]]
 
 ** About The Project
 
-Notebook style results for Python code cells, without a Jupyter kernel.
-=pycell= builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]] and needs nothing beyond
-=python.el=: no =emacs-jupyter=, no =zmq= module, no =.ipynb= files.
+=pycell= shows the results of Python code cells in the buffer, in the
+style of a notebook.  It needs no Jupyter kernel.
 
-Evaluate a cell and the result grows below it — text, tables and
-figures — while the =*Python*= buffer keeps the complete log.  Markdown
-cells render in place, LaTeX fragments included.
+The package builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]].  It needs nothing
+more than =python.el=.  There is no =emacs-jupyter=, no =zmq= module
+and no =.ipynb= file.
+
+Evaluate a cell, and the result appears below it: text, tables and
+figures.  The =*Python*= buffer keeps the full log.  Markdown cells
+render in place, and this includes the LaTeX fragments.
 
 [[file:img/demo.gif]]
-
-*** How It Works
-
-=python-shell-send-string= wraps the code in =__PYTHON_EL_eval=, which
-returns the value of a trailing expression.  That value passes through
-IPython's display hook, where comint-mime has installed its renderers.
-Output therefore flows into the REPL as it always did; =pycell= only
-mirrors it: a marker at =process-mark= before sending, and once the next
-prompt arrives the region up to it is copied out of the REPL /with/ its
-text properties, images and all.
-
-The result is drawn as a =display= property over the newline that ends
-the cell.  Display properties anchored to real buffer text scroll
-smoothly, unlike tall overlay strings.  Nothing is written to the
-buffer, so files, LSP and undo are unaffected — with one exception:
-the last cell of a buffer gets a final newline when it lacks one,
-because the block needs that character to hang on.
 
 ** Getting Started
 
 *** Prerequisites
 
 - Emacs 29.1 or later.
-- [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]], both installed as dependencies.
-- IPython for rich output.  A plain =python3= shell yields text only,
+- [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]].  Both are dependencies of the
+  package.
+- IPython for rich output.  A plain =python3= shell gives text only,
   because comint-mime installs its renderers through IPython.
-- A markdown to HTML converter for markdown cells: pycell looks for
-  =markdown=, =pandoc=, =markdown_py=, =cmark= and =cmark-gfm=, in that
-  order.  See =pycell-markdown-command=.  An Emacs built with libxml2
-  as well, since shr reads the converter's HTML with it; without
-  either, markdown cells stay plain text and the mode says which one
-  is missing.
-- =latex= and =dvipng= or =dvisvgm= for the formulas your converter
-  cannot handle.  Pandoc, for one, renders simple math as text by
-  itself; only the rest becomes a preview image, and without a LaTeX
-  installation it stays as written.
+- A converter from Markdown to HTML for the markdown cells.  pycell
+  looks for =markdown=, =pandoc=, =markdown_py=, =cmark= and
+  =cmark-gfm=, in this order.  See =pycell-markdown-command=.
+- An Emacs with libxml2, because shr reads the HTML of the converter
+  with it.  Without a converter or without libxml2 the markdown cells
+  stay plain text.  The mode then reports which part is missing.
+- =latex= and =dvipng= or =dvisvgm= for the formulas that your
+  converter does not render.
 
 *** Installation
 
-Install from MELPA with the built in package manager:
+Install from MELPA with the package manager of Emacs:
 
 #+begin_src emacs-lisp
   (use-package pycell
@@ -87,13 +72,15 @@ Install from MELPA with the built in package manager:
 
 *** Example Configuration
 
-A minimal, working setup.  code-cells recognizes the =# %%= cells in a
-plain Python file, and the hook brings =pycell-mode= up with it.  The
-package installs no hook on its own: installing it must not change how
-Emacs behaves.
+The configuration below is small and complete.  code-cells finds the
+=# %%= cells in a plain Python file, and the hook turns =pycell-mode=
+on with it.
+
+The package installs no hook itself.  An installation must not change
+how Emacs behaves.
 
 #+begin_src emacs-lisp
-  ;; Cells in plain Python files, the "# %%" convention.
+  ;; Cells in plain Python files, with the "# %%" convention.
   (use-package code-cells
     :ensure t
     :hook (python-base-mode . code-cells-mode-maybe))
@@ -102,223 +89,180 @@ Emacs behaves.
     :ensure t
     :hook (code-cells-mode . pycell-mode-maybe)
     :custom
-    ;; A block is one buffer line, so a long result makes a long jump
-    ;; when scrolled past.  Keep the inline part short.
+    ;; A block is one buffer line.  A long result therefore makes a
+    ;; long jump.  Keep the inline part short.
     (pycell-max-lines 12)
     (pycell-markdown-command "pandoc -f gfm -t html"))
 
-  ;; IPython, when the project provides one, gives rich output.
+  ;; IPython gives rich output, if the project has one.
   (use-package python
     :ensure nil
     :custom
     (python-shell-interpreter "ipython")
     (python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
 
-  ;; The wheel moves through tall blocks only with pixel scrolling.
+  ;; The wheel moves through tall blocks with pixel scrolling only.
   (pixel-scroll-precision-mode 1)
 #+end_src
 
-Open a Python file that contains =# %%= cells and evaluate one with
-=code-cells-eval=; the result grows below the cell.  Turn =pycell-mode=
-off and evaluation falls back to =python-shell-send-region=.
+Open a Python file with =# %%= cells and evaluate one cell with
+=code-cells-eval=.  The result appears below the cell.  Turn
+=pycell-mode= off, and the evaluation goes back to
+=python-shell-send-region=.
 
 *** Scrolling
 
-A result block is one buffer line, and it can be taller than the
-window.  A markdown cell is not: its rendering hangs on the source
-lines it replaces, a piece to a line.  The package leaves the scroll
-options alone; with their default values the window moves through
-blocks in one direction, and =make scroll= proves that in the CI.  Two
-settings matter, both yours to make:
+The package does not change the scroll options.  With their default
+values the window moves through the blocks in one direction, and
+=make scroll= tests this.
 
-1. Turn on pixel scrolling, or the wheel crosses a whole result block
-   in one step instead of moving through it:
+Two settings are yours to make:
+
+1. Turn pixel scrolling on.  Without it the wheel crosses a whole
+   result block in one step.
 
    #+begin_src emacs-lisp
      (pixel-scroll-precision-mode 1)
    #+end_src
 
-2. Keep =scroll-conservatively= at 100 or below.  Above 100 redisplay
-   is forbidden to recenter, and when two blocks taller than the
-   window sit next to each other, it hands the window from one to the
-   other and back with every scroll event, endlessly.  A
-   =scroll-margin= of 1 or more also breaks that loop, if you want to
-   keep the higher value.
+2. Keep =scroll-conservatively= at 100 or below.  Above 100 the
+   redisplay must not recenter.  Two blocks that are taller than the
+   window then hand the window from one to the other with each scroll
+   event, without an end.  A =scroll-margin= of 1 or more also stops
+   that loop.
 
 ** Usage
 
 *** Results
 
-Evaluate a cell as usual, with =code-cells-eval= or
-=code-cells-eval-and-step=.  While the cell runs, the header bar shows a
-spinner and a stopwatch; afterwards it shows the line count and the
-runtime.  A cell that printed nothing keeps a header saying /no output/,
-so an evaluated cell is recognizable as such.
+Evaluate a cell with =code-cells-eval= or =code-cells-eval-and-step=.
 
-The header bar carries buttons, aligned right:
+The header bar shows a spinner and a stopwatch while the cell runs.
+It shows the line count and the runtime after the cell.  A cell that
+printed nothing keeps a header that says /no output/.  You can
+therefore see which cells ran.
 
-| Button | Action                                       |
-|--------+----------------------------------------------|
-| =▾=    | fold or unfold the result                    |
-| =⤓=    | save the result's image to a file            |
-| =⧉=    | copy the result, images included             |
-| =↗=    | open the full result in its own buffer       |
-| =✕=    | discard the result                           |
+The header bar has buttons at its right:
 
-=TAB= at the end of a cell folds as well.  When the interpreter dies
-mid-cell, the header shows =⚠= and the result ends with a notice.
+| Button | Action                                 |
+|--------+----------------------------------------|
+| =▾=    | fold or unfold the result              |
+| =⤓=    | save the image of the result to a file |
+| =⧉=    | copy the result, with the images       |
+| =↗=    | show the full result in its own buffer |
+| =✕=    | discard the result                     |
 
-With =outline-minor-mode=, folding a cell hides the code and leaves
-the result below the heading, where its own fold button still works.
-Code and output fold separately.
+=TAB= at the end of a cell also folds the result.  The header shows
+=⚠= if the interpreter dies while the cell runs, and the result ends
+with a note.
 
-A cell may hold IPython syntax — =%matplotlib inline= and other
-magics, =!ls= and =print?= — which jupytext files carry as a matter of
-course.  Such a cell goes to IPython's own reader instead of through
-the compile wrapper Emacs normally uses, so it runs as if typed.  Two
-things follow: its tracebacks count lines from the top of the cell
-rather than the top of the file, and a shell that is not IPython
-answers that it does not know =get_ipython=.
+With =outline-minor-mode= a fold of the cell hides the code and keeps
+the result below the heading.  The fold button of the result still
+works there.  Code and output fold apart from each other.
+
+A cell can hold syntax that only IPython reads: =%matplotlib inline=
+and the other magics, =!ls= and =print?=.  jupytext files hold such
+cells.  pycell sends such a cell to the reader of IPython, and it
+runs as if you typed it.  Two things follow.  The tracebacks count
+the lines from the top of the cell, and a shell without IPython
+reports that it does not know =get_ipython=.
 
 *** Markdown Cells
 
-A cell whose boundary line reads =# %% [markdown]= renders in place:
-the rendering hangs on the commented source lines, a piece to a line,
-and the header bar takes the place of the =[markdown]= word, so the
-=# %%= keeps the look of every other cell boundary.  The cell moves
-like ordinary text rather than as one tall line, and an outline fold
-takes the whole of it along.  It keeps the height of its source
-unless the rendering is shorter — a three line table that renders as
-one, a fenced block that renders as its contents — and then the spare
-lines go under a cloak and the cell shrinks by that much.  =$…$= and =$$…$$= fragments become
-preview images, cached under =~/.cache/pycell-math=.
+A cell with the marker =# %% [markdown]= renders in place.  The
+rendering hangs on the commented source lines, one piece to a line.
+The header bar takes the place of the word =[markdown]=, and the
+=# %%= keeps the look of the other cell markers.
 
-Formulas take the shortest road: whatever the converter renders stays
-text, and only what it passes through becomes a preview image.
+The cell moves as normal text, and an outline fold takes the whole
+cell with it.  The cell keeps the height of its source.  It becomes
+shorter if the rendering is shorter, for example a table of three
+lines that renders as one line.  The spare lines then go under a
+cloak.
 
-=RET= or =mouse-2= opens the cell in its own buffer for editing, as
-=org-edit-special= does for source blocks; =C-c C-c= puts it back and
-renders it again, =C-c C-k= discards the edit.  Every cell has an edit
-buffer of its own, named after it, so several cells can be open at
-once and reading a second one leaves the first one's text alone.  =mouse-1= reveals the
-plain source, so the cell can be edited in place or removed.
+A =$...$= or =$$...$$= fragment becomes a preview image.  The images
+live in =~/.cache/pycell-math=.
+
+=RET= or =mouse-2= opens the cell in a buffer of its own, as
+=org-edit-special= does for a source block.  =C-c C-c= puts the text
+back and renders it again.  =C-c C-k= discards the edit.  Each cell
+has an edit buffer of its own, so you can open several cells at the
+same time.  =mouse-1= shows the plain source of one cell.
 
 ** Commands
 
-| Command                       | Action                                     |
-|-------------------------------+--------------------------------------------|
-| =pycell-mode=                 | toggle the feature for a buffer            |
-| =pycell-toggle-output=        | fold or unfold the result at point         |
-| =pycell-copy-output=          | copy the result at point                   |
-| =pycell-pop-output=           | show the result at point in its own buffer |
-| =pycell-save-image=           | write the result's image to a file         |
-| =pycell-discard-output=       | remove the result at point                 |
-| =pycell-remove-overlays=      | remove every result in the buffer          |
-| =pycell-interrupt=            | send a KeyboardInterrupt to the cell       |
-| =pycell-restart=              | restart the interpreter, drop all results  |
-| =pycell-restart-and-run-all=  | restart, then run every cell in order      |
-| =pycell-md-render-all=        | render every markdown cell                 |
-| =pycell-md-unrender=          | show every markdown cell as source         |
-| =pycell-md-edit=              | edit the markdown cell in its own buffer   |
-| =pycell-md-raw=               | show one markdown cell as source           |
-| =pycell-stop=                 | stop the run of all cells after this one   |
+| Command                      | Action                                     |
+|------------------------------+--------------------------------------------|
+| =pycell-mode=                | turn the feature on or off for a buffer    |
+| =pycell-toggle-output=       | fold or unfold the result at point         |
+| =pycell-copy-output=         | copy the result at point                   |
+| =pycell-pop-output=          | show the result at point in its own buffer |
+| =pycell-save-image=          | write the image of the result to a file    |
+| =pycell-discard-output=      | remove the result at point                 |
+| =pycell-remove-overlays=     | remove each result in the buffer           |
+| =pycell-interrupt=           | send a KeyboardInterrupt to the cell       |
+| =pycell-restart=             | restart the interpreter, drop the results  |
+| =pycell-restart-and-run-all= | restart, then run each cell in order       |
+| =pycell-md-render-all=       | render each markdown cell                  |
+| =pycell-md-unrender=         | show each markdown cell as source          |
+| =pycell-md-edit=             | edit the markdown cell in its own buffer   |
+| =pycell-md-raw=              | show one markdown cell as source           |
+| =pycell-stop=                | stop the run of the cells after this one   |
 
-=pycell= binds none of these, apart from the mouse and =TAB= actions on
-the blocks themselves.  Bind what you use, for example in
-=code-cells-mode-map=.
+pycell binds none of these commands.  It binds the mouse actions and
+=TAB= on the blocks only.  Bind the commands that you use, for
+example in =code-cells-mode-map=.
 
 ** Customization
 
-| Option                     | Meaning                                          |
-|----------------------------+--------------------------------------------------|
-| =pycell-max-lines=         | result lines drawn inline, the rest in the popup |
-| =pycell-max-line-length=   | characters of a result line drawn inline         |
-| =pycell-max-image-height=  | share of the window an inline image may take     |
-| =pycell-markdown-command=  | shell command that turns Markdown into HTML      |
-| =pycell-header=            | face of the header bar                           |
-| =pycell-output=            | face of the result body                          |
+| Option                    | Meaning                                          |
+|---------------------------+--------------------------------------------------|
+| =pycell-max-lines=        | the result lines that show inline                |
+| =pycell-max-line-length=  | the characters of a result line that show inline |
+| =pycell-max-image-height= | the share of the window for an inline image      |
+| =pycell-markdown-command= | the shell command from Markdown to HTML          |
+| =pycell-header=           | the face of the header bar                       |
+| =pycell-output=           | the face of the result body                      |
 
 ** Known Limits
 
-- A result block belongs to a single buffer line, because it is one
-  display string.  =next-line= and =previous-line= therefore cross it
-  in one step, whatever the scroll settings are, because a window can
-  only start at a buffer position.  The mouse wheel does better, see
-  [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches,
-  and =pycell-max-line-length= how wide: one long line is one line, so
-  the line cap alone leaves a hundred thousand characters of =print=
-  output in the block, at a fifth of a second a wheel event.
-  A markdown cell is not affected: its rendering hangs on the source
-  lines, a piece to a line, so it has a height in lines and moves
-  like ordinary text.  That height is the source's unless the
-  rendering is shorter, when the spare lines are hidden.
-- Display properties do not nest.  A result that contains an image
-  therefore rides the overlay's after-string, and a window start
-  cannot be put inside an overlay string.  Two things follow, both
-  measured on a forty cell notebook with one such block in the
-  middle:
-
-  - The wheel does not cross it symmetrically.  Scrolling down over
-    the block and back up by the same amount does not return the view
-    where it started, and the error repeats on every crossing: after
-    twenty crossings of six 25 pixel events, a block of plain text of
-    the same height comes back to the pixel, one with an image is 26
-    characters and 69 pixels further down.
-  - A block taller than the window is worse than either: the wheel
-    bounces backwards off it and starts over, and the buffer below
-    stays out of reach.  A figure at 0.9 of a 437 pixel text area
-    bounced 40 times in 399 events of 25 pixels and never got past;
-    that is why =pycell-max-image-height= caps an inline figure at
-    0.8 of the window, which goes by in 94 events without one step
-    backwards.
-  - Scrolling by lines does not get past it at all.
-    =scroll-up-line= stops at the line above and stays there; driven
-    from the top of the buffer it stopped after 119 commands and the
-    next 40 changed nothing, where the same buffer without the block
-    reaches the end in 134.
-
-  What does get past: =scroll-up= and =scroll-down=, which move a
-  page; =next-line=, which moves point and lets redisplay follow; and
-  folding the block, after which even =scroll-up-line= reaches the
-  end.  =pycell-pop-output= shows the figure in a buffer of its own,
-  where none of this applies.  At most one figure is drawn inline;
-  the rest waits in the popup buffer.
-- One cell runs at a time per inferior process.  Sending a cell while
-  another is still running is refused.
-- A rendered markdown cell makes every scroll event more expensive.
-  Measured
-  on demo/scrolling.py in a 1000x700 window: 2.0 ms per event
-  downwards and 4.9 ms upwards, against 0.6 and 1.0 ms in the same
-  file with the blocks off.  A trackpad sends 60 to 120 events per
-  second, so the motion can still stutter on a slow machine, while
-  the positions themselves stay correct.  What is left is the layout
-  of the lines actually on screen: rendered Markdown carries several
-  hundred face runs where source code carries a handful.  Result
-  blocks stay cheap whatever their height, because plain output
-  carries almost no face runs: forty lines of it scroll as fast as
-  none, while twelve lines full of face changes cost three times as
-  much.  =M-x
+- A result block is one buffer line.  =next-line= and =previous-line=
+  therefore cross it in one step.  The mouse wheel moves through it,
+  see [[#scrolling][Scrolling]].  A markdown cell has a height in lines and moves as
+  normal text.
+- A result block with an image is harder to scroll through than a
+  block of text.  The wheel does not cross it in a symmetric way, and
+  =scroll-up-line= does not cross it at all.
+  =pycell-max-image-height= keeps such a block small enough for the
+  wheel.  Use =pycell-pop-output= for the full figure.
+- One cell runs at a time for each inferior process.  pycell refuses
+  a cell while another cell runs.
+- A rendered markdown cell makes each scroll event more expensive,
+  because rendered Markdown holds many face runs.  =M-x
   pycell-md-unrender= gives the plain source and the speed back for a
-  buffer, and =pycell-md-render-all= brings the blocks back.
-- Scrolling up across a markdown cell used to land the view a block
-  too low, back when a rendered cell was one buffer line.  It is not
-  one any more, and the pan in the demo, 26 steps up across two
-  rendered cells and three result blocks, now moves exactly 26 pixels
-  per step in one direction.  =make scroll= keeps watch: it fails on
-  a window that moves the wrong way, and on a refusal to move at all.
+  buffer.
+- The measurements behind these limits are in
+  [[file:docs/implementation.org][docs/implementation.org]].
 
 ** Comparison with Other Packages
 
-[[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the Jupyter protocol and needs the =zmq= module;
-it gives you kernels for many languages and a notebook UI.  =pycell=
-stays with the inferior Python process that =python.el= already starts,
-which costs a build dependency less and keeps the REPL in reach.
+[[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the Jupyter protocol and needs the =zmq= module.
+It gives you kernels for many languages and a notebook interface.
+=pycell= uses the inferior Python process that =python.el= starts.
+This costs one build dependency less and keeps the REPL in reach.
 
-[[https://github.com/astoff/code-cells.el][code-cells]] provides the cell concept, the navigation and the
-evaluation command; =pycell= adds what happens to the output.
+[[https://github.com/astoff/code-cells.el][code-cells]] gives the cells, the navigation and the evaluation
+command.  =pycell= adds what happens to the output.
 
-[[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits =.ipynb= files directly.  =pycell= works on plain Python
-files with jupytext style cell markers, so the files stay diffable.
+[[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits =.ipynb= files.  =pycell= works on plain Python files with
+cell markers in the style of jupytext, and these files stay easy to
+diff.
+
+** How It Works
+
+[[file:docs/implementation.org][docs/implementation.org]] describes the implementation: how a result
+comes into the buffer, how the live mirror works, how a markdown cell
+renders, and what the scroll measurements say.
 
 ** Contributions
 
@@ -332,5 +276,3 @@ Distributed under the [[file:COPYING][GPLv3]] License.
 ** Contact
 
 [[https://github.com/MArpogaus/][Marcel Arpogaus]] - [[mailto:znepry.necbtnhf@tznvy.pbz][znepry.necbtnhf@tznvy.pbz]] (encrypted with [[https://rot13.com/][ROT13]])
-
-Project Link: [[https://github.com/MArpogaus/pycell][https://github.com/MArpogaus/pycell]]
