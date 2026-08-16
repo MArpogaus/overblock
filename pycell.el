@@ -438,13 +438,14 @@ while the cell runs.  IMAGEP marks a result with an image."
 (defun pycell--update (ov)
   "Refresh the block of result overlay OV.
 Call it with the overlay's buffer current."
-  (pcase-let ((`(,folded ,text ,runtime ,running) (overlay-get ov 'pycell)))
+  (pcase-let ((`(,folded ,text ,runtime ,running ,total)
+               (overlay-get ov 'pycell)))
     (let* ((lines (unless (string-empty-p text) (split-string text "\n")))
            (shown (pycell--body-lines lines)))
       (pycell--attach
        ov
        (concat (unless (eq (char-before (overlay-end ov)) ?\n) "\n")
-               (pycell--header folded (length lines) (length shown)
+               (pycell--header folded (or total (length lines)) (length shown)
                                   runtime running
                                   (and lines (pycell--image text))))
        (when (and shown (not folded))
@@ -462,12 +463,15 @@ Call it with the overlay's buffer current."
   :doc "Keymap inside a cell that shows a result."
   "TAB" '(menu-item "" pycell-toggle-output :filter pycell--tab-filter))
 
-(defun pycell--show (beg end text runtime &optional running)
+(defun pycell--show (beg end text runtime &optional running total)
   "Show TEXT as the result of the cell BEG..END.
 RUNTIME is the time in seconds since the cell started.  RUNNING is
 non-nil while the cell runs.  Empty TEXT gets a header that says
 \"no output\", so the cell is recognizable as evaluated.  The fold
-state of a replaced result is kept."
+state of a replaced result is kept.
+TOTAL is how many lines the cell has printed, for a running cell
+whose TEXT is only the part that shows; without it the lines of TEXT
+are counted."
   (let ((folded (when-let* ((old (car (pycell--overlays beg end))))
                   (car (overlay-get old 'pycell)))))
     (pycell-remove-overlays beg end)
@@ -476,7 +480,7 @@ state of a replaced result is kept."
     (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
       (save-excursion (goto-char end) (insert "\n")))
     (let ((ov (pycell--make-overlay beg end)))
-      (overlay-put ov 'pycell (list folded text runtime running))
+      (overlay-put ov 'pycell (list folded text runtime running total))
       (overlay-put ov 'keymap pycell-overlay-map)
       (overlay-put ov 'modification-hooks
                    (list (lambda (o &rest _) (pycell--delete o))))
@@ -1100,10 +1104,14 @@ and renders it; \\[pycell-md-abort] discards the edit."
 
 (defvar-local pycell--run nil
   "State of the cell that runs in this Python shell, or nil.
-A list (FROM BEG END TAIL START TIMER): FROM marks where the output
-starts here, BEG and END delimit the cell in its own buffer, TAIL
-accumulates recent output for the prompt detection, START is the
-`float-time' of the send and TIMER the ticker.")
+A list (FROM BEG END TAIL START TIMER HEAD COUNT): FROM marks where
+the output starts here, BEG and END delimit the cell in its own
+buffer, TAIL accumulates recent output for the prompt detection,
+START is the `float-time' of the send and TIMER the ticker.  The last
+two belong to the live mirror: HEAD is the part of the output the
+block shows, once it can no longer change, and COUNT is (POSITION
+. LINES) counted up to POSITION, so a tick reads only what arrived
+since the one before it.")
 
 (defvar-local pycell--cold-cell nil
   "Cell (BEG . END markers) that waits for this shell's first prompt.")
@@ -1115,6 +1123,52 @@ renders it only when it is complete."
   (pycell--clean
    (replace-regexp-in-string
     "\e\\][^\e]*\\'" "" (buffer-substring from (point-max)))))
+
+(defun pycell--head (from)
+  "Return as much of the output after FROM as the block can show.
+`pycell--body-lines' takes the first `pycell-max-lines' lines and
+stops, so a tick has no reason to read — or clean — everything the
+cell has printed.  Once those lines are all in, the text cannot
+change anymore and is kept, and the ticks after that read nothing.
+Nothing is kept while the head is empty: an escape sequence that has
+not arrived in full swallows everything after it until it does, and a
+cell whose first lines are still on their way has more to come."
+  (or (nth 6 pycell--run)
+      (let* ((limit (save-excursion
+                      (goto-char from)
+                      (forward-line (+ pycell-max-lines 4))
+                      (point)))
+             (text (pycell--clean
+                    (replace-regexp-in-string
+                     "\e\\][^\e]*\\'" "" (buffer-substring from limit)))))
+        (when (and (< limit (point-max))
+                   (not (string-empty-p text)))
+          (setf (nth 6 pycell--run) text))
+        text)))
+
+(defun pycell--total (from)
+  "Return the number of lines the running cell has printed after FROM.
+Counted where they arrive: reading the whole output again is a pass
+over everything printed so far, and a cell that prints a lot pays
+that pass five times a second.  Leading blank lines go, as
+`pycell--clean' drops them, so the count agrees with the one the
+finished cell shows."
+  (let* ((state (or (nth 7 pycell--run)
+                    (cons (save-excursion
+                            (goto-char from)
+                            (skip-chars-forward " \t\n")
+                            (point-marker))
+                          0)))
+         (count (cdr state)))
+    (save-excursion
+      (goto-char (car state))
+      (while (search-forward "\n" nil t) (setq count (1+ count)))
+      (setf (nth 7 pycell--run) (cons (point-marker) count)))
+    ;; A line that has not ended yet is a line all the same.
+    (if (and (> (point-max) (marker-position from))
+             (not (eq (char-before (point-max)) ?\n)))
+        (1+ count)
+      count)))
 
 (defun pycell--end (text &optional died)
   "End the running cell and show TEXT as its final result.
@@ -1166,11 +1220,12 @@ itself when nothing runs there anymore."
       (if (not (process-live-p (get-buffer-process buf)))
           (pycell--abort)
         (pcase-let ((`(,from ,beg ,fin ,_ ,start ,_) pycell--run))
-          (let ((text (pycell--output-so-far from)))
+          (let* ((text (pycell--head from))
+                 (total (if (string-empty-p text) 0 (pycell--total from))))
             (when (buffer-live-p (marker-buffer beg))
               (with-current-buffer (marker-buffer beg)
                 (pycell--show beg fin text (- (float-time) start)
-                                 t)))))))))
+                                 t total)))))))))
 
 (defun pycell--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running cell.
@@ -1268,7 +1323,7 @@ Call this with the cell's buffer current."
         (timer-set-function timer #'pycell--tick
                             (list (current-buffer) timer))
         (setq pycell--run (list (copy-marker (process-mark proc))
-                                   beg fin "" (float-time) timer))))
+                                   beg fin "" (float-time) timer nil nil))))
     (pycell--show beg fin "" 0.0 t)
     (if (pycell--ipython-syntax-p beg fin)
         (pycell--send-to-ipython
