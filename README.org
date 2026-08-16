@@ -198,7 +198,9 @@ text, and only what it passes through becomes a preview image.
 
 =RET= or =mouse-2= opens the cell in its own buffer for editing, as
 =org-edit-special= does for source blocks; =C-c C-c= puts it back and
-renders it again, =C-c C-k= discards the edit.  =mouse-1= reveals the
+renders it again, =C-c C-k= discards the edit.  Every cell has an edit
+buffer of its own, named after it, so several cells can be open at
+once and reading a second one leaves the first one's text alone.  =mouse-1= reveals the
 plain source, so the cell can be edited in place or removed.
 
 ** Commands
