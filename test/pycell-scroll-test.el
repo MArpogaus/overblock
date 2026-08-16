@@ -97,6 +97,48 @@ refusal to scroll and not the end of the buffer."
         (setq previous now)))
     (nreverse reversals)))
 
+(defun pycell-scroll-test--stalls ()
+  "Scroll the window down from the top, 40 pixels at a time.
+Return the steps that went wrong.  Scrolling down may only raise the
+window start, or keep it and raise the vscroll: a block the wheel
+bounces off keeps the window where it is, or throws it back, and the
+buffer below stays out of reach."
+  (goto-char (point-min))
+  (set-window-start nil (point))
+  (set-window-vscroll nil 0 t)
+  (redisplay t)
+  (let ((previous (cons (window-start) (window-vscroll nil t)))
+        (steps 0)
+        stalls)
+    (while (< (cl-incf steps) 250)
+      (condition-case err
+          (pixel-scroll-precision-scroll-down 40)
+        (end-of-buffer
+         (unless (pos-visible-in-window-p (point-max))
+           (push (format "step %d: %S at line %d" steps (car err)
+                         (line-number-at-pos (window-start)))
+                 stalls))))
+      (redisplay t)
+      (let ((now (cons (window-start) (window-vscroll nil t))))
+        (when (or (< (car now) (car previous))
+                  (and (= (car now) (car previous))
+                       (< (cdr now) (cdr previous))))
+          (push (format "step %d: %d+%d to %d+%d" steps
+                        (line-number-at-pos (car previous)) (cdr previous)
+                        (line-number-at-pos (car now)) (cdr now))
+                stalls))
+        (when (pos-visible-in-window-p (point-max))
+          (setq steps 999))
+        (setq previous now)))
+    ;; Reaching the end is the point: a wheel that inches forward for
+    ;; 250 events without arriving is stuck as surely as one that
+    ;; bounces, and an empty list would call that a pass.
+    (unless (> steps 900)
+      (push (format "the end stayed out of reach, at line %d"
+                    (line-number-at-pos (window-start)))
+            stalls))
+    (nreverse stalls)))
+
 (ert-deftest pycell-scroll-test-defaults ()
   "With the scroll options at their defaults the window never reverses.
 Two block shapes on purpose: text blocks taller than the window, and
@@ -121,6 +163,7 @@ a short one after them, which is where redisplay changes lines."
                               (lambda (o) (overlay-get o 'pycell-parts))
                               (pycell--overlays (point-min) (point-max) 'pycell-md)))
                      3))
+          (should (equal (pycell-scroll-test--stalls) nil))
           (should (equal (pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 
