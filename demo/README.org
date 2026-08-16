@@ -1,35 +1,37 @@
-* Demo Recording
+#+TITLE: The demo recording
 
-=img/demo.gif= is recorded from a real Emacs, without a screen recorder.
-Emacs exports its own frame ten times a second through =x-export-frames=,
-which keeps the mouse pointer and the window decoration out of the
-picture.
+=img/demo.gif= comes from a real Emacs session.  There is no screen
+recorder.  Emacs exports its own frame ten times a second with
+=x-export-frames=.  The picture therefore has no mouse pointer and no
+window decoration.
 
-** What You Need
+* What you need
 
-- Emacs with X support, and a display.  A headless machine can use
-  =Xvfb :99 -screen 0 1280x900x24= and =DISPLAY=:99=.
-- IPython, matplotlib and numpy, for the cells that produce output.
-- pandoc, for the markdown cells.
-- ffmpeg and gifsicle, to turn the frames into the animation.
+- An Emacs with X support, and a display.  A machine without a
+  display can use =Xvfb :99 -screen 0 1280x900x24= and =DISPLAY=:99=.
+- IPython, matplotlib and numpy for the cells that make output.
+- pandoc for the markdown cells.
+- ffmpeg and gifsicle to make the animation from the frames.
 
-** How to Record
+* How to record
 
 #+begin_src shell
   emacs -Q -l demo.el          # writes /tmp/demo/ready, then waits
-  touch /tmp/demo/go           # starts the demo and the frame capture
+  touch /tmp/demo/go           # starts the demo and the capture
 #+end_src
 
-The script drives the whole session and captures deterministically:
-one frame per scroll step, and ten frames per second while a state is
-held.  Nothing samples on a timer, so the motion in the frames is as
-even as the steps that produced it.  A trace of the stages lands in
-=/tmp/demo/trace=; a pan that stops early says so there.
+The script drives the whole session.  It captures one frame for each
+scroll step, and ten frames each second while a view stays.  Nothing
+samples on a timer.  The motion in the frames is therefore as even as
+the steps that made it.
 
-** How to Build the Animation
+The script writes a trace of the stages to =/tmp/demo/trace=.  A pan
+that stops too early reports this there.
 
-The frames are one sequence in the order they were recorded, the pan
-included:
+* How to build the animation
+
+The frames are one sequence in the order of the recording, and this
+includes the pan:
 
 #+begin_src shell
   ffmpeg -framerate 13 -start_number 1 -i frames/f%04d.png \
@@ -40,8 +42,11 @@ included:
   gifsicle -O3 --lossy=80 raw.gif -o ../img/demo.gif
 #+end_src
 
-The frames stand for a tenth of a second each; playing them at
-thirteen per second sets the pace.  Never resample with the =fps=
-filter: it drops every few frames unevenly and the motion stutters.
-The =tpad= holds the final view, so the loop restart reads as a
-restart and not as a jump.
+Each frame stands for a tenth of a second.  A rate of thirteen frames
+each second sets the pace.
+
+Do not resample with the =fps= filter.  It drops frames in an
+irregular way, and the motion becomes uneven.
+
+The =tpad= filter holds the last view.  The restart of the loop then
+reads as a restart, and not as a jump.
