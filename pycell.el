@@ -330,7 +330,17 @@ would delete it.  Call this in the shell buffer, where
                                  (not (get-text-property i 'display text))))))
     (while (and (< beg end) (funcall blank beg)) (setq beg (1+ beg)))
     (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
-    (substring text beg end)))
+    ;; What the shell buffer shows is not what a copy of it shows.
+    ;; comint-mime renders a DataFrame as a vtable, which aligns its
+    ;; columns with pixel targets measured in that window and carries
+    ;; the keymap of a live table.  In a result block the targets land
+    ;; elsewhere, and no binding of that keymap can find a table.  So
+    ;; the columns become literal spaces, and the promise of a click
+    ;; goes: `pycell-pop-output' shows the whole output instead.
+    (let ((copy (pycell--flattened (substring text beg end))))
+      (remove-list-of-text-properties
+       0 (length copy) '(keymap local-map mouse-face help-echo) copy)
+      copy)))
 
 (defun pycell--shorten (line)
   "Return LINE cut to `pycell-max-line-length' characters.
@@ -859,13 +869,14 @@ row out of line."
 See `shr-external-rendering-functions'.")
 
 (defun pycell--md-flatten-alignment ()
-  "Turn shr\='s `:align-to\=' spaces into real spaces, in this buffer.
+  "Turn the `:align-to\=' spaces of this buffer into real spaces.
 shr aligns table columns with `(space :align-to (N))\=' display specs,
-and N counts from the visual start of the line.  A rendered cell is
-shown indented — line numbers, margins — so every target left of the
-indent collapses to a single space and the columns drift.  Literal
-padding aligns anywhere.  Left to right, so `current-column\=' already
-sees the padding put in before it."
+and so does vtable, which is how comint-mime shows a DataFrame.  N
+counts from the visual start of the line.  A rendered cell and a
+result block are shown indented — line numbers, margins — so every
+target left of the indent collapses to a single space and the columns
+drift.  Literal padding aligns anywhere.  Left to right, so
+`current-column\=' already sees the padding put in before it."
   (goto-char (point-min))
   (let (match)
     (while (setq match (text-property-search-forward 'display))
@@ -886,6 +897,14 @@ sees the padding put in before it."
             ;; there, and a forced space would push this row one past
             ;; its sisters.
             (insert (make-string pad ?\s))))))))
+
+(defun pycell--flattened (text)
+  "Return TEXT with its `:align-to\=' spaces as real spaces.
+See `pycell--md-flatten-alignment' for why a copy needs them literal."
+  (with-temp-buffer
+    (insert text)
+    (pycell--md-flatten-alignment)
+    (buffer-string)))
 
 (defun pycell--md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.

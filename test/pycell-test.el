@@ -1044,5 +1044,24 @@ image."
       (should-not (pycell--image in-table))
       (should (pycell--image outside)))))
 
+(ert-deftest pycell-test-clean-flattens-a-copied-table ()
+  "A copied vtable gets literal columns and no dead bindings.
+comint-mime renders a DataFrame as a vtable in the shell buffer, which
+aligns with pixel targets measured for that window and carries the
+keymap of a live table.  The block shows a copy: the targets land
+elsewhere, and no binding can find a table to sort."
+  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+         (cell (propertize "alpha" 'keymap (make-sparse-keymap)
+                           'mouse-face 'highlight
+                           'help-echo "Click to sort"))
+         (gap (propertize " " 'display '(space :align-to (104))))
+         (clean (pycell--clean (concat cell gap "beta"))))
+    ;; the stretch is gone, and real spaces stand in its place
+    (should-not (text-property-not-all 0 (length clean) 'display nil clean))
+    (should (string-match-p "\\`alpha +beta\\'" (substring-no-properties clean)))
+    ;; and nothing promises a click any more
+    (dolist (prop '(keymap local-map mouse-face help-echo))
+      (should-not (text-property-not-all 0 (length clean) prop nil clean)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
