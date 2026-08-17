@@ -741,7 +741,8 @@ or, when told to use MathJax, in parentheses and brackets.")
 (defun pycell--md-mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain.
+fragment that fails to render here stays plain, and so does one
+inside a table \(see `pycell--md-tag-table').
 
 Only where the display can draw an image: a preview made in a
 terminal cannot be seen."
@@ -753,7 +754,8 @@ terminal cannot be seen."
        ;; `replace-regexp-in-string' uses the match data after the
        ;; replacement function returns; rendering must not touch it.
        (save-match-data
-         (if-let* ((img (pycell--md-latex-image frag)))
+         (if-let* (((not (get-text-property 0 'pycell-md-table frag)))
+                   (img (pycell--md-latex-image frag)))
              (propertize frag 'display img)
            frag)))
      text t t)))
@@ -839,9 +841,20 @@ shr draws code in a fixed pitch face, which says nothing in a buffer
 that is fixed pitch throughout: code came out as prose."
   (shr-fontize-dom dom 'pycell-md-code))
 
+(defun pycell--md-tag-table (dom)
+  "Render the table DOM and mark the text it covers.
+`pycell--md-mathify\=' leaves marked text alone.  A table is padded to
+the width of its text, and a preview image is never as wide as the
+text it replaces, so a formula in a cell would pull the columns of its
+row out of line."
+  (let ((start (point)))
+    (shr-tag-table dom)
+    (put-text-property start (point) 'pycell-md-table t)))
+
 (defconst pycell--md-rendering-functions
   (list (cons 'th #'pycell--md-tag-th)
-        (cons 'code #'pycell--md-tag-code))
+        (cons 'code #'pycell--md-tag-code)
+        (cons 'table #'pycell--md-tag-table))
   "How this package renders the tags shr renders differently.
 See `shr-external-rendering-functions'.")
 

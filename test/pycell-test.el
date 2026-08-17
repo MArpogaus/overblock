@@ -1026,5 +1026,23 @@ face, which says nothing where the rendering runs with
     (should (memq 'bold (ensure-list (funcall faces "head"))))
     (should (memq 'pycell-md-code (ensure-list (funcall faces "code_here"))))))
 
+(ert-deftest pycell-test-md-math-in-a-table-stays-text ()
+  "A formula in a table cell keeps its text, so the columns hold.
+A preview image is never as wide as the text it replaces, and a table
+is padded for the text.  Outside a table the same formula becomes an
+image."
+  (skip-unless (pycell--md-program))
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+            ((symbol-function 'pycell--md-latex-image)
+             (lambda (_frag) '(image :type png :data "x"))))
+    ;; A formula the converter cannot render itself is the one that
+    ;; reaches this package: pandoc renders simple math as text.
+    (let ((in-table (pycell--md-rendered
+                     "| a | b |\n|---|---|\n| $\\frac{a}{b}$ | y |\n"))
+          (outside (pycell--md-rendered
+                    "The formula $\\frac{a}{b}$ stands alone.\n")))
+      (should-not (pycell--image in-table))
+      (should (pycell--image outside)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
