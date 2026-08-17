@@ -903,5 +903,62 @@ VS Code and Spyder write =#%% [markdown]= where jupytext writes
       (forward-line 1)
       (should-not (pycell--md-head (point))))))
 
+(ert-deftest pycell-test-md-no-previews-without-images ()
+  "A display that cannot draw images gets no preview substitution.
+One image in the rendered text costs the cell its piece-per-line
+scrolling, and a terminal cannot even show it — so where
+`display-images-p\=' says no, the fragments stay text, untouched."
+  (cl-letf (((symbol-function 'display-images-p) #'ignore)
+            ;; A LaTeX that would succeed, to prove it is never asked.
+            ((symbol-function 'pycell--md-latex-image)
+             (lambda (&rest _) (error "the terminal asked for an image"))))
+    (let ((text "before $x^2$ after"))
+      (should (equal (pycell--md-mathify text) text)))))
+
+(ert-deftest pycell-test-md-verbatim-math-keeps-lines ()
+  "Display math keeps its line structure where it stays text.
+shr fills paragraphs, so a $$ block that will not become an image is
+wrapped in <pre> before the converter — and left alone where previews
+are drawn, so the image cache keeps its key."
+  (let ((md "prose\n$$\na &= b \\\\\nc &= d\n$$\nmore"))
+    (cl-letf (((symbol-function 'display-images-p) #'ignore))
+      (should (string-search "<pre>$$\na &= b" (pycell--md-verbatim-math md))))
+    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
+      (should (equal (pycell--md-verbatim-math md) md)))))
+
+(ert-deftest pycell-test-md-table-columns-are-literal ()
+  "A rendered table aligns with real spaces, not display specs.
+shr\='s `:align-to\=' counts from the line\='s visual start, and a cell is
+shown indented, so only literal columns survive.  The second row\='s
+cells must start where the header\='s do."
+  (skip-unless (pycell--md-program))
+  (let* ((rendered (pycell--md-rendered
+                    "| node | form |\n|------|------|\n| X1 | h1 |\n"))
+         (lines (split-string (substring-no-properties rendered) "\n"))
+         (header (seq-find (lambda (l) (string-search "node" l)) lines))
+         (row (seq-find (lambda (l) (string-search "X1" l)) lines)))
+    (should header)
+    (should row)
+    (should-not (text-property-not-all 0 (length rendered)
+                                       'display nil rendered))
+    (should (= (string-search "form" header)
+               (string-search "h1" row)))))
+
+(ert-deftest pycell-test-bar-slack-on-a-terminal ()
+  "The bar leaves a terminal one column of slack.
+A bar that runs into the last column makes the line a continuation,
+and the final icon wraps onto a line of its own."
+  (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
+    (let* ((bar (pycell--bar "label" "^  x "))
+           (spec (get-text-property
+                  (next-single-property-change 0 'display bar)
+                  'display bar)))
+      (should (equal spec
+                     `(space :align-to
+                             (- right (,(+ (string-pixel-width
+                                            (propertize "^  x " 'face
+                                                        'pycell-header))
+                                           1)))))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

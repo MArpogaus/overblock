@@ -215,14 +215,19 @@ A left click calls COMMAND, and HELP becomes the tooltip."
 (defun pycell--bar (left icons)
   "Return a header line: LEFT text, ICONS at the right window edge.
 The alignment is pixel-exact: icon glyphs render wider than
-`string-width' counts, and (N) in the display spec means N pixels."
+`string-width' counts, and (N) in the display spec means N pixels.
+A terminal gets one column of slack: a bar that runs into the last
+column makes the line a continuation there, and the final icon wraps
+onto a line of its own — measured at exactly one column, margins or
+not."
   (pycell--faced
    (concat left
            (propertize " " 'display
                        `(space :align-to
-                               (- right (,(string-pixel-width
-                                           (propertize icons 'face
-                                                       'pycell-header))))))
+                               (- right (,(+ (string-pixel-width
+                                              (propertize icons 'face
+                                                          'pycell-header))
+                                             (if (display-graphic-p) 0 1))))))
            icons)
    'pycell-header))
 
@@ -730,17 +735,25 @@ or, when told to use MathJax, in parentheses and brackets.")
 (defun pycell--md-mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain."
-  (replace-regexp-in-string
-   pycell--md-math-regexp
-   (lambda (frag)
-     ;; `replace-regexp-in-string' uses the match data after the
-     ;; replacement function returns; rendering must not touch it.
-     (save-match-data
-       (if-let* ((img (pycell--md-latex-image frag)))
-           (propertize frag 'display img)
-         frag)))
-   text t t))
+fragment that fails to render here stays plain.
+
+Only where the display can draw an image.  A preview made in a
+terminal cannot be seen, and it costs the cell its lines: one image
+in the rendered text sends the whole cell down the single-string
+path, which scrolling crosses in one step — a machine with LaTeX
+would scroll markdown worse than one without."
+  (if (not (display-images-p))
+      text
+    (replace-regexp-in-string
+     pycell--md-math-regexp
+     (lambda (frag)
+       ;; `replace-regexp-in-string' uses the match data after the
+       ;; replacement function returns; rendering must not touch it.
+       (save-match-data
+         (if-let* ((img (pycell--md-latex-image frag)))
+             (propertize frag 'display img)
+           frag)))
+     text t t)))
 
 (defun pycell--md-program ()
   "Return the markdown converter as a list of program and arguments.
@@ -794,19 +807,74 @@ call per cell, as it always did."
                     (format "<p>[ \t\n]*%s[ \t\n]*</p>" pycell--md-marker))))
       (and (= (length pieces) (length texts)) pieces))))
 
+(defun pycell--md-verbatim-math (md)
+  "Return MD with its display-math blocks wrapped in <pre>.
+A $$ block carries its line structure on purpose — one equation a
+line — and shr fills a paragraph, so math that stays text comes back
+as one rewrapped soup.  <pre> passes through every converter as raw
+HTML and shr keeps its lines.  Only where the math will stay text:
+where previews are drawn, the fragment is one image and the wrapping
+would only cost the cache its key."
+  (if (display-images-p)
+      md
+    (replace-regexp-in-string
+     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
+     "<pre>$$\n\\1$$</pre>"
+     md)))
+
+(defun pycell--md-flatten-alignment ()
+  "Turn shr\='s `:align-to\=' spaces into real spaces, in this buffer.
+shr aligns table columns with `(space :align-to (N))\=' display specs,
+and N counts from the visual start of the line.  A rendered cell is
+shown indented — line numbers, margins — so every target left of the
+indent collapses to a single space and the columns drift.  Literal
+padding aligns anywhere.  Left to right, so `current-column\=' already
+sees the padding put in before it."
+  (goto-char (point-min))
+  (let (match)
+    (while (setq match (text-property-search-forward 'display))
+      (let ((spec (prop-match-value match)))
+        (when (and (eq (car-safe spec) 'space)
+                   (consp (plist-get (cdr spec) :align-to)))
+          (let* ((target (car (plist-get (cdr spec) :align-to)))
+                 (beg (prop-match-beginning match))
+                 (end (prop-match-end match))
+                 ;; The targets are pixels; a text terminal's pixel is
+                 ;; a column, a graphic frame's is `frame-char-width'.
+                 (pad (max 0 (- (round target (frame-char-width))
+                                (save-excursion (goto-char beg)
+                                                (current-column))))))
+            (goto-char beg)
+            (delete-region beg end)
+            ;; Zero is a zero-width stretch: the column is already
+            ;; there, and a forced space would push this row one past
+            ;; its sisters.
+            (insert (make-string pad ?\s))))))))
+
 (defun pycell--md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
 `pycell-markdown-command\=' produces HTML, shr renders it, and LaTeX
 fragments become preview images.  With HTML, that is rendered instead
 and MD is not converted again: `pycell-md-render-all\=' converts the
-whole buffer at once."
+whole buffer at once.
+
+shr renders without its font arithmetic here: a cell\='s text hangs on
+source lines at whatever indent the buffer wears, and only literal
+columns survive a move.  The `:align-to\=' specs shr leaves behind are
+flattened to real spaces for the same reason."
   (require 'shr)
   (let ((dom (with-temp-buffer
-               (insert (or html (pycell--md-html md)))
-               (libxml-parse-html-region (point-min) (point-max)))))
+               (insert (or html (pycell--md-html (pycell--md-verbatim-math md))))
+               (libxml-parse-html-region (point-min) (point-max))))
+        (shr-use-fonts nil))
     (with-temp-buffer
       (shr-insert-document dom)
-      (pycell--md-mathify (string-trim (buffer-string))))))
+      (pycell--md-flatten-alignment)
+      ;; Trim whole blank lines, never a first line's indent: the
+      ;; columns are literal now, and a table that starts the cell
+      ;; must keep the indent its sister rows have.
+      (pycell--md-mathify
+       (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")))))
 
 (defvar-keymap pycell-md-map
   :doc "Keymap on rendered markdown cells."
@@ -992,9 +1060,13 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
     (let ((htmls (and (cdr cells)
                       (pycell--md-htmls
                        (mapcar (lambda (cell)
-                                 (pycell--md-uncomment
-                                  (buffer-substring-no-properties
-                                   (car cell) (cdr cell))))
+                                 ;; The verbatim wrap belongs before the
+                                 ;; converter, and this path converts
+                                 ;; here rather than in the renderer.
+                                 (pycell--md-verbatim-math
+                                  (pycell--md-uncomment
+                                   (buffer-substring-no-properties
+                                    (car cell) (cdr cell)))))
                                cells)))))
       (dolist (cell cells)
         (pycell--md-show (car cell) (cdr cell) (pop htmls))))
