@@ -66,6 +66,28 @@ moves a cell up would be the same button to a reader.
 The fold arrow and the spinner are not in those lists.  They are not
 buttons of the reader's choosing: they say what the result is doing.
 
+* Moving a cell
+
+=code-cells-move-cell-down= transposes the text of two cells with
+=transpose-regions=, which leaves an overlay where the text used to
+be: the result of one cell would end up under the other.
+=pycell-move-cell-down= therefore reads what both cells show, lets
+code-cells move the text, and puts each block back on the cell it
+belongs to.  The new bounds come from the lengths, as
+=transpose-regions= leaves them:
+
+- Moving down, the cell ends where the other one ended.
+- Moving up, it starts where the other one started.
+
+Point keeps its offset inside the cell that moved, so a repeated click
+on a header button keeps moving the same cell.  A rendered markdown
+cell is rendered again after the move, because its pieces hang on the
+source lines and those lines have moved.
+
+The command signals before it takes anything off: code-cells refuses
+to move the first cell up or the last one down, and a refused move
+leaves the buffer as it was.
+
 * The live mirror
 
 A ticker runs each 0.2 seconds while a cell runs.  It shows the

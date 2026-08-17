@@ -1079,5 +1079,115 @@ elsewhere, and no binding can find a table to sort."
     (dolist (prop '(keymap local-map mouse-face help-echo))
       (should-not (text-property-not-all 0 (length clean) prop nil clean)))))
 
+(ert-deftest pycell-test-buttons-come-from-the-option ()
+  "The header shows the buttons of the option, in its order.
+A descriptor whose WHEN is `image\=' or `lines\=' waits for those."
+  (let ((descriptors '((one ("1") "first" ignore t)
+                       (two ("2") "second" ignore lines)
+                       (three ("3") "third" ignore image))))
+    (should (equal (substring-no-properties
+                    (pycell--buttons descriptors nil 0))
+                   "1 "))
+    (should (equal (substring-no-properties
+                    (pycell--buttons descriptors nil 3))
+                   "1  2 "))
+    (should (equal (substring-no-properties
+                    (pycell--buttons descriptors t 3))
+                   "1  2  3 "))
+    ;; the order is the order of the list
+    (should (equal (substring-no-properties
+                    (pycell--buttons (reverse descriptors) t 3))
+                   "3  2  1 "))
+    ;; and a button carries its command and its tooltip
+    (let ((row (pycell--buttons descriptors nil 0)))
+      (should (equal (get-text-property 0 'help-echo row) "first")))))
+
+(ert-deftest pycell-test-move-cell-carries-its-result ()
+  "A cell that moves takes its result with it, and point comes along.
+`transpose-regions' leaves an overlay where the text used to be, so
+the block of one cell would end up under the other."
+  (with-temp-buffer
+    (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n\n# %%\nthird = 3\n")
+    (python-mode)
+    (code-cells-mode)
+    ;; a result on the first two cells
+    (goto-char (point-min))
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "one" 0.1))
+    (goto-char (point-min))
+    (forward-line 3)
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "two" 0.2))
+    ;; move the first cell down, from inside it
+    (goto-char (point-min))
+    (forward-line 1)
+    (let ((column (- (point) (pos-bol))))
+      (pycell-move-cell-down 1)
+      ;; the text swapped
+      (should (string-match-p "\\`# %%\nsecond = 2\n\n# %%\nfirst = 1\n"
+                              (buffer-substring-no-properties (point-min)
+                                                              (point-max))))
+      ;; point is in the cell that moved, at the same offset
+      (should (string-prefix-p "first = 1"
+                              (buffer-substring-no-properties
+                               (pos-bol) (pos-eol))))
+      (should (= (- (point) (pos-bol)) column)))
+    ;; each result is on its own cell again
+    (let ((texts (mapcar #'pycell--text
+                         (pycell--overlays (point-min) (point-max)))))
+      (should (equal (sort (copy-sequence texts) #'string<) '("one" "two")))
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (should (equal (pycell--text (car (pycell--overlays beg end)))
+                       "two"))))))
+
+(ert-deftest pycell-test-move-cell-keeps-a-rendered-markdown-cell ()
+  "A rendered markdown cell moves whole, marker and rendering.
+Its pieces hang on its source lines, and the lines move under them."
+  (skip-unless (pycell--md-program))
+  (with-temp-buffer
+    (insert "# %%\nx = 1\n\n# %% [markdown]\n# ## Prose\n#\n# Words here.\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    ;; the markdown cell is the second one; move it up
+    (goto-char (point-min))
+    (forward-line 4)
+    (pycell-move-cell-up 1)
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      ;; the marker travelled with the cell
+      (should (string-prefix-p "# %% [markdown]\n# ## Prose\n" text))
+      (should (string-match-p "# %%\nx = 1\n" text)))
+    ;; the rendering sits on the cell, which is now the first one
+    (let ((rendered (pycell--overlays (point-min) (point-max) 'pycell-md)))
+      (should rendered)
+      (should (< (overlay-start (car rendered))
+                 (save-excursion (goto-char (point-min))
+                                 (forward-line 4)
+                                 (point)))))))
+
+(ert-deftest pycell-test-move-cell-stops-at-the-ends ()
+  "The first cell cannot move up and the last cannot move down.
+`code-cells-move-cell-down' says so, and nothing is taken off before
+it has said it."
+  (with-temp-buffer
+    (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (goto-char (point-min))
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "one" 0.1))
+    (let ((before (buffer-substring-no-properties (point-min) (point-max))))
+      (goto-char (point-min))
+      (forward-line 1)
+      (should-error (pycell-move-cell-up 1) :type 'user-error)
+      ;; the buffer and the result are untouched
+      (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                     before))
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (should (equal (pycell--text (car (pycell--overlays beg end)))
+                       "one"))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

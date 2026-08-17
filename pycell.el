@@ -129,7 +129,9 @@ simple formulas into text on its own and passes the rest through, and
     (copy ("⧉" "❐" "▤" "≡") "Copy this result" pycell-copy-output lines)
     (pop ("↗" "⇗" "^") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t))
+    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t)
+    (move-up ("▲" "↑" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("▼" "↓" "d") "Move this cell down" pycell-move-cell-down t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -150,7 +152,9 @@ this list: they say what the result is doing."
 (defcustom pycell-markdown-buttons
   '((edit ("↗" "⇗" "^") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t))
+    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t)
+    (move-up ("▲" "↑" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("▼" "↓" "d") "Move this cell down" pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
@@ -573,6 +577,65 @@ are counted."
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
   (pycell--delete (pycell--overlay event)))
+
+;;;; Moving a cell
+
+(defun pycell--cell-state (beg end)
+  "Return what the cell BEG..END shows, to put back after a move.
+The car is the record of its result, or nil, and the cdr says whether
+its markdown was rendered."
+  (cons (when-let* ((ov (car (pycell--overlays beg end))))
+          (copy-sequence (overlay-get ov 'pycell)))
+        (and (pycell--overlays beg end 'pycell-md) t)))
+
+(defun pycell--restore-cell (beg end state)
+  "Show STATE on the cell BEG..END again.
+STATE comes from `pycell--cell-state'.  A markdown cell is rendered by
+the caller, which does the whole buffer at once."
+  (when-let* ((record (car state)))
+    (pcase-let* ((`(,folded ,text ,runtime ,running ,total) record)
+                 (ov (pycell--show beg end text runtime running total)))
+      (when folded
+        (overlay-put ov 'pycell (list folded text runtime running total))
+        (pycell--update ov)))))
+
+;;;###autoload
+(defun pycell-move-cell-down (&optional arg)
+  "Move the cell at point down ARG cells, with what it shows.
+`code-cells-move-cell-down' transposes the text of the two cells, and
+`transpose-regions' leaves an overlay where the text used to be: the
+result of one cell would end up under the other.  So both blocks come
+off, the text moves, and each block goes back on the cell it belongs
+to.  Point travels with the cell, so a click on the button of a
+header keeps moving the same cell."
+  (interactive "p")
+  (setq arg (or arg 1))
+  (pcase-let* ((`(,beg ,end) (code-cells--bounds))
+               (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
+               (offset (- (point) beg))
+               (mine (pycell--cell-state beg end))
+               (theirs (pycell--cell-state nbeg nend))
+               (down (> nbeg beg))
+               (mine-length (- end beg))
+               (their-length (- nend nbeg)))
+    ;; This signals when there is nowhere to move, before anything is
+    ;; taken off.
+    (code-cells-move-cell-down arg)
+    (pycell-remove-overlays (min beg nbeg) (max end nend))
+    (pycell-remove-overlays (min beg nbeg) (max end nend) 'pycell-md)
+    (let ((mine-beg (if down (- nend mine-length) nbeg))
+          (their-beg (if down beg (- end their-length))))
+      (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
+      (pycell--restore-cell their-beg (+ their-beg their-length) theirs)
+      (when (or (cdr mine) (cdr theirs))
+        (pycell-md-render-all))
+      (goto-char (+ mine-beg (min offset mine-length))))))
+
+;;;###autoload
+(defun pycell-move-cell-up (&optional arg)
+  "Move the cell at point up ARG cells, with what it shows."
+  (interactive "p")
+  (pycell-move-cell-down (- (or arg 1))))
 
 (defun pycell--text (ov)
   "Return the text of the result overlay OV.
