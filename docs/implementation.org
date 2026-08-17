@@ -27,6 +27,23 @@ mirrors it:
 3. It copies the region up to the prompt out of the REPL.  The copy
    keeps the text properties, and therefore the images.
 
+What the REPL shows is not what a copy of it shows, and two things
+have to change on the way out:
+
+- *The stretches.* comint-mime renders a DataFrame as a vtable, which
+  sets the width of a space in pixels measured for the window of the
+  REPL.  shr, in a markdown cell, says where a space ends instead.
+  Both land elsewhere in a block that is shown indented, so each
+  stretch becomes as many real spaces as it is characters wide.  A
+  vtable measures its header in its own face, so those widths are
+  fractions of a character and a header label can stand a column left
+  of its data.
+- *The bindings.* A vtable carries the keymap of a live table, and no
+  binding of it can find a table in a copy.  The =keymap=,
+  =local-map=, =mouse-face= and =help-echo= properties therefore go:
+  a block must not offer a click it cannot answer.
+  =pycell-pop-output= shows the whole output in a buffer of its own.
+
 The block is a =display= property on the newline that ends the cell.
 A display property on real buffer text scrolls better than a tall
 overlay string.
@@ -94,6 +111,15 @@ The cell keeps the height of its source, or it becomes shorter.  A
 three line table can render as one line, and the spare lines then go
 under a cloak.
 
+A piece that holds an image cannot ride a display property, because
+display properties do not nest and the image would be swallowed.  Such
+a piece hides its line with a display string of nothing, which is not
+an invisible run, and rides the after-string, which draws images.  The
+line keeps its own row, so a cell with a preview scrolls a line at a
+time like any other.  An earlier version gave the whole cell one
+string as soon as one image was in it, and a machine with LaTeX
+therefore scrolled markdown worse than one without.
+
 ** The converter
 
 =pycell-markdown-command= names the command that turns Markdown into
@@ -117,6 +143,24 @@ live in =~/.cache/pycell-math=.
 The formulas take the shortest road.  What the converter renders
 stays text.  Only the rest becomes an image.  pandoc renders simple
 math as text by itself.
+
+A formula inside a table stays text as well.  A table is padded to the
+width of its text, and an image is never as wide as the text it
+replaces, so a row with a preview in it would stand out of line.  The
+table rendering marks the text it covers and the formula pass leaves
+marked text alone.
+
+** Tables
+
+shr renders a table without rules, and it gives a header cell and
+inline code no face of its own: its answer for code is a fixed pitch,
+which says nothing in a buffer that is fixed pitch throughout.  pycell
+renders =th= in bold and =code= in =pycell-md-code= through
+=shr-external-rendering-functions=.
+
+The rules are shr's to draw and it draws them badly here: a frame
+around a frame, one per cell, and a ragged end to every row.  The
+columns and the bold header carry the table instead.
 
 * Scrolling
 
