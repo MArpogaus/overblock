@@ -605,10 +605,11 @@ leaving the cells as text."
 
 (ert-deftest pycell-test-fold-md-image-at-buffer-end ()
   "A cell with an image folds even where the buffer ends without one.
-The block of such a cell is a string on the main overlay, and only a
-cell followed by a newline has a body overlay as well.  Asking for
-the body first skipped the last cell of a buffer that ends without a
-newline, and its figure stayed on screen below the fold."
+The pieces of such a cell hang on its source lines, and the fold
+covers those lines but stops one character short of the last newline,
+so the last piece has to be hidden along.  A cell at the end of a
+buffer that ends without a newline is the case that used to keep its
+figure on screen below the fold."
   (skip-unless (pycell--md-program))
   (dolist (trailing '("\n" ""))
     (with-temp-buffer
@@ -622,14 +623,22 @@ newline, and its figure stayed on screen below the fold."
       (let* ((cells (seq-filter (lambda (o) (overlay-get o 'pycell-main))
                                 (pycell--overlays (point-min) (point-max)
                                                   'pycell-md)))
-             (last (overlay-get (car (last cells)) 'pycell-main)))
+             (last (overlay-get (car (last cells)) 'pycell-main))
+             ;; what the cell shows: its pieces, or the one string of a
+             ;; cell that renders to nothing
+             (shown (lambda ()
+                      (if-let* ((parts (overlay-get last 'pycell-parts)))
+                          (seq-count (lambda (p)
+                                       (and (not (overlay-get p 'pycell-cloak))
+                                            (not (overlay-get p 'invisible))))
+                                     parts)
+                        (length (or (overlay-get last 'after-string) ""))))))
         (should last)
-        ;; the image took the string road, so there is one to hide
-        (should (> (length (or (overlay-get last 'after-string) "")) 0))
+        (should (> (funcall shown) 0))
         (outline-flag-region (point-min) (point-max) t)
-        (should (= (length (or (overlay-get last 'after-string) "")) 0))
+        (should (= (funcall shown) 0))
         (outline-flag-region (point-min) (point-max) nil)
-        (should (> (length (or (overlay-get last 'after-string) "")) 0))))))
+        (should (> (funcall shown) 0))))))
 
 (ert-deftest pycell-test-show-gives-the-last-cell-a-newline ()
   "The block needs a newline to hang on, and the last cell may lack one.
@@ -976,6 +985,32 @@ and the final icon wraps onto a line of its own."
                                             (propertize "^  x " 'face
                                                         'pycell-header))
                                            1)))))))))
+
+(ert-deftest pycell-test-md-parts-carry-an-image ()
+  "A piece with an image rides the after-string, the others a display.
+Display properties do not nest, so a piece with an image in a display
+string would lose it.  Hiding the line with a display string of
+nothing and hanging the piece on the after-string keeps the image and
+the line, and a cell with a preview then scrolls a line at a time
+like any other."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let* ((image '(image :type png :data "x"))
+           (text (concat "plain piece\n"
+                         "piece with " (propertize " " 'display image) "\n"
+                         "plain again"))
+           (parts (pycell--md-parts (point-min) (point-max) text))
+           (specs (mapcar (lambda (ov)
+                            (list (overlay-get ov 'display)
+                                  (overlay-get ov 'after-string)))
+                          parts)))
+      (should (= (length parts) 3))
+      ;; the first and the last carry their text as a display string
+      (should (equal (nth 0 specs) '("plain piece" nil)))
+      (should (equal (nth 2 specs) '("plain again" nil)))
+      ;; the middle one hides its line and shows the image beside it
+      (should (equal (car (nth 1 specs)) ""))
+      (should (pycell--image (cadr (nth 1 specs)))))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
