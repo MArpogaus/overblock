@@ -111,6 +111,51 @@ simple formulas into text on its own and passes the rest through, and
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command"))))
 
+(defconst pycell--button-type
+  '(repeat
+    (list (symbol :tag "Key")
+          (repeat :tag "Glyph candidates" string)
+          (string :tag "Tooltip")
+          (function :tag "Command")
+          (choice :tag "Shows"
+                  (const :tag "Always" t)
+                  (const :tag "With an image" image)
+                  (const :tag "With output" lines))))
+  "The customize type of a list of header buttons.")
+
+(defcustom pycell-result-buttons
+  '((save-image ("⤓" "↧" "⇩" "↓") "Save the result's image to a file"
+                pycell-save-image image)
+    (copy ("⧉" "❐" "▤" "≡") "Copy this result" pycell-copy-output lines)
+    (pop ("↗" "⇗" "^") "Show this result in its own buffer"
+         pycell-pop-output lines)
+    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t))
+  "The buttons on the header of a result, left to right.
+Each entry is (KEY GLYPHS HELP COMMAND WHEN):
+
+- KEY names the button for you, and nothing else reads it.
+- GLYPHS are the candidates for its label.  The first one the frame
+  can draw wins, and the last one always answers, so keep a plain
+  character at the end.
+- HELP is the tooltip.
+- COMMAND runs on a click.
+- WHEN says when the button shows: t always, `image' only with an
+  image in the result, `lines' only with output.
+
+Drop an entry you never press, reorder them, or give one a glyph your
+font draws better.  The fold arrow and the spinner are not buttons of
+this list: they say what the result is doing."
+  :type pycell--button-type)
+
+(defcustom pycell-markdown-buttons
+  '((edit ("↗" "⇗" "^") "Edit this markdown cell in its own buffer"
+          pycell-md-edit t)
+    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t))
+  "The buttons on the header of a rendered markdown cell.
+The entries read as in `pycell-result-buttons'.  A markdown cell has
+no output, so `lines' and `image' say nothing here."
+  :type pycell--button-type)
+
 (defcustom pycell-max-lines 12
   "Number of result lines that show inline.
 A result block is one buffer line however tall it is, so a long
@@ -217,6 +262,23 @@ A left click calls COMMAND, and HELP becomes the tooltip."
 (defun pycell--icons (&rest buttons)
   "Join the non-nil BUTTONS into the icon group of a header bar."
   (concat (string-join (delq nil buttons) "  ") " "))
+
+(defun pycell--buttons (descriptors &optional imagep lines)
+  "Return the icon group that DESCRIPTORS ask for.
+Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), as in
+`pycell-result-buttons'.  IMAGEP says the result holds an image and
+LINES how many lines it has; a descriptor whose WHEN is `image' or
+`lines' waits for those."
+  (apply #'pycell--icons
+         (mapcar
+          (lambda (descriptor)
+            (pcase-let ((`(,_key ,glyphs ,help ,command ,when) descriptor))
+              (when (pcase when
+                      ('image imagep)
+                      ('lines (> (or lines 0) 0))
+                      (_ t))
+                (pycell--button (apply #'pycell--glyph glyphs) help command))))
+          descriptors)))
 
 (defun pycell--bar (left icons)
   "Return a header line: LEFT text, ICONS at the right window edge.
@@ -414,22 +476,7 @@ FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is
 the time in seconds since the cell started.  RUNNING is non-nil
 while the cell runs.  IMAGEP marks a result with an image."
-  (let* ((icons (pycell--icons
-                 (when imagep
-                   (pycell--button (pycell--glyph "⤓" "↧" "⇩" "↓")
-                                      "Save the result's image to a file"
-                                      #'pycell-save-image))
-                 (when (> total 0)
-                   (pycell--button (pycell--glyph "⧉" "❐" "▤" "≡")
-                                      "Copy this result"
-                                      #'pycell-copy-output))
-                 (when (> total 0)
-                   (pycell--button (pycell--glyph "↗" "⇗" "^")
-                                      "Show this result in its own buffer"
-                                      #'pycell-pop-output))
-                 (pycell--button (pycell--glyph "✕" "×" "x")
-                                    "Discard this result"
-                                    #'pycell-discard-output)))
+  (let* ((icons (pycell--buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (state (cond ((eq running t)
                        (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
@@ -1063,16 +1110,8 @@ Only the word =markdown= of the boundary line carries the header, so
                   'default)
                  'keymap pycell-md-map)
                 'help-echo help))
-         (head (pycell--bar
-                "markdown"
-                (pycell--icons
-                 (pycell--button
-                  (pycell--glyph "↗" "⇗" "^")
-                  "Edit this markdown cell in its own buffer"
-                  #'pycell-md-edit)
-                 (pycell--button (pycell--glyph "✕" "×" "x")
-                                    "Show the plain source"
-                                    #'pycell-md-raw))))
+         (head (pycell--bar "markdown"
+                            (pycell--buttons pycell-markdown-buttons)))
          (ov (pycell--make-overlay start end))
          (bov (overlay-get ov 'pycell-body))
          ;; The header covers the =markdown= word alone.  Its overlay

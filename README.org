@@ -221,9 +221,29 @@ example in =code-cells-mode-map=.
 | =pycell-max-line-length=  | the characters of a result line that show inline |
 | =pycell-max-image-height= | the share of the window for an inline image      |
 | =pycell-markdown-command= | the shell command from Markdown to HTML          |
+| =pycell-result-buttons=   | the buttons on the header of a result            |
+| =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
 | =pycell-md-code=          | the face of inline code in a markdown cell       |
+
+Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
+WHEN)=.  GLYPHS are the candidates for the label: the first one your
+frame can draw wins, and the last one always answers, so keep a plain
+character at the end.  WHEN is =t=, or =image= for a button that waits
+for an image in the result, or =lines= for one that waits for output.
+
+Drop a button you never press, put them in another order, or give one
+a glyph your font draws better:
+
+#+begin_src emacs-lisp
+  ;; the copy button only, with a plain glyph
+  (setq pycell-result-buttons
+        '((copy ("⧉" "≡") "Copy this result" pycell-copy-output lines)))
+#+end_src
+
+A command of your own can sit there as well: it is called with the
+click, so read =last-input-event= as the commands of this package do.
 
 ** Known Limits
 

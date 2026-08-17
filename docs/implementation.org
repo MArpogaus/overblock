@@ -52,6 +52,20 @@ pycell writes nothing into the buffer.  Files, LSP and undo see no
 change.  There is one exception: the last cell of a buffer gets a
 final newline if it has none, because the block needs that character.
 
+** The header bars
+
+=pycell-result-buttons= and =pycell-markdown-buttons= hold the buttons
+of the two bars, and =pycell--buttons= walks a list of them.  A
+descriptor names the glyph candidates rather than one glyph, because
+=pycell--glyph= asks the frame which of them it can draw and a
+terminal answers differently from a graphic frame.  Keep the plain
+candidates apart from each other: in a terminal that draws no arrows,
+=^= for the button that pops a result out and =^= for the one that
+moves a cell up would be the same button to a reader.
+
+The fold arrow and the spinner are not in those lists.  They are not
+buttons of the reader's choosing: they say what the result is doing.
+
 * The live mirror
 
 A ticker runs each 0.2 seconds while a cell runs.  It shows the
