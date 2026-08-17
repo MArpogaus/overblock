@@ -809,18 +809,20 @@ call per cell, as it always did."
 
 (defun pycell--md-verbatim-math (md)
   "Return MD with its display-math blocks wrapped in <pre>.
-A $$ block carries its line structure on purpose — one equation a
-line — and shr fills a paragraph, so math that stays text comes back
-as one rewrapped soup.  <pre> passes through every converter as raw
-HTML and shr keeps its lines.  Only where the math will stay text:
-where previews are drawn, the fragment is one image and the wrapping
-would only cost the cache its key."
-  (if (display-images-p)
-      md
-    (replace-regexp-in-string
-     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
-     "<pre>$$\n\\1$$</pre>"
-     md)))
+A $$ block carries its line structure on purpose, one equation to a
+line, and shr fills a paragraph: math that stays text comes back as
+one rewrapped soup.  <pre> passes through every converter as raw HTML
+and shr keeps its lines.
+
+Whatever the display can draw, because a fragment stays text for more
+reasons than that: a display can draw images and still have no LaTeX
+to make one with, and a fragment LaTeX cannot compile stays text on
+any display.  The wrapping costs a preview nothing, since the block is
+matched across its lines and replaced whole."
+  (replace-regexp-in-string
+   "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
+   "<pre>$$\n\\1$$</pre>"
+   md))
 
 (defun pycell--md-flatten-alignment ()
   "Turn shr\='s `:align-to\=' spaces into real spaces, in this buffer.

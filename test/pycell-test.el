@@ -916,15 +916,32 @@ scrolling, and a terminal cannot even show it — so where
       (should (equal (pycell--md-mathify text) text)))))
 
 (ert-deftest pycell-test-md-verbatim-math-keeps-lines ()
-  "Display math keeps its line structure where it stays text.
-shr fills paragraphs, so a $$ block that will not become an image is
-wrapped in <pre> before the converter — and left alone where previews
-are drawn, so the image cache keeps its key."
+  "Display math keeps its line structure, whatever the display draws.
+shr fills paragraphs, so a $$ block is wrapped in <pre> before the
+converter.  It is wrapped on a display that draws images as well: a
+frame can draw one and still have no LaTeX to make it with, and a
+fragment LaTeX cannot compile stays text anywhere."
   (let ((md "prose\n$$\na &= b \\\\\nc &= d\n$$\nmore"))
-    (cl-letf (((symbol-function 'display-images-p) #'ignore))
-      (should (string-search "<pre>$$\na &= b" (pycell--md-verbatim-math md))))
-    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
-      (should (equal (pycell--md-verbatim-math md) md)))))
+    (dolist (images (list #'ignore (lambda (&rest _) t)))
+      (cl-letf (((symbol-function 'display-images-p) images))
+        (should (string-search "<pre>$$\na &= b"
+                               (pycell--md-verbatim-math md)))))))
+
+(ert-deftest pycell-test-md-a-wrapped-block-still-gets-its-preview ()
+  "A block that keeps its lines is still replaced by one preview.
+The fragment is matched across its lines, so the wrapping in <pre>
+costs the preview nothing."
+  (skip-unless (pycell--md-program))
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+            ((symbol-function 'pycell--md-latex-image)
+             (lambda (&rest _) '(image :type png :data "x"))))
+    (let ((rendered (pycell--md-rendered "prose\n\n$$\na = b\n$$\n")))
+      (should (string-match-p "a = b" (substring-no-properties rendered)))
+      ;; one image over the whole block, and the prose untouched
+      (should (eq (car-safe (get-text-property
+                             (string-match "\\$\\$" rendered) 'display
+                             rendered))
+                  'image)))))
 
 (ert-deftest pycell-test-md-table-columns-are-literal ()
   "A rendered table aligns with real spaces, not display specs.
