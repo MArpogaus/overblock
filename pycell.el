@@ -735,13 +735,11 @@ or, when told to use MathJax, in parentheses and brackets.")
 (defun pycell--md-mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain.
+fragment that fails to render here stays plain, and so does one
+inside a table \(see `pycell--md-tag-table').
 
-Only where the display can draw an image.  A preview made in a
-terminal cannot be seen, and it costs the cell its lines: one image
-in the rendered text sends the whole cell down the single-string
-path, which scrolling crosses in one step — a machine with LaTeX
-would scroll markdown worse than one without."
+Only where the display can draw an image: a preview made in a
+terminal cannot be seen."
   (if (not (display-images-p))
       text
     (replace-regexp-in-string
@@ -906,6 +904,11 @@ folding work by itself, since a fold covers those very lines.
 
 A piece covers the text of its line and leaves the newline alone, so
 the buffer keeps its line structure and every line keeps its height.
+A piece with an image in it cannot ride a `display' property, because
+display properties do not nest and the image would be swallowed.  Such
+a piece hides its line with a display string of nothing and rides the
+after-string instead, which draws images.  The line keeps its own row
+either way, which is what makes the cell scroll a line at a time.
 A line without text cannot carry a piece — there is nothing to put
 the display property on — and a cell rarely renders to as many lines
 as it has anyway.  Those lines go under a cloak: an invisible run
@@ -942,11 +945,15 @@ the middle of the cell."
           (when spare
             (push (pycell--md-cloak spare (1- from)) parts)
             (setq spare nil))
-          (let ((ov (make-overlay from to nil t)))
+          (let ((ov (make-overlay from to nil t))
+                (piece (string-join chunk "\n")))
             (overlay-put ov 'evaporate t)
             (overlay-put ov 'keymap pycell-md-map)
             (overlay-put ov 'help-echo (get-text-property 0 'help-echo text))
-            (overlay-put ov 'display (string-join chunk "\n"))
+            (if (pycell--image piece)
+                (progn (overlay-put ov 'display "")
+                       (overlay-put ov 'after-string piece))
+              (overlay-put ov 'display piece))
             (push ov parts)))))
     (when spare
       (push (pycell--md-cloak spare (1- end)) parts))
@@ -959,13 +966,13 @@ converted with the rest of the buffer.
 The rendering hangs on the source lines themselves, a piece to a
 line \(see `pycell--md-parts'), so the cell scrolls like ordinary
 text and stands as tall as its source, unless the rendering is
-shorter and the lines left over go under a cloak.  A cell with an
-image is the exception: it falls back to the single string a result
-block uses, and hides its source as one invisible run.  That run
-must start at the end of a visible line — `scroll-down' fails with a
-beginning-of-buffer error when it has to move the window start over a
-run that begins at a line start — which is why the =# %%= line stays
-visible.
+shorter and the lines left over go under a cloak.  A cell that
+renders to nothing is the exception: it falls back to the single
+string a result block uses, and hides its source as one invisible
+run.  That run must start at the end of a visible line —
+`scroll-down' fails with a beginning-of-buffer error when it has to
+move the window start over a run that begins at a line start — which
+is why the =# %%= line stays visible.
 
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= keeps the look of every other cell boundary and
@@ -1027,13 +1034,11 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string head)
-    (if-let* ((parts (unless (pycell--image text)
-                       (pycell--md-parts beg end text))))
+    (if-let* ((parts (pycell--md-parts beg end text)))
         (overlay-put ov 'pycell-parts parts)
-      ;; Display properties do not nest, so an image has to ride the
-      ;; after-string, and that one string needs the source hidden as
-      ;; a single run.  A cell that renders to nothing takes the same
-      ;; path: there are no pieces to hang anywhere.
+      ;; A cell that renders to nothing has no pieces to hang anywhere.
+      ;; It takes the single string a result block uses, with the source
+      ;; hidden as one run.
       (overlay-put ov 'invisible t)
       (pycell--attach ov "" text))))
 
