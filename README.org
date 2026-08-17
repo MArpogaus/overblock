@@ -207,6 +207,8 @@ same time.  =mouse-1= shows the plain source of one cell.
 | =pycell-md-unrender=         | show each markdown cell as source          |
 | =pycell-md-edit=             | edit the markdown cell in its own buffer   |
 | =pycell-md-raw=              | show one markdown cell as source           |
+| =pycell-move-cell-up=        | move the cell at point up, with its result |
+| =pycell-move-cell-down=      | move the cell at point down, likewise      |
 | =pycell-stop=                | stop the run of the cells after this one   |
 
 pycell binds none of these commands.  It binds the mouse actions and
@@ -237,9 +239,11 @@ Drop a button you never press, put them in another order, or give one
 a glyph your font draws better:
 
 #+begin_src emacs-lisp
-  ;; the copy button only, with a plain glyph
+  ;; no discard button, and a plain arrow for the move
   (setq pycell-result-buttons
-        '((copy ("⧉" "≡") "Copy this result" pycell-copy-output lines)))
+        '((copy ("⧉" "≡") "Copy this result" pycell-copy-output lines)
+          (move-up ("↑" "u") "Move this cell up" pycell-move-cell-up t)
+          (move-down ("↓" "d") "Move this cell down" pycell-move-cell-down t)))
 #+end_src
 
 A command of your own can sit there as well: it is called with the
