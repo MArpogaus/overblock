@@ -1044,6 +1044,22 @@ image."
       (should-not (pycell--image in-table))
       (should (pycell--image outside)))))
 
+(ert-deftest pycell-test-space-columns ()
+  "A space stretch answers with the columns it covers.
+vtable, which is how comint-mime shows a DataFrame, sets the width of
+a stretch; shr says where it ends.  A list counts pixels, a bare
+number characters."
+  (cl-letf (((symbol-function 'frame-char-width) (lambda (&rest _) 8)))
+    ;; a width in pixels, and one that is not a whole character
+    (should (= (pycell--space-columns '(space :width (16)) 0) 2))
+    (should (= (pycell--space-columns '(space :width (5.5)) 0) 1))
+    ;; a width in characters
+    (should (= (pycell--space-columns '(space :width 3) 0) 3))
+    ;; a target counts from where the line starts
+    (should (= (pycell--space-columns '(space :align-to (104)) 3) 10))
+    ;; nothing to say about a stretch of another kind
+    (should-not (pycell--space-columns '(space :relative-width 2) 0))))
+
 (ert-deftest pycell-test-clean-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
 comint-mime renders a DataFrame as a vtable in the shell buffer, which
