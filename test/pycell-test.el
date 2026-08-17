@@ -1012,5 +1012,19 @@ like any other."
       (should (equal (car (nth 1 specs)) ""))
       (should (pycell--image (cadr (nth 1 specs)))))))
 
+(ert-deftest pycell-test-md-a-header-cell-and-code-have-a-face ()
+  "A header cell is bold and inline code wears the face of code.
+shr has no function for a =th=, and it draws code in a fixed pitch
+face, which says nothing where the rendering runs with
+`shr-use-fonts\=' nil."
+  (skip-unless (pycell--md-program))
+  (let* ((rendered (pycell--md-rendered
+                    "| head | x |\n|------|---|\n| `code_here` | y |\n"))
+         (faces (lambda (word)
+                  (let ((at (string-search word rendered)))
+                    (and at (get-text-property at 'face rendered))))))
+    (should (memq 'bold (ensure-list (funcall faces "head"))))
+    (should (memq 'pycell-md-code (ensure-list (funcall faces "code_here"))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

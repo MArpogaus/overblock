@@ -89,6 +89,12 @@ It inherits the cell boundary face, so results match the cells.")
 (defface pycell-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
+(defface pycell-md-code '((t :inherit font-lock-constant-face))
+  "Face for inline code in a rendered markdown cell.
+shr draws code in a fixed pitch, and a rendered cell hangs on the
+lines of a Python buffer, which is fixed pitch throughout: a pitch
+says nothing there, so this face says it with a color.")
+
 (defcustom pycell-markdown-command
   '("markdown" "pandoc" "markdown_py" "cmark" "cmark-gfm")
   "How to turn Markdown into HTML.
@@ -735,8 +741,7 @@ or, when told to use MathJax, in parentheses and brackets.")
 (defun pycell--md-mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain, and so does one
-inside a table \(see `pycell--md-tag-table').
+fragment that fails to render here stays plain.
 
 Only where the display can draw an image: a preview made in a
 terminal cannot be seen."
@@ -822,6 +827,24 @@ matched across its lines and replaced whole."
    "<pre>$$\n\\1$$</pre>"
    md))
 
+(defun pycell--md-tag-th (dom)
+  "Render the header cell DOM in bold.
+shr has no function for a =th=, so a header cell reads like any other
+row.  A table wants its header to stand out."
+  (shr-fontize-dom dom 'bold))
+
+(defun pycell--md-tag-code (dom)
+  "Render the inline code DOM in `pycell-md-code'.
+shr draws code in a fixed pitch face, which says nothing in a buffer
+that is fixed pitch throughout: code came out as prose."
+  (shr-fontize-dom dom 'pycell-md-code))
+
+(defconst pycell--md-rendering-functions
+  (list (cons 'th #'pycell--md-tag-th)
+        (cons 'code #'pycell--md-tag-code))
+  "How this package renders the tags shr renders differently.
+See `shr-external-rendering-functions'.")
+
 (defun pycell--md-flatten-alignment ()
   "Turn shr\='s `:align-to\=' spaces into real spaces, in this buffer.
 shr aligns table columns with `(space :align-to (N))\=' display specs,
@@ -866,7 +889,10 @@ flattened to real spaces for the same reason."
   (let ((dom (with-temp-buffer
                (insert (or html (pycell--md-html (pycell--md-verbatim-math md))))
                (libxml-parse-html-region (point-min) (point-max))))
-        (shr-use-fonts nil))
+        (shr-use-fonts nil)
+        (shr-external-rendering-functions
+         (append pycell--md-rendering-functions
+                 shr-external-rendering-functions)))
     (with-temp-buffer
       (shr-insert-document dom)
       (pycell--md-flatten-alignment)
