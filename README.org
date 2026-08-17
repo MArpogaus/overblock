@@ -223,6 +223,7 @@ example in =code-cells-mode-map=.
 | =pycell-markdown-command= | the shell command from Markdown to HTML          |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
+| =pycell-md-code=          | the face of inline code in a markdown cell       |
 
 ** Known Limits
 
@@ -237,6 +238,11 @@ example in =code-cells-mode-map=.
   wheel.  Use =pycell-pop-output= for the full figure.
 - One cell runs at a time for each inferior process.  pycell refuses
   a cell while another cell runs.
+- A block shows a copy of what the shell rendered, with the columns of
+  a table made literal so that they survive the move.  A DataFrame
+  comes out aligned, and the header of one can stand a column left of
+  its data.  A copy cannot be sorted: the buttons of the live table
+  are gone rather than dead.
 - A rendered markdown cell makes each scroll event more expensive,
   because rendered Markdown holds many face runs.  =M-x
   pycell-md-unrender= gives the plain source and the speed back for a
