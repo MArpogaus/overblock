@@ -128,14 +128,14 @@ simple formulas into text on its own and passes the rest through, and
   "The customize type of a list of header buttons.")
 
 (defcustom pycell-result-buttons
-  '((move-up ("⌃" "˄" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("⌄" "˅" "d") "Move this cell down" pycell-move-cell-down t)
-    (save-image ("⤓" "↧" "⇩" "↓") "Save the result's image to a file"
+  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
+    (save-image ("󰇚" "↧" "↓") "Save the result's image to a file"
                 pycell-save-image image)
-    (copy ("⧉" "❐" "▤" "≡") "Copy this result" pycell-copy-output lines)
-    (pop ("↗" "⇗" "^") "Show this result in its own buffer"
+    (copy ("󰆏" "❐" "≡") "Copy this result" pycell-copy-output lines)
+    (pop ("󰏋" "↗" "^") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t))
+    (discard ("󰅖" "✕" "x") "Discard this result" pycell-discard-output t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -154,11 +154,11 @@ this list: they say what the result is doing."
   :type pycell--button-type)
 
 (defcustom pycell-markdown-buttons
-  '((move-up ("⌃" "˄" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("⌄" "˅" "d") "Move this cell down" pycell-move-cell-down t)
-    (edit ("↗" "⇗" "^") "Edit this markdown cell in its own buffer"
+  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
+    (edit ("󰏋" "↗" "^") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t))
+    (source ("󰅖" "✕" "x") "Show the plain source" pycell-md-raw t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
@@ -568,16 +568,16 @@ while the cell runs.  IMAGEP marks a result with an image."
                        (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
                          (string ?\s (aref frames (mod (truncate runtime 0.2)
                                                        (length frames))))))
-                      ((eq running 'died) (pycell--glyph " ⚠" " !"))
+                      ((eq running 'died) (pycell--glyph " 󰀪" " ⚠" " !"))
                       ;; A single line can still be tall: one image is
                       ;; one line, and that is the block worth folding.
                       ((> total 0)
                        (pycell--button (if folded
-                                           (pycell--glyph " ▸" " ▶" " >")
-                                         (pycell--glyph " ▾" " ▼" " v"))
+                                           (pycell--glyph " 󰍟" " ▸" " >")
+                                         (pycell--glyph " 󰍝" " ▾" " v"))
                                           "Fold or unfold this result"
                                           #'pycell-toggle-output))
-                      ((zerop total) (pycell--glyph " ✓" " √" " ."))
+                      ((zerop total) (pycell--glyph " 󰄬" " ✓" " ."))
                       (t " ")))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
