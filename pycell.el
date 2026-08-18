@@ -124,14 +124,14 @@ simple formulas into text on its own and passes the rest through, and
   "The customize type of a list of header buttons.")
 
 (defcustom pycell-result-buttons
-  '((save-image ("⤓" "↧" "⇩" "↓") "Save the result's image to a file"
+  '((move-up ("⌃" "˄" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("⌄" "˅" "d") "Move this cell down" pycell-move-cell-down t)
+    (save-image ("⤓" "↧" "⇩" "↓") "Save the result's image to a file"
                 pycell-save-image image)
     (copy ("⧉" "❐" "▤" "≡") "Copy this result" pycell-copy-output lines)
     (pop ("↗" "⇗" "^") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t)
-    (move-up ("▲" "↑" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("▼" "↓" "d") "Move this cell down" pycell-move-cell-down t))
+    (discard ("✕" "×" "x") "Discard this result" pycell-discard-output t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -150,11 +150,11 @@ this list: they say what the result is doing."
   :type pycell--button-type)
 
 (defcustom pycell-markdown-buttons
-  '((edit ("↗" "⇗" "^") "Edit this markdown cell in its own buffer"
+  '((move-up ("⌃" "˄" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("⌄" "˅" "d") "Move this cell down" pycell-move-cell-down t)
+    (edit ("↗" "⇗" "^") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t)
-    (move-up ("▲" "↑" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("▼" "↓" "d") "Move this cell down" pycell-move-cell-down t))
+    (source ("✕" "×" "x") "Show the plain source" pycell-md-raw t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
