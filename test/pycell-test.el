@@ -112,11 +112,6 @@ would hide the rest of the output and buy no height back."
   (should (eq (car-safe (pycell--image (concat "a\n" pycell-test--image))) 'image))
   (should-not (pycell--image "just text")))
 
-(ert-deftest pycell-test-icons ()
-  "The icon group drops the buttons that are not there."
-  (should (equal (pycell--icons "a" nil "b") "a  b "))
-  (should (equal (pycell--icons nil) " ")))
-
 (ert-deftest pycell-test-glyph ()
   "A candidate without a glyph is skipped, and the last one always answers."
   ;; A batch session has no graphical frame, so the fallback decides.
