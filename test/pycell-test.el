@@ -1213,5 +1213,69 @@ for each of them drew the same image three times."
                         (overlay-get (car withimage) 'after-string))
                        "$$\na = b\n$$"))))))
 
+(defun pycell-test--vtable-text ()
+  "Return the text of a vtable, as comint-mime leaves one in the shell."
+  (with-temp-buffer
+    (make-vtable
+     :use-header-line nil
+     :columns (mapcar (lambda (name) (list :name name
+                                           :min-width (length name)
+                                           :align 'right))
+                      '("alpha" "beta_longer" "gamma"))
+     :objects '(("1" "22" "333") ("4444" "5" "66") ("7" "888" "9999")))
+    (buffer-string)))
+
+(ert-deftest pycell-test-table-is-laid-out-in-characters ()
+  "A copied table gets columns that no face can move.
+A vtable aligns with stretches of pixels measured in the window that
+drew it, and it measures a header cell in the face of a header: a copy
+shown in another face had the header squashed and the rows apart."
+  (skip-unless (fboundp 'make-vtable))
+  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+         (clean (pycell--clean (pycell-test--vtable-text)))
+         (lines (split-string (substring-no-properties clean) "\n")))
+    ;; the header and one column start at the same place on every row
+    (should (= (length lines) 4))
+    (let ((column (string-search "beta_longer" (car lines))))
+      (should column)
+      (dolist (line (cdr lines))
+        (should (eq (string-match-p "[0-9]" line column) column))))
+    ;; the names of the columns stand out
+    (should (memq 'bold (ensure-list (get-text-property 0 'face clean))))
+    ;; and no stretch is left to drift
+    (should-not (text-property-not-all 0 (length clean) 'display nil clean))))
+
+(ert-deftest pycell-test-table-pops-as-a-live-table ()
+  "The pop of a table gives a table that sorts, not a picture of one.
+A copy carries the table object, and vtable draws it again for the
+window it lands in."
+  (skip-unless (fboundp 'make-vtable))
+  (pycell-test--with-cells
+    (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+           (text (pycell--clean (pycell-test--vtable-text))))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end text 0.4))
+      (let ((ov (car (pycell--overlays (point-min) (point-max)))))
+        (goto-char (overlay-start ov))
+        (save-window-excursion (pycell-pop-output))
+        (with-current-buffer (pycell--cell-buffer-name nil (overlay-start ov))
+          (goto-char (point-min))
+          (should (vtable-current-table))
+          (should (equal (mapcar #'vtable-column-name
+                                 (vtable-columns (vtable-current-table)))
+                         '("alpha" "beta_longer" "gamma")))
+          ;; A copy carries the table object as well, so the object says
+          ;; nothing about whether the table works.  A drawn table knows
+          ;; which column is under point and can sort by it; a copy of
+          ;; the text of one cannot.
+          (forward-line 1)
+          (should (vtable-current-column))
+          (should (equal (vtable-current-object) '("1" "22" "333")))
+          (let ((inhibit-read-only t))
+            (vtable-sort-by-current-column))
+          (goto-char (point-min))
+          (forward-line 1)
+          (should (equal (vtable-current-object) '("1" "22" "333"))))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

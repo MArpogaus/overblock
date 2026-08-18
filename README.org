@@ -163,6 +163,13 @@ shows its source.
 =⚠= if the interpreter dies while the cell runs, and the result ends
 with a note.
 
+A table, a DataFrame among them, gets its columns laid out again for
+the block: literal columns that stand where they are whatever face the
+block wears.  =pycell-pop-output= gives you that table live, in its own
+buffer, where every binding of vtable works: =S= or a click on a
+column name sorts, ={= and =}= narrow and widen a column, and =M-left=
+and =M-right= move one.
+
 With =outline-minor-mode= a fold of the cell hides the code and keeps
 the result below the heading.  The fold button of the result still
 works there.  Code and output fold apart from each other.

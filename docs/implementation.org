@@ -42,7 +42,23 @@ have to change on the way out:
   binding of it can find a table in a copy.  The =keymap=,
   =local-map=, =mouse-face= and =help-echo= properties therefore go:
   a block must not offer a click it cannot answer.
-  =pycell-pop-output= shows the whole output in a buffer of its own.
+
+** A table in a block, and a table in a buffer
+
+The copy of a vtable carries the table object in its =vtable= text
+property, and that object holds the columns and the rows.  pycell reads
+them and lays the table out again for the block: each column as wide as
+its widest cell, in characters, and the names of the columns in bold.
+Nothing in that layout can be moved by a face, which the stretches of
+the original could: a vtable measures a header cell in the face of a
+header, so a copy shown in another face had its header squashed and its
+rows apart.
+
+=pycell-pop-output= does not copy that text.  It calls =vtable-insert=
+with the table object, so the buffer holds a table that vtable drew for
+that window: sorting, narrowing and moving a column all work there.
+The block stays a fast, aligned, plain rendering; the buffer is where a
+reader sorts.
 
 The block is a =display= property on the newline that ends the cell.
 A display property on real buffer text scrolls better than a tall
