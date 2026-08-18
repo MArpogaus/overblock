@@ -1074,6 +1074,26 @@ It carries `pycell-cloak' so that unfolding leaves it alone."
     (overlay-put ov 'pycell-cloak t)
     ov))
 
+(defun pycell--md-lines (text)
+  "Split TEXT into the pieces that can stand on a line of their own.
+A newline inside an image run stays where it is.  Such a run draws one
+image however many lines it covers, and display math covers three:
+the two dollar rows and the formula.  A piece for each of those lines
+would carry the same run and draw the same image again."
+  (let ((pos 0)
+        (from 0)
+        (len (length text))
+        lines)
+    (while (< pos len)
+      (when (and (eq (aref text pos) ?\n)
+                 (not (eq (car-safe (get-text-property pos 'display text))
+                          'image)))
+        (push (substring text from pos) lines)
+        (setq from (1+ pos)))
+      (setq pos (1+ pos)))
+    (push (substring text from) lines)
+    (nreverse lines)))
+
 (defun pycell--md-parts (beg end text)
   "Show TEXT over the source lines BEG..END, a piece to a line.
 Return the overlays that carry the pieces.
@@ -1100,7 +1120,7 @@ hides, which leaves that line's newline to end the line.  A cloak has
 to start at the end of a visible line like that: `scroll-down'
 answers a run that begins a line with a beginning-of-buffer error, in
 the middle of the cell."
-  (let* ((lines (split-string (string-trim text "\n" "\n") "\n"))
+  (let* ((lines (pycell--md-lines (string-trim text "\n" "\n")))
          (count (length lines))
          (rows (save-excursion
                  (goto-char beg)

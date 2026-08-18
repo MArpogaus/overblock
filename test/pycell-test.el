@@ -1189,5 +1189,29 @@ it has said it."
         (should (equal (pycell--text (car (pycell--overlays beg end)))
                        "one"))))))
 
+(ert-deftest pycell-test-md-parts-keep-a-multiline-image-whole ()
+  "An image run that covers several lines becomes one piece.
+Display math renders as three lines under one image run, and a piece
+for each of them drew the same image three times."
+  (let* ((image '(image :type png :data "x"))
+         (block (propertize "$$\na = b\n$$" 'display image))
+         (text (concat "before\n" block "\nafter")))
+    ;; three pieces: the prose, the whole block, the prose
+    (should (equal (mapcar #'substring-no-properties (pycell--md-lines text))
+                   '("before" "$$\na = b\n$$" "after")))
+    (with-temp-buffer
+      (insert "one\ntwo\nthree\nfour\nfive\n")
+      (let* ((parts (pycell--md-parts (point-min) (point-max) text))
+             (withimage (seq-filter
+                         (lambda (ov)
+                           (pycell--image (or (overlay-get ov 'after-string)
+                                              (overlay-get ov 'display) "")))
+                         parts)))
+        ;; the image is on one piece, and only one
+        (should (= (length withimage) 1))
+        (should (equal (substring-no-properties
+                        (overlay-get (car withimage) 'after-string))
+                       "$$\na = b\n$$"))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
