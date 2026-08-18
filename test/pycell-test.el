@@ -193,7 +193,9 @@ full of those; only a real image belongs in the after-string."
         (setcar (overlay-get ov 'pycell) t))
       (pycell--show beg end "c\nd" 0.2)
       (let ((ov (car (pycell--overlays (point-min) (point-max)))))
-        (should (car (overlay-get ov 'pycell)))))))
+        (should (car (overlay-get ov 'pycell)))
+        ;; and the result that replaced it is the new one
+        (should (equal (pycell--text ov) "c\nd"))))))
 
 (ert-deftest pycell-test-remove-overlays ()
   "Removing results takes the helper overlays with them."
@@ -850,6 +852,15 @@ complete."
   "A converter that reshapes the marker sends every cell its own way.
 The batch is only safe while the pieces come back one to a cell, and
 nothing but their number says whether they did."
+  ;; one piece for each cell, and the pieces are the cells
+  (cl-letf (((symbol-function 'pycell--md-html)
+             (lambda (md) (replace-regexp-in-string
+                           "\\([^\n]+\\)" "<p>\\1</p>" md))))
+    (let ((pieces (pycell--md-htmls '("one" "two"))))
+      (should (= (length pieces) 2))
+      (should (string-match-p "one" (nth 0 pieces)))
+      (should (string-match-p "two" (nth 1 pieces)))))
+  ;; and nothing at all when the marker does not come back
   (cl-letf (((symbol-function 'pycell--md-html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
     (should-not (pycell--md-htmls '("one" "two")))))
@@ -1271,6 +1282,25 @@ window it lands in."
           (goto-char (point-min))
           (forward-line 1)
           (should (equal (vtable-current-object) '("1" "22" "333"))))))))
+
+(ert-deftest pycell-test-table-reads-a-getter ()
+  "The cells of a table come from its getter where it has one.
+comint-mime hands vtable a list for each row and no getter, so the
+default reading is the one that runs, but a table is free to bring its
+own."
+  (skip-unless (fboundp 'make-vtable))
+  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+         (text (with-temp-buffer
+                 (make-vtable
+                  :use-header-line nil
+                  :columns '("first" "second")
+                  :objects '((1 . "one") (2 . "two"))
+                  :getter (lambda (object index _table)
+                            (if (zerop index) (car object) (cdr object))))
+                 (buffer-string)))
+         (clean (substring-no-properties (pycell--clean text))))
+    (should (equal (split-string clean "\n")
+                   '("first  second" "1      one" "2      two")))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
