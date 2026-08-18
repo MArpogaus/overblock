@@ -58,6 +58,10 @@
 
 (require 'code-cells)
 (require 'comint-mime)
+;; comint-mime renders a table with it, and a block lays that table
+;; out again.  Optional, as it is in comint-mime: an Emacs without
+;; vtable shows the text of the table as it came.
+(require 'vtable nil t)
 (require 'python)
 (require 'ansi-color)
 (require 'seq)
@@ -361,6 +365,76 @@ leaves point where it is: the commands read EVENT from
 
 ;;;; Result blocks
 
+(defun pycell--table-at (text)
+  "Return the vtable that part of TEXT was rendered from, and where.
+comint-mime renders an HTML table with vtable, a DataFrame among them,
+and the copy carries the table object in a text property.  The value is
+\(TABLE BEG END), or nil."
+  (when (fboundp 'vtable-p)
+    (let ((pos 0) (len (length text)) table beg end)
+      ;; The newline that ends a row carries no property of the table, so
+      ;; the run is not one stretch: take the first and the last place
+      ;; that names a table, and everything between them belongs to it.
+      (while (< pos len)
+        (let ((here (get-text-property pos 'vtable text)))
+          (when (vtable-p here)
+            (unless table (setq table here beg pos))
+            (setq end (1+ pos))))
+        (setq pos (1+ pos)))
+      (when table (list table beg end)))))
+
+(defun pycell--table-rows (table)
+  "Return the rows of TABLE as strings, the column names first."
+  (let ((columns (vtable-columns table)))
+    (cons (mapcar #'vtable-column-name columns)
+          (mapcar
+           (lambda (object)
+             (let ((index -1))
+               (mapcar (lambda (_column)
+                         (setq index (1+ index))
+                         (format "%s" (if-let* ((getter (vtable-getter table)))
+                                          (funcall getter object index table)
+                                        (elt object index))))
+                       columns)))
+           (vtable-objects table)))))
+
+(defun pycell--table-text (rows)
+  "Return ROWS as text whose columns line up in characters.
+A vtable aligns with stretches of pixels measured in the window that
+drew it, and it measures a header cell in the face of a header.  A copy
+is shown elsewhere, in a face of its own, so the columns are laid out
+again here: one space of padding to the widest cell of each column, and
+nothing that a face can move."
+  (let ((widths (let (widths)
+                  (dolist (row rows)
+                    (let ((index 0))
+                      (dolist (cell row)
+                        (setq widths (append widths
+                                             (make-list (max 0 (- (1+ index)
+                                                                  (length widths)))
+                                                        0)))
+                        (setf (nth index widths)
+                              (max (nth index widths) (string-width cell)))
+                        (setq index (1+ index)))))
+                  widths)))
+    (string-join
+     (let ((first t) lines)
+       (dolist (row rows (nreverse lines))
+         (let ((index -1))
+           (push (string-trim-right
+                  (mapconcat (lambda (cell)
+                               (setq index (1+ index))
+                               (let ((pad (- (nth index widths)
+                                             (string-width cell))))
+                                 (concat cell (make-string (max 0 pad) ?\s))))
+                             row "  "))
+                 lines))
+         (when first
+           ;; the names of the columns, in bold as a markdown table has them
+           (setcar lines (propertize (car lines) 'face 'bold))
+           (setq first nil))))
+     "\n")))
+
 (defun pycell--clean (text)
   "Strip prompts, Out[n] markers and outer whitespace from TEXT.
 Whitespace only goes when it carries no display property: comint-mime
@@ -406,7 +480,15 @@ would delete it.  Call this in the shell buffer, where
     (let ((copy (pycell--flattened (substring text beg end))))
       (remove-list-of-text-properties
        0 (length copy) '(keymap local-map mouse-face help-echo) copy)
-      copy)))
+      (if-let* ((found (pycell--table-at copy)))
+          ;; A table gets its columns laid out again, and it keeps the
+          ;; table object: `pycell-pop-output' shows that one live.
+          (pcase-let* ((`(,table ,tbeg ,tend) found)
+                       (laid-out (propertize
+                                  (pycell--table-text (pycell--table-rows table))
+                                  'pycell-table table)))
+            (concat (substring copy 0 tbeg) laid-out (substring copy tend)))
+        copy))))
 
 (defun pycell--shorten (line)
   "Return LINE cut to `pycell-max-line-length' characters.
@@ -701,7 +783,15 @@ Each cell gets one buffer, so results are comparable side by side."
       (special-mode)
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (insert text))
+        ;; A table goes in live: every binding of vtable works here, and
+        ;; vtable aligns the columns for this window itself.
+        (if-let* ((table (get-text-property (or (text-property-not-all
+                                                 0 (length text)
+                                                 'pycell-table nil text)
+                                                0)
+                                           'pycell-table text)))
+            (vtable-insert table)
+          (insert text)))
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))
 
