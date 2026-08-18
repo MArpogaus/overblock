@@ -147,10 +147,17 @@ The header bar has buttons at its right:
 | Button | Action                                 |
 |--------+----------------------------------------|
 | =▾=    | fold or unfold the result              |
+| =⌃=    | move this cell up                      |
+| =⌄=    | move this cell down                    |
 | =⤓=    | save the image of the result to a file |
 | =⧉=    | copy the result, with the images       |
 | =↗=    | show the full result in its own buffer |
 | =✕=    | discard the result                     |
+
+The fold arrow stands at the left of the bar and the buttons at its
+right, in the order of =pycell-result-buttons=.  A rendered markdown
+cell carries the two move buttons, the edit button and the one that
+shows its source.
 
 =TAB= at the end of a cell also folds the result.  The header shows
 =⚠= if the interpreter dies while the cell runs, and the result ends
