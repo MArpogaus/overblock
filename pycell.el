@@ -267,26 +267,27 @@ A left click calls COMMAND, and HELP becomes the tooltip."
                         (define-key map [mouse-1] command)
                         map)))
 
-(defun pycell--icons (&rest buttons)
-  "Join the non-nil BUTTONS into the icon group of a header bar."
-  (concat (string-join (delq nil buttons) "  ") " "))
-
 (defun pycell--buttons (descriptors &optional imagep lines)
   "Return the icon group that DESCRIPTORS ask for.
 Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), as in
 `pycell-result-buttons'.  IMAGEP says the result holds an image and
 LINES how many lines it has; a descriptor whose WHEN is `image' or
 `lines' waits for those."
-  (apply #'pycell--icons
-         (mapcar
-          (lambda (descriptor)
-            (pcase-let ((`(,_key ,glyphs ,help ,command ,when) descriptor))
-              (when (pcase when
-                      ('image imagep)
-                      ('lines (> (or lines 0) 0))
-                      (_ t))
-                (pycell--button (apply #'pycell--glyph glyphs) help command))))
-          descriptors)))
+  (concat
+   (mapconcat
+    #'identity
+    (delq nil
+          (mapcar
+           (lambda (descriptor)
+             (pcase-let ((`(,_key ,glyphs ,help ,command ,when) descriptor))
+               (when (pcase when
+                       ('image imagep)
+                       ('lines (> (or lines 0) 0))
+                       (_ t))
+                 (pycell--button (apply #'pycell--glyph glyphs) help command))))
+           descriptors))
+    "  ")
+   " "))
 
 (defun pycell--bar (left icons)
   "Return a header line: LEFT text, ICONS at the right window edge.
@@ -383,29 +384,28 @@ and the copy carries the table object in a text property.  The value is
         (setq pos (1+ pos)))
       (when table (list table beg end)))))
 
-(defun pycell--table-rows (table)
-  "Return the rows of TABLE as strings, the column names first."
-  (let ((columns (vtable-columns table)))
-    (cons (mapcar #'vtable-column-name columns)
-          (mapcar
-           (lambda (object)
-             (let ((index -1))
-               (mapcar (lambda (_column)
-                         (setq index (1+ index))
-                         (format "%s" (if-let* ((getter (vtable-getter table)))
-                                          (funcall getter object index table)
-                                        (elt object index))))
-                       columns)))
-           (vtable-objects table)))))
-
-(defun pycell--table-text (rows)
-  "Return ROWS as text whose columns line up in characters.
+(defun pycell--table-text (table)
+  "Return TABLE as text whose columns line up in characters.
 A vtable aligns with stretches of pixels measured in the window that
 drew it, and it measures a header cell in the face of a header.  A copy
 is shown elsewhere, in a face of its own, so the columns are laid out
 again here: one space of padding to the widest cell of each column, and
 nothing that a face can move."
-  (let ((widths (let (widths)
+  (let* ((columns (vtable-columns table))
+         (rows (cons (mapcar #'vtable-column-name columns)
+                     (mapcar
+                      (lambda (object)
+                        (let ((index -1))
+                          (mapcar
+                           (lambda (_column)
+                             (setq index (1+ index))
+                             (format "%s"
+                                     (if-let* ((getter (vtable-getter table)))
+                                         (funcall getter object index table)
+                                       (elt object index))))
+                           columns)))
+                      (vtable-objects table))))
+         (widths (let (widths)
                   (dolist (row rows)
                     (let ((index 0))
                       (dolist (cell row)
@@ -485,7 +485,7 @@ would delete it.  Call this in the shell buffer, where
           ;; table object: `pycell-pop-output' shows that one live.
           (pcase-let* ((`(,table ,tbeg ,tend) found)
                        (laid-out (propertize
-                                  (pycell--table-text (pycell--table-rows table))
+                                  (pycell--table-text table)
                                   'pycell-table table)))
             (concat (substring copy 0 tbeg) laid-out (substring copy tend)))
         copy))))
