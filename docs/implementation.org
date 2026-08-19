@@ -8,7 +8,8 @@ The text uses these terms:
 
 - *cell*: a piece of a Python file between two cell markers.
   code-cells finds the markers.
-- *block*: what pycell draws below a code cell to show the result.
+- *block*: what pycell shows over a region of the buffer, or after it.
+  A result is one, a rendered markdown cell is another.
 - *shell*: the inferior Python process that =python.el= starts.
 - *mirror*: the copy of the output that the block shows.
 
@@ -60,13 +61,67 @@ that window: sorting, narrowing and moving a column all work there.
 The block stays a fast, aligned, plain rendering; the buffer is where a
 reader sorts.
 
-The block is a =display= property on the newline that ends the cell.
-A display property on real buffer text scrolls better than a tall
-overlay string.
+The result rides the newline that ends the cell; the block layer below
+puts it there.
 
 pycell writes nothing into the buffer.  Files, LSP and undo see no
 change.  There is one exception: the last cell of a buffer gets a
 final newline if it has none, because the block needs that character.
+
+** The block layer
+
+Results and rendered markdown cells are two callers of one layer, which
+knows nothing of Python, cells or markdown: a caller renders text and
+hands it over.
+
+#+begin_src emacs-lisp
+  (pycell--block-show BEG END
+                      :kind 'result          ; whose block this is
+                      :data ANYTHING         ; what the caller keeps with it
+                      :over TEXT             ; shown instead of the region
+                      :body TEXT             ; shown after the region
+                      :header TEXT :footer TEXT
+                      :fringe t              ; a bracket beside it
+                      :hidden t              ; show nothing for now
+                      :keymap MAP :help-echo STRING
+                      :attached OVERLAYS)    ; the caller's own
+#+end_src
+
+An anchor overlay covers the region and holds those properties.  It
+stops before the newline that ends the region, so a window which starts
+at the next line keeps the block out of view; a second overlay covers
+that newline and carries what shows after it.
+=pycell--block-refresh= makes everything the block shows anew from the
+properties, so nothing has to be saved and given back — that is how a
+fold takes a markdown cell off the screen and gives it back with
+=:hidden=.
+
+Where each row goes was decided by measurement, in a graphical frame:
+
+- The header and the footer are strings of their own.  A bar puts its
+  icons at the window edge with =(space :align-to (- right ...))=, and a
+  display property ignores that spec: the icons then sit beside the
+  label.
+- A plain body rides the =display= property of the newline, which costs
+  least.
+- A body with an image cannot: display properties do not nest, so the
+  image is swallowed.  Such a body hides the newline with an empty
+  display string and draws in the =after-string= beside it.
+- The first row takes a line break only where the newline it hangs on
+  does not already begin a line, so a cell that ends in a blank line
+  gives that line to its header.
+- =:fringe= draws a line down the left fringe, two pixel columns wide as
+  =org-modern= draws one.  A =line-prefix= on an overlay says nothing
+  about the rows of a string, so each row carries its own; a bracketed
+  body therefore rides a string rather than the display property, where a
+  prefix draws nothing.  Feet at the two ends are left out: such a bitmap
+  lands beside the right row where the row is a line of the buffer, and
+  one row off where the row belongs to a string.
+
+Text shown =:over= a region hangs on its lines, a piece to a line, and
+lines with no piece left for them go under a cloak.  That is what makes
+a tall rendering scroll a line at a time; see [[#the-cost-of-a-rendered-markdown-cell][the cost of a rendered
+markdown cell]].
 
 ** The header bars
 
@@ -263,7 +318,17 @@ twelve lines with many face changes cost three times as much.
 =make test= runs the batch suite in =test/pycell-test.el=.  It tests
 the parts that need no display: the clean of the output, the body
 lines, the cell markers, the markdown pieces, the edit buffers and
-the mirror.
+the mirror.  For the block layer it tests which slot each row lands in,
+the line break the first row takes and the one it does not, a hidden
+block and its return, blocks of two kinds in one region, what a delete
+takes with it, the cloak that reaches the last line, and the prefixes of
+the bracket.
+
+=test/pycell-block-client-test.el= is a second caller of that layer,
+and a test rather than a feature: it renders the math in a Python
+docstring over the lines of the docstring, with no process behind it and
+no cell.  It answers one question — does a caller of another shape need
+anything the layer does not have — and so far it needs nothing.
 
 =make scroll= needs a graphic display.  It builds a buffer with
 markdown cells and scrolls through it with
