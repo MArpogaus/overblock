@@ -138,6 +138,124 @@ asking the first character alone accepted every candidate."
   (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
     (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
 
+(ert-deftest pycell-test-block-slots ()
+  "Each row of a block lands in the slot that suits it.
+The header and the footer are strings, where a bar can put its icons at
+the window edge; a plain body rides the display property, the cheapest
+slot; a body with an image rides a string, because a display property
+swallows an image."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((block (pycell--block-show 1 (point-max)
+                                      :header "H" :body "B" :footer "F"))
+           (nl (pycell--block-get block :newline)))
+      (should (equal (overlay-get nl 'before-string) "\nH"))
+      (should (equal (overlay-get nl 'display) "\nB\n"))
+      (should (equal (overlay-get nl 'after-string) "F\n"))
+      ;; a body with an image moves off the display property, and takes
+      ;; the newline with it
+      (pycell--block-set block :body (concat "B" pycell-test--image))
+      (pycell--block-refresh block)
+      (should (equal (overlay-get nl 'display) ""))
+      (should (pycell--image (overlay-get nl 'after-string)))
+      (should (string-match-p "F" (overlay-get nl 'after-string))))))
+
+(ert-deftest pycell-test-block-lead ()
+  "The first row takes a line of its own, and no more than it needs.
+A region that ends in a blank line has a line to give away; one that
+ends in text has not, and the row starts with a break."
+  (with-temp-buffer
+    (insert "code\n\n")
+    (let* ((block (pycell--block-show 1 (point-max) :header "H"))
+           (nl (pycell--block-get block :newline)))
+      (should (equal (overlay-get nl 'before-string) "H"))))
+  (with-temp-buffer
+    (insert "code\n")
+    (let* ((block (pycell--block-show 1 (point-max) :header "H"))
+           (nl (pycell--block-get block :newline)))
+      (should (equal (overlay-get nl 'before-string) "\nH")))))
+
+(ert-deftest pycell-test-block-hidden-and-back ()
+  "A hidden block shows nothing, and a refresh makes it all again."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((block (pycell--block-show 1 (point-max)
+                                      :over "shown" :header "H"))
+           (nl (pycell--block-get block :newline)))
+      (should (pycell--block-get block :parts))
+      (pycell--block-set block :hidden t)
+      (pycell--block-refresh block)
+      (should-not (pycell--block-get block :parts))
+      (should-not (overlay-get nl 'before-string))
+      (pycell--block-set block :hidden nil)
+      (pycell--block-refresh block)
+      (should (pycell--block-get block :parts))
+      (should (equal (overlay-get nl 'before-string) "\nH")))))
+
+(ert-deftest pycell-test-block-kinds-keep-apart ()
+  "A block replaces the blocks of its own kind, and leaves the others."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let ((first (pycell--block-show 1 (point-max) :kind 'a :header "A"))
+          (other (pycell--block-show 1 (point-max) :kind 'b :header "B")))
+      (should (overlay-buffer first))
+      (should (equal (list first) (pycell--block-in 1 (point-max) 'a)))
+      (should (equal (list other) (pycell--block-in 1 (point-max) 'b)))
+      (let ((again (pycell--block-show 1 (point-max) :kind 'a :header "A2")))
+        (should-not (overlay-buffer first))
+        (should (overlay-buffer other))
+        (should (equal (list again) (pycell--block-in 1 (point-max) 'a)))))))
+
+(ert-deftest pycell-test-block-delete-takes-its-overlays ()
+  "Deleting a block deletes what carries it, the caller's own included."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((mine (make-overlay 1 2))
+           (block (pycell--block-show 1 (point-max)
+                                      :over "shown" :attached (list mine)))
+           (parts (pycell--block-get block :parts))
+           (nl (pycell--block-get block :newline)))
+      (should parts)
+      (pycell--block-delete block)
+      (should-not (overlay-buffer block))
+      (should-not (overlay-buffer nl))
+      (should-not (overlay-buffer mine))
+      (should-not (seq-some #'overlay-buffer parts)))))
+
+(ert-deftest pycell-test-block-covers-its-last-line ()
+  "The pieces of a block reach the last line of its region.
+The anchor stops before the newline that ends the region, and a cloak
+that stopped there with it would leave the last line on the screen."
+  (with-temp-buffer
+    ;; the last line is blank, so no row is left for it
+    (insert "one\ntwo\n\n")
+    (let* ((block (pycell--block-show 1 (point-max) :over "row one\nrow two"))
+           (cloaks (seq-filter (lambda (ov) (overlay-get ov 'pycell-cloak))
+                               (pycell--block-get block :parts))))
+      (should cloaks)
+      ;; up to the newline that ends the region, and not one line short
+      (should (= (apply #'max (mapcar #'overlay-end cloaks))
+                 (1- (point-max)))))))
+
+(ert-deftest pycell-test-block-bracket-in-the-fringe ()
+  "The bracket rides the anchor and every row a block writes.
+A `line-prefix' on an overlay says nothing about the rows of a string,
+so each row carries its own; measured in a graphical frame, the two
+together draw one line beside the whole block."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((block (pycell--block-show 1 (point-max)
+                                      :fringe t :header "H" :body "B"))
+           (nl (pycell--block-get block :newline))
+           (fringed (lambda (s)
+                      (and s (text-property-not-all 0 (length s)
+                                                    'line-prefix nil s)))))
+      (should (overlay-get block 'line-prefix))
+      (should (funcall fringed (overlay-get nl 'before-string)))
+      ;; a bracketed body rides a string, where a prefix draws
+      (should (equal (overlay-get nl 'display) ""))
+      (should (funcall fringed (overlay-get nl 'after-string))))))
+
 (ert-deftest pycell-test-show-text-result ()
   "A text result rides the newline, and the buffer text stays as it was.
 The header and the body are one display string on the newline that ends

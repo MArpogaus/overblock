@@ -219,12 +219,13 @@ list or a base64 blob is one such line."
 ;;
 ;; An anchor overlay covers the region and holds the state.  A second
 ;; overlay covers the newline that ends the region and carries what
-;; shows after it: the header, the body and the footer, in that order,
-;; as one string.  Measured in a graphical frame: the string can ride
-;; the `display' property of that newline, which is what plain text
-;; does, but an image in a display string is swallowed, while one in an
-;; `after-string' draws.  A body with an image therefore hides the
-;; newline and rides the after-string instead.
+;; shows after it: the header, the body and the footer, each on a row of
+;; its own, in the slot that suits it.  Measured in a graphical frame: a
+;; bar puts its icons at the window edge with `(space :align-to (- right
+;; ...))\=', which a display property ignores and a string does not, and
+;; an image in a display string is swallowed while one in a string
+;; draws.  So the header and the footer are strings, and the body rides
+;; the display property unless it holds an image.
 ;;
 ;; Text shown over the region hangs on its lines, a piece to a line.
 ;; Emacs lays a display string out whole on every redisplay, so one
@@ -242,38 +243,37 @@ default answer for those that do not."
 (defface pycell-block-fringe-face '((t :inherit shadow))
   "Face of the bracket a block draws in the fringe.")
 
-(defun pycell--block-bitmaps ()
-  "Define the three bitmaps of the fringe bracket, once.
-The bracket is a vertical line with a foot at each end, as
-`org-modern' draws one: a line of the whole cell height for the middle
-rows, and a row of pixels across the top or the bottom for the ends."
-  (unless (fringe-bitmap-p 'pycell--block-middle)
-    (let* ((line (expt 2 15))                  ; the leftmost pixel column
-           (foot (1- (expt 2 16))))            ; a full row of pixels
-      (define-fringe-bitmap 'pycell--block-middle (vector line) nil 16 '(top t))
-      (define-fringe-bitmap 'pycell--block-top
-        (vconcat (vector foot) (make-vector 127 line)) nil 16 'top)
-      (define-fringe-bitmap 'pycell--block-bottom
-        (vconcat (make-vector 127 line) (vector foot)) nil 16 'bottom))))
+(defun pycell--block-bitmap ()
+  "Define the bitmap of the fringe bracket, once, and return it.
+The bracket is a line down the left fringe, two pixel columns wide as
+`org-modern\=' draws one, and `(top t)\=' repeats it for the whole height
+of every row.
 
-(defun pycell--block-prefix (bitmap)
-  "Return the display string that draws BITMAP in the left fringe."
-  (propertize " " 'display `(left-fringe ,bitmap pycell-block-fringe-face)))
+A foot at each end, as `org-modern\=' draws one, would take a bitmap of
+its own for the first and the last row.  Measured: such a bitmap lands
+beside the right row where that row is a line of the buffer, and one row
+off where the row belongs to a string, which is what a block shows after
+its region.  A line without feet says the same thing and needs no
+overlay of its own."
+  (unless (fringe-bitmap-p 'pycell--block-line)
+    (define-fringe-bitmap 'pycell--block-line
+      (vector (logior (expt 2 15) (expt 2 14))) nil 16 '(top t)))
+  'pycell--block-line)
 
-(defun pycell--block-bracket (object bitmap)
-  "Draw BITMAP in the fringe of every line of OBJECT.
-OBJECT is an overlay or a string.  A string carries the prefixes
-itself: measured in a graphical frame, the fringe of the lines of an
-after-string follows the properties of that string and not those of
-the overlay that shows it."
-  (pycell--block-bitmaps)
-  (let ((prefix (pycell--block-prefix bitmap)))
+(defun pycell--block-bracket (object)
+  "Draw the bracket in the fringe of every line of OBJECT.
+OBJECT is an overlay or a string, and it is returned.  A string carries
+the prefixes itself: measured in a graphical frame, the fringe beside
+the lines of a string follows the properties of that string, and an
+overlay says nothing about them."
+  (let ((prefix (propertize " " 'display
+                            `(left-fringe ,(pycell--block-bitmap)
+                                          pycell-block-fringe-face))))
     (if (overlayp object)
         (progn (overlay-put object 'line-prefix prefix)
                (overlay-put object 'wrap-prefix prefix))
       (add-text-properties 0 (length object)
-                           `(line-prefix ,prefix wrap-prefix ,prefix)
-                           object))
+                           `(line-prefix ,prefix wrap-prefix ,prefix) object))
     object))
 
 (defun pycell--block-get (block prop)
@@ -493,24 +493,29 @@ Each string carries the line breaks that the newline it covers would
 have given."
   (when-let* ((ov (pycell--block-get block :newline))
               ((overlay-buffer ov)))
-    (let* ((image (and body (pycell--image body)))
-           (plain (and body (not image)))
+    (let* ((fringe (pycell--block-get block :fringe))
+           ;; A body rides the display property, unless it holds an image
+           ;; or the block wears a bracket: a `line-prefix' inside a
+           ;; display string draws no fringe, measured, and inside a
+           ;; string it does.
+           (plain (and body (not (pycell--image body)) (not fringe)))
+           (string (and body (not plain)))
            ;; Every row stands on a line of its own.  The first one needs
            ;; a break only where the newline it hangs on does not already
            ;; begin a line: a cell that ends in a blank line gives that
            ;; line to the header instead of pushing it down a row.
            (lead (if (eq (char-before (overlay-start ov)) ?\n) "" "\n"))
            (row (lambda (text)
-                  (when (pycell--block-get block :fringe)
-                    (pycell--block-bracket text 'pycell--block-middle))
-                  (prog1 (concat lead text) (setq lead "\n")))))
+                  (prog1 (let ((s (concat lead text)))
+                           (if fringe (pycell--block-bracket s) s))
+                    (setq lead "\n")))))
       (overlay-put ov 'before-string (and header (funcall row header)))
       (overlay-put ov 'display (cond (plain (concat (funcall row body) "\n"))
-                                     (image "")))
+                                     (string "")))
       ;; That display string ended its row; the after-string starts one.
       (when plain (setq lead ""))
       (overlay-put ov 'after-string
-                   (when-let* ((tail (delq nil (list (and image body) footer))))
+                   (when-let* ((tail (delq nil (list (and string body) footer))))
                      (concat (mapconcat row tail "") "\n")))
       (pycell--block-dress block ov))))
 
@@ -528,10 +533,10 @@ anew, so nothing has to be saved and given back."
       (pycell--block-set block :parts (pycell--block-pieces block over)))
     (pycell--block-attach block (funcall part :header) (funcall part :body)
                           (funcall part :footer))
+    ;; The bracket runs beside the region; `pycell--block-attach' has put
+    ;; it beside the rows it wrote.
     (when (pycell--block-get block :fringe)
-      (pycell--block-bracket block 'pycell--block-top)
-      (when-let* ((last (car (last (pycell--block-get block :parts)))))
-        (pycell--block-bracket last 'pycell--block-bottom)))
+      (pycell--block-bracket block))
     block))
 
 ;;;; What a block shows: text, buttons and bars
