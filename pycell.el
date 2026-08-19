@@ -373,11 +373,13 @@ advance with text typed at their end."
     block))
 
 (defun pycell--block-dress (block ov)
-  "Give OV the keymap and the help echo of BLOCK."
-  (dolist (prop '(keymap help-echo))
-    (when-let* ((value (pycell--block-get
-                        block (intern (format ":%s" prop)))))
-      (overlay-put ov prop value)))
+  "Give OV the keymap and the help echo of BLOCK, and return OV.
+Everything a block shows answers to the same click and says the same
+thing under the mouse, whichever overlay carries it."
+  (when-let* ((map (pycell--block-get block :keymap)))
+    (overlay-put ov 'keymap map))
+  (when-let* ((help (pycell--block-get block :help-echo)))
+    (overlay-put ov 'help-echo help))
   ov)
 
 (defun pycell--block-cloak (block beg end)
@@ -498,8 +500,8 @@ have given."
            ;; or the block wears a bracket: a `line-prefix' inside a
            ;; display string draws no fringe, measured, and inside a
            ;; string it does.
-           (plain (and body (not (pycell--image body)) (not fringe)))
-           (string (and body (not plain)))
+           (on-display (and body (not (pycell--image body)) (not fringe)))
+           (in-string (and body (not on-display)))
            ;; Every row stands on a line of its own.  The first one needs
            ;; a break only where the newline it hangs on does not already
            ;; begin a line: a cell that ends in a blank line gives that
@@ -510,12 +512,14 @@ have given."
                            (if fringe (pycell--block-bracket s) s))
                     (setq lead "\n")))))
       (overlay-put ov 'before-string (and header (funcall row header)))
-      (overlay-put ov 'display (cond (plain (concat (funcall row body) "\n"))
-                                     (string "")))
+      (overlay-put ov 'display
+                   (cond (on-display (concat (funcall row body) "\n"))
+                         (in-string "")))
       ;; That display string ended its row; the after-string starts one.
-      (when plain (setq lead ""))
+      (when on-display (setq lead ""))
       (overlay-put ov 'after-string
-                   (when-let* ((tail (delq nil (list (and string body) footer))))
+                   (when-let* ((tail (delq nil (list (and in-string body)
+                                                     footer))))
                      (concat (mapconcat row tail "") "\n")))
       (pycell--block-dress block ov))))
 
@@ -526,13 +530,14 @@ anew, so nothing has to be saved and given back."
   (mapc #'delete-overlay (pycell--block-get block :parts))
   (pycell--block-set block :parts nil)
   (let* ((hidden (pycell--block-get block :hidden))
-         (part (lambda (prop) (unless hidden (pycell--block-get block prop))))
-         (over (funcall part :over)))
+         (over (unless hidden (pycell--block-get block :over)))
+         (header (unless hidden (pycell--block-get block :header)))
+         (body (unless hidden (pycell--block-get block :body)))
+         (footer (unless hidden (pycell--block-get block :footer))))
     (pycell--block-dress block block)
     (when over
       (pycell--block-set block :parts (pycell--block-pieces block over)))
-    (pycell--block-attach block (funcall part :header) (funcall part :body)
-                          (funcall part :footer))
+    (pycell--block-attach block header body footer)
     ;; The bracket runs beside the region; `pycell--block-attach' has put
     ;; it beside the rows it wrote.
     (when (pycell--block-get block :fringe)
