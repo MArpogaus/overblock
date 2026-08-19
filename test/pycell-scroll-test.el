@@ -160,8 +160,8 @@ a short one after them, which is where redisplay changes lines."
           (redisplay t)
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
-                              (lambda (o) (overlay-get o 'pycell-parts))
-                              (pycell--overlays (point-min) (point-max) 'pycell-md)))
+                              (lambda (o) (pycell--block-get o :parts))
+                              (pycell--block-in (point-min) (point-max) 'markdown)))
                      3))
           (should (equal (pycell-scroll-test--stalls) nil))
           (should (equal (pycell-scroll-test--reversals) nil)))

@@ -51,6 +51,10 @@
 
 ;;;; Output clean-up
 
+(defun pycell-test--pieces (beg end text)
+  "Return the pieces a block hangs TEXT on over the region BEG..END."
+  (pycell--block-get (pycell--block-show beg end :over text) :parts))
+
 (ert-deftest pycell-test-clean-prompts ()
   "Prompts at both ends and Out[n] markers go, whitespace is trimmed."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
@@ -135,31 +139,38 @@ asking the first character alone accepted every candidate."
     (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
 
 (ert-deftest pycell-test-show-text-result ()
-  "A text result rides the newline, and the buffer text stays as it was."
+  "A text result rides the newline, and the buffer text stays as it was.
+The header and the body are one display string on the newline that ends
+the cell: plain text costs least there, and the block itself carries no
+string at all."
   (pycell-test--with-cells
     (let ((before (buffer-substring-no-properties (point-min) (point-max))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (pycell--show beg end "42" 0.5)
-        (let ((ov (car (pycell--overlays (point-min) (point-max)))))
-          (should ov)
-          (should (overlay-get ov 'after-string))
-          ;; the body is a display property on the carrier overlay
-          (should (overlay-get (overlay-get ov 'pycell-body) 'display))
-          (should (string-match-p "42"
-                                  (overlay-get (overlay-get ov 'pycell-body)
-                                               'display)))))
+        (let* ((block (car (pycell--block-in (point-min) (point-max) 'result)))
+               (nl (pycell--block-get block :newline)))
+          (should block)
+          (should-not (overlay-get block 'after-string))
+          ;; the body is the display string, the cheap slot
+          (should (string-match-p "42" (overlay-get nl 'display)))
+          ;; the header is a string of its own, above it, because a bar
+          ;; draws its icons at the window edge and a display property
+          ;; ignores the spec that puts them there
+          (should (string-match-p "line" (overlay-get nl 'before-string)))))
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      before)))))
 
 (ert-deftest pycell-test-show-image-result ()
-  "An image result rides the after-string, where display properties work."
+  "An image result rides the after-string, where display properties work.
+A display string swallows an image, so the newline is hidden with an
+empty one and the rows go into the after-string beside it."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
-      (let* ((ov (car (pycell--overlays (point-min) (point-max))))
-             (bov (overlay-get ov 'pycell-body)))
-        (should (pycell--image (overlay-get ov 'after-string)))
-        (should-not (overlay-get bov 'display))))))
+      (let* ((block (car (pycell--block-in (point-min) (point-max) 'result)))
+             (nl (pycell--block-get block :newline)))
+        (should (equal (overlay-get nl 'display) ""))
+        (should (pycell--image (overlay-get nl 'after-string)))))))
 
 (ert-deftest pycell-test-raised-text-is-not-an-image ()
   "Superscripts do not push a result onto the string path.
@@ -171,11 +182,11 @@ full of those; only a real image belongs in the after-string."
                        (concat "E = mc"
                                (propertize "2" 'display '(raise 0.2)))
                        0.1)
-      (let* ((ov (car (pycell--overlays (point-min) (point-max))))
-             (bov (overlay-get ov 'pycell-body)))
-        ;; the cheap path: the body rides the newline
-        (should (overlay-get bov 'display))
-        (should (string-match-p "mc" (overlay-get bov 'display)))))))
+      (let* ((block (car (pycell--block-in (point-min) (point-max) 'result)))
+             (nl (pycell--block-get block :newline)))
+        ;; the cheap path: the rows ride the newline as one display string
+        (should (overlay-get nl 'display))
+        (should (string-match-p "mc" (overlay-get nl 'display)))))))
 
 (ert-deftest pycell-test-body-lines-keep-raised-text ()
   "Raised text does not cut the inline part short; an image does."
@@ -189,11 +200,11 @@ full of those; only a real image belongs in the after-string."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "a\nb" 0.1)
-      (let ((ov (car (pycell--overlays (point-min) (point-max)))))
-        (setcar (overlay-get ov 'pycell) t))
+      (let ((ov (car (pycell--block-in (point-min) (point-max) 'result))))
+        (setcar (pycell--block-get ov :data) t))
       (pycell--show beg end "c\nd" 0.2)
-      (let ((ov (car (pycell--overlays (point-min) (point-max)))))
-        (should (car (overlay-get ov 'pycell)))
+      (let ((ov (car (pycell--block-in (point-min) (point-max) 'result))))
+        (should (car (pycell--block-get ov :data)))
         ;; and the result that replaced it is the new one
         (should (equal (pycell--text ov) "c\nd"))))))
 
@@ -202,10 +213,11 @@ full of those; only a real image belongs in the after-string."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "42" 0.1))
-    (let ((bov (overlay-get (car (pycell--overlays (point-min) (point-max)))
-                            'pycell-body)))
+    (let ((bov (pycell--block-get
+                 (car (pycell--block-in (point-min) (point-max) 'result))
+                 :newline)))
       (pycell-remove-overlays)
-      (should-not (pycell--overlays (point-min) (point-max)))
+      (should-not (pycell--block-in (point-min) (point-max) 'result))
       (should-not (overlay-buffer bov)))))
 
 (ert-deftest pycell-test-fold-keeps-result ()
@@ -215,8 +227,8 @@ separately."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "a\nb" 0.1)
-      (let* ((ov (car (pycell--overlays (point-min) (point-max))))
-             (bov (overlay-get ov 'pycell-body))
+      (let* ((ov (car (pycell--block-in (point-min) (point-max) 'result)))
+             (bov (pycell--block-get ov :newline))
              (head (overlay-get ov 'after-string))
              (body (overlay-get bov 'display)))
         (outline-flag-region beg (1- end) t)
@@ -236,8 +248,9 @@ one character short on its own."
     (pcase-let ((`(,beg ,end) (progn (goto-char (point-min))
                                      (code-cells--bounds nil nil t))))
       (pycell--show beg end "42" 0.1)
-      (let ((bov (overlay-get (car (pycell--overlays (point-min) (point-max)))
-                              'pycell-body)))
+      (let ((bov (pycell--block-get
+                   (car (pycell--block-in (point-min) (point-max) 'result))
+                   :newline)))
         (outline-flag-region beg (point-max) t)
         (should-not
          (seq-some (lambda (o) (and (eq (overlay-get o 'invisible) 'outline)
@@ -253,16 +266,17 @@ one character short on its own."
     (code-cells-mode)
     (pycell-md-render-all)
     (goto-char (point-min))
-    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
-           (parts (overlay-get ov 'pycell-parts))
+    (let* ((block (car (pycell--block-in (point-min) (point-max) 'markdown)))
+           ;; A fold makes the pieces anew, so they are read again each
+           ;; time rather than held on to.
            (shown (lambda ()
                     (seq-some (lambda (p) (not (overlay-get p 'invisible)))
-                              parts))))
-      (should parts)
+                              (pycell--block-get block :parts)))))
+      (should (pycell--block-get block :parts))
       (should (funcall shown))
-      (outline-flag-region (pos-eol) (overlay-end ov) t)
+      (outline-flag-region (pos-eol) (overlay-end block) t)
       (should-not (funcall shown))
-      (outline-flag-region (pos-eol) (overlay-end ov) nil)
+      (outline-flag-region (pos-eol) (overlay-end block) nil)
       (should (funcall shown)))))
 
 (ert-deftest pycell-test-md-keeps-its-lines ()
@@ -275,11 +289,11 @@ and every scroll event would then lay the whole thing out again."
     (python-mode)
     (code-cells-mode)
     (pycell-md-render-all)
-    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
-           (parts (overlay-get ov 'pycell-parts)))
+    (let* ((ov (car (pycell--block-in (point-min) (point-max) 'markdown)))
+           (parts (pycell--block-get ov :parts)))
       (should (> (length parts) 1))
       (should-not (overlay-get ov 'invisible))
-      (pcase-let ((`(,beg . ,_) (overlay-get ov 'pycell-md)))
+      (pcase-let ((`(,beg . ,_) (pycell--block-get ov :data)))
         (should (= (overlay-start (car parts)) (marker-position beg))))
       ;; Every piece shows text; what is left over is cloaked.
       (should (seq-every-p (lambda (p) (or (stringp (overlay-get p 'display))
@@ -299,13 +313,13 @@ many as it needs, so the two rarely match either way."
     (with-temp-buffer
       (insert "aaa\nbbb\n")
       (let ((text "one\ntwo\nthree\nfour\nfive"))
-        (should (equal (funcall shown (pycell--md-parts (point-min) (point-max) text))
+        (should (equal (funcall shown (pycell-test--pieces (point-min) (point-max) text))
                        text))))
     ;; more lines than rendering
     (with-temp-buffer
       (insert "aaa\nbbb\nccc\nddd\neee\n")
       (let* ((text "one\ntwo")
-             (parts (pycell--md-parts (point-min) (point-max) text)))
+             (parts (pycell-test--pieces (point-min) (point-max) text)))
         (should (equal (funcall shown parts) text))
         (should (seq-some (lambda (p) (overlay-get p 'pycell-cloak)) parts))))))
 
@@ -320,8 +334,8 @@ leave a line of no height, which stops scrolling up the same way."
     (python-mode)
     (code-cells-mode)
     (pycell-md-render-all)
-    (let* ((ov (car (pycell--overlays (point-min) (point-max) 'pycell-body)))
-           (parts (overlay-get ov 'pycell-parts))
+    (let* ((ov (car (pycell--block-in (point-min) (point-max) 'markdown)))
+           (parts (pycell--block-get ov :parts))
            (cloaks (seq-filter (lambda (p) (overlay-get p 'pycell-cloak)) parts)))
       (should parts)
       (should cloaks)
@@ -466,8 +480,8 @@ start is a frame, and asking that for a position signals."
     (goto-char (point-min))
     (forward-line 1)
     (let ((here (point)))
-      (should (eq (pycell--at-point (list 'switch-frame (selected-frame)) 'pycell)
-                  (pycell--at-point nil 'pycell)))
+      (should (eq (pycell--block-at (list 'switch-frame (selected-frame)) 'result)
+                  (pycell--block-at nil 'result)))
       (should (= (point) here)))))
 
 (defun pycell-test--ipython-syntax-p (code)
@@ -598,7 +612,7 @@ leaving the cells as text."
           (pycell-md-render-all))
         (should (string-match-p "libxml" said))
         (should (equal before (buffer-string)))
-        (should-not (pycell--overlays (point-min) (point-max) 'pycell-md))))))
+        (should-not (pycell--block-in (point-min) (point-max) 'markdown))))))
 
 (ert-deftest pycell-test-fold-md-image-at-buffer-end ()
   "A cell with an image folds even where the buffer ends without one.
@@ -616,20 +630,16 @@ figure on screen below the fold."
       (python-mode)
       (code-cells-mode)
       (pycell-md-render-all)
-      ;; the cell overlays in order; the last one holds the figure
-      (let* ((cells (seq-filter (lambda (o) (overlay-get o 'pycell-main))
-                                (pycell--overlays (point-min) (point-max)
-                                                  'pycell-md)))
-             (last (overlay-get (car (last cells)) 'pycell-main))
-             ;; what the cell shows: its pieces, or the one string of a
-             ;; cell that renders to nothing
+      ;; the blocks in order; the last one holds the figure
+      (let* ((blocks (sort (pycell--block-in (point-min) (point-max) 'markdown)
+                           :key #'overlay-start))
+             (last (car (last blocks)))
+             ;; what the cell shows: the pieces that are not cloaks
              (shown (lambda ()
-                      (if-let* ((parts (overlay-get last 'pycell-parts)))
-                          (seq-count (lambda (p)
-                                       (and (not (overlay-get p 'pycell-cloak))
-                                            (not (overlay-get p 'invisible))))
-                                     parts)
-                        (length (or (overlay-get last 'after-string) ""))))))
+                      (seq-count (lambda (p)
+                                   (and (not (overlay-get p 'pycell-cloak))
+                                        (not (overlay-get p 'invisible))))
+                                 (pycell--block-get last :parts)))))
         (should last)
         (should (> (funcall shown) 0))
         (outline-flag-region (point-min) (point-max) t)
@@ -653,7 +663,7 @@ x = 1")                ; no newline at the end
     (should (equal (buffer-string) "# %%
 x = 1
 "))
-    (should (pycell--overlays (point-min) (point-max))))
+    (should (pycell--block-in (point-min) (point-max) 'result)))
   ;; a buffer that ends with one is left alone
   (with-temp-buffer
     (insert "# %%
@@ -873,10 +883,10 @@ nothing but their number says whether they did."
                     (mapcar (lambda (ov)
                               (mapconcat (lambda (part)
                                            (or (overlay-get part 'display) ""))
-                                         (overlay-get ov 'pycell-parts) "|"))
-                            (seq-filter (lambda (ov) (overlay-get ov 'pycell-parts))
-                                        (pycell--overlays (point-min) (point-max)
-                                                          'pycell-md))))))
+                                         (pycell--block-get ov :parts) "|"))
+                            (seq-filter (lambda (ov) (pycell--block-get ov :parts))
+                                        (pycell--block-in (point-min) (point-max)
+                                                          'markdown))))))
     (unwind-protect
         (with-current-buffer buffer
           (dotimes (i 3)
@@ -1005,7 +1015,7 @@ like any other."
            (text (concat "plain piece\n"
                          "piece with " (propertize " " 'display image) "\n"
                          "plain again"))
-           (parts (pycell--md-parts (point-min) (point-max) text))
+           (parts (pycell-test--pieces (point-min) (point-max) text))
            (specs (mapcar (lambda (ov)
                             (list (overlay-get ov 'display)
                                   (overlay-get ov 'after-string)))
@@ -1140,11 +1150,11 @@ the block of one cell would end up under the other."
       (should (= (- (point) (pos-bol)) column)))
     ;; each result is on its own cell again
     (let ((texts (mapcar #'pycell--text
-                         (pycell--overlays (point-min) (point-max)))))
+                         (pycell--block-in (point-min) (point-max) 'result))))
       (should (equal (sort (copy-sequence texts) #'string<) '("one" "two")))
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (should (equal (pycell--text (car (pycell--overlays beg end)))
+        (should (equal (pycell--text (car (pycell--block-in beg end 'result)))
                        "two"))))))
 
 (ert-deftest pycell-test-move-cell-keeps-a-rendered-markdown-cell ()
@@ -1165,7 +1175,7 @@ Its pieces hang on its source lines, and the lines move under them."
       (should (string-prefix-p "# %% [markdown]\n# ## Prose\n" text))
       (should (string-match-p "# %%\nx = 1\n" text)))
     ;; the rendering sits on the cell, which is now the first one
-    (let ((rendered (pycell--overlays (point-min) (point-max) 'pycell-md)))
+    (let ((rendered (pycell--block-in (point-min) (point-max) 'markdown)))
       (should rendered)
       (should (< (overlay-start (car rendered))
                  (save-excursion (goto-char (point-min))
@@ -1192,7 +1202,7 @@ it has said it."
                      before))
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (should (equal (pycell--text (car (pycell--overlays beg end)))
+        (should (equal (pycell--text (car (pycell--block-in beg end 'result)))
                        "one"))))))
 
 (ert-deftest pycell-test-md-parts-keep-a-multiline-image-whole ()
@@ -1203,11 +1213,11 @@ for each of them drew the same image three times."
          (block (propertize "$$\na = b\n$$" 'display image))
          (text (concat "before\n" block "\nafter")))
     ;; three pieces: the prose, the whole block, the prose
-    (should (equal (mapcar #'substring-no-properties (pycell--md-lines text))
+    (should (equal (mapcar #'substring-no-properties (pycell--block-lines text))
                    '("before" "$$\na = b\n$$" "after")))
     (with-temp-buffer
       (insert "one\ntwo\nthree\nfour\nfive\n")
-      (let* ((parts (pycell--md-parts (point-min) (point-max) text))
+      (let* ((parts (pycell-test--pieces (point-min) (point-max) text))
              (withimage (seq-filter
                          (lambda (ov)
                            (pycell--image (or (overlay-get ov 'after-string)
@@ -1261,7 +1271,7 @@ window it lands in."
            (text (pycell--clean (pycell-test--vtable-text))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (pycell--show beg end text 0.4))
-      (let ((ov (car (pycell--overlays (point-min) (point-max)))))
+      (let ((ov (car (pycell--block-in (point-min) (point-max) 'result))))
         (goto-char (overlay-start ov))
         (save-window-excursion (pycell-pop-output))
         (with-current-buffer (pycell--cell-buffer-name nil (overlay-start ov))
