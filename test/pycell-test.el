@@ -252,13 +252,14 @@ swallows an image."
       (should (equal (overlay-get block 'after-string) "\nH"))
       (should (equal (overlay-get nl 'display) "\nB\n"))
       (should (equal (overlay-get nl 'after-string) "F\n"))
-      ;; a body with an image moves off the display property, and takes
-      ;; the newline with it
+      ;; a body with an image moves off the display property and joins
+      ;; the header on the anchor, where an image draws; the newline keeps
+      ;; its own character, which is what lets a wheel pass the block
       (pycell--block-set block :body (concat "B" pycell-test--image))
       (pycell--block-refresh block)
-      (should (equal (overlay-get nl 'display) ""))
-      (should (pycell--image (overlay-get nl 'after-string)))
-      (should (string-match-p "F" (overlay-get nl 'after-string))))))
+      (should-not (overlay-get nl 'display))
+      (should (pycell--image (overlay-get block 'after-string)))
+      (should (string-match-p "F" (overlay-get block 'after-string))))))
 
 (ert-deftest pycell-test-block-lead ()
   "The first row takes a line of its own, and no more than it needs.
@@ -335,9 +336,9 @@ that stopped there with it would leave the last line on the screen."
                  (1- (point-max)))))))
 
 (ert-deftest pycell-test-block-bracket-in-the-fringe ()
-  "The bracket rides the anchor and every row a block writes.
+  "The bracket rides the anchor and the rows a block writes.
 A `line-prefix' on an overlay says nothing about the rows of a string,
-so each row carries its own; measured in a graphical frame, the two
+so the string carries its own; measured in a graphical frame, the two
 together draw one line beside the whole block."
   (with-temp-buffer
     (insert "one\ntwo\n")
@@ -349,15 +350,15 @@ together draw one line beside the whole block."
                                                     'line-prefix nil s)))))
       (should (overlay-get block 'line-prefix))
       (should (funcall fringed (overlay-get block 'after-string)))
-      ;; a bracketed body rides a string, where a prefix draws
-      (should (equal (overlay-get nl 'display) ""))
-      (should (funcall fringed (overlay-get nl 'after-string))))))
+      ;; a bracketed body rides the anchor's string, where a prefix draws
+      (should (string-match-p "B" (overlay-get block 'after-string)))
+      (should-not (overlay-get nl 'display)))))
 
 (ert-deftest pycell-test-show-text-result ()
   "A text result rides the newline, and the buffer text stays as it was.
-The header and the body are one display string on the newline that ends
-the cell: plain text costs least there, and the block itself carries no
-string at all."
+The body is a display string on the newline that ends the cell, where
+plain text costs least; the header is a string on the anchor, because a
+bar puts its icons at the window edge and a display property cannot."
   (pycell-test--with-cells
     (let ((before (buffer-substring-no-properties (point-min) (point-max))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
@@ -375,16 +376,16 @@ string at all."
                      before)))))
 
 (ert-deftest pycell-test-show-image-result ()
-  "An image result rides the after-string, where display properties work.
-A display string swallows an image, so the newline is hidden with an
-empty one and the rows go into the after-string beside it."
+  "An image result rides the after-string of the anchor, images and all.
+A display string swallows an image, so those rows go into a string; the
+newline keeps its own character, and a wheel can pass the block."
   (pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
       (let* ((block (car (pycell--block-in (point-min) (point-max) 'result)))
              (nl (pycell--block-get block :newline)))
-        (should (equal (overlay-get nl 'display) ""))
-        (should (pycell--image (overlay-get nl 'after-string)))))))
+        (should (pycell--image (overlay-get block 'after-string)))
+        (should-not (overlay-get nl 'display))))))
 
 (ert-deftest pycell-test-raised-text-is-not-an-image ()
   "Superscripts do not push a result onto the string path.
@@ -1480,8 +1481,10 @@ shown in another face had the header squashed and the rows apart."
 
 (ert-deftest pycell-test-table-pops-as-a-live-table ()
   "The pop of a table gives a table that sorts, not a picture of one.
-A copy carries the table object, and vtable draws it again for the
-window it lands in."
+A copy carries the table object, and vtable draws a table of its rows
+and columns for the window it lands in.  It draws a copy of it: the
+table of a result belongs to the shell that made it, and Emacs 31
+refuses to insert one vtable into a second buffer."
   (skip-unless (fboundp 'make-vtable))
   (pycell-test--with-cells
     (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
@@ -1497,6 +1500,12 @@ window it lands in."
           (should (equal (mapcar #'vtable-column-name
                                  (vtable-columns (vtable-current-table)))
                          '("alpha" "beta_longer" "gamma")))
+          ;; the drawn table is not the one the result carries
+          (should-not (eq (vtable-current-table)
+                          (get-text-property
+                           (text-property-not-all 0 (length text)
+                                                  'pycell-table nil text)
+                           'pycell-table text)))
           ;; A copy carries the table object as well, so the object says
           ;; nothing about whether the table works.  A drawn table knows
           ;; which column is under point and can sort by it; a copy of
