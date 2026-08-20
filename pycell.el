@@ -243,22 +243,18 @@ default answer for those that do not."
 (defface pycell-block-fringe-face '((t :inherit shadow))
   "Face of the bracket a block draws in the fringe.")
 
-(defun pycell--block-bitmap ()
-  "Define the bitmap of the fringe bracket, once, and return it.
-The bracket is a line down the left fringe, two pixel columns wide as
-`org-modern\=' draws one, and `(top t)\=' repeats it for the whole height
-of every row.
-
-A foot at each end, as `org-modern\=' draws one, would take a bitmap of
-its own for the first and the last row.  Measured: such a bitmap lands
-beside the right row where that row is a line of the buffer, and one row
-off where the row belongs to a string, which is what a block shows after
-its region.  A line without feet says the same thing and needs no
-overlay of its own."
-  (unless (fringe-bitmap-p 'pycell--block-line)
-    (define-fringe-bitmap 'pycell--block-line
-      (vector (logior (expt 2 15) (expt 2 14))) nil 16 '(top t)))
-  'pycell--block-line)
+;; The bracket of a block is a line down the left fringe, two pixel
+;; columns wide as `org-modern' draws one, and `(top t)' repeats it for
+;; the whole height of every row.
+;;
+;; A foot at each end, as `org-modern' draws one, would take a bitmap of
+;; its own for the first and the last row.  Measured: such a bitmap lands
+;; beside the right row where that row is a line of the buffer, and one
+;; row off where the row belongs to a string, which is what a block shows
+;; after its region.  A line without feet says the same thing and needs
+;; no overlay of its own.
+(define-fringe-bitmap 'pycell--block-line
+  (vector (logior (expt 2 15) (expt 2 14))) nil 16 '(top t))
 
 (defun pycell--block-bracket (object)
   "Draw the bracket in the fringe of every line of OBJECT.
@@ -267,7 +263,7 @@ the prefixes itself: measured in a graphical frame, the fringe beside
 the lines of a string follows the properties of that string, and an
 overlay says nothing about them."
   (let ((prefix (propertize " " 'display
-                            `(left-fringe ,(pycell--block-bitmap)
+                            '(left-fringe pycell--block-line
                                           pycell-block-fringe-face))))
     (if (overlayp object)
         (progn (overlay-put object 'line-prefix prefix)
@@ -338,7 +334,9 @@ It replaces the blocks of its own kind in that region.  PROPS is a
 plist, and every entry is optional:
 
   :kind      a symbol that tells the blocks of one caller from another.
-  :data      anything the caller keeps with the block.
+  :data      anything the caller keeps with the block; the shape is the
+             caller\='s own and differs by kind (see `pycell--show\=' for a
+             result\='s and `pycell--md-show\=' for a markdown cell\='s).
   :over      text shown instead of the lines of the region, a piece to
              a line; without it the region stays as it is.
   :body      text shown after the region, on the newline that ends it.
@@ -355,7 +353,11 @@ renderer itself.  Change a property with `pycell--block-set' and call
 
 The anchor ends before the newline of the region, so a window that
 starts at the next line keeps the block out of view.  Both overlays
-advance with text typed at their end."
+advance with text typed at their end.
+
+A block also keeps `:newline\=' and `:parts\=', the overlays that carry
+what it shows.  A caller may read them; `pycell--block-refresh\=' makes
+the parts anew."
   (pycell--block-remove beg end (plist-get props :kind))
   (let* ((tip (if (and (eq (char-before end) ?\n) (> (1- end) beg))
                   (1- end)
@@ -410,18 +412,13 @@ would carry the same run and draw the same image again."
     (push (substring text from) lines)
     (nreverse lines)))
 
-(defun pycell--block-end (block)
-  "Return the end of the region of BLOCK, its last newline included.
-The anchor stops before that newline, so that a window which starts at
-the next line keeps the block out of view; the newline itself belongs
-to the region and carries the decorations."
-  (if-let* ((ov (pycell--block-get block :newline)))
-      (overlay-end ov)
-    (overlay-end block)))
-
 (defun pycell--block-pieces (block text)
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
+
+A rendering rarely has as many lines as the region.  Where it has more,
+one line carries several of them, dealt out as evenly as the two counts
+allow; where it has fewer, the lines left over go under a cloak.
 
 A piece covers the text of its line and leaves the newline alone, so
 the buffer keeps its line structure and every line keeps its height.
@@ -435,7 +432,12 @@ A line without text cannot carry a piece — there is nothing to put the
 display property on — and a rendering rarely fills as many lines as the
 region has anyway.  Those lines go under a cloak."
   (let* ((beg (overlay-start block))
-         (end (pycell--block-end block))
+         ;; The last newline of the region belongs to it: the anchor
+         ;; stops before that newline, and a cloak that stopped there
+         ;; too would leave the last line of the region on the screen.
+         (end (if-let* ((nl (pycell--block-get block :newline)))
+                  (overlay-end nl)
+                (overlay-end block)))
          (lines (pycell--block-lines (string-trim text "\n" "\n")))
          (count (length lines))
          (rows (save-excursion
@@ -528,15 +530,15 @@ Call it after `pycell--block-set'.  Everything the block shows is made
 anew, so nothing has to be saved and given back."
   (mapc #'delete-overlay (pycell--block-get block :parts))
   (pycell--block-set block :parts nil)
-  (let* ((hidden (pycell--block-get block :hidden))
-         (over (unless hidden (pycell--block-get block :over)))
-         (header (unless hidden (pycell--block-get block :header)))
-         (body (unless hidden (pycell--block-get block :body)))
-         (footer (unless hidden (pycell--block-get block :footer))))
+  ;; A hidden block shows nothing, so it reads nothing.  The properties
+  ;; are read before the parts are written, which replaces the plist.
+  (let ((shown (unless (pycell--block-get block :hidden)
+                 (overlay-get block 'pycell-block))))
     (pycell--block-dress block block)
-    (when over
+    (when-let* ((over (plist-get shown :over)))
       (pycell--block-set block :parts (pycell--block-pieces block over)))
-    (pycell--block-attach block header body footer)
+    (pycell--block-attach block (plist-get shown :header)
+                          (plist-get shown :body) (plist-get shown :footer))
     ;; The bracket runs beside the region; `pycell--block-attach' has put
     ;; it beside the rows it wrote.
     (when (pycell--block-get block :fringe)
@@ -547,6 +549,7 @@ anew, so nothing has to be saved and given back."
 
 (defun pycell--faced (string face)
   "Add FACE below the faces STRING already carries.  Return STRING.
+STRING is modified in place.
 An overlay string without a face inherits one from the buffer text
 next to it, so every block needs at least a base face."
   (add-face-text-property 0 (length string) face t string)
@@ -554,9 +557,9 @@ next to it, so every block needs at least a base face."
 
 (defun pycell--fill-prop (string prop value)
   "Set PROP to VALUE where STRING does not carry PROP yet.
-Return STRING.  shr gives a link its own keymap and help echo; a
-plain `propertize' would clobber both, and the link would then run
-this block's commands instead of following the URL."
+Return STRING, which is modified in place.  shr gives a link its own
+keymap and help echo; a plain `propertize' would clobber both, and the
+link would then run this block's commands instead of following the URL."
   (let ((pos 0) (len (length string)))
     (while (< pos len)
       (let ((next (or (next-single-property-change pos prop string) len)))
@@ -566,7 +569,10 @@ this block's commands instead of following the URL."
   string)
 
 (defun pycell--image (text)
-  "Return the first image that shows in TEXT, or nil."
+  "Return the `display\=' spec of the first image in TEXT, or nil.
+The value is (image . PLIST), so a caller can read `:data\=' or `:type\='
+from it.  A `raise\=' spec, which shr uses for a superscript, is not an
+image and does not answer here."
   (let ((pos 0) img)
     (while (and (not img)
                 (setq pos (text-property-not-all pos (length text)
@@ -649,16 +655,23 @@ comint-mime renders an HTML table with vtable, a DataFrame among them,
 and the copy carries the table object in a text property.  The value is
 \(TABLE BEG END), or nil."
   (when (fboundp 'vtable-p)
-    (let ((pos 0) (len (length text)) table beg end)
+    (let ((len (length text))
+          (pos 0)
+          table beg end)
       ;; The newline that ends a row carries no property of the table, so
       ;; the run is not one stretch: take the first and the last place
       ;; that names a table, and everything between them belongs to it.
-      (while (< pos len)
-        (let ((here (get-text-property pos 'vtable text)))
+      ;; Run to run, not character to character: measured, a step of one
+      ;; cost 30 milliseconds over a hundred thousand characters and 223
+      ;; over eight hundred thousand, where a jump costs nothing.
+      (while (and pos
+                  (setq pos (text-property-not-all pos len 'vtable nil text)))
+        (let ((here (get-text-property pos 'vtable text))
+              (next (or (next-single-property-change pos 'vtable text) len)))
           (when (vtable-p here)
             (unless table (setq table here beg pos))
-            (setq end (1+ pos))))
-        (setq pos (1+ pos)))
+            (setq end next))
+          (setq pos (and (< next len) next))))
       (when table (list table beg end)))))
 
 (defun pycell--table-text (table)
@@ -713,7 +726,12 @@ nothing that a face can move."
      "\n")))
 
 (defun pycell--clean (text)
-  "Strip prompts, Out[n] markers and outer whitespace from TEXT.
+  "Return TEXT as a result block can show it.
+Prompts, `Out[n]\=' markers and outer whitespace go, and the copy is cut
+loose from the shell: the alignment stretches of a vtable become literal
+spaces, and its keymap, mouse face and help echo go with them, because
+no binding of a live table can find a table here.  A table keeps its
+object under `pycell-table\=', which `pycell-pop-output\=' shows live.
 Whitespace only goes when it carries no display property: comint-mime
 renders an image as one space with such a property, and `string-trim'
 would delete it.  Call this in the shell buffer, where
@@ -754,7 +772,15 @@ would delete it.  Call this in the shell buffer, where
     ;; elsewhere, and no binding of that keymap can find a table.  So
     ;; the columns become literal spaces, and the promise of a click
     ;; goes: `pycell-pop-output' shows the whole output instead.
-    (let ((copy (pycell--flattened (substring text beg end))))
+    (let ((copy (let ((cut (substring text beg end)))
+                  ;; Only a rendering leaves alignment stretches behind,
+                  ;; and a stretch is a display property: plain output
+                  ;; skips the copy through a buffer.  Measured, that
+                  ;; round trip costs 23 milliseconds over eight hundred
+                  ;; thousand characters of propertized text.
+                  (if (text-property-not-all 0 (length cut) 'display nil cut)
+                      (pycell--flattened cut)
+                    cut))))
       (remove-list-of-text-properties
        0 (length copy) '(keymap local-map mouse-face help-echo) copy)
       (if-let* ((found (pycell--table-at copy)))
@@ -817,6 +843,19 @@ before it caps."
         line)
     line))
 
+(defun pycell--lines-up-to (text limit)
+  "Return the first LIMIT lines of TEXT and how many lines TEXT has.
+The value is (LINES . TOTAL).  Only the part that shows is copied and
+split: measured, splitting ten thousand propertized lines to keep twelve
+of them cost 15 milliseconds, and this costs nothing."
+  (let ((pos 0) (count 0) (cut nil))
+    (while (setq pos (string-search "\n" text pos))
+      (setq count (1+ count)
+            pos (1+ pos))
+      (when (and (null cut) (= count limit)) (setq cut (1- pos))))
+    (cons (split-string (substring text 0 (or cut (length text))) "\n")
+          (1+ count))))
+
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
 At most `pycell-max-lines', each cut to `pycell-max-line-length', and
@@ -841,9 +880,10 @@ sit past the cut; its images are capped to
 (defun pycell--header (folded total shown runtime running imagep)
   "Return the header bar of a result.
 FOLDED is non-nil when only the header shows.
-TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is
-the time in seconds since the cell started.  RUNNING is non-nil
-while the cell runs.  IMAGEP marks a result with an image."
+TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
+time in seconds since the cell started.  RUNNING is t while the cell
+runs, `died\=' where the interpreter went away before the cell ended, and
+nil where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (pycell--buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (state (cond ((eq running t)
@@ -877,10 +917,13 @@ The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
   (pcase-let ((`(,folded ,text ,runtime ,running ,total)
                (pycell--block-get block :data)))
-    (let* ((lines (unless (string-empty-p text) (split-string text "\n")))
-           (shown (pycell--body-lines lines)))
+    (pcase-let* ((`(,lines . ,count)
+                  (if (string-empty-p text)
+                      '(nil . 0)
+                    (pycell--lines-up-to text pycell-max-lines)))
+                 (shown (pycell--body-lines lines)))
       (pycell--block-set block :header
-                         (pycell--header folded (or total (length lines))
+                         (pycell--header folded (or total count)
                                          (length shown) runtime running
                                          (and lines (pycell--image text))))
       (pycell--block-set block :body
@@ -903,32 +946,45 @@ are and how many of them show, and the body is those that show."
 
 (defun pycell--show (beg end text runtime &optional running total)
   "Show TEXT as the result of the cell BEG..END.
-RUNTIME is the time in seconds since the cell started.  RUNNING is
-non-nil while the cell runs.  Empty TEXT gets a header that says
+RUNTIME is the time in seconds since the cell started.  RUNNING is t
+while the cell runs, `died\=' where the interpreter went away before the
+cell ended, and nil where the cell finished.  Empty TEXT gets a header
+that says
 \"no output\", so the cell is recognizable as evaluated.  The fold
 state of a replaced result is kept.
 TOTAL is how many lines the cell has printed, for a running cell
 whose TEXT is only the part that shows; without it the lines of TEXT
 are counted."
-  (let ((folded (when-let* ((old (car (pycell--block-in beg end 'result))))
-                  (car (pycell--block-get old :data)))))
-    ;; The newline that ends the cell carries the result; give the
-    ;; last cell of the buffer one.
-    (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
-      (save-excursion (goto-char end) (insert "\n")))
-    (let ((block (pycell--block-show beg end
-                                     :kind 'result
-                                     :data (list folded text runtime running
-                                                 total)
-                                     :keymap pycell-overlay-map)))
-      ;; An edit of the cell makes the result stale; it goes.
-      (overlay-put block 'modification-hooks
-                   (list (lambda (o &rest _) (pycell--block-delete o))))
-      (pycell--update block)
-      block)))
+  (let* ((old (car (pycell--block-in beg end 'result)))
+         (folded (and old (car (pycell--block-get old :data))))
+         (data (list folded text runtime running total)))
+    (if (and old (= (overlay-start old) beg))
+        ;; The ticker of a running cell comes here five times a second
+        ;; with nothing new but its data.  Keeping the block it has saves
+        ;; two overlays and a scan of the region on every tick, and it
+        ;; leaves redisplay alone.
+        (progn (pycell--block-set old :data data)
+               (pycell--update old)
+               old)
+      ;; The newline that ends the cell carries the result; give the
+      ;; last cell of the buffer one.
+      (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
+        (save-excursion (goto-char end) (insert "\n")))
+      (let ((block (pycell--block-show beg end
+                                       :kind 'result
+                                       :data data
+                                       :keymap pycell-overlay-map)))
+        ;; An edit of the cell makes the result stale; it goes.
+        (overlay-put block 'modification-hooks
+                     (list (lambda (o &rest _) (pycell--block-delete o))))
+        (pycell--update block)
+        block))))
 
-(defun pycell--overlay (event)
-  "Return the result block at point, or at the click in EVENT."
+(defun pycell--result-at (event)
+  "Return the result block at point, or at the click in EVENT.
+Point first, then anywhere in the cell around it.  Signals a
+`user-error\=' where the cell has no result, which is the answer the
+commands that call it give their reader."
   (or (pycell--block-at event 'result)
       (car (apply #'pycell--block-in (append (code-cells--bounds) '(result))))
       (user-error "No result here")))
@@ -936,7 +992,7 @@ are counted."
 (defun pycell-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (let* ((block (pycell--overlay event))
+  (let* ((block (pycell--result-at event))
          (data (pycell--block-get block :data)))
     (setcar data (not (car data)))
     (pycell--update block)))
@@ -944,7 +1000,7 @@ are counted."
 (defun pycell-discard-output (&optional event)
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (pycell--block-delete (pycell--overlay event)))
+  (pycell--block-delete (pycell--result-at event)))
 
 ;;;; Moving a cell
 
@@ -970,6 +1026,7 @@ the caller, which does the whole buffer at once."
 ;;;###autoload
 (defun pycell-move-cell-down (&optional arg)
   "Move the cell at point down ARG cells, with what it shows.
+A negative ARG moves it up, which is all `pycell-move-cell-up\=' does.
 `code-cells-move-cell-down' transposes the text of the two cells, and
 `transpose-regions' leaves an overlay where the text used to be: the
 result of one cell would end up under the other.  So both blocks come
@@ -1024,7 +1081,7 @@ its own and the buffers of two cells cannot collide."
   "Copy the result at point, or the one clicked in EVENT.
 The copy keeps its text properties, so images survive a yank."
   (interactive (list last-input-event))
-  (kill-new (pycell--text (pycell--overlay event)))
+  (kill-new (pycell--text (pycell--result-at event)))
   (message "pycell: result copied"))
 
 (defun pycell-save-image (&optional event)
@@ -1032,7 +1089,7 @@ The copy keeps its text properties, so images survive a yank."
 The file type comes from the image descriptor; `create-image' read
 it from the data's magic bytes."
   (interactive (list last-input-event))
-  (let* ((text (pycell--text (pycell--overlay event)))
+  (let* ((text (pycell--text (pycell--result-at event)))
          (img (or (pycell--image text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
@@ -1049,7 +1106,7 @@ it from the data's magic bytes."
   "Show the result at point, or the one clicked in EVENT, in a buffer.
 Each cell gets one buffer, so results are comparable side by side."
   (interactive (list last-input-event))
-  (let* ((ov (pycell--overlay event))
+  (let* ((ov (pycell--result-at event))
          (text (pycell--text ov))
          (name (pycell--cell-buffer-name nil (overlay-start ov))))
     (with-current-buffer (get-buffer-create name)
@@ -1092,7 +1149,8 @@ A non-nil value marks POS as the body of a markdown cell."
     (and (looking-at-p pycell--md-boundary) (point))))
 
 (defun pycell--fold (from to flag)
-  "Hide the markdown blocks between FROM and TO when FLAG says so.
+  "Follow a call of `outline-flag-region\=' over FROM..TO with FLAG.
+It hides the markdown blocks in that region when FLAG says so.
 A block hangs on the newline that ends its cell, and
 `outline-flag-region' stops one character short of that newline, so a
 fold never covers it.  For a markdown cell the block is the content,
@@ -1553,7 +1611,8 @@ the converter\'s HTML with")))))
 (defun pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
 A click on the bar lands on the small overlay that draws it, which
-points back at the block."
+points back at the block.  Signals a `user-error\=' where there is no
+rendered cell, which is the answer the commands that call it give."
   (or (pycell--block-at event 'markdown)
       ;; `pycell--block-at\=' has moved point to the click by now.
       (seq-some (lambda (ov) (overlay-get ov 'pycell-main))
@@ -1692,7 +1751,18 @@ cell whose first lines are still on their way has more to come."
       (let* ((limit (save-excursion
                       (goto-char from)
                       (forward-line (+ pycell-max-lines 4))
-                      (point)))
+                      ;; A cell that prints much on few lines never
+                      ;; reaches that line, so the text is never kept and
+                      ;; every tick reads and cleans everything printed
+                      ;; so far.  The body cuts each line to
+                      ;; `pycell-max-line-length' anyway, so a bound in
+                      ;; characters loses nothing that shows.
+                      (if (and (natnump pycell-max-line-length)
+                               (> pycell-max-line-length 0))
+                          (min (point)
+                               (+ from (* (+ pycell-max-lines 4)
+                                          (1+ pycell-max-line-length))))
+                        (point))))
              (text (pycell--clean
                     (replace-regexp-in-string
                      "\e\\][^\e]*\\'" "" (buffer-substring from limit)))))
@@ -1903,9 +1973,11 @@ that caused the cold start may have moved it on already."
   "Evaluate START..END as a cell and mirror the output below it.
 This matches the calling convention of
 `code-cells-eval-region-commands'.  A markdown cell renders instead.
-Without an interpreter, one starts and the cell follows on its
-first prompt."
-  ;; ponytail: one cell at a time; add a queue if that ever chafes.
+Without an interpreter, one starts and the cell follows on its first
+prompt.  A cell sent while another one runs is refused, with a
+`user-error\=' from `pycell--send\='."
+  ;; ponytail: a second cell sent by hand is refused rather than
+  ;; queued; `pycell--queue' serves `pycell-restart-and-run-all' alone.
   (if (pycell--md-head start)
       ;; Keep a running restart-and-run-all chain going — no prompt
       ;; will arrive to do it.
