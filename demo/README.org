@@ -13,6 +13,11 @@ window decoration.
 - pandoc for the markdown cells.
 - ffmpeg and gifsicle to make the animation from the frames.
 
+The recording asks for Source Code Pro and falls back to whatever
+monospace font is installed.  It asks for no nerd font on purpose: the
+bars then draw the plain glyphs that `pycell--glyph' falls back to,
+which is what the picture has always shown.
+
 * How to record
 
 #+begin_src shell
