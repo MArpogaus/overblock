@@ -317,6 +317,9 @@ page, and =next-line=, which moves point.  A folded block also
 passes.  =pycell-pop-output= shows the figure in a buffer of its own.
 
 ** The cost of a rendered markdown cell
+:PROPERTIES:
+:CUSTOM_ID: the-cost-of-a-rendered-markdown-cell
+:END:
 
 A rendered markdown cell makes each scroll event more expensive.
 Measured on =demo/scrolling.py= in a window of 1000x700 pixels: 2.0
