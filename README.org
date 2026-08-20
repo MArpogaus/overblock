@@ -197,6 +197,12 @@ cloak.
 A =$...$= or =$$...$$= fragment becomes a preview image.  The images
 live in =~/.cache/pycell-math=.
 
+An =![alt](figure.png)= draws the file it names, beside the notebook or
+at an absolute path, capped by =pycell-max-image-height= like a result's
+figure.  A terminal draws no image and shows the alt text instead.  A
+link keeps its click: =RET= and =mouse-2= on a link, an image with a
+link around it included, follow the URL.
+
 =RET= or =mouse-2= opens the cell in a buffer of its own, as
 =org-edit-special= does for a source block.  =C-c C-c= puts the text
 back and renders it again.  =C-c C-k= discards the edit.  Each cell
