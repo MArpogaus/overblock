@@ -482,47 +482,44 @@ region has anyway.  Those lines go under a cloak."
   "Show HEADER, BODY and FOOTER after the region of BLOCK.
 Each stands on a row of its own, in the slot that suits it.
 
-The header rides the after-string of the anchor, and the footer the
-after-string of the newline: a bar draws its icons at the window edge
-with `(space :align-to (- right ...))', and a display property ignores
-that spec — measured, the icons then sit beside the label.  Measured
-too: the header costs less there than on the newline, where scrolling
-down over a notebook of forty cells took 6.2 milliseconds an event
-against 3.0 for the same rows split between the two overlays.
+A row that must be a string rides the after-string of the anchor: a bar
+draws its icons at the window edge with `(space :align-to (- right
+...))\=', which a display property ignores, and an image in a display
+string is swallowed while one in a string draws.
 
-The body rides the display property of the newline, which is the
-cheapest place for plain text.  A body with an image cannot: display
-properties do not nest and the image would be swallowed, so the newline
-is hidden with an empty display string and the body draws in the
-after-string beside it.  A body that wears the bracket rides a string
-for the same reason a fringe needs one.
+A plain body rides the display property of the newline that ends the
+region, which is the cheapest place for text.
 
-Each string carries the line breaks that the newline it covers would
-have given."
-  (let* ((ov (pycell--block-get block :newline))
-         (fringe (pycell--block-get block :fringe))
+The newline is never hidden.  Measured: with the rows of a figure on the
+after-string of that newline and the newline itself replaced by an empty
+display string, `pixel-scroll-precision-scroll-up\=' refused to pass the
+block — 280 refusals with a beginning-of-buffer error over six figures,
+where the same buffer with the newline left alone scrolls to the top
+without one.
+
+Each string carries the line breaks that its own rows need."
+  (let* ((fringe (pycell--block-get block :fringe))
          (on-display (and body (not (pycell--image body)) (not fringe)))
-         (in-string (and body (not on-display)))
-         ;; Every row stands on a line of its own.  The first one needs a
-         ;; break only where the newline it hangs on does not already
-         ;; begin a line: a cell that ends in a blank line gives that
-         ;; line to the header instead of pushing it down a row.
+         ;; the rows that ride the anchor, in the order they show
+         (strings (delq nil (list header
+                                  (unless on-display body)
+                                  (unless on-display footer))))
+         ;; A row needs a break before it unless the newline it hangs on
+         ;; already begins a line: a cell that ends in a blank line gives
+         ;; that line to the header.
          (lead (if (eq (char-before (overlay-end block)) ?\n) "" "\n"))
-         (row (lambda (text)
-                (prog1 (let ((s (concat lead text)))
-                         (if fringe (pycell--block-bracket s) s))
-                  (setq lead "\n")))))
-    (overlay-put block 'after-string (and header (funcall row header)))
-    (when (and ov (overlay-buffer ov))
-      (overlay-put ov 'display (cond (on-display (concat (funcall row body) "\n"))
-                                     (in-string "")))
-      ;; That display string ended its row; the after-string starts one.
-      (when on-display (setq lead ""))
-      (overlay-put ov 'after-string
-                   (when-let* ((tail (delq nil (list (and in-string body)
-                                                     footer))))
-                     (concat (mapconcat row tail "") "\n")))
-      (pycell--block-dress block ov))))
+         (nl (pycell--block-get block :newline)))
+    (overlay-put block 'after-string
+                 (when strings
+                   (let ((text (concat lead (string-join strings "\n"))))
+                     (if fringe (pycell--block-bracket text) text))))
+    (when (and nl (overlay-buffer nl))
+      (overlay-put nl 'display
+                   (when on-display
+                     (concat (if header "\n" lead) body "\n")))
+      (overlay-put nl 'after-string
+                   (when (and on-display footer) (concat footer "\n")))
+      (pycell--block-dress block nl))))
 
 (defun pycell--block-refresh (block)
   "Show BLOCK again from its properties.
@@ -673,6 +670,31 @@ and the copy carries the table object in a text property.  The value is
             (setq end next))
           (setq pos (and (< next len) next))))
       (when table (list table beg end)))))
+
+(defun pycell--table-copy (table)
+  "Return a table of the rows and columns of TABLE, for another buffer.
+The table of a result belongs to the shell that drew it.  Emacs 31
+refuses to insert one vtable into a second buffer — \"A vtable cannot be
+inserted into more than one buffer\" — and even where it is allowed, two
+buffers holding one object is not a state worth having."
+  (make-vtable :columns (mapcar (lambda (column)
+                                  (list :name (vtable-column-name column)
+                                        :width (vtable-column-width column)
+                                        :align (vtable-column-align column)
+                                        :primary (vtable-column-primary column)))
+                                (vtable-columns table))
+               :objects (vtable-objects table)
+               :getter (vtable-getter table)
+               :formatter (vtable-formatter table)
+               :separator-width (vtable-separator-width table)
+               ;; The rows show in the order the first table showed them,
+               ;; which is the order of its objects put through its sort.
+               :sort-by (vtable-sort-by table)
+               ;; comint-mime draws the names of the columns into the
+               ;; buffer, where `make-vtable' would put them on the
+               ;; window's header line and shift every row up by one.
+               :use-header-line (vtable-use-header-line table)
+               :insert nil))
 
 (defun pycell--table-text (table)
   "Return TABLE as text whose columns line up in characters.
@@ -1114,13 +1136,15 @@ Each cell gets one buffer, so results are comparable side by side."
       (let ((inhibit-read-only t))
         (erase-buffer)
         ;; A table goes in live: every binding of vtable works here, and
-        ;; vtable aligns the columns for this window itself.
+        ;; vtable aligns the columns for this window itself.  It goes in
+        ;; as a copy, because the table of the result belongs to the
+        ;; shell buffer that drew it.
         (if-let* ((table (get-text-property (or (text-property-not-all
                                                  0 (length text)
                                                  'pycell-table nil text)
                                                 0)
                                            'pycell-table text)))
-            (vtable-insert table)
+            (vtable-insert (pycell--table-copy table))
           (insert text)))
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))

@@ -167,5 +167,53 @@ a short one after them, which is where redisplay changes lines."
           (should (equal (pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 
+(ert-deftest pycell-scroll-test-figures ()
+  "A wheel passes a result that holds a figure, in both directions.
+The rows of such a result ride a string, because a display property
+swallows an image.  Measured while this test was written: with those rows
+on the after-string of the newline and the newline itself replaced by an
+empty display string, `pixel-scroll-precision-scroll-up\=' refused to
+pass the block — 280 refusals with a beginning-of-buffer error over six
+figures — where the same buffer with the newline left alone scrolls to
+the top without one.  The rows therefore ride the anchor, and this test
+is what says so."
+  (skip-unless (display-graphic-p))
+  (skip-unless (image-type-available-p 'svg))
+  (let ((buffer (generate-new-buffer "*pycell figures*"))
+        ;; A square of a colour, as tall as a figure from matplotlib.
+        (figure (create-image
+                 (concat "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+                         "width=\"300\" height=\"600\">"
+                         "<rect width=\"300\" height=\"600\" fill=\"#7aa2f7\"/>"
+                         "</svg>")
+                 'svg t)))
+    (unwind-protect
+        (progn
+          (switch-to-buffer buffer)
+          (delete-other-windows)
+          (dotimes (n 6) (insert (format "# %%%%\nplot(%d)\n\n" n)))
+          (python-mode)
+          (code-cells-mode)
+          (goto-char (point-min))
+          (while (< (point) (point-max))
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (pycell--show beg end
+                            (concat "a figure\n"
+                                    (propertize " " 'display figure))
+                            0.2)
+              (goto-char end)))
+          (redisplay t)
+          (should (= (length (pycell--block-in (point-min) (point-max) 'result))
+                     6))
+          ;; every one of them holds a figure, or the test proves nothing
+          (should (seq-every-p (lambda (block)
+                                 (pycell--image
+                                  (or (overlay-get block 'after-string) "")))
+                               (pycell--block-in (point-min) (point-max)
+                                                 'result)))
+          (should (equal (pycell-scroll-test--stalls) nil))
+          (should (equal (pycell-scroll-test--reversals) nil)))
+      (kill-buffer buffer))))
+
 (provide 'pycell-scroll-test)
 ;;; pycell-scroll-test.el ends here
