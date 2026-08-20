@@ -123,9 +123,8 @@ The source stays as it is: the block shows text, it does not write any."
   "A caller gives the block a bar and a keymap, and the layer spreads them."
   (docmath-test--with-docstring
    (docmath-render)
-   (let* ((block (car (pycell--block-in (point-min) (point-max) 'docmath)))
-          (nl (pycell--block-get block :newline)))
-     (should (string-match-p "docstring" (overlay-get nl 'before-string)))
+   (let ((block (car (pycell--block-in (point-min) (point-max) 'docmath))))
+     (should (string-match-p "docstring" (overlay-get block 'after-string)))
      (should (keymapp (overlay-get block 'keymap)))
      (should (seq-every-p (lambda (ov) (keymapp (overlay-get ov 'keymap)))
                           (pycell--block-get block :parts))))))

@@ -478,43 +478,42 @@ region has anyway.  Those lines go under a cloak."
 
 (defun pycell--block-attach (block header body footer)
   "Show HEADER, BODY and FOOTER after the region of BLOCK.
-They ride the newline that ends the region, and they land in the slots
-that suit them.
+Each stands on a row of its own, in the slot that suits it.
 
-The header and the footer are strings of their own, because a bar draws
-its icons at the window edge with `(space :align-to (- right ...))',
-and a display property ignores that spec: measured, the icons then sit
-beside the label instead of at the edge.
+The header rides the after-string of the anchor, and the footer the
+after-string of the newline: a bar draws its icons at the window edge
+with `(space :align-to (- right ...))', and a display property ignores
+that spec — measured, the icons then sit beside the label.  Measured
+too: the header costs less there than on the newline, where scrolling
+down over a notebook of forty cells took 6.2 milliseconds an event
+against 3.0 for the same rows split between the two overlays.
 
-The body rides the display property, which is the cheapest place for
-plain text.  A body with an image cannot: display properties do not
-nest and the image would be swallowed, so the newline is hidden with an
-empty display string and the body draws in the after-string beside it.
+The body rides the display property of the newline, which is the
+cheapest place for plain text.  A body with an image cannot: display
+properties do not nest and the image would be swallowed, so the newline
+is hidden with an empty display string and the body draws in the
+after-string beside it.  A body that wears the bracket rides a string
+for the same reason a fringe needs one.
 
 Each string carries the line breaks that the newline it covers would
 have given."
-  (when-let* ((ov (pycell--block-get block :newline))
-              ((overlay-buffer ov)))
-    (let* ((fringe (pycell--block-get block :fringe))
-           ;; A body rides the display property, unless it holds an image
-           ;; or the block wears a bracket: a `line-prefix' inside a
-           ;; display string draws no fringe, measured, and inside a
-           ;; string it does.
-           (on-display (and body (not (pycell--image body)) (not fringe)))
-           (in-string (and body (not on-display)))
-           ;; Every row stands on a line of its own.  The first one needs
-           ;; a break only where the newline it hangs on does not already
-           ;; begin a line: a cell that ends in a blank line gives that
-           ;; line to the header instead of pushing it down a row.
-           (lead (if (eq (char-before (overlay-start ov)) ?\n) "" "\n"))
-           (row (lambda (text)
-                  (prog1 (let ((s (concat lead text)))
-                           (if fringe (pycell--block-bracket s) s))
-                    (setq lead "\n")))))
-      (overlay-put ov 'before-string (and header (funcall row header)))
-      (overlay-put ov 'display
-                   (cond (on-display (concat (funcall row body) "\n"))
-                         (in-string "")))
+  (let* ((ov (pycell--block-get block :newline))
+         (fringe (pycell--block-get block :fringe))
+         (on-display (and body (not (pycell--image body)) (not fringe)))
+         (in-string (and body (not on-display)))
+         ;; Every row stands on a line of its own.  The first one needs a
+         ;; break only where the newline it hangs on does not already
+         ;; begin a line: a cell that ends in a blank line gives that
+         ;; line to the header instead of pushing it down a row.
+         (lead (if (eq (char-before (overlay-end block)) ?\n) "" "\n"))
+         (row (lambda (text)
+                (prog1 (let ((s (concat lead text)))
+                         (if fringe (pycell--block-bracket s) s))
+                  (setq lead "\n")))))
+    (overlay-put block 'after-string (and header (funcall row header)))
+    (when (and ov (overlay-buffer ov))
+      (overlay-put ov 'display (cond (on-display (concat (funcall row body) "\n"))
+                                     (in-string "")))
       ;; That display string ended its row; the after-string starts one.
       (when on-display (setq lead ""))
       (overlay-put ov 'after-string
@@ -779,22 +778,27 @@ left whole costs the scroller."
     (concat (substring line 0 pycell-max-line-length)
             (pycell--glyph "…" "..."))))
 
+(defun pycell--image-limit ()
+  "Return how many pixels tall an image may be drawn, or nil for no cap.
+The share is `pycell-max-image-height\=' of the window that shows the
+notebook.  A cell can finish while its notebook is elsewhere — sent and
+switched away from, or one of a whole run — and no window at all would
+mean no cap and a block the wheel cannot get past.  The selected window
+is a guess at the size the notebook will have, and a guess that comes
+out small only draws a smaller figure."
+  (when-let* (((numberp pycell-max-image-height))
+              ((> pycell-max-image-height 0))
+              (window (or (get-buffer-window nil t) (selected-window)))
+              (limit (round (* pycell-max-image-height
+                               (window-body-height window t))))
+              ((> limit 0)))
+    limit))
+
 (defun pycell--fit (line)
   "Return LINE with its images capped to `pycell-max-image-height'.
 The line kept for `pycell-pop-output' is not touched: this copies
 before it caps."
-  (if-let* (((numberp pycell-max-image-height))
-            ((> pycell-max-image-height 0))
-            ;; A cell can finish while its notebook is elsewhere —
-            ;; sent and switched away from, or one of a whole run —
-            ;; and no window at all would mean no cap and a block the
-            ;; wheel cannot get past.  The selected window is a guess
-            ;; at the size the notebook will have, and a guess that
-            ;; comes out small only draws a smaller figure.
-            (window (or (get-buffer-window nil t) (selected-window)))
-            (limit (round (* pycell-max-image-height
-                             (window-body-height window t))))
-            ((> limit 0))
+  (if-let* ((limit (pycell--image-limit))
             ((pycell--image line)))
       (let ((line (copy-sequence line))
             (pos 0))
@@ -1291,9 +1295,45 @@ row out of line."
     (shr-tag-table dom)
     (put-text-property start (point) 'pycell-md-table t)))
 
+(defun pycell--md-image-file (src)
+  "Return the readable local image file that SRC names, or nil.
+A markdown cell writes `![a figure](figure.png)\=', and a path like that
+belongs to the directory of the notebook.  An absolute path and a
+`file://\=' URL name the file directly; anything with another scheme is
+not ours to open."
+  (when-let* ((path (cond ((string-prefix-p "file://" src)
+                           (url-unhex-string (substring src 7)))
+                          ((not (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:"
+                                                src))
+                           src)))
+              ((not (string-empty-p path)))
+              (file (expand-file-name path))
+              ((file-readable-p file))
+              ((image-supported-file-p file)))
+    file))
+
+(defun pycell--md-tag-img (dom)
+  "Draw the image DOM names when it is a file, and leave the rest to shr.
+shr fetches an image with `url-queue-retrieve\=', which answers long
+after the cell is rendered, so the rendering keeps the grey placeholder
+that shr leaves in the meantime: measured with a relative path, an
+absolute one and a `file://\=' URL alike, every local image stayed a
+placeholder.  A file on disk needs no fetching.
+
+The alt text carries the image, so a terminal that draws none still
+says what is there, and the figure is capped like a result\='s."
+  (if-let* ((file (pycell--md-image-file (or (dom-attr dom 'src) ""))))
+      (let ((limit (pycell--image-limit)))
+        (insert (propertize (or (dom-attr dom 'alt) " ")
+                            'display (apply #'create-image file nil nil
+                                            (and limit
+                                                 (list :max-height limit))))))
+    (shr-tag-img dom)))
+
 (defconst pycell--md-rendering-functions
   (list (cons 'th #'pycell--md-tag-th)
         (cons 'code #'pycell--md-tag-code)
+        (cons 'img #'pycell--md-tag-img)
         (cons 'table #'pycell--md-tag-table))
   "How this package renders the tags shr renders differently.
 See `shr-external-rendering-functions'.")
@@ -1452,6 +1492,13 @@ Only the word =markdown= of the boundary line carries the header, so
     (overlay-put hov 'before-string
                  (pycell--bar "markdown"
                               (pycell--buttons pycell-markdown-buttons)))
+    ;; An edit of the source takes the rendering with it, the bar
+    ;; included.  The block itself evaporates with the text it covers,
+    ;; and the bar sits on the boundary line above, where no edit of the
+    ;; cell reaches it: it would be left behind, and `pycell-md-commit'
+    ;; would draw a second bar beside it.
+    (overlay-put block 'modification-hooks
+                 (list (lambda (o &rest _) (pycell--block-delete o))))
     block))
 
 ;;;###autoload
