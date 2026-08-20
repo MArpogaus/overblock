@@ -242,6 +242,24 @@ marker.  One call for a buffer is much faster than one call for each
 cell.  pycell falls back to one call per cell if the number of pieces
 does not match the number of cells.
 
+** Images
+
+shr fetches an image with =url-queue-retrieve=, which answers long after
+a cell is rendered: a cell rendered in a temporary buffer keeps the grey
+placeholder shr leaves in the meantime.  Measured with a relative path,
+an absolute one and a =file://= URL alike, every local image stayed a
+placeholder.
+
+=pycell--md-tag-img= therefore draws a file itself, through
+=shr-external-rendering-functions=.  The alt text carries the image, so
+a terminal still says what is there, and the figure is capped from the
+window as a result's figure is.  An image on the network is left to shr,
+which shows its own box for what it cannot fetch in time.
+
+An image inside a link keeps the link: shr wraps whatever the renderer
+inserted, and =pycell--fill-prop= writes the block's keymap only where
+the rendering has none of its own.
+
 ** Formulas
 
 A =$...$= or =$$...$$= fragment becomes a preview image.  The images
@@ -313,6 +331,48 @@ twelve lines with many face changes cost three times as much.
 =M-x pycell-md-unrender= gives the plain source and the speed back.
 =pycell-md-render-all= brings the blocks back.
 
+* What the hot paths cost
+
+Two paths carry the cost of this package.  Measured in a batch session
+on the same inputs, before and after the audit that found them:
+
+| what                              | before   | after   |
+|-----------------------------------+----------+---------|
+| clean 100000 characters, one line | 47.2 ms  | 3.3 ms  |
+| clean 10000 lines                 | 420.9 ms | 28.5 ms |
+| find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
+| 20 ticks over 10000 lines         | 116.7 ms | 46.3 ms |
+
+- =pycell--table-at= walks the runs of the =vtable= property, not the
+  characters of the output.
+- =pycell--clean= copies through a temporary buffer only where the text
+  carries a display property, which is what a rendering leaves behind.
+- =pycell--lines-up-to= copies the lines that show and counts the rest.
+
+A cell that prints much on few lines still re-reads everything it has
+printed on every tick, because =pycell--head= keeps its text only once
+the output has more lines than the block shows.  A bound in characters
+would end that and may not be had: comint-mime sends an image as one
+escape sequence, a cut inside it leaves an unfinished sequence, and
+=pycell--clean= drops what follows one.  Measured, such a bound turned a
+figure into a result of no characters at all.
+- =pycell--show= keeps the block it has when only the data changed,
+  which is every tick of a running cell.
+
+The scrolling was measured with bursts of wheel events shaped like a
+flick of a trackpad, over forty cells with results, figures and rendered
+markdown, under the author's own configuration:
+
+| what                    | ms an event | a sweep to the end | reversals |
+|-------------------------+-------------+--------------------+-----------|
+| this package            | 2.1 down, 1.2 up | 1391 ms       |         0 |
+| the code before the layer | 2.7 down, 3.7 up | 1834 ms     |         0 |
+
+The two were measured one after the other, on the same notebook and the
+same frame.  A bracket in the fringe costs about three times as much an
+event, because a bracketed body rides a string rather than a display
+property; nothing in this package asks for one.
+
 * The tests
 
 =make test= runs the batch suite in =test/pycell-test.el=.  It tests
@@ -322,7 +382,10 @@ the mirror.  For the block layer it tests which slot each row lands in,
 the line break the first row takes and the one it does not, a hidden
 block and its return, blocks of two kinds in one region, what a delete
 takes with it, the cloak that reaches the last line, and the prefixes of
-the bracket.
+the bracket.  For the markdown images it tests which paths name a file,
+that a cell draws the file rather than shr's placeholder, that a link on
+an image keeps the click, that a remote image stays shr's business, and
+that an edit of a cell takes the bar above it away.
 
 =test/pycell-block-client-test.el= is a second caller of that layer,
 and a test rather than a feature: it renders the math in a Python

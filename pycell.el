@@ -1744,6 +1744,13 @@ renders it only when it is complete."
 stops, so a tick has no reason to read — or clean — everything the
 cell has printed.  Once those lines are all in, the text cannot
 change anymore and is kept, and the ticks after that read nothing.
+
+A cell that prints much on few lines never reaches that line, so its
+text is never kept and every tick reads it whole.  A bound in characters
+would end that, and it may not be had: comint-mime sends an image as one
+escape sequence of its own, a cut inside it leaves an unfinished
+sequence, and this function drops what follows one.  Measured, that
+turned a figure into a result of no characters at all.
 Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
@@ -1751,18 +1758,7 @@ cell whose first lines are still on their way has more to come."
       (let* ((limit (save-excursion
                       (goto-char from)
                       (forward-line (+ pycell-max-lines 4))
-                      ;; A cell that prints much on few lines never
-                      ;; reaches that line, so the text is never kept and
-                      ;; every tick reads and cleans everything printed
-                      ;; so far.  The body cuts each line to
-                      ;; `pycell-max-line-length' anyway, so a bound in
-                      ;; characters loses nothing that shows.
-                      (if (and (natnump pycell-max-line-length)
-                               (> pycell-max-line-length 0))
-                          (min (point)
-                               (+ from (* (+ pycell-max-lines 4)
-                                          (1+ pycell-max-line-length))))
-                        (point))))
+                      (point)))
              (text (pycell--clean
                     (replace-regexp-in-string
                      "\e\\][^\e]*\\'" "" (buffer-substring from limit)))))
