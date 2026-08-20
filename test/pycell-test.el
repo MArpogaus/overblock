@@ -845,8 +845,11 @@ figure on screen below the fold."
       (code-cells-mode)
       (pycell-md-render-all)
       ;; the blocks in order; the last one holds the figure
+      ;; `sort' takes its key as a keyword from Emacs 30, and this
+      ;; package answers for 29 as well.
       (let* ((blocks (sort (pycell--block-in (point-min) (point-max) 'markdown)
-                           :key #'overlay-start))
+                           (lambda (a b)
+                             (< (overlay-start a) (overlay-start b)))))
              (last (car (last blocks)))
              ;; what the cell shows: the pieces that are not cloaks
              (shown (lambda ()
