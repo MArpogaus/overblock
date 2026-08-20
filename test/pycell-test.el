@@ -138,6 +138,101 @@ asking the first character alone accepted every candidate."
   (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
     (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
 
+(defconst pycell-test--png
+  (base64-decode-string
+   (concat "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+           "z8DAwAAABQABDQottAAAAABJRU5ErkJggg=="))
+  "One pixel of PNG, to write to a file a markdown cell can name.")
+
+(defmacro pycell-test--with-image-file (name &rest body)
+  "Run BODY in a directory with a PNG file, bound to NAME."
+  (declare (indent 1))
+  `(let* ((dir (make-temp-file "pycell-img" t))
+          (,name (expand-file-name "figure.png" dir)))
+     (unwind-protect
+         (progn
+           (let ((coding-system-for-write 'no-conversion))
+             (write-region pycell-test--png nil ,name nil 'quiet))
+           ,@body)
+       (delete-directory dir t))))
+
+(ert-deftest pycell-test-md-an-edit-takes-the-bar-with-it ()
+  "An edit of a rendered cell removes the rendering and its bar.
+The block evaporates with the text it covers, and the bar sits on the
+boundary line above, where no edit of the cell reaches it: without the
+modification hook it stayed behind, and `pycell-md-commit\=' drew a
+second bar beside it."
+  (skip-unless (pycell--md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# ## A\n#\n# Text.\n\n# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (let ((bars (lambda ()
+                  (seq-count (lambda (ov) (overlay-get ov 'pycell-main))
+                             (overlays-in (point-min) (point-max))))))
+      (pycell-md-render-all)
+      (should (= (funcall bars) 1))
+      (pcase-let* ((block (car (pycell--block-in (point-min) (point-max)
+                                                 'markdown)))
+                   (`(,beg . ,end) (pycell--block-get block :data)))
+        (goto-char beg)
+        (delete-region beg end)
+        (insert "# ## A\n#\n# Text and more.\n\n")
+        (should-not (pycell--block-in (point-min) (point-max) 'markdown))
+        (should (= (funcall bars) 0))
+        ;; and rendering again leaves one bar, not two
+        (pycell--md-show beg (point))
+        (should (= (funcall bars) 1))))))
+
+(ert-deftest pycell-test-md-image-file-reads-a-path ()
+  "A local path names a file; another scheme, or nothing readable, does not."
+  (pycell-test--with-image-file file
+    (let ((default-directory (file-name-directory file)))
+      (should (equal (pycell--md-image-file "figure.png") file))
+      (should (equal (pycell--md-image-file "./figure.png") file))
+      (should (equal (pycell--md-image-file file) file))
+      (should (equal (pycell--md-image-file (concat "file://" file)) file))
+      (should-not (pycell--md-image-file "https://example.org/figure.png"))
+      (should-not (pycell--md-image-file "does-not-exist.png"))
+      (should-not (pycell--md-image-file "")))))
+
+(ert-deftest pycell-test-md-draws-a-local-image ()
+  "A markdown cell draws the image it names, rather than shr's placeholder.
+shr fetches an image through `url-queue-retrieve\=', which answers after
+the rendering is over; a file on disk is drawn here and now."
+  (skip-unless (pycell--md-program))
+  (pycell-test--with-image-file file
+    (let* ((default-directory (file-name-directory file))
+           (shown (pycell--md-rendered "![a figure](figure.png)"))
+           (spec (pycell--image shown)))
+      (should spec)
+      (should (equal (plist-get (cdr spec) :file) file))
+      ;; the alt text carries it, so a terminal still says what is there
+      (should (string-match-p "a figure" (substring-no-properties shown))))))
+
+(ert-deftest pycell-test-md-keeps-a-link-on-an-image ()
+  "An image inside a link keeps the link: a click follows the URL.
+`pycell--fill-prop\=' leaves the properties shr gave the link alone."
+  (skip-unless (pycell--md-program))
+  (pycell-test--with-image-file file
+    (let* ((default-directory (file-name-directory file))
+           (shown (pycell--md-rendered
+                   "[![a figure](figure.png)](https://example.org)"))
+           (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
+      (should pos)
+      (should (equal (get-text-property pos 'shr-url shown) "https://example.org"))
+      (should (eq (car-safe (get-text-property pos 'display shown)) 'image))
+      (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
+                  #'shr-browse-url)))))
+
+(ert-deftest pycell-test-md-a-remote-image-stays-with-shr ()
+  "An image on the network is shr's business, and it says so with a box."
+  (skip-unless (pycell--md-program))
+  (let* ((shown (pycell--md-rendered "![a figure](https://example.org/f.png)"))
+         (spec (pycell--image shown)))
+    ;; shr leaves a placeholder of its own making, and it is not a file
+    (should (or (null spec) (null (plist-get (cdr spec) :file))))))
+
 (ert-deftest pycell-test-block-slots ()
   "Each row of a block lands in the slot that suits it.
 The header and the footer are strings, where a bar can put its icons at
@@ -149,7 +244,7 @@ swallows an image."
     (let* ((block (pycell--block-show 1 (point-max)
                                       :header "H" :body "B" :footer "F"))
            (nl (pycell--block-get block :newline)))
-      (should (equal (overlay-get nl 'before-string) "\nH"))
+      (should (equal (overlay-get block 'after-string) "\nH"))
       (should (equal (overlay-get nl 'display) "\nB\n"))
       (should (equal (overlay-get nl 'after-string) "F\n"))
       ;; a body with an image moves off the display property, and takes
@@ -166,31 +261,28 @@ A region that ends in a blank line has a line to give away; one that
 ends in text has not, and the row starts with a break."
   (with-temp-buffer
     (insert "code\n\n")
-    (let* ((block (pycell--block-show 1 (point-max) :header "H"))
-           (nl (pycell--block-get block :newline)))
-      (should (equal (overlay-get nl 'before-string) "H"))))
+    (let ((block (pycell--block-show 1 (point-max) :header "H")))
+      (should (equal (overlay-get block 'after-string) "H"))))
   (with-temp-buffer
     (insert "code\n")
-    (let* ((block (pycell--block-show 1 (point-max) :header "H"))
-           (nl (pycell--block-get block :newline)))
-      (should (equal (overlay-get nl 'before-string) "\nH")))))
+    (let ((block (pycell--block-show 1 (point-max) :header "H")))
+      (should (equal (overlay-get block 'after-string) "\nH")))))
 
 (ert-deftest pycell-test-block-hidden-and-back ()
   "A hidden block shows nothing, and a refresh makes it all again."
   (with-temp-buffer
     (insert "one\ntwo\n")
-    (let* ((block (pycell--block-show 1 (point-max)
-                                      :over "shown" :header "H"))
-           (nl (pycell--block-get block :newline)))
+    (let ((block (pycell--block-show 1 (point-max)
+                                     :over "shown" :header "H")))
       (should (pycell--block-get block :parts))
       (pycell--block-set block :hidden t)
       (pycell--block-refresh block)
       (should-not (pycell--block-get block :parts))
-      (should-not (overlay-get nl 'before-string))
+      (should-not (overlay-get block 'after-string))
       (pycell--block-set block :hidden nil)
       (pycell--block-refresh block)
       (should (pycell--block-get block :parts))
-      (should (equal (overlay-get nl 'before-string) "\nH")))))
+      (should (equal (overlay-get block 'after-string) "\nH")))))
 
 (ert-deftest pycell-test-block-kinds-keep-apart ()
   "A block replaces the blocks of its own kind, and leaves the others."
@@ -251,7 +343,7 @@ together draw one line beside the whole block."
                       (and s (text-property-not-all 0 (length s)
                                                     'line-prefix nil s)))))
       (should (overlay-get block 'line-prefix))
-      (should (funcall fringed (overlay-get nl 'before-string)))
+      (should (funcall fringed (overlay-get block 'after-string)))
       ;; a bracketed body rides a string, where a prefix draws
       (should (equal (overlay-get nl 'display) ""))
       (should (funcall fringed (overlay-get nl 'after-string))))))
@@ -268,13 +360,12 @@ string at all."
         (let* ((block (car (pycell--block-in (point-min) (point-max) 'result)))
                (nl (pycell--block-get block :newline)))
           (should block)
-          (should-not (overlay-get block 'after-string))
-          ;; the body is the display string, the cheap slot
+          ;; the body is the display string of the newline, the cheap slot
           (should (string-match-p "42" (overlay-get nl 'display)))
-          ;; the header is a string of its own, above it, because a bar
-          ;; draws its icons at the window edge and a display property
-          ;; ignores the spec that puts them there
-          (should (string-match-p "line" (overlay-get nl 'before-string)))))
+          ;; the header is a string on the anchor: a bar draws its icons
+          ;; at the window edge, which a display property cannot, and it
+          ;; costs less there than on the newline
+          (should (string-match-p "line" (overlay-get block 'after-string)))))
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      before)))))
 
