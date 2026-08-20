@@ -747,17 +747,13 @@ nothing that a face can move."
            (setq first nil))))
      "\n")))
 
-(defun pycell--clean (text)
-  "Return TEXT as a result block can show it.
-Prompts, `Out[n]\=' markers and outer whitespace go, and the copy is cut
-loose from the shell: the alignment stretches of a vtable become literal
-spaces, and its keymap, mouse face and help echo go with them, because
-no binding of a live table can find a table here.  A table keeps its
-object under `pycell-table\=', which `pycell-pop-output\=' shows live.
-Whitespace only goes when it carries no display property: comint-mime
-renders an image as one space with such a property, and `string-trim'
-would delete it.  Call this in the shell buffer, where
-`comint-prompt-regexp' has its value."
+(defun pycell--strip-prompts (text)
+  "Return TEXT without the prompts around it.
+The prompt before the output goes, the prompt after it goes, and so does
+the one that ends up on the same line as output which stopped without a
+newline — `comint-prompt-regexp\=' anchors to a line start and cannot see
+that one.  Call this in the shell buffer, where that variable has its
+value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop if the prompt regexp
     ;; matches the empty string.  The last one keeps a figure: a cell
@@ -770,30 +766,34 @@ would delete it.  Call this in the shell buffer, where
       (setq text (substring text (match-end 0))))
     (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
       (setq text (substring text 0 (match-beginning 0))))
-    ;; Output that ends without a newline leaves the prompt on the
-    ;; same line, where the rule above cannot see it: it looks for a
-    ;; newline in front, and `comint-prompt-regexp' anchors to the
-    ;; start of a line.  A plain python3 shell does that after a
+    ;; A plain python3 shell leaves a prompt on the same line after a
     ;; `sys.stdout.write' without a newline.  Take that one off.
     (when (string-match (concat "\\(?:" (string-remove-prefix
                                          "^" comint-prompt-regexp)
                                 "\\)[ \t]*\\'")
                         text)
       (setq text (substring text 0 (match-beginning 0)))))
-  (setq text (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text))
+  (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text))
+
+(defun pycell--detach (text)
+  "Return the part of TEXT a block shows, cut loose from the shell.
+The outer whitespace goes, except whitespace that carries a display
+property: comint-mime renders an image as one space with such a
+property, and `string-trim\=' would delete it.
+
+What the shell buffer shows is not what a copy of it shows.  comint-mime
+renders a DataFrame as a vtable, which aligns its columns with pixel
+targets measured in that window and carries the keymap of a live table.
+In a result block the targets land elsewhere, and no binding of that
+keymap can find a table.  So the columns become literal spaces, the
+keymap, the mouse face and the help echo go, and a table keeps its
+object under `pycell-table\=', which `pycell-pop-output\=' shows live."
   (let* ((beg 0)
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
                                  (not (get-text-property i 'display text))))))
     (while (and (< beg end) (funcall blank beg)) (setq beg (1+ beg)))
     (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
-    ;; What the shell buffer shows is not what a copy of it shows.
-    ;; comint-mime renders a DataFrame as a vtable, which aligns its
-    ;; columns with pixel targets measured in that window and carries
-    ;; the keymap of a live table.  In a result block the targets land
-    ;; elsewhere, and no binding of that keymap can find a table.  So
-    ;; the columns become literal spaces, and the promise of a click
-    ;; goes: `pycell-pop-output' shows the whole output instead.
     (let ((copy (let ((cut (substring text beg end)))
                   ;; Only a rendering leaves alignment stretches behind,
                   ;; and a stretch is a display property: plain output
@@ -806,14 +806,20 @@ would delete it.  Call this in the shell buffer, where
       (remove-list-of-text-properties
        0 (length copy) '(keymap local-map mouse-face help-echo) copy)
       (if-let* ((found (pycell--table-at copy)))
-          ;; A table gets its columns laid out again, and it keeps the
-          ;; table object: `pycell-pop-output' shows that one live.
           (pcase-let* ((`(,table ,tbeg ,tend) found)
                        (laid-out (propertize
                                   (pycell--table-text table)
                                   'pycell-table table)))
             (concat (substring copy 0 tbeg) laid-out (substring copy tend)))
         copy))))
+
+(defun pycell--clean (text)
+  "Return TEXT as a result block can show it.
+The prompts go and the copy is cut loose from the shell; see
+`pycell--strip-prompts\=' and `pycell--detach\=' for what each of those
+means.  Call this in the shell buffer, where `comint-prompt-regexp\=' has
+its value."
+  (pycell--detach (pycell--strip-prompts text)))
 
 (defun pycell--shorten (line)
   "Return LINE cut to `pycell-max-line-length' characters.
