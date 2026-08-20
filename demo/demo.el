@@ -11,7 +11,14 @@
       pycell-markdown-command "pandoc -f gfm -t html"
       pycell-max-lines 14)
 (menu-bar-mode -1) (tool-bar-mode -1) (scroll-bar-mode -1)
-(set-frame-font "Source Code Pro 13" nil t)
+;; The look of the recording: Source Code Pro where it is installed,
+;; and a plain monospace elsewhere.  Not a nerd font — the bars then
+;; draw the plain glyphs `pycell--glyph' falls back to, which is what
+;; the picture has always shown.
+(set-frame-font (seq-find (lambda (font) (find-font (font-spec :name font)))
+                          '("Source Code Pro 13" "DejaVu Sans Mono 13"
+                            "Liberation Mono 13" "Monospace 13"))
+                nil t)
 (set-frame-size (selected-frame) 1120 680 t)
 (set-frame-position (selected-frame) 0 0)
 (setq-default cursor-type 'bar)

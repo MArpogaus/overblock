@@ -242,12 +242,14 @@ example in =code-cells-mode-map=.
 | =pycell-max-lines=        | the result lines that show inline                |
 | =pycell-max-line-length=  | the characters of a result line that show inline |
 | =pycell-max-image-height= | the share of the window for an inline image      |
+| =pycell-block-fringe=     | whether a block draws a bracket in the fringe    |
 | =pycell-markdown-command= | the shell command from Markdown to HTML          |
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
 | =pycell-md-code=          | the face of inline code in a markdown cell       |
+| =pycell-block-fringe-face= | the face of the bracket in the fringe           |
 
 Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
