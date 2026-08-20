@@ -185,7 +185,10 @@ second bar beside it."
         (should (= (funcall bars) 1))))))
 
 (ert-deftest pycell-test-md-image-file-reads-a-path ()
-  "A local path names a file; another scheme, or nothing readable, does not."
+  "A local path names a file; another scheme, or nothing readable, does not.
+An Emacs that cannot draw a PNG answers nil for every path, and rightly:
+the image then belongs to shr, which says so with a box of its own."
+  (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
     (let ((default-directory (file-name-directory file)))
       (should (equal (pycell--md-image-file "figure.png") file))
@@ -201,6 +204,7 @@ second bar beside it."
 shr fetches an image through `url-queue-retrieve\=', which answers after
 the rendering is over; a file on disk is drawn here and now."
   (skip-unless (pycell--md-program))
+  (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
     (let* ((default-directory (file-name-directory file))
            (shown (pycell--md-rendered "![a figure](figure.png)"))
@@ -214,6 +218,7 @@ the rendering is over; a file on disk is drawn here and now."
   "An image inside a link keeps the link: a click follows the URL.
 `pycell--fill-prop\=' leaves the properties shr gave the link alone."
   (skip-unless (pycell--md-program))
+  (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
     (let* ((default-directory (file-name-directory file))
            (shown (pycell--md-rendered
