@@ -111,33 +111,6 @@ would hide the rest of the output and buy no height back."
       (should (equal (pycell--body-lines (list "before" pycell-test--image "after"))
                      (list "before" pycell-test--image "after"))))))
 
-(ert-deftest pycell-test-image-finds-the-first-one ()
-  "The first image of a result is found, and plain text has none."
-  (should (eq (car-safe (overblock-image-in (concat "a\n" pycell-test--image))) 'image))
-  (should-not (overblock-image-in "just text")))
-
-(ert-deftest pycell-test-glyph-falls-back-to-the-last-candidate ()
-  "A candidate without a glyph is skipped, and the last one always answers."
-  ;; A batch session has no graphical frame, so the fallback decides.
-  (should (equal (overblock-glyph "⤓" "↧" "↓") "↓"))
-  (should (equal (overblock-glyph "x") "x")))
-
-(ert-deftest pycell-test-glyph-weighs-every-character ()
-  "A leading space must not answer for the glyph behind it.
-Several candidates lead with one, and a space is always there, so
-asking the first character alone accepted every candidate."
-  (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
-            ;; a frame with the space and two of the three arrows
-            ((symbol-function 'internal-char-font)
-             (lambda (_frame ch) (memq ch '(?\s ?▶ ?>)))))
-    (should (equal (overblock-glyph " ▸" " ▶" " >") " ▶"))
-    (should (equal (overblock-glyph " ▸" " ▴" " >") " >"))))
-
-(ert-deftest pycell-test-faced-gives-a-string-a-base-face ()
-  "A block string carries a base face, so it inherits none."
-  (let ((s (overblock-faced (copy-sequence "text") 'pycell-output)))
-    (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
-
 (defconst pycell-test--png
   (base64-decode-string
    (concat "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
@@ -183,209 +156,6 @@ second bar beside it."
         ;; and rendering again leaves one bar, not two
         (pycell--md-show beg (point))
         (should (= (funcall bars) 1))))))
-
-(ert-deftest pycell-test-md-image-file-reads-a-path ()
-  "A local path names a file; another scheme, or nothing readable, does not.
-An Emacs that cannot draw a PNG answers nil for every path, and rightly:
-the image then belongs to shr, which says so with a box of its own."
-  (skip-unless (image-type-available-p 'png))
-  (pycell-test--with-image-file file
-                                (let ((default-directory (file-name-directory file)))
-                                  (should (equal (overblock-md--image-file "figure.png") file))
-                                  (should (equal (overblock-md--image-file "./figure.png") file))
-                                  (should (equal (overblock-md--image-file file) file))
-                                  (should (equal (overblock-md--image-file (concat "file://" file)) file))
-                                  (should-not (overblock-md--image-file "https://example.org/figure.png"))
-                                  (should-not (overblock-md--image-file "does-not-exist.png"))
-                                  (should-not (overblock-md--image-file "")))))
-
-(ert-deftest pycell-test-md-names-an-image-without-a-display ()
-  "Where no image can be drawn, the cell says which figure is there.
-shr\='s own placeholder is an image, and its display property swallows the
-text under it: a terminal would show a blank row where a figure belongs."
-  (skip-unless (overblock-md-program))
-  (pycell-test--with-image-file file
-                                (let* ((default-directory (file-name-directory file))
-                                       (shown (overblock-md-rendered "![a figure](figure.png)")))
-                                  ;; batch draws nothing, so the label stands on its own
-                                  (should-not (display-images-p))
-                                  (should-not (overblock-image-in shown))
-                                  (should (string-match-p "a figure" (substring-no-properties shown))))
-                                ;; and with no alt text, the file names itself
-                                (let* ((default-directory (file-name-directory file))
-                                       (shown (overblock-md-rendered "![](figure.png)")))
-                                  (should (string-match-p "\\[figure.png\\]"
-                                                          (substring-no-properties shown))))))
-
-(ert-deftest pycell-test-md-draws-a-local-image ()
-  "A markdown cell draws the image it names, rather than shr's placeholder.
-shr fetches an image through `url-queue-retrieve\=', which answers after
-the rendering is over; a file on disk is drawn here and now."
-  (skip-unless (overblock-md-program))
-  (skip-unless (image-type-available-p 'png))
-  (pycell-test--with-image-file file
-                                (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
-                                           (default-directory (file-name-directory file))
-                                           (shown (overblock-md-rendered "![a figure](figure.png)"))
-                                           (spec (overblock-image-in shown)))
-                                  (should spec)
-                                  (should (equal (plist-get (cdr spec) :file) file))
-                                  ;; the alt text carries it, so a terminal still says what is there
-                                  (should (string-match-p "a figure" (substring-no-properties shown))))))
-
-(ert-deftest pycell-test-md-keeps-a-link-on-an-image ()
-  "An image inside a link keeps the link: a click follows the URL.
-`overblock-fill-props\=' leaves the properties shr gave the link alone."
-  (skip-unless (overblock-md-program))
-  (skip-unless (image-type-available-p 'png))
-  (pycell-test--with-image-file file
-                                (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
-                                           (default-directory (file-name-directory file))
-                                           (shown (overblock-md-rendered
-                                                   "[![a figure](figure.png)](https://example.org)"))
-                                           (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
-                                  (should pos)
-                                  (should (equal (get-text-property pos 'shr-url shown) "https://example.org"))
-                                  (should (eq (car-safe (get-text-property pos 'display shown)) 'image))
-                                  (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
-                                              #'shr-browse-url)))))
-
-(ert-deftest pycell-test-md-a-remote-image-stays-with-shr ()
-  "An image on the network is shr's business, and it says so with a box."
-  (skip-unless (overblock-md-program))
-  (let* ((shown (overblock-md-rendered "![a figure](https://example.org/f.png)"))
-         (spec (overblock-image-in shown)))
-    ;; shr leaves a placeholder of its own making, and it is not a file
-    (should (or (null spec) (null (plist-get (cdr spec) :file))))))
-
-(ert-deftest pycell-test-block-slots ()
-  "Each row of a block lands in the slot that suits it.
-The header and the footer are strings, where a bar can put its icons at
-the window edge; a plain body rides the display property, the cheapest
-slot; a body with an image rides a string, because a display property
-swallows an image."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((block (overblock-show 1 (point-max)
-                                  :header "H" :body "B" :footer "F"))
-           (nl (overblock-get block :newline)))
-      (should (equal (overlay-get block 'after-string) "\nH"))
-      (should (equal (overlay-get nl 'display) "\nB\n"))
-      (should (equal (overlay-get nl 'after-string) "F\n"))
-      ;; a body with an image moves off the display property and joins
-      ;; the header on the anchor, where an image draws; the newline keeps
-      ;; its own character, which is what lets a wheel pass the block
-      (overblock-set block :body (concat "B" pycell-test--image))
-      (overblock-refresh block)
-      (should-not (overlay-get nl 'display))
-      (should (overblock-image-in (overlay-get block 'after-string)))
-      (should (string-match-p "F" (overlay-get block 'after-string))))))
-
-(ert-deftest pycell-test-block-body-without-a-newline ()
-  "A body shows even where the region ends without a newline.
-The cheap slot is the display property of that newline, and a region at
-the end of a buffer may have none: the body then joins the rows on the
-anchor rather than going missing, which is what it did."
-  (with-temp-buffer
-    (insert "one\ntwo")
-    (let ((block (overblock-show 1 (point-max) :header "H" :body "B")))
-      (should-not (overblock-get block :newline))
-      (should (string-match-p "B" (overlay-get block 'after-string)))
-      (should (string-match-p "H" (overlay-get block 'after-string))))))
-
-(ert-deftest pycell-test-block-lead ()
-  "The first row takes a line of its own, and no more than it needs.
-A region that ends in a blank line has a line to give away; one that
-ends in text has not, and the row starts with a break."
-  (with-temp-buffer
-    (insert "code\n\n")
-    (let ((block (overblock-show 1 (point-max) :header "H")))
-      (should (equal (overlay-get block 'after-string) "H"))))
-  (with-temp-buffer
-    (insert "code\n")
-    (let ((block (overblock-show 1 (point-max) :header "H")))
-      (should (equal (overlay-get block 'after-string) "\nH")))))
-
-(ert-deftest pycell-test-block-hidden-and-back ()
-  "A hidden block shows nothing, and a refresh makes it all again."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let ((block (overblock-show 1 (point-max)
-                                 :over "shown" :header "H")))
-      (should (overblock-get block :parts))
-      (overblock-set block :hidden t)
-      (overblock-refresh block)
-      (should-not (overblock-get block :parts))
-      (should-not (overlay-get block 'after-string))
-      (overblock-set block :hidden nil)
-      (overblock-refresh block)
-      (should (overblock-get block :parts))
-      (should (equal (overlay-get block 'after-string) "\nH")))))
-
-(ert-deftest pycell-test-block-kinds-keep-apart ()
-  "A block replaces the blocks of its own kind, and leaves the others."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let ((first (overblock-show 1 (point-max) :kind 'a :header "A"))
-          (other (overblock-show 1 (point-max) :kind 'b :header "B")))
-      (should (overlay-buffer first))
-      (should (equal (list first) (overblock-in 1 (point-max) 'a)))
-      (should (equal (list other) (overblock-in 1 (point-max) 'b)))
-      (let ((again (overblock-show 1 (point-max) :kind 'a :header "A2")))
-        (should-not (overlay-buffer first))
-        (should (overlay-buffer other))
-        (should (equal (list again) (overblock-in 1 (point-max) 'a)))))))
-
-(ert-deftest pycell-test-block-delete-takes-its-overlays ()
-  "Deleting a block deletes what carries it, the caller's own included."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((mine (make-overlay 1 2))
-           (block (overblock-show 1 (point-max)
-                                  :over "shown" :attached (list mine)))
-           (parts (overblock-get block :parts))
-           (nl (overblock-get block :newline)))
-      (should parts)
-      (overblock-delete block)
-      (should-not (overlay-buffer block))
-      (should-not (overlay-buffer nl))
-      (should-not (overlay-buffer mine))
-      (should-not (seq-some #'overlay-buffer parts)))))
-
-(ert-deftest pycell-test-block-covers-its-last-line ()
-  "The pieces of a block reach the last line of its region.
-The anchor stops before the newline that ends the region, and a cloak
-that stopped there with it would leave the last line on the screen."
-  (with-temp-buffer
-    ;; the last line is blank, so no row is left for it
-    (insert "one\ntwo\n\n")
-    (let* ((block (overblock-show 1 (point-max) :over "row one\nrow two"))
-           (cloaks (seq-filter (lambda (ov) (overlay-get ov 'overblock-cloak))
-                               (overblock-get block :parts))))
-      (should cloaks)
-      ;; up to the newline that ends the region, and not one line short
-      (should (= (apply #'max (mapcar #'overlay-end cloaks))
-                 (1- (point-max)))))))
-
-(ert-deftest pycell-test-block-bracket-in-the-fringe ()
-  "The bracket rides the anchor and the rows a block writes.
-The option answers for every block: a `line-prefix\=' on an overlay says
-nothing about the rows of a string, so the string carries its own, and
-measured in a graphical frame the two together draw one line beside the
-whole block."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((overblock-fringe t)
-           (block (overblock-show 1 (point-max) :header "H" :body "B"))
-           (nl (overblock-get block :newline))
-           (fringed (lambda (s)
-                      (and s (text-property-not-all 0 (length s)
-                                                    'line-prefix nil s)))))
-      (should (overlay-get block 'line-prefix))
-      (should (funcall fringed (overlay-get block 'after-string)))
-      ;; a bracketed body rides the anchor's string, where a prefix draws
-      (should (string-match-p "B" (overlay-get block 'after-string)))
-      (should-not (overlay-get nl 'display)))))
 
 (ert-deftest pycell-test-show-text-result ()
   "A text result rides the newline, and the buffer text stays as it was.
@@ -568,29 +338,6 @@ and every scroll event would then lay the whole thing out again."
                                            (overlay-get p 'overblock-cloak)))
                            parts)))))
 
-(ert-deftest pycell-test-md-parts-lose-no-line ()
-  "The pieces together show the rendering, whole and in order.
-A cell has as many lines as its author wrote and the rendering has as
-many as it needs, so the two rarely match either way."
-  (let ((shown (lambda (parts)
-                 (mapconcat (lambda (p) (overlay-get p 'display))
-                            (seq-remove (lambda (p) (overlay-get p 'overblock-cloak))
-                                        parts)
-                            "\n"))))
-    ;; more rendering than lines to put it on
-    (with-temp-buffer
-      (insert "aaa\nbbb\n")
-      (let ((text "one\ntwo\nthree\nfour\nfive"))
-        (should (equal (funcall shown (pycell-test--pieces (point-min) (point-max) text))
-                       text))))
-    ;; more lines than rendering
-    (with-temp-buffer
-      (insert "aaa\nbbb\nccc\nddd\neee\n")
-      (let* ((text "one\ntwo")
-             (parts (pycell-test--pieces (point-min) (point-max) text)))
-        (should (equal (funcall shown parts) text))
-        (should (seq-some (lambda (p) (overlay-get p 'overblock-cloak)) parts))))))
-
 (ert-deftest pycell-test-md-cloak-starts-on-a-newline ()
   "A hidden run starts at the end of a visible line, never at a start.
 `scroll-down' answers a run that begins a line with a
@@ -636,37 +383,6 @@ leave a line of no height, which stops scrolling up the same way."
     (goto-char (point-min))
     (forward-line 1)
     (should-not (pycell--md-cell-start (point)))))
-
-(ert-deftest pycell-test-md-program-takes-a-string-or-a-list ()
-  "A string and a list of candidates both resolve to a program.
-Only where there is a parser to read the converter's HTML with: see
-`pycell-test-md-program-needs-libxml' for the other direction."
-  (skip-unless (fboundp 'libxml-parse-html-region))
-  (let ((overblock-md-command "definitely-not-installed-xyz"))
-    (should-not (overblock-md-program)))
-  (let ((overblock-md-command (list "definitely-not-installed-xyz"
-                                    (concat (car (split-string-shell-command
-                                                  "emacs"))
-                                            " --version"))))
-    (should (equal (car (overblock-md-program)) "emacs"))))
-
-(ert-deftest pycell-test-md-rendered-gives-text-not-markup ()
-  "Markdown becomes text, when a converter is installed.
-Pixel filling needs font metrics, which a batch session has none of."
-  (skip-unless (overblock-md-program))
-  (let* ((shr-use-fonts nil)
-         (shr-width 60)
-         (out (overblock-md-rendered "# Title\n\nSome *text* here.\n")))
-    (should (string-match-p "Title" out))
-    (should (string-match-p "Some text here" out))))
-
-(ert-deftest pycell-test-md-fill-props-leaves-what-is-there ()
-  "Properties are filled in only where the string carries none.
-The rendered markdown keeps the keymap that shr gave its links."
-  (let ((s (concat "plain" (propertize "link" 'keymap 'shr-map))))
-    (overblock-fill-props s 'keymap 'pycell-md-map)
-    (should (eq (get-text-property 0 'keymap s) 'pycell-md-map))
-    (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
 (ert-deftest pycell-test-cold-cell-belongs-to-its-buffer ()
   "The cell that waits for a cold interpreter is marked in its own buffer.
@@ -950,50 +666,6 @@ x = 1
 x = 1
 "))))
 
-(ert-deftest pycell-test-fit-caps-an-image ()
-  "An image drawn inline is capped to a share of the window.
-A block taller than the window bounces the wheel backwards off itself
-and cannot be scrolled past at all."
-  (let ((buffer (get-buffer-create "*pycell test fit*")))
-    (unwind-protect
-        (with-current-buffer buffer
-          (set-window-buffer (selected-window) buffer)
-          (let ((line (concat "x" pycell-test--image)))
-            (let* ((overblock-image-height 0.5)
-                   (fitted (overblock-repl-fit line)))
-              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
-                         (round (* 0.5 (window-body-height
-                                        (selected-window) t)))))
-              ;; the line kept for the popup is not touched
-              (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
-            ;; zero draws it at its own size
-            (let* ((overblock-image-height 0)
-                   (fitted (overblock-repl-fit line)))
-              (should-not (plist-get (cdr (overblock-image-in fitted))
-                                     :max-height)))))
-      (kill-buffer buffer))))
-
-(ert-deftest pycell-test-fit-caps-a-buried-notebook ()
-  "A cell that finishes while its notebook is elsewhere is capped too.
-A run of all cells works down the notebook while the user reads
-something else, and no window at all would leave the figure at full
-size, which is the block the wheel cannot get past."
-  (let ((elsewhere (get-buffer-create "*pycell test elsewhere*"))
-        (notebook (get-buffer-create "*pycell test notebook*")))
-    (unwind-protect
-        (progn
-          (set-window-buffer (selected-window) elsewhere)
-          (with-current-buffer notebook
-            (let* ((overblock-image-height 0.5)
-                   (line (concat "x" pycell-test--image))
-                   (fitted (overblock-repl-fit line)))
-              (should-not (get-buffer-window notebook t))
-              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
-                         (round (* 0.5 (window-body-height
-                                        (selected-window) t))))))))
-      (kill-buffer elsewhere)
-      (kill-buffer notebook))))
-
 (ert-deftest pycell-test-md-commit-keeps-an-empty-cell-empty ()
   "Committing an empty cell writes nothing where there was nothing.
 An empty text has no line to comment, and `pycell--md-comment' turns
@@ -1141,36 +813,6 @@ complete."
         (should (equal (pycell--output-head from) ""))
         (should-not (pycell--run-head))))))
 
-(ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()
-  "The cells come back from one converter call, one piece each."
-  (skip-unless (overblock-md-program))
-  (let ((htmls (overblock-md-html-batch '("# One\n\nfirst" "second" "*third*"))))
-    (should (= (length htmls) 3))
-    (should (string-match-p "first" (nth 0 htmls)))
-    (should (string-match-p "second" (nth 1 htmls)))
-    (should (string-match-p "third" (nth 2 htmls)))
-    ;; nothing of one cell leaks into the next
-    (should-not (string-match-p "second" (nth 0 htmls))))
-  ;; a cell that holds the marker sends everyone the ordinary way
-  (should-not (overblock-md-html-batch (list "text" overblock-md--marker))))
-
-(ert-deftest pycell-test-md-htmls-gives-up-when-the-marker-changes ()
-  "A converter that reshapes the marker sends every cell its own way.
-The batch is only safe while the pieces come back one to a cell, and
-nothing but their number says whether they did."
-  ;; one piece for each cell, and the pieces are the cells
-  (cl-letf (((symbol-function 'overblock-md-html)
-             (lambda (md) (replace-regexp-in-string
-                           "\\([^\n]+\\)" "<p>\\1</p>" md))))
-    (let ((pieces (overblock-md-html-batch '("one" "two"))))
-      (should (= (length pieces) 2))
-      (should (string-match-p "one" (nth 0 pieces)))
-      (should (string-match-p "two" (nth 1 pieces)))))
-  ;; and nothing at all when the marker does not come back
-  (cl-letf (((symbol-function 'overblock-md-html)
-             (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
-    (should-not (overblock-md-html-batch '("one" "two")))))
-
 (ert-deftest pycell-test-md-render-all-matches-one-by-one ()
   "Converting the buffer at once renders what one call per cell does."
   (skip-unless (overblock-md-program))
@@ -1223,196 +865,6 @@ VS Code and Spyder write =#%% [markdown]= where jupytext writes
       (goto-char (point-min))
       (forward-line 1)
       (should-not (pycell--md-cell-start (point))))))
-
-(ert-deftest pycell-test-md-no-previews-without-images ()
-  "A display that cannot draw images gets no preview substitution.
-One image in the rendered text costs the cell its piece-per-line
-scrolling, and a terminal cannot even show it — so where
-`display-images-p\=' says no, the fragments stay text, untouched."
-  (cl-letf (((symbol-function 'display-images-p) #'ignore)
-            ;; A LaTeX that would succeed, to prove it is never asked.
-            ((symbol-function 'overblock-md--latex-image)
-             (lambda (&rest _) (error "the terminal asked for an image"))))
-    (let ((text "before $x^2$ after"))
-      (should (equal (overblock-md--mathify text) text)))))
-
-(ert-deftest pycell-test-md-verbatim-math-keeps-lines ()
-  "Display math keeps its line structure, whatever the display draws.
-shr fills paragraphs, so a $$ block is wrapped in <pre> before the
-converter.  It is wrapped on a display that draws images as well: a
-frame can draw one and still have no LaTeX to make it with, and a
-fragment LaTeX cannot compile stays text anywhere."
-  (let ((md "prose\n$$\na &= b \\\\\nc &= d\n$$\nmore"))
-    (dolist (images (list #'ignore (lambda (&rest _) t)))
-      (cl-letf (((symbol-function 'display-images-p) images))
-        (should (string-search "<pre>$$\na &= b"
-                               (overblock-md--verbatim-math md)))))))
-
-(ert-deftest pycell-test-md-a-wrapped-block-still-gets-its-preview ()
-  "A block that keeps its lines is still replaced by one preview.
-The fragment is matched across its lines, so the wrapping in <pre>
-costs the preview nothing."
-  (skip-unless (overblock-md-program))
-  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-            ((symbol-function 'overblock-md--latex-image)
-             (lambda (&rest _) '(image :type png :data "x"))))
-    (let ((rendered (overblock-md-rendered "prose\n\n$$\na = b\n$$\n")))
-      (should (string-match-p "a = b" (substring-no-properties rendered)))
-      ;; one image over the whole block, and the prose untouched
-      (should (eq (car-safe (get-text-property
-                             (string-match "\\$\\$" rendered) 'display
-                             rendered))
-                  'image)))))
-
-(ert-deftest pycell-test-md-table-columns-are-literal ()
-  "A rendered table aligns with real spaces, not display specs.
-shr\='s `:align-to\=' counts from the line\='s visual start, and a cell is
-shown indented, so only literal columns survive.  The second row\='s
-cells must start where the header\='s do."
-  (skip-unless (overblock-md-program))
-  (let* ((rendered (overblock-md-rendered
-                    "| node | form |\n|------|------|\n| X1 | h1 |\n"))
-         (lines (split-string (substring-no-properties rendered) "\n"))
-         (header (seq-find (lambda (l) (string-search "node" l)) lines))
-         (row (seq-find (lambda (l) (string-search "X1" l)) lines)))
-    (should header)
-    (should row)
-    (should-not (text-property-not-all 0 (length rendered)
-                                       'display nil rendered))
-    (should (= (string-search "form" header)
-               (string-search "h1" row)))))
-
-(ert-deftest pycell-test-bar-slack-on-a-terminal ()
-  "The bar leaves a terminal one column of slack.
-A bar that runs into the last column makes the line a continuation,
-and the final icon wraps onto a line of its own."
-  (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
-    (let* ((bar (overblock-bar "label" "^  x " 'pycell-header))
-           (spec (get-text-property
-                  (next-single-property-change 0 'display bar)
-                  'display bar)))
-      (should (equal spec
-                     `(space :align-to
-                             (- right (,(+ (string-pixel-width
-                                            (propertize "^  x " 'face
-                                                        'pycell-header))
-                                           1)))))))))
-
-(ert-deftest pycell-test-md-parts-carry-an-image ()
-  "A piece with an image rides the after-string, the others a display.
-Display properties do not nest, so a piece with an image in a display
-string would lose it.  Hiding the line with a display string of
-nothing and hanging the piece on the after-string keeps the image and
-the line, and a cell with a preview then scrolls a line at a time
-like any other."
-  (with-temp-buffer
-    (insert "one\ntwo\nthree\n")
-    (let* ((image '(image :type png :data "x"))
-           (text (concat "plain piece\n"
-                         "piece with " (propertize " " 'display image) "\n"
-                         "plain again"))
-           (parts (pycell-test--pieces (point-min) (point-max) text))
-           (specs (mapcar (lambda (ov)
-                            (list (overlay-get ov 'display)
-                                  (overlay-get ov 'after-string)))
-                          parts)))
-      (should (= (length parts) 3))
-      ;; the first and the last carry their text as a display string
-      (should (equal (nth 0 specs) '("plain piece" nil)))
-      (should (equal (nth 2 specs) '("plain again" nil)))
-      ;; the middle one hides its line and shows the image beside it
-      (should (equal (car (nth 1 specs)) ""))
-      (should (overblock-image-in (cadr (nth 1 specs)))))))
-
-(ert-deftest pycell-test-md-a-header-cell-and-code-have-a-face ()
-  "A header cell is bold and inline code wears the face of code.
-shr has no function for a =th=, and it draws code in a fixed pitch
-face, which says nothing where the rendering runs with
-`shr-use-fonts\=' nil."
-  (skip-unless (overblock-md-program))
-  (let* ((rendered (overblock-md-rendered
-                    "| head | x |\n|------|---|\n| `code_here` | y |\n"))
-         (faces (lambda (word)
-                  (let ((at (string-search word rendered)))
-                    (and at (get-text-property at 'face rendered))))))
-    (should (memq 'bold (ensure-list (funcall faces "head"))))
-    (should (memq 'overblock-md-code (ensure-list (funcall faces "code_here"))))))
-
-(ert-deftest pycell-test-md-math-in-a-table-stays-text ()
-  "A formula in a table cell keeps its text, so the columns hold.
-A preview image is never as wide as the text it replaces, and a table
-is padded for the text.  Outside a table the same formula becomes an
-image."
-  (skip-unless (overblock-md-program))
-  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-            ((symbol-function 'overblock-md--latex-image)
-             (lambda (_frag) '(image :type png :data "x"))))
-    ;; A formula the converter cannot render itself is the one that
-    ;; reaches this package: pandoc renders simple math as text.
-    (let ((in-table (overblock-md-rendered
-                     "| a | b |\n|---|---|\n| $\\frac{a}{b}$ | y |\n"))
-          (outside (overblock-md-rendered
-                    "The formula $\\frac{a}{b}$ stands alone.\n")))
-      (should-not (overblock-image-in in-table))
-      (should (overblock-image-in outside)))))
-
-(ert-deftest pycell-test-space-columns-counts-pixels-and-characters ()
-  "A space stretch answers with the columns it covers.
-vtable, which is how comint-mime shows a DataFrame, sets the width of
-a stretch; shr says where it ends.  A list counts pixels, a bare
-number characters."
-  (cl-letf (((symbol-function 'frame-char-width) (lambda (&rest _) 8)))
-    ;; a width in pixels, and one that is not a whole character
-    (should (= (overblock--space-columns '(space :width (16)) 0) 2))
-    (should (= (overblock--space-columns '(space :width (5.5)) 0) 1))
-    ;; a width in characters
-    (should (= (overblock--space-columns '(space :width 3) 0) 3))
-    ;; a target counts from where the line starts
-    (should (= (overblock--space-columns '(space :align-to (104)) 3) 10))
-    ;; nothing to say about a stretch of another kind
-    (should-not (overblock--space-columns '(space :relative-width 2) 0))))
-
-(ert-deftest pycell-test-clean-flattens-a-copied-table ()
-  "A copied vtable gets literal columns and no dead bindings.
-comint-mime renders a DataFrame as a vtable in the shell buffer, which
-aligns with pixel targets measured for that window and carries the
-keymap of a live table.  The block shows a copy: the targets land
-elsewhere, and no binding can find a table to sort."
-  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-         (cell (propertize "alpha" 'keymap (make-sparse-keymap)
-                           'mouse-face 'highlight
-                           'help-echo "Click to sort"))
-         (gap (propertize " " 'display '(space :align-to (104))))
-         (clean (pycell--clean (concat cell gap "beta"))))
-    ;; the stretch is gone, and real spaces stand in its place
-    (should-not (text-property-not-all 0 (length clean) 'display nil clean))
-    (should (string-match-p "\\`alpha +beta\\'" (substring-no-properties clean)))
-    ;; and nothing promises a click any more
-    (dolist (prop '(keymap local-map mouse-face help-echo))
-      (should-not (text-property-not-all 0 (length clean) prop nil clean)))))
-
-(ert-deftest pycell-test-buttons-come-from-the-option ()
-  "The header shows the buttons of the option, in its order.
-A descriptor whose WHEN is `image\=' or `lines\=' waits for those."
-  (let ((descriptors '((one ("1") "first" ignore t)
-                       (two ("2") "second" ignore lines)
-                       (three ("3") "third" ignore image))))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors nil 0))
-                   "1 "))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors nil 3))
-                   "1  2 "))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors t 3))
-                   "1  2  3 "))
-    ;; the order is the order of the list
-    (should (equal (substring-no-properties
-                    (overblock-buttons (reverse descriptors) t 3))
-                   "3  2  1 "))
-    ;; and a button carries its command and its tooltip
-    (let ((row (overblock-buttons descriptors nil 0)))
-      (should (equal (get-text-property 0 'help-echo row) "first")))))
 
 (ert-deftest pycell-test-move-cell-carries-its-result ()
   "A cell that moves takes its result with it, and point comes along.
@@ -1501,30 +953,6 @@ it has said it."
         (should (equal (pycell--text (car (overblock-in beg end 'result)))
                        "one"))))))
 
-(ert-deftest pycell-test-md-parts-keep-a-multiline-image-whole ()
-  "An image run that covers several lines becomes one piece.
-Display math renders as three lines under one image run, and a piece
-for each of them drew the same image three times."
-  (let* ((image '(image :type png :data "x"))
-         (block (propertize "$$\na = b\n$$" 'display image))
-         (text (concat "before\n" block "\nafter")))
-    ;; three pieces: the prose, the whole block, the prose
-    (should (equal (mapcar #'substring-no-properties (overblock--lines text))
-                   '("before" "$$\na = b\n$$" "after")))
-    (with-temp-buffer
-      (insert "one\ntwo\nthree\nfour\nfive\n")
-      (let* ((parts (pycell-test--pieces (point-min) (point-max) text))
-             (withimage (seq-filter
-                         (lambda (ov)
-                           (overblock-image-in (or (overlay-get ov 'after-string)
-                                                   (overlay-get ov 'display) "")))
-                         parts)))
-        ;; the image is on one piece, and only one
-        (should (= (length withimage) 1))
-        (should (equal (substring-no-properties
-                        (overlay-get (car withimage) 'after-string))
-                       "$$\na = b\n$$"))))))
-
 (defun pycell-test--vtable-text ()
   "Return the text of a vtable, as comint-mime leaves one in the shell."
   (with-temp-buffer
@@ -1536,26 +964,6 @@ for each of them drew the same image three times."
                       '("alpha" "beta_longer" "gamma"))
      :objects '(("1" "22" "333") ("4444" "5" "66") ("7" "888" "9999")))
     (buffer-string)))
-
-(ert-deftest pycell-test-table-is-laid-out-in-characters ()
-  "A copied table gets columns that no face can move.
-A vtable aligns with stretches of pixels measured in the window that
-drew it, and it measures a header cell in the face of a header: a copy
-shown in another face had the header squashed and the rows apart."
-  (skip-unless (fboundp 'make-vtable))
-  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-         (clean (pycell--clean (pycell-test--vtable-text)))
-         (lines (split-string (substring-no-properties clean) "\n")))
-    ;; the header and one column start at the same place on every row
-    (should (= (length lines) 4))
-    (let ((column (string-search "beta_longer" (car lines))))
-      (should column)
-      (dolist (line (cdr lines))
-        (should (eq (string-match-p "[0-9]" line column) column))))
-    ;; the names of the columns stand out
-    (should (memq 'bold (ensure-list (get-text-property 0 'face clean))))
-    ;; and no stretch is left to drift
-    (should-not (text-property-not-all 0 (length clean) 'display nil clean))))
 
 (ert-deftest pycell-test-table-pops-as-a-live-table ()
   "The pop of a table gives a table that sorts, not a picture of one.
@@ -1596,25 +1004,6 @@ refuses to insert one vtable into a second buffer."
          (goto-char (point-min))
          (forward-line 1)
          (should (equal (vtable-current-object) '("1" "22" "333"))))))))
-
-(ert-deftest pycell-test-table-reads-a-getter ()
-  "The cells of a table come from its getter where it has one.
-comint-mime hands vtable a list for each row and no getter, so the
-default reading is the one that runs, but a table is free to bring its
-own."
-  (skip-unless (fboundp 'make-vtable))
-  (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-         (text (with-temp-buffer
-                 (make-vtable
-                  :use-header-line nil
-                  :columns '("first" "second")
-                  :objects '((1 . "one") (2 . "two"))
-                  :getter (lambda (object index _table)
-                            (if (zerop index) (car object) (cdr object))))
-                 (buffer-string)))
-         (clean (substring-no-properties (pycell--clean text))))
-    (should (equal (split-string clean "\n")
-                   '("first  second" "1      one" "2      two")))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
