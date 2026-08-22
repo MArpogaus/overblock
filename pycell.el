@@ -216,13 +216,13 @@ list or a base64 blob is one such line."
 
 (defun pycell-remove-overlays (&optional beg end kind)
   "Remove the blocks between BEG and END, of KIND when it is given.
-This is the command a reader binds; `pycell-block-remove\=' is the same
+This is the command a reader binds; `pycell-block-clear\=' is the same
 thing inside the block layer, which keeps its own so that it travels
 whole.
 BEG and END default to the whole buffer.  Results and rendered
 markdown cells go; the text of the buffer is not touched."
   (interactive)
-  (pycell-block-remove beg end kind))
+  (pycell-block-clear beg end kind))
 
 
 (defun pycell--faced (string face)
@@ -498,7 +498,7 @@ left whole costs the scroller."
     (concat (substring line 0 pycell-max-line-length)
             (pycell--glyph "…" "..."))))
 
-(defun pycell-block-image-limit ()
+(defun pycell--image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
 The share is `pycell-max-image-height\=' of the window that shows the
 notebook.  A cell can finish while its notebook is elsewhere — sent and
@@ -518,8 +518,8 @@ out small only draws a smaller figure."
   "Return LINE with its images capped to `pycell-max-image-height'.
 The line kept for `pycell-pop-output' is not touched: this copies
 before it caps."
-  (if-let* ((limit (pycell-block-image-limit))
-            ((pycell-block-image line)))
+  (if-let* ((limit (pycell--image-limit))
+            ((pycell-block-image-in line)))
       (let ((line (copy-sequence line))
             (pos 0))
         (while (< pos (length line))
@@ -567,7 +567,7 @@ sit past the cut; its images are capped to
              ;; the space it rides on and nothing else, so stopping
              ;; there would cost the rest of the output and buy no
              ;; height back.
-             (image (and (display-images-p) (pycell-block-image l))))
+             (image (and (display-images-p) (pycell-block-image-in l))))
         (push (if image (pycell--fit l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
@@ -620,7 +620,7 @@ are and how many of them show, and the body is those that show."
       (pycell-block-set block :header
                          (pycell--header folded (or total count)
                                          (length shown) runtime state
-                                         (and lines (pycell-block-image text))))
+                                         (and lines (pycell-block-image-in text))))
       (pycell-block-set block :body
                          (when (and shown (not folded))
                            (pycell--faced (string-join shown "\n")
@@ -675,12 +675,25 @@ counted."
         (pycell--update block)
         block))))
 
+(defun pycell--goto-event (event)
+  "Select the window of EVENT and move point to the click.
+Anything that is not a click leaves point where it is: the commands read
+EVENT from `last-input-event\=', so it can be any event at all, and a
+`switch-frame\=' is a cons whose start is a frame rather than a place."
+  (when-let* (((consp event))
+              (posn (event-start event))
+              ((consp posn))
+              (pos (posn-point posn)))
+    (select-window (posn-window posn))
+    (goto-char pos)))
+
 (defun pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
 Point first, then anywhere in the cell around it.  Signals a
 `user-error\=' where the cell has no result, which is the answer the
 commands that call it give their reader."
-  (or (pycell-block-at event 'result)
+  (pycell--goto-event event)
+  (or (pycell-block-at 'result)
       (car (apply #'pycell-block-in (append (code-cells--bounds) '(result))))
       (user-error "No result here")))
 
@@ -741,7 +754,7 @@ header keeps moving the same cell."
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
     (code-cells-move-cell-down arg)
-    (pycell-block-remove (min beg nbeg) (max end nend))
+    (pycell-block-clear (min beg nbeg) (max end nend))
     (let ((mine-beg (if down (- nend mine-length) nbeg))
           (their-beg (if down beg (- end their-length))))
       (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
@@ -785,7 +798,7 @@ The file type comes from the image descriptor; `create-image' read
 it from the data's magic bytes."
   (interactive (list last-input-event))
   (let* ((text (pycell--text (pycell--result-at event)))
-         (img (or (pycell-block-image text)
+         (img (or (pycell-block-image-in text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
                    (user-error "This image carries no data")))
@@ -1082,7 +1095,7 @@ placeholder.  A file on disk needs no fetching.
 The alt text carries the image, so a terminal that draws none still
 says what is there, and the figure is capped like a result\='s."
   (if-let* ((file (pycell--md-image-file (or (dom-attr dom 'src) ""))))
-      (let ((limit (pycell-block-image-limit)))
+      (let ((limit (pycell--image-limit)))
         (insert (propertize (or (dom-attr dom 'alt) " ")
                             'display (apply #'create-image file nil nil
                                             (and limit
@@ -1307,15 +1320,17 @@ the converter\'s HTML with")))))
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
   (interactive)
-  (pycell-block-remove (point-min) (point-max) 'markdown))
+  (pycell-block-clear (point-min) (point-max) 'markdown))
 
 (defun pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
 A click on the bar lands on the small overlay that draws it, which
 points back at the block.  Signals a `user-error\=' where there is no
 rendered cell, which is the answer the commands that call it give."
-  (or (pycell-block-at event 'markdown)
-      ;; `pycell-block-at\=' has moved point to the click by now.
+  (pycell--goto-event event)
+  (or (pycell-block-at 'markdown)
+      ;; A click on the bar lands beside the block, so the overlay that
+      ;; drew it is asked next.
       (seq-some (lambda (ov) (overlay-get ov 'pycell-main))
                 (overlays-in (max (1- (point)) (point-min))
                              (min (1+ (point)) (point-max))))

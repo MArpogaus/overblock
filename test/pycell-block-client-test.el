@@ -85,7 +85,7 @@ A docstring here is what lies between two lines of three quotes."
 (defun docmath-plain ()
   "Show the docstring of the buffer as it is written."
   (interactive)
-  (pycell-block-remove (point-min) (point-max) 'docmath))
+  (pycell-block-clear (point-min) (point-max) 'docmath))
 
 ;;;; What the layer had to answer for
 
@@ -152,7 +152,7 @@ The layer decides that, not the caller: display properties do not nest."
      (let* ((block (car (pycell-block-in (point-min) (point-max) 'docmath)))
             (withimage (seq-filter
                         (lambda (ov)
-                          (pycell-block-image (or (overlay-get ov 'after-string) "")))
+                          (pycell-block-image-in (or (overlay-get ov 'after-string) "")))
                         (pycell-block-get block :parts))))
        (should (= (length withimage) 2))
        (should (seq-every-p (lambda (ov) (equal (overlay-get ov 'display) ""))

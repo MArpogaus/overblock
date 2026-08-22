@@ -153,7 +153,7 @@ used to fail."
   ;; comint-mime renders the figure most of the time; when the image
   ;; is not there, one more evaluation settles it.
   (unless (seq-some (lambda (o) (and (overlay-get o 'after-string)
-                                     (pycell-block-image
+                                     (pycell-block-image-in
                                       (overlay-get o 'after-string))))
                     (overlays-in (point-min) (point-max)))
     (demo--log "no image, evaluating the figure cell again")
@@ -177,7 +177,7 @@ used to fail."
              (length (pycell-block-in (point-min) (point-max) 'markdown))
              (length (seq-filter
                       (lambda (o) (and (overlay-get o 'after-string)
-                                       (pycell-block-image (overlay-get o 'after-string))))
+                                       (pycell-block-image-in (overlay-get o 'after-string))))
                       (overlays-in (point-min) (point-max)))))
   (write-region "" nil "/tmp/demo/done")
   (kill-emacs 0))

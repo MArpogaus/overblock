@@ -1,4 +1,4 @@
-;;; pycell-block.el --- Blocks of text over a buffer  -*- lexical-binding: t; -*-
+;;; pycell-block.el --- Text blocks over a buffer  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 Marcel Arpogaus
 
@@ -30,30 +30,9 @@
 ;; A block shows text over a region of a buffer, or after it, with
 ;; decorations around it.  Nothing here knows about Python, about cells
 ;; or about markdown: a caller renders text and a block puts it on the
-;; screen.  `pycell.el' has two callers of it — the result of a cell and
-;; a rendered markdown cell — and `test/pycell-block-client-test.el' a
-;; third, of another shape, which is what says the layer is general.
+;; screen.
 ;;
 ;;     (pycell-block-show BEG END :kind \='result :body TEXT :header TEXT)
-;;
-;; See `pycell-block-show' for what a caller may pass, and the comment
-;; below it for where each row lands and why.
-
-;;; Code:
-
-(require 'seq)
-(require 'subr-x)
-
-(defgroup pycell-block nil
-  "Blocks of text shown over a buffer."
-  :group 'convenience
-  :prefix "pycell-block-")
-
-;;;; Blocks
-;; A block shows text over a region of the buffer, or after it, with
-;; decorations around it.  Nothing in this section knows about Python,
-;; about cells or about markdown: a caller renders text and a block puts
-;; it on the screen.
 ;;
 ;; An anchor overlay covers the region and holds the state.  A second
 ;; overlay covers the newline that ends the region and carries what
@@ -67,15 +46,28 @@
 ;;
 ;; Text shown over the region hangs on its lines, a piece to a line.
 ;; Emacs lays a display string out whole on every redisplay, so one
-;; string for a tall region costs its full height on every scroll
-;; event, while a piece to a line costs only what the window shows.
-;; Lines with no piece left for them go under a cloak.
+;; string for a tall region costs its full height on every scroll event,
+;; while a piece to a line costs only what the window shows.  Lines with
+;; no piece left for them go under a cloak.
+;;
+;; See `pycell-block-show' for what a caller may pass.
+
+;;; Code:
+
+(require 'seq)
+(require 'subr-x)
+
+(defgroup pycell-block nil
+  "Blocks of text shown over a buffer."
+  :group 'convenience
+  :prefix "pycell-block-")
 
 (defcustom pycell-block-fringe nil
   "Whether a block draws a bracket in the fringe beside it.
 The bracket marks how far the block reaches, as `org-modern' marks a
-source block.  A caller asks for it per block; this option is the
-default answer for those that do not."
+source block, and it costs what a bracket costs: a body that wears one
+rides a string rather than a display property, because a `line-prefix'
+inside a display string draws no fringe."
   :type 'boolean
   :group 'pycell-block)
 
@@ -96,21 +88,11 @@ default answer for those that do not."
 (define-fringe-bitmap 'pycell-block--line
   (vector (logior (expt 2 15) (expt 2 14))) nil 16 '(top t))
 
-(defun pycell-block--bracket (object)
-  "Draw the bracket in the fringe of every line of OBJECT.
-OBJECT is an overlay or a string, and it is returned.  A string carries
-the prefixes itself: measured in a graphical frame, the fringe beside
-the lines of a string follows the properties of that string, and an
-overlay says nothing about them."
-  (let ((prefix (propertize " " 'display
-                            '(left-fringe pycell-block--line
-                                          pycell-block-fringe-face))))
-    (if (overlayp object)
-        (progn (overlay-put object 'line-prefix prefix)
-               (overlay-put object 'wrap-prefix prefix))
-      (add-text-properties 0 (length object)
-                           `(line-prefix ,prefix wrap-prefix ,prefix) object))
-    object))
+(defconst pycell-block--fringe-prefix
+  (propertize " " 'display '(left-fringe pycell-block--line
+                                         pycell-block-fringe-face))
+  "The line prefix that draws the bracket.
+One string for every block: nothing may write into its properties.")
 
 (defun pycell-block-get (block prop)
   "Return the PROP of BLOCK."
@@ -124,27 +106,23 @@ The screen follows on the next `pycell-block-refresh'."
   value)
 
 (defun pycell-block-in (beg end &optional kind)
-  "Return the blocks between BEG and END, those of KIND when it is given."
+  "Return the blocks that overlap BEG..END, those of KIND when it is given.
+The order is whatever `overlays-in\=' gives, so a caller that takes the
+first is relying on one block of a kind to a region.  Without KIND every
+kind answers."
   (seq-filter (lambda (ov)
                 (and (overlay-get ov 'pycell-block)
                      (or (null kind) (eq kind (pycell-block-get ov :kind)))))
               (overlays-in beg end)))
 
-(defun pycell-block-at (&optional event kind)
-  "Return the block of KIND at point, or at the click in EVENT.
-A click also selects its window and moves point there.  Anything else
-leaves point where it is: the commands read EVENT from
-`last-input-event', so it can be any event at all, and a
-`switch-frame' is a cons whose start is a frame rather than a place."
-  (when-let* (((consp event))
-              (posn (event-start event))
-              ((consp posn))
-              (pos (posn-point posn)))
-    (select-window (posn-window posn))
-    (goto-char pos))
+(defun pycell-block-at (&optional kind)
+  "Return the block of KIND at point, or nil.
+Point counts as inside a block that begins or ends on it, so a block
+whose region starts where point sits answers.  A caller that works from
+a click moves point there first."
   (car (pycell-block-in (max (1- (point)) (point-min))
-                         (min (1+ (point)) (point-max))
-                         kind)))
+                        (min (1+ (point)) (point-max))
+                        kind)))
 
 (defun pycell-block-delete (block)
   "Delete BLOCK and the overlays that carry what it shows."
@@ -154,31 +132,37 @@ leaves point where it is: the commands read EVENT from
                           (pycell-block-get block :attached))))
   (delete-overlay block))
 
-(defun pycell-block-remove (&optional beg end kind)
-  "Delete the blocks of KIND between BEG and END.
-BEG and END default to the whole buffer, KIND to every kind."
+(defun pycell-block-clear (&optional beg end kind)
+  "Delete the blocks of KIND that overlap BEG..END.
+BEG and END default to the whole buffer, KIND to every kind.  A
+narrowing hides nothing from this: the range is searched whole, so no
+block is left behind outside it."
   (without-restriction
     (mapc #'pycell-block-delete
           (pycell-block-in (or beg (point-min)) (or end (point-max)) kind))))
 
 (defun pycell-block-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
-It replaces the blocks of its own kind in that region.  PROPS is a
-plist, and every entry is optional:
+It replaces the blocks of its own kind in that region — every kind,
+where no `:kind\=' is given.  PROPS is a plist, and every entry is
+optional:
 
   :kind      a symbol that tells the blocks of one caller from another.
-  :data      anything the caller keeps with the block; the shape is the
-             caller\='s own and differs by kind (see `pycell--show\=' for a
-             result\='s and `pycell--md-show\=' for a markdown cell\='s).
+             Without it the block is anonymous, and an anonymous block
+             answers to every kind in `pycell-block-in\=', `-at\=' and
+             `-clear\='.
+  :data      anything the caller keeps with the block.  The layer stores
+             it and never reads it, so its shape is the caller\='s own.
   :over      text shown instead of the lines of the region, a piece to
              a line; without it the region stays as it is.
-  :body      text shown after the region, on the newline that ends it.
+  :body      text shown after the region, on the newline that ends it,
+             or on the anchor where the region ends without one.
   :header    text above the body, :footer text below it.
-  :fringe    non-nil draws a bracket in the fringe beside the block;
-             the default is `pycell-block-fringe'.
   :hidden    non-nil shows nothing at all, decorations included.
   :attached  overlays of the caller\='s own, deleted with the block.
-  :keymap and :help-echo go on every overlay the block owns.
+  :keymap and :help-echo go on every overlay the block draws; an
+             overlay of the caller\='s own under `:attached\=' keeps
+             whatever the caller put on it.
 
 The caller renders the text and hands it over; a block never calls a
 renderer itself.  Change a property with `pycell-block-set' and call
@@ -188,20 +172,22 @@ The anchor ends before the newline of the region, so a window that
 starts at the next line keeps the block out of view.  Both overlays
 advance with text typed at their end.
 
-A block also keeps `:newline\=' and `:parts\=', the overlays that carry
-what it shows.  A caller may read them; `pycell-block-refresh\=' makes
-the parts anew."
-  (pycell-block-remove beg end (plist-get props :kind))
-  (let* ((tip (if (and (eq (char-before end) ?\n) (> (1- end) beg))
-                  (1- end)
-                end))
-         (block (make-overlay beg tip nil t t)))
+A block also keeps the overlays that carry what it shows.  `:newline\='
+is readable, and a caller needs it to keep an outline fold off the
+newline the block hangs on; `:parts\=' is the layer\='s own, made anew by
+every `pycell-block-refresh\='."
+  (pycell-block-clear beg end (plist-get props :kind))
+  (let* ((anchor-end (if (and (eq (char-before end) ?\n)
+                              ;; a region that is only a newline keeps a
+                              ;; non-empty anchor
+                              (> (1- end) beg))
+                         (1- end)
+                       end))
+         (block (make-overlay beg anchor-end nil t t)))
     (overlay-put block 'evaporate t)
     (overlay-put block 'pycell-block props)
-    (unless (plist-member props :fringe)
-      (pycell-block-set block :fringe pycell-block-fringe))
-    (when (eq (char-after tip) ?\n)
-      (let ((ov (make-overlay tip (1+ tip) nil t)))
+    (when (eq (char-after anchor-end) ?\n)
+      (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
         (overlay-put ov 'evaporate t)
         (pycell-block-set block :newline ov)))
     (pycell-block-refresh block)
@@ -229,7 +215,7 @@ a line with a beginning-of-buffer error, in the middle of the region."
     (pycell-block--dress block ov)))
 
 (defun pycell-block--lines (text)
-  "Split TEXT into the pieces that can stand on a line of their own.
+  "Split TEXT into the lines that can stand on a row of their own.
 A newline inside an image run stays where it is.  Such a run draws one
 image however many lines it covers, and display math covers three:
 the two dollar rows and the formula.  A piece for each of those lines
@@ -283,20 +269,24 @@ region has anyway.  Those lines go under a cloak."
                      (forward-line 1))
                    (nreverse rows))))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
-         (taken 0)
+         (filled 0)
          parts cloak-from)
     (dolist (row rows)
       (let ((from (car row))
             (to (cdr row))
             chunk)
         (when (> to from)                    ; a line with text to cover
+          ;; Line FILLED of SLOTS takes the rendered lines from
+          ;; COUNT*FILLED/SLOTS to COUNT*(FILLED+1)/SLOTS, so a remainder
+          ;; is spread over the lines rather than heaped on the last.
           (setq chunk (seq-subseq lines
-                                  (/ (* taken count) slots)
-                                  (/ (* (1+ taken) count) slots))
-                taken (1+ taken)))
+                                  (/ (* filled count) slots)
+                                  (/ (* (1+ filled) count) slots))
+                filled (1+ filled)))
         (if (null chunk)
-            ;; Nothing to show on this line.  Open a cloak at the
-            ;; newline above, or leave the open one to grow.
+            ;; No text on this line, or no rendered lines left for it.
+            ;; Open a cloak at the newline above, or leave the open one
+            ;; to grow.
             (unless cloak-from (setq cloak-from (1- from)))
           (when cloak-from
             (push (pycell-block--cloak block cloak-from (1- from)) parts)
@@ -304,7 +294,7 @@ region has anyway.  Those lines go under a cloak."
           (let ((ov (make-overlay from to nil t))
                 (piece (string-join chunk "\n")))
             (overlay-put ov 'evaporate t)
-            (if (pycell-block-image piece)
+            (if (pycell-block-image-in piece)
                 (progn (overlay-put ov 'display "")
                        (overlay-put ov 'after-string piece))
               (overlay-put ov 'display piece))
@@ -313,8 +303,10 @@ region has anyway.  Those lines go under a cloak."
       (push (pycell-block--cloak block cloak-from (1- end)) parts))
     (nreverse parts)))
 
-(defun pycell-block--attach (block header body footer)
-  "Show HEADER, BODY and FOOTER after the region of BLOCK.
+(defun pycell-block--attach (block shown)
+  "Show the header, the body and the footer of SHOWN after BLOCK.
+SHOWN is the property list of what the block shows, or nil for a block
+that shows nothing.
 Each stands on a row of its own, in the slot that suits it.
 
 A row that must be a string rides the after-string of the anchor: a bar
@@ -333,8 +325,17 @@ where the same buffer with the newline left alone scrolls to the top
 without one.
 
 Each string carries the line breaks that its own rows need."
-  (let* ((fringe (pycell-block-get block :fringe))
-         (on-display (and body (not (pycell-block-image body)) (not fringe)))
+  (let* ((header (plist-get shown :header))
+         (body (plist-get shown :body))
+         (footer (plist-get shown :footer))
+         (fringe pycell-block-fringe)
+         (on-display (and body
+                          (not (pycell-block-image-in body))
+                          (not fringe)
+                          ;; without a newline there is nothing to hang a
+                          ;; display property on, so the body joins the
+                          ;; rows on the anchor
+                          (pycell-block-get block :newline)))
          ;; the rows that ride the anchor, in the order they show
          (strings (delq nil (list header
                                   (unless on-display body)
@@ -347,7 +348,18 @@ Each string carries the line breaks that its own rows need."
     (overlay-put block 'after-string
                  (when strings
                    (let ((text (concat lead (string-join strings "\n"))))
-                     (if fringe (pycell-block--bracket text) text))))
+                     ;; A string carries the prefixes itself: measured in
+                     ;; a graphical frame, the fringe beside the rows of
+                     ;; a string follows the properties of that string,
+                     ;; and the overlay that shows it says nothing about
+                     ;; them.
+                     (when fringe
+                       (add-text-properties
+                        0 (length text)
+                        (list 'line-prefix pycell-block--fringe-prefix
+                              'wrap-prefix pycell-block--fringe-prefix)
+                        text))
+                     text)))
     (when (and nl (overlay-buffer nl))
       (overlay-put nl 'display
                    (when on-display
@@ -362,22 +374,23 @@ Call it after `pycell-block-set'.  Everything the block shows is made
 anew, so nothing has to be saved and given back."
   (mapc #'delete-overlay (pycell-block-get block :parts))
   (pycell-block-set block :parts nil)
-  ;; A hidden block shows nothing, so it reads nothing.  The properties
-  ;; are read before the parts are written, which replaces the plist.
+  ;; A hidden block shows nothing, so it reads nothing.
+  ;; `pycell-block-set' can hand back a new plist when it adds a key, so
+  ;; SHOWN is read before any part is written.
   (let ((shown (unless (pycell-block-get block :hidden)
                  (overlay-get block 'pycell-block))))
     (pycell-block--dress block block)
     (when-let* ((over (plist-get shown :over)))
       (pycell-block-set block :parts (pycell-block--pieces block over)))
-    (pycell-block--attach block (plist-get shown :header)
-                          (plist-get shown :body) (plist-get shown :footer))
+    (pycell-block--attach block shown)
     ;; The bracket runs beside the region; `pycell-block--attach' has put
     ;; it beside the rows it wrote.
-    (when (pycell-block-get block :fringe)
-      (pycell-block--bracket block))
+    (when pycell-block-fringe
+      (overlay-put block 'line-prefix pycell-block--fringe-prefix)
+      (overlay-put block 'wrap-prefix pycell-block--fringe-prefix))
     block))
 
-(defun pycell-block-image (text)
+(defun pycell-block-image-in (text)
   "Return the `display\=' spec of the first image in TEXT, or nil.
 The value is (image . PLIST), so a caller can read `:data\=' or `:type\='
 from it.  A `raise\=' spec, which shr uses for a superscript, is not an
@@ -396,5 +409,6 @@ image and does not answer here."
             (setq img disp)
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
+
 (provide 'pycell-block)
 ;;; pycell-block.el ends here

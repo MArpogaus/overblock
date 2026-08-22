@@ -207,7 +207,7 @@ is what says so."
                      6))
           ;; every one of them holds a figure, or the test proves nothing
           (should (seq-every-p (lambda (block)
-                                 (pycell-block-image
+                                 (pycell-block-image-in
                                   (or (overlay-get block 'after-string) "")))
                                (pycell-block-in (point-min) (point-max)
                                                  'result)))
