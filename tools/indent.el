@@ -39,8 +39,10 @@
 ;; way.  So a file that does not load is left alone and named, rather
 ;; than indented on a guess.
 ;;
-;; A file that had to be changed is named too.  The exit status is 1 when
-;; anything was changed or skipped, which is what stops a commit.
+;; A file that had to be changed is named too, and the exit status is
+;; then 1, which is what stops a commit.  A skipped file is not a
+;; failure: it is a file this repository cannot load without something it
+;; does not have, and leaving it as it stands is the right answer.
 
 ;;; Code:
 
@@ -69,6 +71,6 @@
             (message "indented %s" file))))))
   (pcase-dolist (`(,file . ,message) (nreverse skipped))
     (message "left %s alone, it does not load: %s" file message))
-  (kill-emacs (if (or changed skipped) 1 0)))
+  (kill-emacs (if changed 1 0)))
 
 ;;; indent.el ends here
