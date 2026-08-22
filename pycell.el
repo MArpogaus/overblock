@@ -56,7 +56,7 @@
 
 ;;; Code:
 
-(require 'pycell-block)
+(require 'overblock)
 (require 'code-cells)
 (require 'comint-mime)
 ;; comint-mime renders a table with it, and a block lays that table
@@ -216,13 +216,13 @@ list or a base64 blob is one such line."
 
 (defun pycell-remove-overlays (&optional beg end kind)
   "Remove the blocks between BEG and END, of KIND when it is given.
-This is the command a reader binds; `pycell-block-clear\=' is the same
+This is the command a reader binds; `overblock-clear\=' is the same
 thing inside the block layer, which keeps its own so that it travels
 whole.
 BEG and END default to the whole buffer.  Results and rendered
 markdown cells go; the text of the buffer is not touched."
   (interactive)
-  (pycell-block-clear beg end kind))
+  (overblock-clear beg end kind))
 
 
 (defun pycell--faced (string face)
@@ -527,7 +527,7 @@ out small only draws a smaller figure."
 The line kept for `pycell-pop-output' is not touched: this copies
 before it caps."
   (if-let* ((limit (pycell--image-limit))
-            ((pycell-block-image-in line)))
+            ((overblock-image-in line)))
       (let ((line (copy-sequence line))
             (pos 0))
         (while (< pos (length line))
@@ -585,7 +585,7 @@ sit past the cut; its images are capped to
              ;; the space it rides on and nothing else, so stopping
              ;; there would cost the rest of the output and buy no
              ;; height back.
-             (image (and (display-images-p) (pycell-block-image-in l))))
+             (image (and (display-images-p) (overblock-image-in l))))
         (push (if image (pycell--fit l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
@@ -629,7 +629,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
 The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
   (pcase-let ((`(,folded ,text ,runtime ,state ,total)
-               (pycell-block-get block :data)))
+               (overblock-get block :data)))
     (let* ((empty (string-empty-p text))
            (lines (unless empty (pycell--first-lines text pycell-max-lines)))
            (shown (pycell--body-lines lines))
@@ -639,24 +639,24 @@ are and how many of them show, and the body is those that show."
            (count (cond (empty 0)
                         (total)
                         (t (let ((n (pycell--count-lines text)))
-                             (pycell-block-set
+                             (overblock-set
                               block :data (list folded text runtime state n))
                              n)))))
-      (pycell-block-set block :header
+      (overblock-set block :header
                          (pycell--header folded count
                                          (length shown) runtime state
-                                         (and lines (pycell-block-image-in text))))
-      (pycell-block-set block :body
+                                         (and lines (overblock-image-in text))))
+      (overblock-set block :body
                          (when (and shown (not folded))
                            (pycell--faced (string-join shown "\n")
                                           'pycell-output)))
-      (pycell-block-refresh block))))
+      (overblock-refresh block))))
 
 (defun pycell--tab-filter (cmd)
   "Return CMD when point sits at the very end of a cell with a result."
   (and (eolp)
        (seq-some (lambda (o) (eq (point) (overlay-end o)))
-                 (pycell-block-in (max (1- (point)) (point-min)) (point)
+                 (overblock-in (max (1- (point)) (point-min)) (point)
                                    'result))
        cmd))
 
@@ -675,28 +675,28 @@ recognizable as evaluated, and the fold state of a replaced result is
 kept.  TOTAL is how many lines the cell has printed, for a running cell
 whose TEXT is only the part that shows; without it the lines of TEXT are
 counted."
-  (let* ((old (car (pycell-block-in beg end 'result)))
-         (folded (and old (car (pycell-block-get old :data))))
+  (let* ((old (car (overblock-in beg end 'result)))
+         (folded (and old (car (overblock-get old :data))))
          (data (list folded text runtime state total)))
     (if (and old (= (overlay-start old) beg))
         ;; The ticker of a running cell comes here five times a second
         ;; with nothing new but its data.  Keeping the block it has saves
         ;; two overlays and a scan of the region on every tick, and it
         ;; leaves redisplay alone.
-        (progn (pycell-block-set old :data data)
+        (progn (overblock-set old :data data)
                (pycell--update old)
                old)
       ;; The newline that ends the cell carries the result; give the
       ;; last cell of the buffer one.
       (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
         (save-excursion (goto-char end) (insert "\n")))
-      (let ((block (pycell-block-show beg end
+      (let ((block (overblock-show beg end
                                        :kind 'result
                                        :data data
                                        :keymap pycell-overlay-map)))
         ;; An edit of the cell makes the result stale; it goes.
         (overlay-put block 'modification-hooks
-                     (list (lambda (o &rest _) (pycell-block-delete o))))
+                     (list (lambda (o &rest _) (overblock-delete o))))
         (pycell--update block)
         block))))
 
@@ -718,22 +718,22 @@ Point first, then anywhere in the cell around it.  Signals a
 `user-error\=' where the cell has no result, which is the answer the
 commands that call it give their reader."
   (pycell--goto-event event)
-  (or (pycell-block-at 'result)
-      (car (apply #'pycell-block-in (append (code-cells--bounds) '(result))))
+  (or (overblock-at 'result)
+      (car (apply #'overblock-in (append (code-cells--bounds) '(result))))
       (user-error "No result here")))
 
 (defun pycell-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
   (let* ((block (pycell--result-at event))
-         (data (pycell-block-get block :data)))
-    (pycell-block-set block :data (cons (not (car data)) (cdr data)))
+         (data (overblock-get block :data)))
+    (overblock-set block :data (cons (not (car data)) (cdr data)))
     (pycell--update block)))
 
 (defun pycell-discard-output (&optional event)
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (pycell-block-delete (pycell--result-at event)))
+  (overblock-delete (pycell--result-at event)))
 
 ;;;; Moving a cell
 
@@ -741,9 +741,9 @@ commands that call it give their reader."
   "Return what the cell BEG..END shows, to put back after a move.
 The car is the record of its result, or nil, and the cdr says whether
 its markdown was rendered."
-  (cons (when-let* ((block (car (pycell-block-in beg end 'result))))
-          (copy-sequence (pycell-block-get block :data)))
-        (and (pycell-block-in beg end 'markdown) t)))
+  (cons (when-let* ((block (car (overblock-in beg end 'result))))
+          (copy-sequence (overblock-get block :data)))
+        (and (overblock-in beg end 'markdown) t)))
 
 (defun pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
@@ -753,7 +753,7 @@ the caller, which does the whole buffer at once."
     (pcase-let* ((`(,folded ,text ,runtime ,state ,total) record)
                  (block (pycell--show beg end text runtime state total)))
       (when folded
-        (pycell-block-set block :data record)
+        (overblock-set block :data record)
         (pycell--update block)))))
 
 ;;;###autoload
@@ -779,7 +779,7 @@ header keeps moving the same cell."
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
     (code-cells-move-cell-down arg)
-    (pycell-block-clear (min beg nbeg) (max end nend))
+    (overblock-clear (min beg nbeg) (max end nend))
     (let ((mine-beg (if down (- nend mine-length) nbeg))
           (their-beg (if down beg (- end their-length))))
       (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
@@ -801,7 +801,7 @@ header keeps moving the same cell."
   "Return the text of the result BLOCK.
 The one reader of that field: a record that each caller takes apart
 by hand is a record that cannot change shape."
-  (nth 1 (pycell-block-get block :data)))
+  (nth 1 (overblock-get block :data)))
 
 (defun pycell--cell-buffer-name (kind position)
   "Return the name of the KIND buffer for the cell at POSITION.
@@ -826,7 +826,7 @@ The file type comes from the image descriptor; `create-image' read
 it from the data's magic bytes."
   (interactive (list last-input-event))
   (let* ((text (pycell--text (pycell--result-at event)))
-         (img (or (pycell-block-image-in text)
+         (img (or (overblock-image-in text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
                    (user-error "This image carries no data")))
@@ -892,8 +892,8 @@ A fold that reaches the end of the buffer covers that newline, where a
 fold in the middle of one stops short of it.  The block would go with
 the fold, and the reader would lose the bar that folds the result
 itself, so the invisible run is shrunk back off the newline."
-  (dolist (block (pycell-block-in from to 'result))
-    (when-let* ((nl (pycell-block-get block :newline))
+  (dolist (block (overblock-in from to 'result))
+    (when-let* ((nl (overblock-get block :newline))
                 ((<= (overlay-end nl) to)))
       (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
         (when (and (eq (overlay-get ov 'invisible) 'outline)
@@ -914,9 +914,9 @@ A result block stays.  The fold hides the code and the block keeps its
 own fold button, so the two fold apart; `pycell--keep-result-newline\='
 is what leaves it room."
   (when flag (pycell--keep-result-newline from to))
-  (dolist (block (pycell-block-in from to 'markdown))
-    (pycell-block-set block :hidden flag)
-    (pycell-block-refresh block)))
+  (dolist (block (overblock-in from to 'markdown))
+    (overblock-set block :hidden flag)
+    (overblock-refresh block)))
 
 ;; At load, not at activation: by the time this file loads, the user
 ;; has turned the mode on.  The advice is inert in buffers without
@@ -1287,7 +1287,7 @@ Only the word =markdown= of the boundary line carries the header, so
                             start))
          ;; The block covers the source of the cell.  The pieces hang
          ;; on those lines, and the bar above them is not part of it.
-         (block (pycell-block-show beg end
+         (block (overblock-show beg end
                                     :kind 'markdown
                                     ;; the bounds of the source, which
                                     ;; the block itself does not cover
@@ -1316,7 +1316,7 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; cell reaches it: it would be left behind, and `pycell-md-commit'
     ;; would draw a second bar beside it.
     (overlay-put block 'modification-hooks
-                 (list (lambda (o &rest _) (pycell-block-delete o))))
+                 (list (lambda (o &rest _) (overblock-delete o))))
     block))
 
 ;;;###autoload
@@ -1370,7 +1370,7 @@ the converter\'s HTML with")))))
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
   (interactive)
-  (pycell-block-clear (point-min) (point-max) 'markdown))
+  (overblock-clear (point-min) (point-max) 'markdown))
 
 (defun pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
@@ -1378,7 +1378,7 @@ A click on the bar lands on the small overlay that draws it, which
 points back at the block.  Signals a `user-error\=' where there is no
 rendered cell, which is the answer the commands that call it give."
   (pycell--goto-event event)
-  (or (pycell-block-at 'markdown)
+  (or (overblock-at 'markdown)
       ;; A click on the bar lands beside the block, so the overlay that
       ;; drew it is asked next.
       (seq-some (lambda (ov) (overlay-get ov 'pycell-main))
@@ -1391,7 +1391,7 @@ rendered cell, which is the answer the commands that call it give."
 The cell is then editable in place; evaluate it, or run
 `pycell-md-render-all', to render it again."
   (interactive (list last-input-event))
-  (pycell-block-delete (pycell--md-at event)))
+  (overblock-delete (pycell--md-at event)))
 
 (defvar-local pycell--md-source nil
   "Markdown cell (BUFFER BEG END) that this edit buffer feeds.")
@@ -1413,7 +1413,7 @@ The body opens in its own buffer, without the comment prefixes, in
 and renders it; \\[pycell-md-abort] discards the edit."
   (interactive (list last-input-event))
   (pcase-let* ((block (pycell--md-at event))
-               (`(,beg . ,end) (pycell-block-get block :data))
+               (`(,beg . ,end) (overblock-get block :data))
                (src (current-buffer))
                (md (pycell--md-uncomment
                     (buffer-substring-no-properties beg end)))

@@ -72,12 +72,12 @@ final newline if it has none, because the block needs that character.
 
 Results and rendered markdown cells are two callers of one layer, which
 knows nothing of Python, cells or markdown: a caller renders text and
-hands it over.  It lives in =pycell-block.el= and everything it owns is
-named =pycell-block-=, so the file can leave for a package of its own
+hands it over.  It lives in =overblock.el= and everything it owns is
+named =overblock-=, so the file can leave for a package of its own
 without a rename.
 
 #+begin_src emacs-lisp
-  (pycell-block-show BEG END
+  (overblock-show BEG END
                       :kind 'result          ; whose block this is
                       :data ANYTHING         ; what the caller keeps with it
                       :over TEXT             ; shown instead of the region
@@ -93,7 +93,7 @@ An anchor overlay covers the region and holds those properties.  It
 stops before the newline that ends the region, so a window which starts
 at the next line keeps the block out of view; a second overlay covers
 that newline and carries what shows after it.
-=pycell-block-refresh= makes everything the block shows anew from the
+=overblock-refresh= makes everything the block shows anew from the
 properties, so nothing has to be saved and given back — that is how a
 fold takes a markdown cell off the screen and gives it back with
 =:hidden=.
@@ -349,12 +349,12 @@ were measured before and after on the same inputs.
 
 The output of a running cell, cleaned and shown five times a second:
 
-| what                                | before   | after   |
-|-------------------------------------+----------+---------|
-| clean 100000 characters, one line   | 47.2 ms  | 3.3 ms  |
-| clean 10000 lines                   | 420.9 ms | 28.5 ms |
-| find the table in 10000 lines       | 637.9 ms | 0.0 ms  |
-| one tick over 100000 on one line    | 68.1 ms  | 1.1 ms  |
+| what                              | before   | after   |
+|-----------------------------------+----------+---------|
+| clean 100000 characters, one line | 47.2 ms  | 3.3 ms  |
+| clean 10000 lines                 | 420.9 ms | 28.5 ms |
+| find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
+| one tick over 100000 on one line  | 68.1 ms  | 1.1 ms  |
 
 - =pycell--table-at= walks the runs of the =vtable= property, not the
   characters of the output.
@@ -384,7 +384,7 @@ And what a keypress does, which is where the rest of the cost was:
   markdown cell in the buffer.
 - A result counts its lines once and keeps the number in its record, so
   a fold reads it instead of scanning the output again.
-- =pycell-block--pieces= deals its rendered lines off a walking list
+- =overblock--pieces= deals its rendered lines off a walking list
   rather than with =seq-subseq= from the front, which was quadratic in
   the lines of a cell: 2.7 milliseconds at a thousand against 0.3 at
   three hundred.
@@ -395,10 +395,10 @@ The scrolling was measured with bursts of wheel events shaped like a
 flick of a trackpad, over forty cells with results, figures and rendered
 markdown, under the author's own configuration:
 
-| what                    | ms an event | a sweep to the end | reversals |
-|-------------------------+-------------+--------------------+-----------|
-| this package            | 2.1 down, 1.2 up | 1391 ms       |         0 |
-| the code before the layer | 2.7 down, 3.7 up | 1834 ms     |         0 |
+| what                      | ms an event      | a sweep to the end | reversals |
+|---------------------------+------------------+--------------------+-----------|
+| this package              | 2.1 down, 1.2 up | 1391 ms            |         0 |
+| the code before the layer | 2.7 down, 3.7 up | 1834 ms            |         0 |
 
 The two were measured one after the other, on the same notebook and the
 same frame.  A bracket in the fringe costs about three times as much an
@@ -419,7 +419,7 @@ that a cell draws the file rather than shr's placeholder, that a link on
 an image keeps the click, that a remote image stays shr's business, and
 that an edit of a cell takes the bar above it away.
 
-=test/pycell-block-client-test.el= is a second caller of that layer,
+=test/overblock-client-test.el= is a second caller of that layer,
 and a test rather than a feature: it renders the math in a Python
 docstring over the lines of the docstring, with no process behind it and
 no cell.  It answers one question — does a caller of another shape need

@@ -1,4 +1,4 @@
-;;; pycell-block-client-test.el --- A second client of the block layer  -*- lexical-binding: t; -*-
+;;; overblock-client-test.el --- A second client of the block layer  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Marcel Arpogaus
 
@@ -75,7 +75,7 @@ A docstring here is what lies between two lines of three quotes."
   (interactive)
   (pcase-let ((`(,beg ,end) (docmath--bounds)))
     (unless beg (user-error "No docstring here"))
-    (pycell-block-show
+    (overblock-show
      beg end
      :kind 'docmath
      :over (docmath--render (buffer-substring-no-properties beg end))
@@ -85,7 +85,7 @@ A docstring here is what lies between two lines of three quotes."
 (defun docmath-plain ()
   "Show the docstring of the buffer as it is written."
   (interactive)
-  (pycell-block-clear (point-min) (point-max) 'docmath))
+  (overblock-clear (point-min) (point-max) 'docmath))
 
 ;;;; What the layer had to answer for
 
@@ -108,8 +108,8 @@ The source stays as it is: the block shows text, it does not write any."
   (docmath-test--with-docstring
    (let ((before (buffer-string)))
      (docmath-render)
-     (let* ((block (car (pycell-block-in (point-min) (point-max) 'docmath)))
-            (parts (pycell-block-get block :parts))
+     (let* ((block (car (overblock-in (point-min) (point-max) 'docmath)))
+            (parts (overblock-get block :parts))
             (shown (mapconcat (lambda (ov) (or (overlay-get ov 'display) ""))
                               parts "\n")))
        (should block)
@@ -123,11 +123,11 @@ The source stays as it is: the block shows text, it does not write any."
   "A caller gives the block a bar and a keymap, and the layer spreads them."
   (docmath-test--with-docstring
    (docmath-render)
-   (let ((block (car (pycell-block-in (point-min) (point-max) 'docmath))))
+   (let ((block (car (overblock-in (point-min) (point-max) 'docmath))))
      (should (string-match-p "docstring" (overlay-get block 'after-string)))
      (should (keymapp (overlay-get block 'keymap)))
      (should (seq-every-p (lambda (ov) (keymapp (overlay-get ov 'keymap)))
-                          (pycell-block-get block :parts))))))
+                          (overblock-get block :parts))))))
 
 (ert-deftest docmath-test-plain-again ()
   "Taking the block away leaves the buffer as it was."
@@ -135,7 +135,7 @@ The source stays as it is: the block shows text, it does not write any."
    (let ((before (buffer-string)))
      (docmath-render)
      (docmath-plain)
-     (should-not (pycell-block-in (point-min) (point-max) 'docmath))
+     (should-not (overblock-in (point-min) (point-max) 'docmath))
      (should (equal (buffer-string) before))
      ;; and nothing of the block is left behind
      (should-not (seq-some (lambda (ov) (overlay-get ov 'display))
@@ -149,14 +149,14 @@ The layer decides that, not the caller: display properties do not nest."
               (lambda (_frag)
                 (propertize " " 'display '(image :type png :data "x")))))
      (docmath-render)
-     (let* ((block (car (pycell-block-in (point-min) (point-max) 'docmath)))
+     (let* ((block (car (overblock-in (point-min) (point-max) 'docmath)))
             (withimage (seq-filter
                         (lambda (ov)
-                          (pycell-block-image-in (or (overlay-get ov 'after-string) "")))
-                        (pycell-block-get block :parts))))
+                          (overblock-image-in (or (overlay-get ov 'after-string) "")))
+                        (overblock-get block :parts))))
        (should (= (length withimage) 2))
        (should (seq-every-p (lambda (ov) (equal (overlay-get ov 'display) ""))
                             withimage))))))
 
-(provide 'pycell-block-client-test)
-;;; pycell-block-client-test.el ends here
+(provide 'overblock-client-test)
+;;; overblock-client-test.el ends here
