@@ -58,6 +58,7 @@
 
 (require 'overblock)
 (require 'overblock-md)
+(require 'overblock-repl)
 (require 'code-cells)
 (require 'comint-mime)
 ;; comint-mime renders a table with it, and a block lays that table
@@ -166,101 +167,6 @@ markdown cells go; the text of the buffer is not touched."
 
 ;;;; Result blocks
 
-(defun pycell--table-at (text)
-  "Return the vtable that part of TEXT was rendered from, and where.
-comint-mime renders an HTML table with vtable, a DataFrame among them,
-and the copy carries the table object in a text property.  The value is
-\(TABLE BEG END), or nil."
-  (when (fboundp 'vtable-p)
-    (let ((len (length text))
-          (pos 0)
-          table beg end)
-      ;; The newline that ends a row carries no property of the table, so
-      ;; the run is not one stretch: take the first and the last place
-      ;; that names a table, and everything between them belongs to it.
-      ;; Run to run, not character to character: measured, a step of one
-      ;; cost 30 milliseconds over a hundred thousand characters and 223
-      ;; over eight hundred thousand, where a jump costs nothing.
-      (while (and pos
-                  (setq pos (text-property-not-all pos len 'vtable nil text)))
-        (let ((here (get-text-property pos 'vtable text))
-              (next (or (next-single-property-change pos 'vtable text) len)))
-          (when (vtable-p here)
-            (unless table (setq table here beg pos))
-            (setq end next))
-          (setq pos (and (< next len) next))))
-      (when table (list table beg end)))))
-
-(defun pycell--table-copy (table)
-  "Return a table of the rows and columns of TABLE, for another buffer.
-The table of a result belongs to the shell that drew it.  Emacs 31
-refuses to insert one vtable into a second buffer — \"A vtable cannot be
-inserted into more than one buffer\" — and even where it is allowed, two
-buffers holding one object is not a state worth having."
-  (make-vtable :columns (mapcar (lambda (column)
-                                  (list :name (vtable-column-name column)
-                                        :width (vtable-column-width column)
-                                        :align (vtable-column-align column)
-                                        :primary (vtable-column-primary column)))
-                                (vtable-columns table))
-               :objects (vtable-objects table)
-               :getter (vtable-getter table)
-               :formatter (vtable-formatter table)
-               :separator-width (vtable-separator-width table)
-               ;; The rows show in the order the first table showed them,
-               ;; which is the order of its objects put through its sort.
-               :sort-by (vtable-sort-by table)
-               ;; comint-mime draws the names of the columns into the
-               ;; buffer, where `make-vtable' would put them on the
-               ;; window's header line and shift every row up by one.
-               :use-header-line (vtable-use-header-line table)
-               :insert nil))
-
-(defun pycell--table-text (table)
-  "Return TABLE as text whose columns line up in characters.
-A vtable aligns with stretches of pixels measured in the window that
-drew it, and it measures a header cell in the face of a header.  A copy
-is shown elsewhere, in a face of its own, so the columns are laid out
-again here: one space of padding to the widest cell of each column, and
-nothing that a face can move."
-  (let* ((columns (vtable-columns table))
-         (rows (cons (mapcar #'vtable-column-name columns)
-                     (mapcar
-                      (lambda (object)
-                        (let ((index -1))
-                          (mapcar
-                           (lambda (_column)
-                             (setq index (1+ index))
-                             (format "%s"
-                                     (if-let* ((getter (vtable-getter table)))
-                                         (funcall getter object index table)
-                                       (elt object index))))
-                           columns)))
-                      (vtable-objects table))))
-         ;; Every row has a cell for every column, the header row
-         ;; included, so a column is as wide as its widest cell.
-         (widths (seq-map-indexed
-                  (lambda (_column index)
-                    (apply #'max (mapcar (lambda (row)
-                                           (string-width (nth index row)))
-                                         rows)))
-                  columns))
-         (lines (mapcar
-                 (lambda (row)
-                   (string-trim-right
-                    (string-join
-                     (seq-mapn (lambda (cell width)
-                                 (concat cell
-                                         (make-string
-                                          (max 0 (- width (string-width cell)))
-                                          ?\s)))
-                               row widths)
-                     "  ")))
-                 rows)))
-    ;; the names of the columns, in bold as a markdown table has them
-    (setcar lines (propertize (car lines) 'face 'bold))
-    (string-join lines "\n")))
-
 (defun pycell--strip-prompts (text)
   "Return TEXT without the shell\'s prompts and its Out[N] labels.
 The prompt before the output goes, the prompt after it goes, and so does
@@ -296,51 +202,13 @@ buffer, where that variable has its value."
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
-(defun pycell--detach (text)
-  "Return the part of TEXT a block shows, cut loose from the shell.
-The outer whitespace goes, except whitespace that carries a display
-property: comint-mime renders an image as one space with such a
-property, and `string-trim\=' would delete it.
-
-What the shell buffer shows is not what a copy of it shows.  comint-mime
-renders a DataFrame as a vtable, which aligns its columns with pixel
-targets measured in that window and carries the keymap of a live table.
-In a result block the targets land elsewhere, and no binding of that
-keymap can find a table.  So the columns become literal spaces, the
-keymap, the mouse face and the help echo go, and a table keeps its
-object under `pycell-table\=', which `pycell-pop-output\=' shows live."
-  (let* ((beg 0)
-         (end (length text))
-         (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
-                                 (not (get-text-property i 'display text))))))
-    (while (and (< beg end) (funcall blank beg)) (setq beg (1+ beg)))
-    (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
-    (let ((copy (let ((cut (substring text beg end)))
-                  ;; Only a rendering leaves alignment stretches behind,
-                  ;; and a stretch is a display property: plain output
-                  ;; skips the copy through a buffer.  Measured, that
-                  ;; round trip costs 23 milliseconds over eight hundred
-                  ;; thousand characters of propertized text.
-                  (if (text-property-not-all 0 (length cut) 'display nil cut)
-                      (overblock-md--flattened cut)
-                    cut))))
-      (remove-list-of-text-properties
-       0 (length copy) '(keymap local-map mouse-face help-echo) copy)
-      (if-let* ((found (pycell--table-at copy)))
-          (pcase-let* ((`(,table ,tbeg ,tend) found)
-                       (laid-out (propertize
-                                  (pycell--table-text table)
-                                  'pycell-table table)))
-            (concat (substring copy 0 tbeg) laid-out (substring copy tend)))
-        copy))))
-
 (defun pycell--clean (text)
   "Return TEXT as a result block can show it.
 The prompts and the Out[N] labels go, and the copy is cut loose from
-the shell; see `pycell--strip-prompts\=' and `pycell--detach\=' for what
+the shell; see `pycell--strip-prompts\=' and `overblock-repl-detach\=' for what
 each of those means.  Call this in the shell buffer, where
 `comint-prompt-regexp\=' has its value."
-  (pycell--detach (pycell--strip-prompts text)))
+  (overblock-repl-detach (pycell--strip-prompts text)))
 
 (defun pycell--shorten (line)
   "Return LINE cut to `pycell-max-line-length' characters.
@@ -352,53 +220,6 @@ left whole costs the scroller."
       line
     (concat (substring line 0 pycell-max-line-length)
             (overblock-glyph "…" "..."))))
-
-(defun pycell--fit (line)
-  "Return LINE with its images capped to `overblock-image-height'.
-The line kept for `pycell-pop-output' is not touched: this copies
-before it caps."
-  (if-let* ((limit (overblock-image-limit))
-            ((overblock-image-in line)))
-      (let ((line (copy-sequence line))
-            (pos 0))
-        (while (< pos (length line))
-          (let ((next (or (next-single-property-change pos 'display line)
-                          (length line)))
-                (spec (get-text-property pos 'display line)))
-            (when (and (eq (car-safe spec) 'image)
-                       (not (plist-get (cdr spec) :max-height)))
-              (put-text-property pos next 'display
-                                 (cons 'image
-                                       (plist-put (copy-sequence (cdr spec))
-                                                  :max-height limit))
-                                 line))
-            (setq pos next)))
-        line)
-    line))
-
-(defun pycell--first-lines (text limit)
-  "Return the first LIMIT lines of TEXT.
-Only that much is looked at and only that much is copied: a result of
-ten thousand lines costs what a result of twelve costs, which is what a
-tick five times a second needs."
-  (let ((pos 0) (count 0) (cut nil))
-    (while (and (null cut)
-                (setq pos (string-search "\n" text pos)))
-      (setq count (1+ count)
-            pos (1+ pos))
-      (when (= count limit) (setq cut (1- pos))))
-    (split-string (if cut (substring text 0 cut) text) "\n")))
-
-(defun pycell--count-lines (text)
-  "Return how many lines TEXT holds.
-The whole of it is searched, so a caller that already knows the number
-had better not ask: measured, ten thousand lines cost 3.1 milliseconds
-and a fold of such a result asked on every keypress."
-  (let ((pos 0) (count 1))
-    (while (setq pos (string-search "\n" text pos))
-      (setq count (1+ count)
-            pos (1+ pos)))
-    count))
 
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
@@ -417,7 +238,7 @@ sit past the cut; its images are capped to
              ;; there would cost the rest of the output and buy no
              ;; height back.
              (image (and (display-images-p) (overblock-image-in l))))
-        (push (if image (pycell--fit l) (pycell--shorten l)) shown)
+        (push (if image (overblock-repl-fit l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
 
@@ -462,14 +283,14 @@ are and how many of them show, and the body is those that show."
   (pcase-let ((`(,folded ,text ,runtime ,state ,total)
                (overblock-get block :data)))
     (let* ((empty (string-empty-p text))
-           (lines (unless empty (pycell--first-lines text pycell-max-lines)))
+           (lines (unless empty (overblock-repl-first-lines text pycell-max-lines)))
            (shown (pycell--body-lines lines))
            ;; The count is asked for once and kept: a finished result
            ;; carries none, and a fold would otherwise scan the whole
            ;; output again on every keypress.
            (count (cond (empty 0)
                         (total)
-                        (t (let ((n (pycell--count-lines text)))
+                        (t (let ((n (overblock-repl-count-lines text)))
                              (overblock-set
                               block :data (list folded text runtime state n))
                              n)))))
@@ -686,10 +507,10 @@ Each cell gets one buffer, so results are comparable side by side."
         ;; shell buffer that drew it.
         (if-let* ((table (get-text-property (or (text-property-not-all
                                                  0 (length text)
-                                                 'pycell-table nil text)
+                                                 'overblock-repl-table nil text)
                                                 0)
-                                            'pycell-table text)))
-            (vtable-insert (pycell--table-copy table))
+                                            'overblock-repl-table text)))
+            (vtable-insert (overblock-repl-table-copy table))
           (insert text)))
       (goto-char (point-min))
       (pop-to-buffer (current-buffer)))))
