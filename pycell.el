@@ -57,6 +57,7 @@
 ;;; Code:
 
 (require 'overblock)
+(require 'overblock-md)
 (require 'code-cells)
 (require 'comint-mime)
 ;; comint-mime renders a table with it, and a block lays that table
@@ -68,22 +69,13 @@
 (require 'seq)
 (require 'subr-x)
 
-;; Org supplies the LaTeX preview machinery.  It is loaded on demand, in
-;; `pycell--md-latex-image', so the symbols are declared rather than
-;; required.
-(declare-function org-create-formula-image "org"
-                  (string tofile options buffer &optional type))
-(declare-function org-combine-plists "org-macs" (&rest plists))
-(defvar org-preview-latex-default-process)
-(defvar org-preview-latex-process-alist)
-(defvar org-format-latex-options)
-
-;; shr parses the converter's HTML with this, and an Emacs built
-;; without libxml2 does not have it; `pycell--md-program' answers nil
-;; there and no markdown cell is rendered at all.  Declared so the
-;; file still compiles on such a build.
-(declare-function libxml-parse-html-region "xml.c"
-                  (start end &optional base-url discard-comments))
+;; An option that moved to the block layer answers to its old name for
+;; a while, so a configuration that names it keeps working.
+(define-obsolete-variable-alias 'pycell-max-image-height
+  'overblock-image-height "0.2")
+(define-obsolete-variable-alias 'pycell-markdown-command
+  'overblock-md-command "0.2")
+(define-obsolete-face-alias 'pycell-md-code 'overblock-md-code "0.2")
 
 (defgroup pycell nil "Inline results for Python code cells." :group 'python)
 
@@ -93,28 +85,6 @@ It inherits the cell boundary face, so results match the cells.")
 
 (defface pycell-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
-
-(defface pycell-md-code '((t :inherit font-lock-constant-face))
-  "Face for inline code in a rendered markdown cell.
-shr draws code in a fixed pitch, and a rendered cell hangs on the
-lines of a Python buffer, which is fixed pitch throughout: a pitch
-says nothing there, so this face says it with a color.")
-
-(defcustom pycell-markdown-command
-  '("markdown" "pandoc" "markdown_py" "cmark" "cmark-gfm")
-  "How to turn Markdown into HTML.
-Either one shell command as a string, or a list of candidates, of
-which the first one found in the variable `exec-path' is used.  The
-program reads Markdown on standard input and writes HTML on standard
-output, so arguments are allowed: \"pandoc -f gfm -t html\".
-
-Markdown cells stay plain text while no candidate is installed.
-
-Leave the math alone when choosing arguments.  Pandoc, for one, turns
-simple formulas into text on its own and passes the rest through, and
-`pycell--md-mathify' then makes preview images of what is left."
-  :type '(choice (string :tag "Shell command")
-                 (repeat (string :tag "Candidate command"))))
 
 (defcustom pycell-result-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
@@ -166,25 +136,6 @@ follows the number of face runs the text carries, not its size.
 
 Width is another matter: see `pycell-max-line-length'."
   :type 'natnum)
-
-(defcustom pycell-max-image-height 0.8
-  "How tall an image may be drawn inline, as a share of the window.
-Zero draws it at whatever size it came in.  `pycell-pop-output' and
-`pycell-save-image' always work from the original.
-
-A block taller than the window cannot be scrolled past: the wheel
-bounces backwards off it and starts over, and the buffer below it
-stays out of reach.  Measured in a 437 pixel text area, 25 pixels a
-step: a figure at 0.9 of the area bounced 40 times in 399 steps and
-never got past, one at 0.8 went by in 94 steps without a single step
-backwards.  The difference is the two lines of text a block carries
-besides the figure.
-
-The share is taken when the block is drawn, from the window showing
-the buffer then, or from the selected window when the notebook is not
-on screen; a window resized afterwards keeps the size the figure
-had."
-  :type 'number)
 
 (defcustom pycell-max-line-length 2000
   "Number of characters of a result line that show inline.
@@ -371,7 +322,7 @@ object under `pycell-table\=', which `pycell-pop-output\=' shows live."
                   ;; round trip costs 23 milliseconds over eight hundred
                   ;; thousand characters of propertized text.
                   (if (text-property-not-all 0 (length cut) 'display nil cut)
-                      (pycell--flattened cut)
+                      (overblock-md--flattened cut)
                     cut))))
       (remove-list-of-text-properties
        0 (length copy) '(keymap local-map mouse-face help-echo) copy)
@@ -402,27 +353,11 @@ left whole costs the scroller."
     (concat (substring line 0 pycell-max-line-length)
             (overblock-glyph "…" "..."))))
 
-(defun pycell--image-limit ()
-  "Return how many pixels tall an image may be drawn, or nil for no cap.
-The share is `pycell-max-image-height\=' of the window that shows the
-notebook.  A cell can finish while its notebook is elsewhere — sent and
-switched away from, or one of a whole run — and no window at all would
-mean no cap and a block the wheel cannot get past.  The selected window
-is a guess at the size the notebook will have, and a guess that comes
-out small only draws a smaller figure."
-  (when-let* (((numberp pycell-max-image-height))
-              ((> pycell-max-image-height 0))
-              (window (or (get-buffer-window nil t) (selected-window)))
-              (limit (round (* pycell-max-image-height
-                               (window-body-height window t))))
-              ((> limit 0)))
-    limit))
-
 (defun pycell--fit (line)
-  "Return LINE with its images capped to `pycell-max-image-height'.
+  "Return LINE with its images capped to `overblock-image-height'.
 The line kept for `pycell-pop-output' is not touched: this copies
 before it caps."
-  (if-let* ((limit (pycell--image-limit))
+  (if-let* ((limit (overblock-image-limit))
             ((overblock-image-in line)))
       (let ((line (copy-sequence line))
             (pos 0))
@@ -473,7 +408,7 @@ inline figures would grow the block, and the scroll jump with it,
 without bound.  A display that shows no images has nothing to stop
 for.  A line with an image on it is not cut, since the image may
 sit past the cut; its images are capped to
-`pycell-max-image-height' instead."
+`overblock-image-height' instead."
   (let (shown stop)
     (while (and lines (not stop) (< (length shown) pycell-max-lines))
       (let* ((l (pop lines))
@@ -828,313 +763,6 @@ is what leaves it room."
   (mapconcat (lambda (l) (if (string-empty-p l) "#" (concat "# " l)))
              (split-string text "\n") "\n"))
 
-(defvar pycell--md-latex-warned nil
-  "Non-nil once a failed LaTeX preview was reported in this session.")
-
-(defun pycell--md-latex-image (frag)
-  "Return a preview image for the LaTeX fragment FRAG, or nil.
-Org's formula machinery renders it.  The cache lives under ~/.cache,
-keyed by content and theme color.  Org runs LaTeX in that directory
-as well: a LaTeX in a container reaches the home directory, but not
-the host's /tmp."
-  (when (and (require 'org nil t) (fboundp 'org-create-formula-image))
-    (let* ((fg (face-attribute 'default :foreground))
-           (ext (or (plist-get
-                     (cdr (assq org-preview-latex-default-process
-                                org-preview-latex-process-alist))
-                     :image-output-type)
-                    "png"))
-           (dir (expand-file-name
-                 "pycell-math/" (or (getenv "XDG_CACHE_HOME") "~/.cache")))
-           (file (expand-file-name
-                  (concat (md5 (concat fg frag)) "." ext) dir)))
-      (condition-case err
-          (progn
-            (unless (file-exists-p file)
-              (make-directory dir t)
-              (let ((temporary-file-directory dir))
-                (org-create-formula-image
-                 frag file
-                 (org-combine-plists
-                  org-format-latex-options
-                  (list :foreground fg :background "Transparent"))
-                 (current-buffer))))
-            (create-image file nil nil :ascent 'center))
-        ;; Report once: without a LaTeX installation, every fragment of
-        ;; every cell would report the same thing.
-        (error (unless pycell--md-latex-warned
-                 (setq pycell--md-latex-warned t)
-                 (message "pycell: no LaTeX preview (%s), formulas stay as text"
-                          (error-message-string err)))
-               nil)))))
-
-(defconst pycell--md-math-regexp
-  (rx (or (seq "$$" (+? anychar) "$$")
-          (seq "$" (not (any "$" space)) (*? (not (any "$" "\n"))) "$")
-          (seq "\\(" (+? anychar) "\\)")
-          (seq "\\[" (+? anychar) "\\]")))
-  "What a LaTeX fragment looks like in rendered markdown.
-Most converters leave the dollar delimiters alone.  Pandoc renders
-simple formulas as text and passes the rest through, either in dollars
-or, when told to use MathJax, in parentheses and brackets.")
-
-(defun pycell--md-mathify (text)
-  "Replace the LaTeX fragments in TEXT with preview images.
-Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain, and so does one
-inside a table \(see `pycell--md-tag-table').
-
-Only where the display can draw an image: a preview made in a
-terminal cannot be seen."
-  ;; `replace-regexp-in-string' copies its argument twice whether it
-  ;; matches or not: measured, 9.1 milliseconds over a rendered cell of
-  ;; three hundred lines with no formula in it, against 0.022 for the
-  ;; search that stands in front of it now.
-  (if (or (not (display-images-p))
-          (not (string-match-p "[$\\]" text)))
-      text
-    (replace-regexp-in-string
-     pycell--md-math-regexp
-     (lambda (frag)
-       ;; `replace-regexp-in-string' uses the match data after the
-       ;; replacement function returns; rendering must not touch it.
-       (save-match-data
-         (if-let* (((not (get-text-property 0 'pycell-md-table frag)))
-                   (img (pycell--md-latex-image frag)))
-             (propertize frag 'display img)
-           frag)))
-     text t t)))
-
-(defun pycell--md-program ()
-  "Return the markdown converter as a list of program and arguments.
-The first candidate of `pycell-markdown-command' that is installed
-wins; the result is nil when none of them is, and nil as well where
-this Emacs cannot read the HTML that comes back: shr parses it with
-`libxml-parse-html-region', which a build without libxml2 does not
-have."
-  (and (fboundp 'libxml-parse-html-region)
-       (seq-some (lambda (command)
-                   (let ((argv (split-string-shell-command command)))
-                     (and (executable-find (car argv)) argv)))
-                 (ensure-list pycell-markdown-command))))
-
-(defconst pycell--md-marker "pycellcellbreak8f2b1c"
-  "What stands between cells when they go to the converter together.
-A word of its own in a paragraph of its own: every converter passes
-that through as a paragraph, where anything with markup would be
-reshaped into something else.")
-
-(defun pycell--md-html (md)
-  "Return the HTML `pycell-markdown-command' makes of MD."
-  (let ((program (pycell--md-program)))
-    (with-temp-buffer
-      (insert md)
-      ;; Send standard error nowhere: pandoc warns about math it cannot
-      ;; convert, and the text would land in the HTML.
-      (let ((status (apply #'call-process-region
-                           (point-min) (point-max) (car program)
-                           t '(t nil) nil (cdr program))))
-        (unless (eq status 0)
-          (error "%s exited with status %s" (car program) status)))
-      (buffer-string))))
-
-(defun pycell--md-html-batch (texts)
-  "Return the HTML of each of TEXTS, converted in one go.
-Opening a notebook renders every markdown cell, and a converter
-process costs more than the markdown: 44 milliseconds a cell with
-`markdown_py\=', which is two seconds for fifty cells and nine for two
-hundred.  One process for the buffer costs that once.
-
-Nil when the marker does not come back once between every pair of
-cells, or when a cell holds it already; the caller then asks for one
-call per cell, as it always did."
-  (unless (seq-some (lambda (text) (string-search pycell--md-marker text))
-                    texts)
-    (let* ((joined (string-join texts (format "\n\n%s\n\n"
-                                              pycell--md-marker)))
-           (pieces (split-string
-                    (pycell--md-html joined)
-                    (format "<p>[ \t\n]*%s[ \t\n]*</p>" pycell--md-marker))))
-      (and (= (length pieces) (length texts)) pieces))))
-
-(defun pycell--md-verbatim-math (md)
-  "Return MD with its display-math blocks wrapped in <pre>.
-A $$ block carries its line structure on purpose, one equation to a
-line, and shr fills a paragraph: math that stays text comes back as
-one rewrapped soup.  <pre> passes through every converter as raw HTML
-and shr keeps its lines.
-
-Whatever the display can draw, because a fragment stays text for more
-reasons than that: a display can draw images and still have no LaTeX
-to make one with, and a fragment LaTeX cannot compile stays text on
-any display.  The wrapping costs a preview nothing, since the block is
-matched across its lines and replaced whole."
-  ;; A cell without display math is the common one, and the replacement
-  ;; would copy it twice to find that out.
-  (if (not (string-search "$$" md))
-      md
-    (replace-regexp-in-string
-     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
-     "<pre>$$\n\\1$$</pre>"
-     md)))
-
-(defun pycell--md-tag-th (dom)
-  "Render the header cell DOM in bold.
-shr has no function for a =th=, so a header cell reads like any other
-row.  A table wants its header to stand out."
-  (shr-fontize-dom dom 'bold))
-
-(defun pycell--md-tag-code (dom)
-  "Render the inline code DOM in `pycell-md-code'.
-shr draws code in a fixed pitch face, which says nothing in a buffer
-that is fixed pitch throughout: code came out as prose."
-  (shr-fontize-dom dom 'pycell-md-code))
-
-(defun pycell--md-tag-table (dom)
-  "Render the table DOM and mark the text it covers.
-`pycell--md-mathify\=' leaves marked text alone.  A table is padded to
-the width of its text, and a preview image is never as wide as the
-text it replaces, so a formula in a cell would pull the columns of its
-row out of line."
-  (let ((start (point)))
-    (shr-tag-table dom)
-    (put-text-property start (point) 'pycell-md-table t)))
-
-(defun pycell--md-image-file (src)
-  "Return the readable local image file that SRC names, or nil.
-A markdown cell writes `![a figure](figure.png)\=', and a path like that
-belongs to the directory of the notebook.  An absolute path and a
-`file://\=' URL name the file directly; anything with another scheme is
-not ours to open."
-  (when-let* ((path (cond ((string-prefix-p "file://" src)
-                           (url-unhex-string (substring src 7)))
-                          ((not (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:"
-                                                src))
-                           src)))
-              ((not (string-empty-p path)))
-              (file (expand-file-name path))
-              ((file-readable-p file))
-              ((image-supported-file-p file)))
-    file))
-
-(defun pycell--md-tag-img (dom)
-  "Draw the image DOM names when it is a file, and leave the rest to shr.
-shr fetches an image with `url-queue-retrieve\=', which answers long
-after the cell is rendered, so the rendering keeps the grey placeholder
-that shr leaves in the meantime: measured with a relative path, an
-absolute one and a `file://\=' URL alike, every local image stayed a
-placeholder.  A file on disk needs no fetching.
-
-The alt text carries the image, and the figure is capped like a
-result\='s.  Where the alt text is empty the file\='s name stands in, so a
-display that draws no image still says which figure is there; a terminal
-gets that label with no display property at all, since shr\='s own
-placeholder is an image and would swallow it."
-  (if-let* ((file (pycell--md-image-file (or (dom-attr dom 'src) ""))))
-      (let* ((alt (dom-attr dom 'alt))
-             (label (if (and alt (not (string-empty-p alt)))
-                        alt
-                      (format "[%s]" (file-name-nondirectory file))))
-             (limit (pycell--image-limit)))
-        (insert (if (display-images-p)
-                    (propertize label 'display
-                                (apply #'create-image file nil nil
-                                       (and limit (list :max-height limit))))
-                  ;; A terminal draws no image, and shr\='s placeholder is
-                  ;; itself an image: its display property would swallow
-                  ;; the label under it and leave a blank row.
-                  label)))
-    (shr-tag-img dom)))
-
-(defconst pycell--md-rendering-functions
-  (list (cons 'th #'pycell--md-tag-th)
-        (cons 'code #'pycell--md-tag-code)
-        (cons 'img #'pycell--md-tag-img)
-        (cons 'table #'pycell--md-tag-table))
-  "How this package renders the tags shr renders differently.
-See `shr-external-rendering-functions'.")
-
-(defun pycell--space-columns (spec column)
-  "Return the columns that the space SPEC covers at COLUMN, or nil.
-A `:align-to\=' spec names where the space ends and a `:width\=' spec how
-wide it is.  Both count pixels in a list and characters in a bare
-number; a terminal's pixel is a column, a graphic frame's is
-`frame-char-width\='."
-  (let* ((plist (cdr spec))
-         (to (plist-get plist :align-to))
-         (width (plist-get plist :width))
-         (chars (lambda (n) (if (consp n)
-                                (round (car n) (frame-char-width))
-                              (and (numberp n) (round n))))))
-    (cond ((and to (funcall chars to))
-           (max 0 (- (funcall chars to) column)))
-          ((and width (funcall chars width))
-           (max 0 (funcall chars width))))))
-
-(defun pycell--md-flatten-alignment ()
-  "Turn the space stretches of this buffer into real spaces.
-shr aligns table columns with `(space :align-to (N))\=' display specs,
-and vtable, which is how comint-mime shows a DataFrame, with
-`(space :width (N))\='.  Both count from the window they were measured
-in.  A rendered cell and a result block are shown indented — line
-numbers, margins — so the stretches land elsewhere there and the
-columns of a row drift apart.  Literal padding aligns anywhere.  Left
-to right, so `current-column\=' already sees the padding put in before
-it."
-  (goto-char (point-min))
-  (let (match)
-    (while (setq match (text-property-search-forward 'display))
-      (let ((spec (prop-match-value match)))
-        (when (eq (car-safe spec) 'space)
-          (let* ((beg (prop-match-beginning match))
-                 (end (prop-match-end match))
-                 (pad (pycell--space-columns
-                       spec (save-excursion (goto-char beg)
-                                            (current-column)))))
-            (when pad
-              (goto-char beg)
-              (delete-region beg end)
-              ;; Zero is a zero-width stretch: the column is already
-              ;; there, and a forced space would push this row one past
-              ;; its sisters.
-              (insert (make-string pad ?\s)))))))))
-
-(defun pycell--flattened (text)
-  "Return TEXT with its space stretches as real spaces.
-See `pycell--md-flatten-alignment' for why a copy needs them literal."
-  (with-temp-buffer
-    (insert text)
-    (pycell--md-flatten-alignment)
-    (buffer-string)))
-
-(defun pycell--md-rendered (md &optional html)
-  "Render the markdown MD to a propertized string.
-`pycell-markdown-command\=' produces HTML, shr renders it, and LaTeX
-fragments become preview images.  With HTML, that is rendered instead
-and MD is not converted again: `pycell-md-render-all\=' converts the
-whole buffer at once.
-
-shr renders without its font arithmetic here: a cell\='s text hangs on
-source lines at whatever indent the buffer wears, and only literal
-columns survive a move.  The `:align-to\=' specs shr leaves behind are
-flattened to real spaces for the same reason."
-  (require 'shr)
-  (let ((dom (with-temp-buffer
-               (insert (or html (pycell--md-html (pycell--md-verbatim-math md))))
-               (libxml-parse-html-region (point-min) (point-max))))
-        (shr-use-fonts nil)
-        (shr-external-rendering-functions
-         (append pycell--md-rendering-functions
-                 shr-external-rendering-functions)))
-    (with-temp-buffer
-      (shr-insert-document dom)
-      (pycell--md-flatten-alignment)
-      ;; Trim whole blank lines, never a first line's indent: the
-      ;; columns are literal now, and a table that starts the cell
-      ;; must keep the indent its sister rows have.
-      (pycell--md-mathify
-       (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")))))
-
 (defvar-keymap pycell-md-map
   :doc "Keymap on rendered markdown cells."
   "RET" #'pycell-md-edit
@@ -1163,7 +791,7 @@ Only the word =markdown= of the boundary line carries the header, so
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
                 (overblock-faced
-                 (pycell--md-rendered
+                 (overblock-md-rendered
                   (pycell--md-uncomment
                    (buffer-substring-no-properties beg end))
                   html)
@@ -1224,7 +852,7 @@ A caller that knows which cells changed says so: measured, one moved
 cell in a file of two hundred rendered every one of them, 436
 milliseconds against 17.7 for the two that moved."
   (interactive)
-  (let ((program (pycell--md-program))
+  (let ((program (overblock-md-program))
         (last (or end (point-max)))
         cells missed)
     (save-excursion
@@ -1243,12 +871,12 @@ milliseconds against 17.7 for the two that moved."
     ;; It answers nil where the marker between cells did not survive,
     ;; and then each cell goes on its own, as before.
     (let ((htmls (and (cdr cells)
-                      (pycell--md-html-batch
+                      (overblock-md-html-batch
                        (mapcar (lambda (cell)
                                  ;; The verbatim wrap belongs before the
                                  ;; converter, and this path converts
                                  ;; here rather than in the renderer.
-                                 (pycell--md-verbatim-math
+                                 (overblock-md--verbatim-math
                                   (pycell--md-uncomment
                                    (buffer-substring-no-properties
                                     (car cell) (cdr cell)))))
@@ -1259,7 +887,7 @@ milliseconds against 17.7 for the two that moved."
       (message "pycell: %s, cells stay plain"
                (if (fboundp 'libxml-parse-html-region)
                    (format "no markdown converter found (%s)"
-                           (string-join (ensure-list pycell-markdown-command)
+                           (string-join (ensure-list overblock-md-command)
                                         ", "))
                  "this Emacs was built without libxml, which shr reads \
 the converter\'s HTML with")))))

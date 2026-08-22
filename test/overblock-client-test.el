@@ -57,8 +57,8 @@ face where it cannot: a caller renders, and a block shows what it gets."
    (lambda (match)
      (let ((frag (substring match 1 -1)))
        (save-match-data
-         (or (ignore-errors (pycell--md-latex-image (format "\\(%s\\)" frag)))
-             (propertize frag 'face 'pycell-md-code)))))
+         (or (ignore-errors (overblock-md--latex-image (format "\\(%s\\)" frag)))
+             (propertize frag 'face 'overblock-md-code)))))
    text t t))
 
 (defun docmath--bounds ()
@@ -145,7 +145,7 @@ The source stays as it is: the block shows text, it does not write any."
   "A piece with an image in it hides its line and shows the image beside.
 The layer decides that, not the caller: display properties do not nest."
   (docmath-test--with-docstring
-   (cl-letf (((symbol-function 'pycell--md-latex-image)
+   (cl-letf (((symbol-function 'overblock-md--latex-image)
               (lambda (_frag)
                 (propertize " " 'display '(image :type png :data "x")))))
      (docmath-render)

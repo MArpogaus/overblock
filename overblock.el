@@ -71,6 +71,26 @@ inside a display string draws no fringe."
   :type 'boolean
   :group 'overblock)
 
+(defcustom overblock-image-height 0.8
+  "How tall an image may be drawn inline, as a share of the window.
+Zero draws it at whatever size it came in.  `pycell-pop-output' and
+`pycell-save-image' always work from the original.
+
+A block taller than the window cannot be scrolled past: the wheel
+bounces backwards off it and starts over, and the buffer below it
+stays out of reach.  Measured in a 437 pixel text area, 25 pixels a
+step: a figure at 0.9 of the area bounced 40 times in 399 steps and
+never got past, one at 0.8 went by in 94 steps without a single step
+backwards.  The difference is the two lines of text a block carries
+besides the figure.
+
+The share is taken when the block is drawn, from the window showing
+the buffer then, or from the selected window when the notebook is not
+on screen; a window resized afterwards keeps the size the figure
+had."
+  :type 'number
+  :group 'overblock)
+
 (defface overblock-fringe-face '((t :inherit shadow))
   "Face of the bracket a block draws in the fringe."
   :group 'overblock)
@@ -417,6 +437,22 @@ image and does not answer here."
             (setq img disp)
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
+
+(defun overblock-image-limit ()
+  "Return how many pixels tall an image may be drawn, or nil for no cap.
+The share is `overblock-image-height\=' of the window that shows the
+notebook.  A cell can finish while its notebook is elsewhere — sent and
+switched away from, or one of a whole run — and no window at all would
+mean no cap and a block the wheel cannot get past.  The selected window
+is a guess at the size the notebook will have, and a guess that comes
+out small only draws a smaller figure."
+  (when-let* (((numberp overblock-image-height))
+              ((> overblock-image-height 0))
+              (window (or (get-buffer-window nil t) (selected-window)))
+              (limit (round (* overblock-image-height
+                               (window-body-height window t))))
+              ((> limit 0)))
+    limit))
 
 ;;;; Bars, buttons and glyphs
 
