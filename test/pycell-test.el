@@ -162,7 +162,7 @@ The block evaporates with the text it covers, and the bar sits on the
 boundary line above, where no edit of the cell reaches it: without the
 modification hook it stayed behind, and `pycell-md-commit\=' drew a
 second bar beside it."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# ## A\n#\n# Text.\n\n# %%\nx = 1\n")
     (python-mode)
@@ -191,29 +191,29 @@ the image then belongs to shr, which says so with a box of its own."
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
                                 (let ((default-directory (file-name-directory file)))
-                                  (should (equal (pycell--md-image-file "figure.png") file))
-                                  (should (equal (pycell--md-image-file "./figure.png") file))
-                                  (should (equal (pycell--md-image-file file) file))
-                                  (should (equal (pycell--md-image-file (concat "file://" file)) file))
-                                  (should-not (pycell--md-image-file "https://example.org/figure.png"))
-                                  (should-not (pycell--md-image-file "does-not-exist.png"))
-                                  (should-not (pycell--md-image-file "")))))
+                                  (should (equal (overblock-md--image-file "figure.png") file))
+                                  (should (equal (overblock-md--image-file "./figure.png") file))
+                                  (should (equal (overblock-md--image-file file) file))
+                                  (should (equal (overblock-md--image-file (concat "file://" file)) file))
+                                  (should-not (overblock-md--image-file "https://example.org/figure.png"))
+                                  (should-not (overblock-md--image-file "does-not-exist.png"))
+                                  (should-not (overblock-md--image-file "")))))
 
 (ert-deftest pycell-test-md-names-an-image-without-a-display ()
   "Where no image can be drawn, the cell says which figure is there.
 shr\='s own placeholder is an image, and its display property swallows the
 text under it: a terminal would show a blank row where a figure belongs."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (pycell-test--with-image-file file
                                 (let* ((default-directory (file-name-directory file))
-                                       (shown (pycell--md-rendered "![a figure](figure.png)")))
+                                       (shown (overblock-md-rendered "![a figure](figure.png)")))
                                   ;; batch draws nothing, so the label stands on its own
                                   (should-not (display-images-p))
                                   (should-not (overblock-image-in shown))
                                   (should (string-match-p "a figure" (substring-no-properties shown))))
                                 ;; and with no alt text, the file names itself
                                 (let* ((default-directory (file-name-directory file))
-                                       (shown (pycell--md-rendered "![](figure.png)")))
+                                       (shown (overblock-md-rendered "![](figure.png)")))
                                   (should (string-match-p "\\[figure.png\\]"
                                                           (substring-no-properties shown))))))
 
@@ -221,12 +221,12 @@ text under it: a terminal would show a blank row where a figure belongs."
   "A markdown cell draws the image it names, rather than shr's placeholder.
 shr fetches an image through `url-queue-retrieve\=', which answers after
 the rendering is over; a file on disk is drawn here and now."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
                                 (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
                                            (default-directory (file-name-directory file))
-                                           (shown (pycell--md-rendered "![a figure](figure.png)"))
+                                           (shown (overblock-md-rendered "![a figure](figure.png)"))
                                            (spec (overblock-image-in shown)))
                                   (should spec)
                                   (should (equal (plist-get (cdr spec) :file) file))
@@ -236,12 +236,12 @@ the rendering is over; a file on disk is drawn here and now."
 (ert-deftest pycell-test-md-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
 `overblock-fill-props\=' leaves the properties shr gave the link alone."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
                                 (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
                                            (default-directory (file-name-directory file))
-                                           (shown (pycell--md-rendered
+                                           (shown (overblock-md-rendered
                                                    "[![a figure](figure.png)](https://example.org)"))
                                            (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
                                   (should pos)
@@ -252,8 +252,8 @@ the rendering is over; a file on disk is drawn here and now."
 
 (ert-deftest pycell-test-md-a-remote-image-stays-with-shr ()
   "An image on the network is shr's business, and it says so with a box."
-  (skip-unless (pycell--md-program))
-  (let* ((shown (pycell--md-rendered "![a figure](https://example.org/f.png)"))
+  (skip-unless (overblock-md-program))
+  (let* ((shown (overblock-md-rendered "![a figure](https://example.org/f.png)"))
          (spec (overblock-image-in shown)))
     ;; shr leaves a placeholder of its own making, and it is not a file
     (should (or (null spec) (null (plist-get (cdr spec) :file))))))
@@ -527,7 +527,7 @@ one character short on its own."
 
 (ert-deftest pycell-test-fold-md-round-trip ()
   "An outline fold takes a markdown block along, and gives it back."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
     (python-mode)
@@ -551,7 +551,7 @@ one character short on its own."
   "A rendered markdown cell stays as many lines as its source.
 One display string for the whole cell would collapse it to one line,
 and every scroll event would then lay the whole thing out again."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
     (python-mode)
@@ -596,7 +596,7 @@ many as it needs, so the two rarely match either way."
 `scroll-down' answers a run that begins a line with a
 beginning-of-buffer error, and a piece with nothing to show would
 leave a line of no height, which stops scrolling up the same way."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# ## A\n#\n#\n#\n# Text here.\n#\n#\n\n# %%\ny = 2\n")
     (python-mode)
@@ -642,21 +642,21 @@ leave a line of no height, which stops scrolling up the same way."
 Only where there is a parser to read the converter's HTML with: see
 `pycell-test-md-program-needs-libxml' for the other direction."
   (skip-unless (fboundp 'libxml-parse-html-region))
-  (let ((pycell-markdown-command "definitely-not-installed-xyz"))
-    (should-not (pycell--md-program)))
-  (let ((pycell-markdown-command (list "definitely-not-installed-xyz"
-                                       (concat (car (split-string-shell-command
-                                                     "emacs"))
-                                               " --version"))))
-    (should (equal (car (pycell--md-program)) "emacs"))))
+  (let ((overblock-md-command "definitely-not-installed-xyz"))
+    (should-not (overblock-md-program)))
+  (let ((overblock-md-command (list "definitely-not-installed-xyz"
+                                    (concat (car (split-string-shell-command
+                                                  "emacs"))
+                                            " --version"))))
+    (should (equal (car (overblock-md-program)) "emacs"))))
 
 (ert-deftest pycell-test-md-rendered-gives-text-not-markup ()
   "Markdown becomes text, when a converter is installed.
 Pixel filling needs font metrics, which a batch session has none of."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let* ((shr-use-fonts nil)
          (shr-width 60)
-         (out (pycell--md-rendered "# Title\n\nSome *text* here.\n")))
+         (out (overblock-md-rendered "# Title\n\nSome *text* here.\n")))
     (should (string-match-p "Title" out))
     (should (string-match-p "Some text here" out))))
 
@@ -802,7 +802,7 @@ None keeps the result object out of the block."
   "Committing an edit that changed nothing leaves the file alone.
 A cell reaches to the next boundary line, so the blank line jupytext
 writes between cells belongs to it and has to be written back."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let ((text "# %% [markdown]\n# ## Heading\n#\n# The prose.\n\n# %%\nx = 1\n")
         (notebook (generate-new-buffer "*pycell test notebook*"))
         edit)
@@ -867,7 +867,7 @@ void function there, on every markdown cell, instead of saying so and
 leaving the cells as text."
   (cl-letf (((symbol-function 'libxml-parse-html-region) nil))
     (should-not (fboundp 'libxml-parse-html-region))
-    (should-not (pycell--md-program))
+    (should-not (overblock-md-program))
     ;; and rendering says so instead of failing
     (with-temp-buffer
       (insert "# %% [markdown]\n# ## Heading\n#\n# Prose.\n\n# %%\nx = 1\n")
@@ -890,7 +890,7 @@ covers those lines but stops one character short of the last newline,
 so the last piece has to be hidden along.  A cell at the end of a
 buffer that ends without a newline is the case that used to keep its
 figure on screen below the fold."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (dolist (trailing '("\n" ""))
     (with-temp-buffer
       (insert "# %% [markdown]\n# ## Prose\n#\n# Words.\n\n"
@@ -959,7 +959,7 @@ and cannot be scrolled past at all."
         (with-current-buffer buffer
           (set-window-buffer (selected-window) buffer)
           (let ((line (concat "x" pycell-test--image)))
-            (let* ((pycell-max-image-height 0.5)
+            (let* ((overblock-image-height 0.5)
                    (fitted (pycell--fit line)))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
@@ -967,7 +967,7 @@ and cannot be scrolled past at all."
               ;; the line kept for the popup is not touched
               (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
             ;; zero draws it at its own size
-            (let* ((pycell-max-image-height 0)
+            (let* ((overblock-image-height 0)
                    (fitted (pycell--fit line)))
               (should-not (plist-get (cdr (overblock-image-in fitted))
                                      :max-height)))))
@@ -984,7 +984,7 @@ size, which is the block the wheel cannot get past."
         (progn
           (set-window-buffer (selected-window) elsewhere)
           (with-current-buffer notebook
-            (let* ((pycell-max-image-height 0.5)
+            (let* ((overblock-image-height 0.5)
                    (line (concat "x" pycell-test--image))
                    (fitted (pycell--fit line)))
               (should-not (get-buffer-window notebook t))
@@ -998,7 +998,7 @@ size, which is the block the wheel cannot get past."
   "Committing an empty cell writes nothing where there was nothing.
 An empty text has no line to comment, and `pycell--md-comment' turns
 it into a bare #, so a commit that changed nothing changed the file."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let ((text "# %% [markdown]\n\n# %%\nx = 1\n")
         (notebook (generate-new-buffer "*pycell test notebook*"))
         edit)
@@ -1034,7 +1034,7 @@ it into a bare #, so a commit that changed nothing changed the file."
   "Opening a second cell\='s edit leaves the first one\='s text alone.
 One edit buffer for the whole file wrote the cell opened second over
 the cell opened first, and unsaved writing went with it."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let ((notebook (generate-new-buffer "*pycell test notebook*"))
         first second)
     (unwind-protect
@@ -1143,8 +1143,8 @@ complete."
 
 (ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()
   "The cells come back from one converter call, one piece each."
-  (skip-unless (pycell--md-program))
-  (let ((htmls (pycell--md-html-batch '("# One\n\nfirst" "second" "*third*"))))
+  (skip-unless (overblock-md-program))
+  (let ((htmls (overblock-md-html-batch '("# One\n\nfirst" "second" "*third*"))))
     (should (= (length htmls) 3))
     (should (string-match-p "first" (nth 0 htmls)))
     (should (string-match-p "second" (nth 1 htmls)))
@@ -1152,28 +1152,28 @@ complete."
     ;; nothing of one cell leaks into the next
     (should-not (string-match-p "second" (nth 0 htmls))))
   ;; a cell that holds the marker sends everyone the ordinary way
-  (should-not (pycell--md-html-batch (list "text" pycell--md-marker))))
+  (should-not (overblock-md-html-batch (list "text" overblock-md--marker))))
 
 (ert-deftest pycell-test-md-htmls-gives-up-when-the-marker-changes ()
   "A converter that reshapes the marker sends every cell its own way.
 The batch is only safe while the pieces come back one to a cell, and
 nothing but their number says whether they did."
   ;; one piece for each cell, and the pieces are the cells
-  (cl-letf (((symbol-function 'pycell--md-html)
+  (cl-letf (((symbol-function 'overblock-md-html)
              (lambda (md) (replace-regexp-in-string
                            "\\([^\n]+\\)" "<p>\\1</p>" md))))
-    (let ((pieces (pycell--md-html-batch '("one" "two"))))
+    (let ((pieces (overblock-md-html-batch '("one" "two"))))
       (should (= (length pieces) 2))
       (should (string-match-p "one" (nth 0 pieces)))
       (should (string-match-p "two" (nth 1 pieces)))))
   ;; and nothing at all when the marker does not come back
-  (cl-letf (((symbol-function 'pycell--md-html)
+  (cl-letf (((symbol-function 'overblock-md-html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
-    (should-not (pycell--md-html-batch '("one" "two")))))
+    (should-not (overblock-md-html-batch '("one" "two")))))
 
 (ert-deftest pycell-test-md-render-all-matches-one-by-one ()
   "Converting the buffer at once renders what one call per cell does."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let ((buffer (generate-new-buffer "*pycell test notebook*"))
         (displays (lambda ()
                     (mapcar (lambda (ov)
@@ -1194,7 +1194,7 @@ nothing but their number says whether they did."
             (should (= (length batched) 3))
             (pycell-md-unrender)
             ;; the same buffer with the batch turned down
-            (cl-letf (((symbol-function 'pycell--md-html-batch) (lambda (_texts) nil)))
+            (cl-letf (((symbol-function 'overblock-md-html-batch) (lambda (_texts) nil)))
               (pycell-md-render-all))
             (should (equal batched (funcall displays)))))
       (kill-buffer buffer))))
@@ -1231,10 +1231,10 @@ scrolling, and a terminal cannot even show it — so where
 `display-images-p\=' says no, the fragments stay text, untouched."
   (cl-letf (((symbol-function 'display-images-p) #'ignore)
             ;; A LaTeX that would succeed, to prove it is never asked.
-            ((symbol-function 'pycell--md-latex-image)
+            ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) (error "the terminal asked for an image"))))
     (let ((text "before $x^2$ after"))
-      (should (equal (pycell--md-mathify text) text)))))
+      (should (equal (overblock-md--mathify text) text)))))
 
 (ert-deftest pycell-test-md-verbatim-math-keeps-lines ()
   "Display math keeps its line structure, whatever the display draws.
@@ -1246,17 +1246,17 @@ fragment LaTeX cannot compile stays text anywhere."
     (dolist (images (list #'ignore (lambda (&rest _) t)))
       (cl-letf (((symbol-function 'display-images-p) images))
         (should (string-search "<pre>$$\na &= b"
-                               (pycell--md-verbatim-math md)))))))
+                               (overblock-md--verbatim-math md)))))))
 
 (ert-deftest pycell-test-md-a-wrapped-block-still-gets-its-preview ()
   "A block that keeps its lines is still replaced by one preview.
 The fragment is matched across its lines, so the wrapping in <pre>
 costs the preview nothing."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-            ((symbol-function 'pycell--md-latex-image)
+            ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) '(image :type png :data "x"))))
-    (let ((rendered (pycell--md-rendered "prose\n\n$$\na = b\n$$\n")))
+    (let ((rendered (overblock-md-rendered "prose\n\n$$\na = b\n$$\n")))
       (should (string-match-p "a = b" (substring-no-properties rendered)))
       ;; one image over the whole block, and the prose untouched
       (should (eq (car-safe (get-text-property
@@ -1269,8 +1269,8 @@ costs the preview nothing."
 shr\='s `:align-to\=' counts from the line\='s visual start, and a cell is
 shown indented, so only literal columns survive.  The second row\='s
 cells must start where the header\='s do."
-  (skip-unless (pycell--md-program))
-  (let* ((rendered (pycell--md-rendered
+  (skip-unless (overblock-md-program))
+  (let* ((rendered (overblock-md-rendered
                     "| node | form |\n|------|------|\n| X1 | h1 |\n"))
          (lines (split-string (substring-no-properties rendered) "\n"))
          (header (seq-find (lambda (l) (string-search "node" l)) lines))
@@ -1329,29 +1329,29 @@ like any other."
 shr has no function for a =th=, and it draws code in a fixed pitch
 face, which says nothing where the rendering runs with
 `shr-use-fonts\=' nil."
-  (skip-unless (pycell--md-program))
-  (let* ((rendered (pycell--md-rendered
+  (skip-unless (overblock-md-program))
+  (let* ((rendered (overblock-md-rendered
                     "| head | x |\n|------|---|\n| `code_here` | y |\n"))
          (faces (lambda (word)
                   (let ((at (string-search word rendered)))
                     (and at (get-text-property at 'face rendered))))))
     (should (memq 'bold (ensure-list (funcall faces "head"))))
-    (should (memq 'pycell-md-code (ensure-list (funcall faces "code_here"))))))
+    (should (memq 'overblock-md-code (ensure-list (funcall faces "code_here"))))))
 
 (ert-deftest pycell-test-md-math-in-a-table-stays-text ()
   "A formula in a table cell keeps its text, so the columns hold.
 A preview image is never as wide as the text it replaces, and a table
 is padded for the text.  Outside a table the same formula becomes an
 image."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-            ((symbol-function 'pycell--md-latex-image)
+            ((symbol-function 'overblock-md--latex-image)
              (lambda (_frag) '(image :type png :data "x"))))
     ;; A formula the converter cannot render itself is the one that
     ;; reaches this package: pandoc renders simple math as text.
-    (let ((in-table (pycell--md-rendered
+    (let ((in-table (overblock-md-rendered
                      "| a | b |\n|---|---|\n| $\\frac{a}{b}$ | y |\n"))
-          (outside (pycell--md-rendered
+          (outside (overblock-md-rendered
                     "The formula $\\frac{a}{b}$ stands alone.\n")))
       (should-not (overblock-image-in in-table))
       (should (overblock-image-in outside)))))
@@ -1363,14 +1363,14 @@ a stretch; shr says where it ends.  A list counts pixels, a bare
 number characters."
   (cl-letf (((symbol-function 'frame-char-width) (lambda (&rest _) 8)))
     ;; a width in pixels, and one that is not a whole character
-    (should (= (pycell--space-columns '(space :width (16)) 0) 2))
-    (should (= (pycell--space-columns '(space :width (5.5)) 0) 1))
+    (should (= (overblock-md--space-columns '(space :width (16)) 0) 2))
+    (should (= (overblock-md--space-columns '(space :width (5.5)) 0) 1))
     ;; a width in characters
-    (should (= (pycell--space-columns '(space :width 3) 0) 3))
+    (should (= (overblock-md--space-columns '(space :width 3) 0) 3))
     ;; a target counts from where the line starts
-    (should (= (pycell--space-columns '(space :align-to (104)) 3) 10))
+    (should (= (overblock-md--space-columns '(space :align-to (104)) 3) 10))
     ;; nothing to say about a stretch of another kind
-    (should-not (pycell--space-columns '(space :relative-width 2) 0))))
+    (should-not (overblock-md--space-columns '(space :relative-width 2) 0))))
 
 (ert-deftest pycell-test-clean-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
@@ -1456,7 +1456,7 @@ the block of one cell would end up under the other."
 (ert-deftest pycell-test-move-cell-keeps-a-rendered-markdown-cell ()
   "A rendered markdown cell moves whole, marker and rendering.
 Its pieces hang on its source lines, and the lines move under them."
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %%\nx = 1\n\n# %% [markdown]\n# ## Prose\n#\n# Words here.\n")
     (python-mode)

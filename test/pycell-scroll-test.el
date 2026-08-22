@@ -146,7 +146,7 @@ a short one after them, which is where redisplay changes lines."
   (skip-unless (display-graphic-p))
   ;; Without a converter the cells stay plain source and the test
   ;; would pass without a single block in the buffer.
-  (skip-unless (pycell--md-program))
+  (skip-unless (overblock-md-program))
   (let ((buffer (generate-new-buffer "*pycell scroll*")))
     (unwind-protect
         (progn

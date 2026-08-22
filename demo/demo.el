@@ -8,7 +8,7 @@
       ring-bell-function #'ignore
       python-shell-interpreter "ipython"
       python-shell-interpreter-args "-i --simple-prompt --no-color-info"
-      pycell-markdown-command "pandoc -f gfm -t html"
+      overblock-md-command "pandoc -f gfm -t html"
       pycell-max-lines 14)
 (menu-bar-mode -1) (tool-bar-mode -1) (scroll-bar-mode -1)
 ;; The look of the recording: Source Code Pro where it is installed,
