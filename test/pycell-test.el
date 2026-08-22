@@ -443,6 +443,25 @@ full of those; only a real image belongs in the after-string."
                     (list "x" (propertize "2" 'display '(raise 0.2)) "y"))
                    (list "x" (propertize "2" 'display '(raise 0.2)) "y")))))
 
+(ert-deftest pycell-test-a-finished-result-keeps-its-count ()
+  "A result counts its lines once and keeps the number.
+A finished cell arrives without one, and a fold would otherwise scan the
+whole output again on every keypress: measured, four folds of a result of
+ten thousand lines cost 12.9 milliseconds against 0.6."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "one\ntwo\nthree" 0.1)
+      (let ((block (car (pycell-block-in (point-min) (point-max) 'result))))
+        ;; the count is in the record, where the header reads it
+        (should (= (nth 4 (pycell-block-get block :data)) 3))
+        (should (string-match-p "3 lines"
+                                (overlay-get block 'after-string)))
+        ;; and a fold keeps it
+        (pycell-toggle-output)
+        (should (= (nth 4 (pycell-block-get block :data)) 3))
+        (should (string-match-p "3 lines"
+                                (overlay-get block 'after-string)))))))
+
 (ert-deftest pycell-test-show-keeps-fold-state ()
   "Replacing a result keeps whether it was folded."
   (pycell-test--with-cells
@@ -641,11 +660,11 @@ Pixel filling needs font metrics, which a batch session has none of."
     (should (string-match-p "Title" out))
     (should (string-match-p "Some text here" out))))
 
-(ert-deftest pycell-test-md-fill-prop ()
+(ert-deftest pycell-test-md-fill-props-leaves-what-is-there ()
   "Properties are filled in only where the string carries none.
 The rendered markdown keeps the keymap that shr gave its links."
   (let ((s (concat "plain" (propertize "link" 'keymap 'shr-map))))
-    (pycell--fill-prop s 'keymap 'pycell-md-map)
+    (pycell--fill-props s 'keymap 'pycell-md-map)
     (should (eq (get-text-property 0 'keymap s) 'pycell-md-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
@@ -1061,7 +1080,9 @@ a result of no characters at all, which is why the bound asks first."
     (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
     (insert "In [1]: ")
     (let* ((from (copy-marker (point)))
-           (budget (* (+ pycell-max-lines 4) (1+ pycell-max-line-length))))
+           ;; what the body can show: the lines it keeps, each cut to
+           ;; the length it cuts them to
+           (budget (* pycell-max-lines (1+ pycell-max-line-length))))
       (setq-local pycell--run (list from (point-min-marker) (point-max-marker)
                                     "" (float-time) nil nil nil))
       ;; one line, longer than the budget: the head stops at it
