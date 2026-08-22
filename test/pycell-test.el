@@ -119,8 +119,8 @@ would hide the rest of the output and buy no height back."
 (ert-deftest pycell-test-glyph-falls-back-to-the-last-candidate ()
   "A candidate without a glyph is skipped, and the last one always answers."
   ;; A batch session has no graphical frame, so the fallback decides.
-  (should (equal (pycell--glyph "⤓" "↧" "↓") "↓"))
-  (should (equal (pycell--glyph "x") "x")))
+  (should (equal (overblock-glyph "⤓" "↧" "↓") "↓"))
+  (should (equal (overblock-glyph "x") "x")))
 
 (ert-deftest pycell-test-glyph-weighs-every-character ()
   "A leading space must not answer for the glyph behind it.
@@ -130,12 +130,12 @@ asking the first character alone accepted every candidate."
             ;; a frame with the space and two of the three arrows
             ((symbol-function 'internal-char-font)
              (lambda (_frame ch) (memq ch '(?\s ?▶ ?>)))))
-    (should (equal (pycell--glyph " ▸" " ▶" " >") " ▶"))
-    (should (equal (pycell--glyph " ▸" " ▴" " >") " >"))))
+    (should (equal (overblock-glyph " ▸" " ▶" " >") " ▶"))
+    (should (equal (overblock-glyph " ▸" " ▴" " >") " >"))))
 
 (ert-deftest pycell-test-faced-gives-a-string-a-base-face ()
   "A block string carries a base face, so it inherits none."
-  (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
+  (let ((s (overblock-faced (copy-sequence "text") 'pycell-output)))
     (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
 
 (defconst pycell-test--png
@@ -235,7 +235,7 @@ the rendering is over; a file on disk is drawn here and now."
 
 (ert-deftest pycell-test-md-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
-`pycell--fill-props\=' leaves the properties shr gave the link alone."
+`overblock-fill-props\=' leaves the properties shr gave the link alone."
   (skip-unless (pycell--md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
@@ -664,7 +664,7 @@ Pixel filling needs font metrics, which a batch session has none of."
   "Properties are filled in only where the string carries none.
 The rendered markdown keeps the keymap that shr gave its links."
   (let ((s (concat "plain" (propertize "link" 'keymap 'shr-map))))
-    (pycell--fill-props s 'keymap 'pycell-md-map)
+    (overblock-fill-props s 'keymap 'pycell-md-map)
     (should (eq (get-text-property 0 'keymap s) 'pycell-md-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
@@ -846,7 +846,7 @@ were a fifth of a second a wheel event."
         (pycell-max-line-length 10))
     (should (equal (pycell--body-lines (list "short" (make-string 30 ?x)))
                    (list "short" (concat (make-string 10 ?x)
-                                         (pycell--glyph "…" "...")))))
+                                         (overblock-glyph "…" "...")))))
     ;; a line with an image on it keeps every character: the image may
     ;; sit past the cut.  Only where the display can draw one — in a
     ;; terminal it is a space like any other and the line is cut.
@@ -1287,7 +1287,7 @@ cells must start where the header\='s do."
 A bar that runs into the last column makes the line a continuation,
 and the final icon wraps onto a line of its own."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
-    (let* ((bar (pycell--bar "label" "^  x "))
+    (let* ((bar (overblock-bar "label" "^  x " 'pycell-header))
            (spec (get-text-property
                   (next-single-property-change 0 'display bar)
                   'display bar)))
@@ -1398,20 +1398,20 @@ A descriptor whose WHEN is `image\=' or `lines\=' waits for those."
                        (two ("2") "second" ignore lines)
                        (three ("3") "third" ignore image))))
     (should (equal (substring-no-properties
-                    (pycell--buttons descriptors nil 0))
+                    (overblock-buttons descriptors nil 0))
                    "1 "))
     (should (equal (substring-no-properties
-                    (pycell--buttons descriptors nil 3))
+                    (overblock-buttons descriptors nil 3))
                    "1  2 "))
     (should (equal (substring-no-properties
-                    (pycell--buttons descriptors t 3))
+                    (overblock-buttons descriptors t 3))
                    "1  2  3 "))
     ;; the order is the order of the list
     (should (equal (substring-no-properties
-                    (pycell--buttons (reverse descriptors) t 3))
+                    (overblock-buttons (reverse descriptors) t 3))
                    "3  2  1 "))
     ;; and a button carries its command and its tooltip
-    (let ((row (pycell--buttons descriptors nil 0)))
+    (let ((row (overblock-buttons descriptors nil 0)))
       (should (equal (get-text-property 0 'help-echo row) "first")))))
 
 (ert-deftest pycell-test-move-cell-carries-its-result ()

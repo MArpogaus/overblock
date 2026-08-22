@@ -13,7 +13,7 @@
 (menu-bar-mode -1) (tool-bar-mode -1) (scroll-bar-mode -1)
 ;; The look of the recording: Source Code Pro where it is installed,
 ;; and a plain monospace elsewhere.  Not a nerd font — the bars then
-;; draw the plain glyphs `pycell--glyph' falls back to, which is what
+;; draw the plain glyphs `overblock-glyph' falls back to, which is what
 ;; the picture has always shown.
 (set-frame-font (seq-find (lambda (font) (find-font (font-spec :name font)))
                           '("Source Code Pro 13" "DejaVu Sans Mono 13"
