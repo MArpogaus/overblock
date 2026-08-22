@@ -54,7 +54,7 @@ render in place, and this includes the LaTeX fragments.
   because comint-mime installs its renderers through IPython.
 - A converter from Markdown to HTML for the markdown cells.  pycell
   looks for =markdown=, =pandoc=, =markdown_py=, =cmark= and
-  =cmark-gfm=, in this order.  See =pycell-markdown-command=.
+  =cmark-gfm=, in this order.  See =overblock-md-command=.
 - An Emacs with libxml2, because shr reads the HTML of the converter
   with it.  Without a converter or without libxml2 the markdown cells
   stay plain text.  The mode then reports which part is missing.
@@ -92,7 +92,7 @@ how Emacs behaves.
     ;; A block is one buffer line.  A long result therefore makes a
     ;; long jump.  Keep the inline part short.
     (pycell-max-lines 12)
-    (pycell-markdown-command "pandoc -f gfm -t html"))
+    (overblock-md-command "pandoc -f gfm -t html"))
 
   ;; IPython gives rich output, if the project has one.
   (use-package python
@@ -195,10 +195,10 @@ lines that renders as one line.  The spare lines then go under a
 cloak.
 
 A =$...$= or =$$...$$= fragment becomes a preview image.  The images
-live in =~/.cache/pycell-math=.
+live in =~/.cache/overblock-math=.
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
-at an absolute path, capped by =pycell-max-image-height= like a result's
+at an absolute path, capped by =overblock-image-height= like a result's
 figure.  A terminal draws no image and shows the alt text instead.  A
 link keeps its click: =RET= and =mouse-2= on a link, an image with a
 link around it included, follow the URL.
@@ -241,14 +241,14 @@ example in =code-cells-mode-map=.
 |---------------------------+--------------------------------------------------|
 | =pycell-max-lines=        | the result lines that show inline                |
 | =pycell-max-line-length=  | the characters of a result line that show inline |
-| =pycell-max-image-height= | the share of the window for an inline image      |
+| =overblock-image-height=  | the share of the window for an inline image      |
 | =overblock-fringe=        | whether a block draws a bracket in the fringe    |
-| =pycell-markdown-command= | the shell command from Markdown to HTML          |
+| =overblock-md-command=    | the shell command from Markdown to HTML          |
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
-| =pycell-md-code=          | the face of inline code in a markdown cell       |
+| =overblock-md-code=       | the face of inline code in a markdown cell       |
 | =overblock-fringe-face=   | the face of the bracket in the fringe            |
 
 Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
@@ -280,7 +280,7 @@ click, so read =last-input-event= as the commands of this package do.
 - A result block with an image is harder to scroll through than a
   block of text.  The wheel does not cross it in a symmetric way, and
   =scroll-up-line= does not cross it at all.
-  =pycell-max-image-height= keeps such a block small enough for the
+  =overblock-image-height= keeps such a block small enough for the
   wheel.  Use =pycell-pop-output= for the full figure.
 - One cell runs at a time for each inferior process.  pycell refuses
   a cell while another cell runs.
@@ -311,6 +311,15 @@ cell markers in the style of jupytext, and these files stay easy to
 diff.
 
 ** How It Works
+
+The package is four files.  =pycell.el= is the part that knows about
+Python — the cells, the process, the commands — and the other three know
+nothing of it: =overblock.el= puts a block of text over a region of a
+buffer with a header, a footer and a bracket in the fringe,
+=overblock-md.el= turns markdown into a string such a block can show,
+and =overblock-repl.el= cuts the output of a shell loose from that
+shell.  Those three are meant for a package of their own, and a second
+caller of them is already in the test suite.
 
 [[file:docs/implementation.org][docs/implementation.org]] describes the implementation: how a result
 comes into the buffer, how the live mirror works, how a markdown cell
