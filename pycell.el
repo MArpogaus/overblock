@@ -116,18 +116,6 @@ simple formulas into text on its own and passes the rest through, and
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command"))))
 
-(defconst pycell--button-type
-  '(repeat
-    (list (symbol :tag "Key")
-          (repeat :tag "Glyph candidates" string)
-          (string :tag "Tooltip")
-          (function :tag "Command")
-          (choice :tag "Shows"
-                  (const :tag "Always" t)
-                  (const :tag "With an image" image)
-                  (const :tag "With output" lines))))
-  "The customize type of a list of header buttons.")
-
 (defcustom pycell-result-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
@@ -152,7 +140,7 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 Drop an entry you never press, reorder them, or give one a glyph your
 font draws better.  The fold arrow and the spinner are not buttons of
 this list: they say what the result is doing."
-  :type pycell--button-type)
+  :type overblock-button-type)
 
 (defcustom pycell-markdown-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
@@ -163,7 +151,7 @@ this list: they say what the result is doing."
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
-  :type pycell--button-type)
+  :type overblock-button-type)
 
 (defcustom pycell-max-lines 12
   "Number of result lines that show inline.
@@ -224,98 +212,6 @@ markdown cells go; the text of the buffer is not touched."
   (interactive)
   (overblock-clear beg end kind))
 
-
-(defun pycell--faced (string face)
-  "Add FACE below the faces STRING already carries.  Return STRING.
-STRING is modified in place.
-An overlay string without a face inherits one from the buffer text
-next to it, so every block needs at least a base face."
-  (add-face-text-property 0 (length string) face t string)
-  string)
-
-(defun pycell--fill-props (string &rest properties)
-  "Set the PROPERTIES that STRING does not carry yet.
-PROPERTIES is a plist, and STRING is modified in place and returned.
-shr gives a link its own keymap and help echo; a plain `propertize'
-would clobber both, and the link would then run this block's commands
-instead of following the URL.
-
-One walk for every property rather than one each: measured, a walk over
-a rendered cell of three hundred lines costs 3.4 milliseconds."
-  (let ((len (length string)))
-    (while properties
-      (let ((prop (pop properties))
-            (value (pop properties))
-            (pos 0))
-        (while (< pos len)
-          (let ((next (or (next-single-property-change pos prop string) len)))
-            (unless (get-text-property pos prop string)
-              (put-text-property pos next prop value string))
-            (setq pos next))))))
-  string)
-
-(defun pycell--glyph (&rest candidates)
-  "Return the first of CANDIDATES this frame has a glyph for.
-The last candidate is the answer when none of them has one.
-`char-displayable-p' answers for the character set and not for the
-font, so it says yes to characters that then draw as a hex box.
-
-Every character of a candidate has to be there, not just the first:
-several of them lead with a space, and a space is always available."
-  (or (and (display-graphic-p)
-           (seq-find (lambda (c)
-                       (seq-every-p (lambda (ch) (internal-char-font nil ch))
-                                    c))
-                     candidates))
-      (car (last candidates))))
-
-(defun pycell--button (label help command)
-  "Return LABEL as a button.
-A left click calls COMMAND, and HELP becomes the tooltip."
-  (propertize label 'mouse-face 'highlight 'help-echo help
-              'keymap (let ((map (make-sparse-keymap)))
-                        (define-key map [mouse-1] command)
-                        map)))
-
-(defun pycell--buttons (descriptors &optional imagep lines)
-  "Return the icon group that DESCRIPTORS ask for.
-Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), as in
-`pycell-result-buttons'.  IMAGEP says the result holds an image and
-LINES how many lines it has; a descriptor whose WHEN is `image' or
-`lines' waits for those."
-  (concat
-   (string-join
-    (delq nil
-          (mapcar
-           (lambda (descriptor)
-             (pcase-let ((`(,_key ,glyphs ,help ,command ,when) descriptor))
-               (when (pcase when
-                       ('image imagep)
-                       ('lines (> (or lines 0) 0))
-                       (_ t))
-                 (pycell--button (apply #'pycell--glyph glyphs) help command))))
-           descriptors))
-    "  ")
-   " "))
-
-(defun pycell--bar (left icons)
-  "Return a header line: LEFT text, ICONS at the right window edge.
-The alignment is pixel-exact: icon glyphs render wider than
-`string-width' counts, and (N) in the display spec means N pixels.
-A terminal gets one column of slack: a bar that runs into the last
-column makes the line a continuation there, and the final icon wraps
-onto a line of its own — measured at exactly one column, margins or
-not."
-  (pycell--faced
-   (concat left
-           (propertize " " 'display
-                       `(space :align-to
-                               (- right (,(+ (string-pixel-width
-                                              (propertize icons 'face
-                                                          'pycell-header))
-                                             (if (display-graphic-p) 0 1))))))
-           icons)
-   'pycell-header))
 
 ;;;; Result blocks
 
@@ -504,7 +400,7 @@ left whole costs the scroller."
           (<= (length line) pycell-max-line-length))
       line
     (concat (substring line 0 pycell-max-line-length)
-            (pycell--glyph "…" "..."))))
+            (overblock-glyph "…" "..."))))
 
 (defun pycell--image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
@@ -597,22 +493,22 @@ TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
 time in seconds since the cell started.  STATE is `running\=' while the
 cell runs, `died\=' where the interpreter went away before the cell
 ended, and nil where the cell finished.  IMAGEP marks a result with an image."
-  (let* ((icons (pycell--buttons pycell-result-buttons imagep total))
+  (let* ((icons (overblock-buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (mark (cond ((eq state 'running)
-                      (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
+                      (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
                         (string ?\s (aref frames (mod (truncate runtime 0.2)
                                                       (length frames))))))
-                     ((eq state 'died) (pycell--glyph " 󰀪" " ⚠" " !"))
+                     ((eq state 'died) (overblock-glyph " 󰀪" " ⚠" " !"))
                      ;; A single line can still be tall: one image is
                      ;; one line, and that is the block worth folding.
                      ((> total 0)
-                      (pycell--button (if folded
-                                          (pycell--glyph " 󰍟" " ▸" " >")
-                                        (pycell--glyph " 󰍝" " ▾" " v"))
-                                      "Fold or unfold this result"
-                                      #'pycell-toggle-output))
-                     ((zerop total) (pycell--glyph " 󰄬" " ✓" " ."))
+                      (overblock-button (if folded
+                                            (overblock-glyph " 󰍟" " ▸" " >")
+                                          (overblock-glyph " 󰍝" " ▾" " v"))
+                                        "Fold or unfold this result"
+                                        #'pycell-toggle-output))
+                     ((zerop total) (overblock-glyph " 󰄬" " ✓" " ."))
                      (t " ")))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
@@ -620,9 +516,9 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                                    (format ", showing %d" shown) "")))
                       ((not state) "no output")))
          (time (format "%.1fs" runtime)))
-    (pycell--bar
+    (overblock-bar
      (concat mark " " (string-join (delq nil (list label time)) " · "))
-     icons)))
+     icons 'pycell-header)))
 
 (defun pycell--update (block)
   "Make the header and the body of the result BLOCK again, and show them.
@@ -648,8 +544,8 @@ are and how many of them show, and the body is those that show."
                                      (and lines (overblock-image-in text))))
       (overblock-set block :body
                      (when (and shown (not folded))
-                       (pycell--faced (string-join shown "\n")
-                                      'pycell-output)))
+                       (overblock-faced (string-join shown "\n")
+                                        'pycell-output)))
       (overblock-refresh block))))
 
 (defun pycell--tab-filter (cmd)
@@ -1265,8 +1161,8 @@ Only the word =markdown= of the boundary line carries the header, so
 `outline-minor-mode' still finds a heading line where it expects one."
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
-         (text (pycell--fill-props
-                (pycell--faced
+         (text (overblock-fill-props
+                (overblock-faced
                  (pycell--md-rendered
                   (pycell--md-uncomment
                    (buffer-substring-no-properties beg end))
@@ -1308,8 +1204,9 @@ Only the word =markdown= of the boundary line carries the header, so
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
     (overlay-put hov 'before-string
-                 (pycell--bar "markdown"
-                              (pycell--buttons pycell-markdown-buttons)))
+                 (overblock-bar "markdown"
+                                (overblock-buttons pycell-markdown-buttons)
+                                'pycell-header))
     ;; An edit of the source takes the rendering with it, the bar
     ;; included.  The block itself evaporates with the text it covers,
     ;; and the bar sits on the boundary line above, where no edit of the
