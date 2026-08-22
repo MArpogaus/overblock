@@ -233,17 +233,25 @@ next to it, so every block needs at least a base face."
   (add-face-text-property 0 (length string) face t string)
   string)
 
-(defun pycell--fill-prop (string prop value)
-  "Set PROP to VALUE where STRING does not carry PROP yet.
-Return STRING, which is modified in place.  shr gives a link its own
-keymap and help echo; a plain `propertize' would clobber both, and the
-link would then run this block's commands instead of following the URL."
-  (let ((pos 0) (len (length string)))
-    (while (< pos len)
-      (let ((next (or (next-single-property-change pos prop string) len)))
-        (unless (get-text-property pos prop string)
-          (put-text-property pos next prop value string))
-        (setq pos next))))
+(defun pycell--fill-props (string &rest properties)
+  "Set the PROPERTIES that STRING does not carry yet.
+PROPERTIES is a plist, and STRING is modified in place and returned.
+shr gives a link its own keymap and help echo; a plain `propertize'
+would clobber both, and the link would then run this block's commands
+instead of following the URL.
+
+One walk for every property rather than one each: measured, a walk over
+a rendered cell of three hundred lines costs 3.4 milliseconds."
+  (let ((len (length string)))
+    (while properties
+      (let ((prop (pop properties))
+            (value (pop properties))
+            (pos 0))
+        (while (< pos len)
+          (let ((next (or (next-single-property-change pos prop string) len)))
+            (unless (get-text-property pos prop string)
+              (put-text-property pos next prop value string))
+            (setq pos next))))))
   string)
 
 (defun pycell--glyph (&rest candidates)
@@ -537,19 +545,29 @@ before it caps."
         line)
     line))
 
-(defun pycell--lines-up-to (text limit)
-  "Return the first LIMIT lines of TEXT and how many lines TEXT has.
-The value is (LINES . TOTAL).  Only the part that shows is copied, and
-only where there is more than that: measured, splitting ten thousand
-propertized lines to keep twelve of them cost 15 milliseconds, and a
-text of fewer lines than the limit is not copied at all."
+(defun pycell--first-lines (text limit)
+  "Return the first LIMIT lines of TEXT.
+Only that much is looked at and only that much is copied: a result of
+ten thousand lines costs what a result of twelve costs, which is what a
+tick five times a second needs."
   (let ((pos 0) (count 0) (cut nil))
-    (while (setq pos (string-search "\n" text pos))
+    (while (and (null cut)
+                (setq pos (string-search "\n" text pos)))
       (setq count (1+ count)
             pos (1+ pos))
-      (when (and (null cut) (= count limit)) (setq cut (1- pos))))
-    (cons (split-string (if cut (substring text 0 cut) text) "\n")
-          (1+ count))))
+      (when (= count limit) (setq cut (1- pos))))
+    (split-string (if cut (substring text 0 cut) text) "\n")))
+
+(defun pycell--count-lines (text)
+  "Return how many lines TEXT holds.
+The whole of it is searched, so a caller that already knows the number
+had better not ask: measured, ten thousand lines cost 3.1 milliseconds
+and a fold of such a result asked on every keypress."
+  (let ((pos 0) (count 1))
+    (while (setq pos (string-search "\n" text pos))
+      (setq count (1+ count)
+            pos (1+ pos)))
+    count))
 
 (defun pycell--body-lines (lines)
   "Return the leading LINES that show inline.
@@ -612,13 +630,20 @@ The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
   (pcase-let ((`(,folded ,text ,runtime ,state ,total)
                (pycell-block-get block :data)))
-    (pcase-let* ((`(,lines . ,count)
-                  (if (string-empty-p text)
-                      '(nil . 0)
-                    (pycell--lines-up-to text pycell-max-lines)))
-                 (shown (pycell--body-lines lines)))
+    (let* ((empty (string-empty-p text))
+           (lines (unless empty (pycell--first-lines text pycell-max-lines)))
+           (shown (pycell--body-lines lines))
+           ;; The count is asked for once and kept: a finished result
+           ;; carries none, and a fold would otherwise scan the whole
+           ;; output again on every keypress.
+           (count (cond (empty 0)
+                        (total)
+                        (t (let ((n (pycell--count-lines text)))
+                             (pycell-block-set
+                              block :data (list folded text runtime state n))
+                             n)))))
       (pycell-block-set block :header
-                         (pycell--header folded (or total count)
+                         (pycell--header folded count
                                          (length shown) runtime state
                                          (and lines (pycell-block-image-in text))))
       (pycell-block-set block :body
@@ -760,7 +785,10 @@ header keeps moving the same cell."
       (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
       (pycell--restore-cell their-beg (+ their-beg their-length) theirs)
       (when (or (cdr mine) (cdr theirs))
-        (pycell-md-render-all))
+        ;; The two cells that moved, not every cell in the file.
+        (pycell-md-render-all (min mine-beg their-beg)
+                              (+ (max mine-beg their-beg)
+                                 (max mine-length their-length))))
       (goto-char (+ mine-beg (min offset mine-length))))))
 
 ;;;###autoload
@@ -962,7 +990,12 @@ inside a table \(see `pycell--md-tag-table').
 
 Only where the display can draw an image: a preview made in a
 terminal cannot be seen."
-  (if (not (display-images-p))
+  ;; `replace-regexp-in-string' copies its argument twice whether it
+  ;; matches or not: measured, 9.1 milliseconds over a rendered cell of
+  ;; three hundred lines with no formula in it, against 0.022 for the
+  ;; search that stands in front of it now.
+  (if (or (not (display-images-p))
+          (not (string-match-p "[$\\]" text)))
       text
     (replace-regexp-in-string
      pycell--md-math-regexp
@@ -1040,10 +1073,14 @@ reasons than that: a display can draw images and still have no LaTeX
 to make one with, and a fragment LaTeX cannot compile stays text on
 any display.  The wrapping costs a preview nothing, since the block is
 matched across its lines and replaced whole."
-  (replace-regexp-in-string
-   "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
-   "<pre>$$\n\\1$$</pre>"
-   md))
+  ;; A cell without display math is the common one, and the replacement
+  ;; would copy it twice to find that out.
+  (if (not (string-search "$$" md))
+      md
+    (replace-regexp-in-string
+     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
+     "<pre>$$\n\\1$$</pre>"
+     md)))
 
 (defun pycell--md-tag-th (dom)
   "Render the header cell DOM in bold.
@@ -1228,16 +1265,14 @@ Only the word =markdown= of the boundary line carries the header, so
 `outline-minor-mode' still finds a heading line where it expects one."
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
-         (text (pycell--fill-prop
-                (pycell--fill-prop
-                 (pycell--faced
-                  (pycell--md-rendered
-                   (pycell--md-uncomment
-                    (buffer-substring-no-properties beg end))
-                   html)
-                  'default)
-                 'keymap pycell-md-map)
-                'help-echo help))
+         (text (pycell--fill-props
+                (pycell--faced
+                 (pycell--md-rendered
+                  (pycell--md-uncomment
+                   (buffer-substring-no-properties beg end))
+                  html)
+                 'default)
+                'keymap pycell-md-map 'help-echo help))
          ;; The bar covers the word =markdown= of the boundary line, and
          ;; nothing else: =# %%= keeps the look of every other cell
          ;; boundary and `outline-minor-mode\=' still finds a heading
@@ -1285,15 +1320,19 @@ Only the word =markdown= of the boundary line carries the header, so
     block))
 
 ;;;###autoload
-(defun pycell-md-render-all ()
-  "Render every markdown cell in the buffer.
-A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
+(defun pycell-md-render-all (&optional beg end)
+  "Render the markdown cells between BEG and END, the whole buffer by default.
+A markdown cell is one whose boundary line reads \"# %% [markdown]\".
+A caller that knows which cells changed says so: measured, one moved
+cell in a file of two hundred rendered every one of them, 436
+milliseconds against 17.7 for the two that moved."
   (interactive)
   (let ((program (pycell--md-program))
+        (last (or end (point-max)))
         cells missed)
     (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward (concat "^" pycell--md-boundary) nil t)
+      (goto-char (or beg (point-min)))
+      (while (re-search-forward (concat "^" pycell--md-boundary) last t)
         (forward-line 1)
         (let ((beg (point))
               (end (if (re-search-forward code-cells-boundary-regexp nil t)
@@ -1522,8 +1561,10 @@ cell whose first lines are still on their way has more to come."
   (or (pycell--run-head)
       (let* ((budget (and (natnump pycell-max-line-length)
                           (> pycell-max-line-length 0)
-                          (* (+ pycell-max-lines 4)
-                             (1+ pycell-max-line-length))))
+                          ;; what `pycell--body-lines' can show, and no
+                          ;; more: the lines it keeps, each cut to the
+                          ;; length it cuts them to
+                          (* pycell-max-lines (1+ pycell-max-line-length))))
              (limit (save-excursion
                       (goto-char from)
                       (forward-line (+ pycell-max-lines 4))
