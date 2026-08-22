@@ -76,7 +76,7 @@ left a cell whose only output is a figure with an empty block."
   (let* ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)")
          (result (pycell--clean (concat pycell-test--image "\n\nIn [5]: "))))
     (should (= (length result) 1))
-    (should (pycell-block-image result))
+    (should (pycell-block-image-in result))
     ;; a prompt with nothing to show before it still goes
     (should (equal (pycell--clean "In [5]: 42") "42"))))
 
@@ -113,8 +113,8 @@ would hide the rest of the output and buy no height back."
 
 (ert-deftest pycell-test-image-finds-the-first-one ()
   "The first image of a result is found, and plain text has none."
-  (should (eq (car-safe (pycell-block-image (concat "a\n" pycell-test--image))) 'image))
-  (should-not (pycell-block-image "just text")))
+  (should (eq (car-safe (pycell-block-image-in (concat "a\n" pycell-test--image))) 'image))
+  (should-not (pycell-block-image-in "just text")))
 
 (ert-deftest pycell-test-glyph-falls-back-to-the-last-candidate ()
   "A candidate without a glyph is skipped, and the last one always answers."
@@ -208,7 +208,7 @@ the rendering is over; a file on disk is drawn here and now."
   (pycell-test--with-image-file file
     (let* ((default-directory (file-name-directory file))
            (shown (pycell--md-rendered "![a figure](figure.png)"))
-           (spec (pycell-block-image shown)))
+           (spec (pycell-block-image-in shown)))
       (should spec)
       (should (equal (plist-get (cdr spec) :file) file))
       ;; the alt text carries it, so a terminal still says what is there
@@ -234,7 +234,7 @@ the rendering is over; a file on disk is drawn here and now."
   "An image on the network is shr's business, and it says so with a box."
   (skip-unless (pycell--md-program))
   (let* ((shown (pycell--md-rendered "![a figure](https://example.org/f.png)"))
-         (spec (pycell-block-image shown)))
+         (spec (pycell-block-image-in shown)))
     ;; shr leaves a placeholder of its own making, and it is not a file
     (should (or (null spec) (null (plist-get (cdr spec) :file))))))
 
@@ -258,8 +258,20 @@ swallows an image."
       (pycell-block-set block :body (concat "B" pycell-test--image))
       (pycell-block-refresh block)
       (should-not (overlay-get nl 'display))
-      (should (pycell-block-image (overlay-get block 'after-string)))
+      (should (pycell-block-image-in (overlay-get block 'after-string)))
       (should (string-match-p "F" (overlay-get block 'after-string))))))
+
+(ert-deftest pycell-test-block-body-without-a-newline ()
+  "A body shows even where the region ends without a newline.
+The cheap slot is the display property of that newline, and a region at
+the end of a buffer may have none: the body then joins the rows on the
+anchor rather than going missing, which is what it did."
+  (with-temp-buffer
+    (insert "one\ntwo")
+    (let ((block (pycell-block-show 1 (point-max) :header "H" :body "B")))
+      (should-not (pycell-block-get block :newline))
+      (should (string-match-p "B" (overlay-get block 'after-string)))
+      (should (string-match-p "H" (overlay-get block 'after-string))))))
 
 (ert-deftest pycell-test-block-lead ()
   "The first row takes a line of its own, and no more than it needs.
@@ -337,13 +349,14 @@ that stopped there with it would leave the last line on the screen."
 
 (ert-deftest pycell-test-block-bracket-in-the-fringe ()
   "The bracket rides the anchor and the rows a block writes.
-A `line-prefix' on an overlay says nothing about the rows of a string,
-so the string carries its own; measured in a graphical frame, the two
-together draw one line beside the whole block."
+The option answers for every block: a `line-prefix\=' on an overlay says
+nothing about the rows of a string, so the string carries its own, and
+measured in a graphical frame the two together draw one line beside the
+whole block."
   (with-temp-buffer
     (insert "one\ntwo\n")
-    (let* ((block (pycell-block-show 1 (point-max)
-                                      :fringe t :header "H" :body "B"))
+    (let* ((pycell-block-fringe t)
+           (block (pycell-block-show 1 (point-max) :header "H" :body "B"))
            (nl (pycell-block-get block :newline))
            (fringed (lambda (s)
                       (and s (text-property-not-all 0 (length s)
@@ -384,7 +397,7 @@ newline keeps its own character, and a wheel can pass the block."
       (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
       (let* ((block (car (pycell-block-in (point-min) (point-max) 'result)))
              (nl (pycell-block-get block :newline)))
-        (should (pycell-block-image (overlay-get block 'after-string)))
+        (should (pycell-block-image-in (overlay-get block 'after-string)))
         (should-not (overlay-get nl 'display))))))
 
 (ert-deftest pycell-test-raised-text-is-not-an-image ()
@@ -695,8 +708,10 @@ start is a frame, and asking that for a position signals."
     (goto-char (point-min))
     (forward-line 1)
     (let ((here (point)))
-      (should (eq (pycell-block-at (list 'switch-frame (selected-frame)) 'result)
-                  (pycell-block-at nil 'result)))
+      (pycell--goto-event (list 'switch-frame (selected-frame)))
+      (should (eq (pycell-block-at 'result)
+                  (progn (pycell--goto-event nil)
+                         (pycell-block-at 'result))))
       (should (= (point) here)))))
 
 (defun pycell-test--ipython-syntax-p (code)
@@ -907,15 +922,15 @@ and cannot be scrolled past at all."
           (let ((line (concat "x" pycell-test--image)))
             (let* ((pycell-max-image-height 0.5)
                    (fitted (pycell--fit line)))
-              (should (= (plist-get (cdr (pycell-block-image fitted)) :max-height)
+              (should (= (plist-get (cdr (pycell-block-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
                                         (selected-window) t)))))
               ;; the line kept for the popup is not touched
-              (should-not (plist-get (cdr (pycell-block-image line)) :max-height)))
+              (should-not (plist-get (cdr (pycell-block-image-in line)) :max-height)))
             ;; zero draws it at its own size
             (let* ((pycell-max-image-height 0)
                    (fitted (pycell--fit line)))
-              (should-not (plist-get (cdr (pycell-block-image fitted))
+              (should-not (plist-get (cdr (pycell-block-image-in fitted))
                                      :max-height)))))
       (kill-buffer buffer))))
 
@@ -934,7 +949,7 @@ size, which is the block the wheel cannot get past."
                    (line (concat "x" pycell-test--image))
                    (fitted (pycell--fit line)))
               (should-not (get-buffer-window notebook t))
-              (should (= (plist-get (cdr (pycell-block-image fitted)) :max-height)
+              (should (= (plist-get (cdr (pycell-block-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
                                         (selected-window) t))))))))
       (kill-buffer elsewhere)
@@ -1266,7 +1281,7 @@ like any other."
       (should (equal (nth 2 specs) '("plain again" nil)))
       ;; the middle one hides its line and shows the image beside it
       (should (equal (car (nth 1 specs)) ""))
-      (should (pycell-block-image (cadr (nth 1 specs)))))))
+      (should (pycell-block-image-in (cadr (nth 1 specs)))))))
 
 (ert-deftest pycell-test-md-a-header-cell-and-code-have-a-face ()
   "A header cell is bold and inline code wears the face of code.
@@ -1297,8 +1312,8 @@ image."
                      "| a | b |\n|---|---|\n| $\\frac{a}{b}$ | y |\n"))
           (outside (pycell--md-rendered
                     "The formula $\\frac{a}{b}$ stands alone.\n")))
-      (should-not (pycell-block-image in-table))
-      (should (pycell-block-image outside)))))
+      (should-not (pycell-block-image-in in-table))
+      (should (pycell-block-image-in outside)))))
 
 (ert-deftest pycell-test-space-columns-counts-pixels-and-characters ()
   "A space stretch answers with the columns it covers.
@@ -1460,7 +1475,7 @@ for each of them drew the same image three times."
       (let* ((parts (pycell-test--pieces (point-min) (point-max) text))
              (withimage (seq-filter
                          (lambda (ov)
-                           (pycell-block-image (or (overlay-get ov 'after-string)
+                           (pycell-block-image-in (or (overlay-get ov 'after-string)
                                               (overlay-get ov 'display) "")))
                          parts)))
         ;; the image is on one piece, and only one
