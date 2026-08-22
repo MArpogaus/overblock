@@ -46,6 +46,13 @@
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
 ;;
+;; What draws a block on the screen is not here: `overblock' puts text
+;; over a region of a buffer with a header, a footer and a bracket in
+;; the fringe, `overblock-md' turns markdown into a string it can show,
+;; and `overblock-repl' cuts the output of a shell loose from that
+;; shell.  What is here is the part that knows about Python: the cells,
+;; the process, and the commands.
+;;
 ;; A result block is a display string on a single buffer line, and
 ;; Emacs cannot place point inside one.  The mouse wheel scrolls
 ;; through it a pixel at a time, but `next-line' and `previous-line'
@@ -152,18 +159,16 @@ the wheel sending them by the dozen.  A `print' of a wide row, a long
 list or a base64 blob is one such line."
   :type 'natnum)
 
-;;;; What a block shows: text, buttons and bars
+;;;; Blocks of every kind
 
 (defun pycell-remove-overlays (&optional beg end kind)
   "Remove the blocks between BEG and END, of KIND when it is given.
-This is the command a reader binds; `overblock-clear\=' is the same
-thing inside the block layer, which keeps its own so that it travels
-whole.
+This is the command a reader binds, and `overblock-clear\=' is the same
+thing under it.
 BEG and END default to the whole buffer.  Results and rendered
 markdown cells go; the text of the buffer is not touched."
   (interactive)
   (overblock-clear beg end kind))
-
 
 ;;;; Result blocks
 
