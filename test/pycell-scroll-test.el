@@ -160,8 +160,8 @@ a short one after them, which is where redisplay changes lines."
           (redisplay t)
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
-                              (lambda (o) (pycell-block-get o :parts))
-                              (pycell-block-in (point-min) (point-max) 'markdown)))
+                              (lambda (o) (overblock-get o :parts))
+                              (overblock-in (point-min) (point-max) 'markdown)))
                      3))
           (should (equal (pycell-scroll-test--stalls) nil))
           (should (equal (pycell-scroll-test--reversals) nil)))
@@ -203,13 +203,13 @@ is what says so."
                             0.2)
               (goto-char end)))
           (redisplay t)
-          (should (= (length (pycell-block-in (point-min) (point-max) 'result))
+          (should (= (length (overblock-in (point-min) (point-max) 'result))
                      6))
           ;; every one of them holds a figure, or the test proves nothing
           (should (seq-every-p (lambda (block)
-                                 (pycell-block-image-in
+                                 (overblock-image-in
                                   (or (overlay-get block 'after-string) "")))
-                               (pycell-block-in (point-min) (point-max)
+                               (overblock-in (point-min) (point-max)
                                                  'result)))
           (should (equal (pycell-scroll-test--stalls) nil))
           (should (equal (pycell-scroll-test--reversals) nil)))
