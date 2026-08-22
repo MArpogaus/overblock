@@ -316,6 +316,23 @@ diff.
 comes into the buffer, how the live mirror works, how a markdown cell
 renders, and what the scroll measurements say.
 
+** Development
+
+=make= runs what the CI runs: byte-compilation with warnings as errors,
+checkdoc, package-lint and the batch tests.  =make scroll= needs a
+display and measures the scrolling.
+
+The hooks of =.pre-commit-config.yaml= run the whitespace checks and
+checkdoc before a commit, and the compilation and the tests before a
+push:
+
+#+begin_src shell
+  pre-commit install --install-hooks -t pre-commit -t pre-push
+#+end_src
+
+The workflow of the same name runs them over every file, so a commit
+made without the hooks is still checked.
+
 ** Contributions
 
 Contributions are greatly appreciated!  Feel free to check the

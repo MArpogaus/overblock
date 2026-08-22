@@ -1,0 +1,34 @@
+# Checks that run before a commit, and the heavier ones before a push.
+# `pre-commit install --install-hooks -t pre-commit -t pre-push' puts
+# them in place; the workflow of the same name runs them over every file.
+# The licence is verbatim by definition, so the whitespace hooks leave
+# it alone.
+exclude: '^COPYING$'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-merge-conflict
+      - id: check-yaml
+  - repo: local
+    hooks:
+      - id: checkdoc
+        name: checkdoc
+        description: The documentation style of every Lisp file.
+        entry: make checkdoc
+        language: system
+        files: \.el$
+        pass_filenames: false
+      - id: tests
+        name: ert tests
+        description: The batch suite, before a push rather than a commit.
+        entry: make compile test
+        language: system
+        files: \.el$
+        pass_filenames: false
+        stages: [pre-push]
