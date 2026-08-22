@@ -72,10 +72,12 @@ final newline if it has none, because the block needs that character.
 
 Results and rendered markdown cells are two callers of one layer, which
 knows nothing of Python, cells or markdown: a caller renders text and
-hands it over.
+hands it over.  It lives in =pycell-block.el= and everything it owns is
+named =pycell-block-=, so the file can leave for a package of its own
+without a rename.
 
 #+begin_src emacs-lisp
-  (pycell--block-show BEG END
+  (pycell-block-show BEG END
                       :kind 'result          ; whose block this is
                       :data ANYTHING         ; what the caller keeps with it
                       :over TEXT             ; shown instead of the region
@@ -91,7 +93,7 @@ An anchor overlay covers the region and holds those properties.  It
 stops before the newline that ends the region, so a window which starts
 at the next line keeps the block out of view; a second overlay covers
 that newline and carries what shows after it.
-=pycell--block-refresh= makes everything the block shows anew from the
+=pycell-block-refresh= makes everything the block shows anew from the
 properties, so nothing has to be saved and given back — that is how a
 fold takes a markdown cell off the screen and gives it back with
 =:hidden=.
@@ -168,7 +170,7 @@ The block shows at most =pycell-max-lines= lines, and these are the
 first lines of the output.  The ticker therefore reads only the head
 of the output:
 
-- =pycell--head= reads the first lines and cleans them.  It keeps the
+- =pycell--output-head= reads the first lines and cleans them.  It keeps the
   text as soon as all lines that show are there.  The ticks after
   that read nothing.
 - =pycell--total= counts the new lines only.  It keeps the position
@@ -353,7 +355,7 @@ on the same inputs, before and after the audit that found them:
 - =pycell--lines-up-to= copies the lines that show and counts the rest.
 
 A cell that prints much on few lines still re-reads everything it has
-printed on every tick, because =pycell--head= keeps its text only once
+printed on every tick, because =pycell--output-head= keeps its text only once
 the output has more lines than the block shows.  A bound in characters
 would end that and may not be had: comint-mime sends an image as one
 escape sequence, a cut inside it leaves an unfinished sequence, and
