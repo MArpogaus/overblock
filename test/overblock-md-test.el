@@ -58,14 +58,14 @@ An Emacs that cannot draw a PNG answers nil for every path, and rightly:
 the image then belongs to shr, which says so with a box of its own."
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
-                                      (let ((default-directory (file-name-directory file)))
-                                        (should (equal (overblock-md--image-file "figure.png") file))
-                                        (should (equal (overblock-md--image-file "./figure.png") file))
-                                        (should (equal (overblock-md--image-file file) file))
-                                        (should (equal (overblock-md--image-file (concat "file://" file)) file))
-                                        (should-not (overblock-md--image-file "https://example.org/figure.png"))
-                                        (should-not (overblock-md--image-file "does-not-exist.png"))
-                                        (should-not (overblock-md--image-file "")))))
+    (let ((default-directory (file-name-directory file)))
+      (should (equal (overblock-md--image-file "figure.png") file))
+      (should (equal (overblock-md--image-file "./figure.png") file))
+      (should (equal (overblock-md--image-file file) file))
+      (should (equal (overblock-md--image-file (concat "file://" file)) file))
+      (should-not (overblock-md--image-file "https://example.org/figure.png"))
+      (should-not (overblock-md--image-file "does-not-exist.png"))
+      (should-not (overblock-md--image-file "")))))
 
 (ert-deftest overblock-md-test-names-an-image-without-a-display ()
   "Where no image can be drawn, the cell says which figure is there.
@@ -73,17 +73,17 @@ shr\='s own placeholder is an image, and its display property swallows the
 text under it: a terminal would show a blank row where a figure belongs."
   (skip-unless (overblock-md-program))
   (overblock-md-test--with-image-file file
-                                      (let* ((default-directory (file-name-directory file))
-                                             (shown (overblock-md-rendered "![a figure](figure.png)")))
-                                        ;; batch draws nothing, so the label stands on its own
-                                        (should-not (display-images-p))
-                                        (should-not (overblock-image-in shown))
-                                        (should (string-match-p "a figure" (substring-no-properties shown))))
-                                      ;; and with no alt text, the file names itself
-                                      (let* ((default-directory (file-name-directory file))
-                                             (shown (overblock-md-rendered "![](figure.png)")))
-                                        (should (string-match-p "\\[figure.png\\]"
-                                                                (substring-no-properties shown))))))
+    (let* ((default-directory (file-name-directory file))
+           (shown (overblock-md-rendered "![a figure](figure.png)")))
+      ;; batch draws nothing, so the label stands on its own
+      (should-not (display-images-p))
+      (should-not (overblock-image-in shown))
+      (should (string-match-p "a figure" (substring-no-properties shown))))
+    ;; and with no alt text, the file names itself
+    (let* ((default-directory (file-name-directory file))
+           (shown (overblock-md-rendered "![](figure.png)")))
+      (should (string-match-p "\\[figure.png\\]"
+                              (substring-no-properties shown))))))
 
 (ert-deftest overblock-md-test-draws-a-local-image ()
   "A markdown cell draws the image it names, rather than shr's placeholder.
@@ -92,14 +92,14 @@ the rendering is over; a file on disk is drawn here and now."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
-                                      (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
-                                                 (default-directory (file-name-directory file))
-                                                 (shown (overblock-md-rendered "![a figure](figure.png)"))
-                                                 (spec (overblock-image-in shown)))
-                                        (should spec)
-                                        (should (equal (plist-get (cdr spec) :file) file))
-                                        ;; the alt text carries it, so a terminal still says what is there
-                                        (should (string-match-p "a figure" (substring-no-properties shown))))))
+    (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
+               (default-directory (file-name-directory file))
+               (shown (overblock-md-rendered "![a figure](figure.png)"))
+               (spec (overblock-image-in shown)))
+      (should spec)
+      (should (equal (plist-get (cdr spec) :file) file))
+      ;; the alt text carries it, so a terminal still says what is there
+      (should (string-match-p "a figure" (substring-no-properties shown))))))
 
 (ert-deftest overblock-md-test-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
@@ -107,16 +107,16 @@ the rendering is over; a file on disk is drawn here and now."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
-                                      (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
-                                                 (default-directory (file-name-directory file))
-                                                 (shown (overblock-md-rendered
-                                                         "[![a figure](figure.png)](https://example.org)"))
-                                                 (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
-                                        (should pos)
-                                        (should (equal (get-text-property pos 'shr-url shown) "https://example.org"))
-                                        (should (eq (car-safe (get-text-property pos 'display shown)) 'image))
-                                        (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
-                                                    #'shr-browse-url)))))
+    (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
+               (default-directory (file-name-directory file))
+               (shown (overblock-md-rendered
+                       "[![a figure](figure.png)](https://example.org)"))
+               (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
+      (should pos)
+      (should (equal (get-text-property pos 'shr-url shown) "https://example.org"))
+      (should (eq (car-safe (get-text-property pos 'display shown)) 'image))
+      (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
+                  #'shr-browse-url)))))
 
 (ert-deftest overblock-md-test-a-remote-image-stays-with-shr ()
   "An image on the network is shr's business, and it says so with a box."

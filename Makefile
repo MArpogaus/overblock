@@ -71,10 +71,13 @@ scroll: $(SANDBOX)
 	  -l test/run-scroll.el; status=$$?; \
 	  cat scroll-report.txt 2>/dev/null; exit $$status
 
-# The formatter answers 1 when it had to change a file, which is how the
-# hook stops a commit; from make that is a job done, not a failure.
-format:
-	@$(EMACS) -Q --batch -l tools/indent.el $(LISP) || true
+# The formatter loads each file before indenting it, so a macro of this
+# package indents its body the way its `declare' says; that needs the
+# load path and the dependencies, which is why it wants the sandbox.
+# It answers 1 when it had to change something, which is how the hook
+# stops a commit; from make that is a job done, not a failure.
+format: $(SANDBOX)
+	@$(BATCH) -l tools/indent.el $(LISP) || true
 
 clean:
 	@rm -rf $(SANDBOX) ./*.elc test/*.elc scroll-report.txt

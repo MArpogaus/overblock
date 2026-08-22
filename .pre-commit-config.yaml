@@ -37,9 +37,10 @@ repos:
   - id: indent
     name: indent
     description: The indentation Emacs gives Lisp, in place.
-    entry: emacs -Q --batch -l tools/indent.el
+    entry: make format
     language: system
     files: \.el$
+    pass_filenames: false
   - id: checkdoc
     name: checkdoc
     description: The documentation style of every Lisp file.
