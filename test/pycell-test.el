@@ -49,7 +49,7 @@
      (goto-char (point-min))
      ,@body))
 
-;;;; Output clean-up
+;;;; Helpers
 
 (defun pycell-test--pieces (beg end text)
   "Return the pieces a block hangs TEXT on over the region BEG..END."
@@ -87,7 +87,7 @@ left a cell whose only output is a figure with an empty block."
     (should (equal result (concat "plot\n" pycell-test--image)))
     (should (get-text-property (1- (length result)) 'display result))))
 
-;;;; Block layout
+;;;; Tests
 
 (ert-deftest pycell-test-body-lines-cap ()
   "At most `pycell-max-lines' lines show inline."
@@ -111,12 +111,12 @@ would hide the rest of the output and buy no height back."
       (should (equal (pycell--body-lines (list "before" pycell-test--image "after"))
                      (list "before" pycell-test--image "after"))))))
 
-(ert-deftest pycell-test-image ()
+(ert-deftest pycell-test-image-finds-the-first-one ()
   "The first image of a result is found, and plain text has none."
   (should (eq (car-safe (pycell--image (concat "a\n" pycell-test--image))) 'image))
   (should-not (pycell--image "just text")))
 
-(ert-deftest pycell-test-glyph ()
+(ert-deftest pycell-test-glyph-falls-back-to-the-last-candidate ()
   "A candidate without a glyph is skipped, and the last one always answers."
   ;; A batch session has no graphical frame, so the fallback decides.
   (should (equal (pycell--glyph "⤓" "↧" "↓") "↓"))
@@ -133,7 +133,7 @@ asking the first character alone accepted every candidate."
     (should (equal (pycell--glyph " ▸" " ▶" " >") " ▶"))
     (should (equal (pycell--glyph " ▸" " ▴" " >") " >"))))
 
-(ert-deftest pycell-test-faced ()
+(ert-deftest pycell-test-faced-gives-a-string-a-base-face ()
   "A block string carries a base face, so it inherits none."
   (let ((s (pycell--faced (copy-sequence "text") 'pycell-output)))
     (should (memq 'pycell-output (ensure-list (get-text-property 0 'face s))))))
@@ -416,7 +416,8 @@ full of those; only a real image belongs in the after-string."
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "a\nb" 0.1)
       (let ((ov (car (pycell--block-in (point-min) (point-max) 'result))))
-        (setcar (pycell--block-get ov :data) t))
+        (let ((data (pycell--block-get ov :data)))
+          (pycell--block-set ov :data (cons t (cdr data)))))
       (pycell--show beg end "c\nd" 0.2)
       (let ((ov (car (pycell--block-in (point-min) (point-max) 'result))))
         (should (car (pycell--block-get ov :data)))
@@ -563,7 +564,6 @@ leave a line of no height, which stops scrolling up the same way."
                                            (overlay-start part)
                                            (overlay-end part)))))))))
 
-;;;; Markdown cells
 
 (ert-deftest pycell-test-md-comment-round-trip ()
   "Commenting and uncommenting a markdown cell is lossless."
@@ -571,21 +571,21 @@ leave a line of no height, which stops scrolling up the same way."
     (should (equal (pycell--md-uncomment (pycell--md-comment md)) md))
     (should (equal (pycell--md-comment "a\n\nb") "# a\n#\n# b"))))
 
-(ert-deftest pycell-test-md-head ()
+(ert-deftest pycell-test-md-cell-start-needs-the-boundary-line ()
   "A markdown cell is recognized by the boundary line above its body."
   (with-temp-buffer
     (insert "# %% [markdown]\n# Title\n")
     (goto-char (point-min))
     (forward-line 1)
-    (should (pycell--md-head (point)))
-    (should (= (pycell--md-head (point)) (point-min))))
+    (should (pycell--md-cell-start (point)))
+    (should (= (pycell--md-cell-start (point)) (point-min))))
   (with-temp-buffer
     (insert "# %%\nx = 1\n")
     (goto-char (point-min))
     (forward-line 1)
-    (should-not (pycell--md-head (point)))))
+    (should-not (pycell--md-cell-start (point)))))
 
-(ert-deftest pycell-test-md-program ()
+(ert-deftest pycell-test-md-program-takes-a-string-or-a-list ()
   "A string and a list of candidates both resolve to a program.
 Only where there is a parser to read the converter's HTML with: see
 `pycell-test-md-program-needs-libxml' for the other direction."
@@ -598,7 +598,7 @@ Only where there is a parser to read the converter's HTML with: see
                                                " --version"))))
     (should (equal (car (pycell--md-program)) "emacs"))))
 
-(ert-deftest pycell-test-md-rendered ()
+(ert-deftest pycell-test-md-rendered-gives-text-not-markup ()
   "Markdown becomes text, when a converter is installed.
 Pixel filling needs font metrics, which a batch session has none of."
   (skip-unless (pycell--md-program))
@@ -1017,6 +1017,28 @@ the cell opened first, and unsaved writing went with it."
         (when (and name (get-buffer name)) (kill-buffer name)))
       (kill-buffer notebook))))
 
+(ert-deftest pycell-test-output-head-stops-at-a-budget ()
+  "A cell printing much on few lines reads only what can show.
+And not where an escape sequence would be cut in two: comint-mime sends
+an image as one, and a cut inside it drops the figure — measured once as
+a result of no characters at all, which is why the bound asks first."
+  (with-temp-buffer
+    (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+    (insert "In [1]: ")
+    (let* ((from (copy-marker (point)))
+           (budget (* (+ pycell-max-lines 4) (1+ pycell-max-line-length))))
+      (setq-local pycell--run (list from (point-min-marker) (point-max-marker)
+                                    "" (float-time) nil nil nil))
+      ;; one line, longer than the budget: the head stops at it
+      (insert (make-string (* 3 budget) ?x))
+      (should (= (length (pycell--output-head from)) budget))
+      ;; the same output with an escape sequence inside the budget: all
+      ;; of it is read, so comint-mime's image arrives whole
+      (pycell--set-run-head nil)
+      (goto-char (+ from 10))
+      (insert "\e]5151;file=x\e\\")
+      (should (> (length (pycell--output-head from)) budget)))))
+
 (ert-deftest pycell-test-mirror-reads-only-what-it-shows ()
   "The live mirror reads the head of the output, not all of it.
 Reading everything again on every tick is a pass over the whole
@@ -1033,12 +1055,12 @@ throughout."
                            (number-sequence 1 200) "\n")
                 "\n")
         ;; the head holds what shows and a little slack, not the rest
-        (let ((head (pycell--head from)))
+        (let ((head (pycell--output-head from)))
           (should (string-prefix-p "line 1\nline 2" head))
           (should-not (string-match-p "line 100" head))
           (should (< (length head) 100)))
         ;; and it is kept, so the ticks that follow read nothing
-        (should (equal (nth 6 pycell--run) (pycell--head from)))
+        (should (equal (pycell--run-head) (pycell--output-head from)))
         ;; the count is the whole output all the same, and counted
         ;; only where it arrives: the position it reached is kept
         (should (= (pycell--total from) 200))
@@ -1060,13 +1082,13 @@ complete."
         (insert (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 20) "\n")
                 "\n")
-        (should (equal (pycell--head from) ""))
-        (should-not (nth 6 pycell--run))))))
+        (should (equal (pycell--output-head from) ""))
+        (should-not (pycell--run-head))))))
 
 (ert-deftest pycell-test-md-htmls-gives-one-piece-per-cell ()
   "The cells come back from one converter call, one piece each."
   (skip-unless (pycell--md-program))
-  (let ((htmls (pycell--md-htmls '("# One\n\nfirst" "second" "*third*"))))
+  (let ((htmls (pycell--md-html-batch '("# One\n\nfirst" "second" "*third*"))))
     (should (= (length htmls) 3))
     (should (string-match-p "first" (nth 0 htmls)))
     (should (string-match-p "second" (nth 1 htmls)))
@@ -1074,7 +1096,7 @@ complete."
     ;; nothing of one cell leaks into the next
     (should-not (string-match-p "second" (nth 0 htmls))))
   ;; a cell that holds the marker sends everyone the ordinary way
-  (should-not (pycell--md-htmls (list "text" pycell--md-marker))))
+  (should-not (pycell--md-html-batch (list "text" pycell--md-marker))))
 
 (ert-deftest pycell-test-md-htmls-gives-up-when-the-marker-changes ()
   "A converter that reshapes the marker sends every cell its own way.
@@ -1084,14 +1106,14 @@ nothing but their number says whether they did."
   (cl-letf (((symbol-function 'pycell--md-html)
              (lambda (md) (replace-regexp-in-string
                            "\\([^\n]+\\)" "<p>\\1</p>" md))))
-    (let ((pieces (pycell--md-htmls '("one" "two"))))
+    (let ((pieces (pycell--md-html-batch '("one" "two"))))
       (should (= (length pieces) 2))
       (should (string-match-p "one" (nth 0 pieces)))
       (should (string-match-p "two" (nth 1 pieces)))))
   ;; and nothing at all when the marker does not come back
   (cl-letf (((symbol-function 'pycell--md-html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
-    (should-not (pycell--md-htmls '("one" "two")))))
+    (should-not (pycell--md-html-batch '("one" "two")))))
 
 (ert-deftest pycell-test-md-render-all-matches-one-by-one ()
   "Converting the buffer at once renders what one call per cell does."
@@ -1116,7 +1138,7 @@ nothing but their number says whether they did."
             (should (= (length batched) 3))
             (pycell-md-unrender)
             ;; the same buffer with the batch turned down
-            (cl-letf (((symbol-function 'pycell--md-htmls) (lambda (_texts) nil)))
+            (cl-letf (((symbol-function 'pycell--md-html-batch) (lambda (_texts) nil)))
               (pycell-md-render-all))
             (should (equal batched (funcall displays)))))
       (kill-buffer buffer))))
@@ -1137,14 +1159,14 @@ VS Code and Spyder write =#%% [markdown]= where jupytext writes
       (insert line "\n# prose\n")
       (goto-char (point-min))
       (forward-line 1)
-      (should (pycell--md-head (point))))
+      (should (pycell--md-cell-start (point))))
     ;; and a code cell is not one, whatever it is called
     (dolist (line '("# %%" "#%%" "# %% A title" "# %% tags=[\"parameters\"]"))
       (erase-buffer)
       (insert line "\nx = 1\n")
       (goto-char (point-min))
       (forward-line 1)
-      (should-not (pycell--md-head (point))))))
+      (should-not (pycell--md-cell-start (point))))))
 
 (ert-deftest pycell-test-md-no-previews-without-images ()
   "A display that cannot draw images gets no preview substitution.
@@ -1278,7 +1300,7 @@ image."
       (should-not (pycell--image in-table))
       (should (pycell--image outside)))))
 
-(ert-deftest pycell-test-space-columns ()
+(ert-deftest pycell-test-space-columns-counts-pixels-and-characters ()
   "A space stretch answers with the columns it covers.
 vtable, which is how comint-mime shows a DataFrame, sets the width of
 a stretch; shr says where it ends.  A list counts pixels, a bare

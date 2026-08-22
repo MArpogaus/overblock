@@ -323,6 +323,9 @@ BEG and END default to the whole buffer, KIND to every kind."
 
 (defun pycell-remove-overlays (&optional beg end kind)
   "Remove the blocks between BEG and END, of KIND when it is given.
+This is the command a reader binds; `pycell--block-remove\=' is the same
+thing inside the block layer, which keeps its own so that it travels
+whole.
 BEG and END default to the whole buffer.  Results and rendered
 markdown cells go; the text of the buffer is not touched."
   (interactive)
@@ -401,14 +404,16 @@ A newline inside an image run stays where it is.  Such a run draws one
 image however many lines it covers, and display math covers three:
 the two dollar rows and the formula.  A piece for each of those lines
 would carry the same run and draw the same image again."
-  (let ((pos 0) (from 0) (len (length text)) lines)
-    (while (< pos len)
-      (when (and (eq (aref text pos) ?\n)
-                 (not (eq (car-safe (get-text-property pos 'display text))
-                          'image)))
+  (let ((pos 0) (from 0) lines)
+    ;; The newlines are what matter, so they are searched for rather than
+    ;; walked to: measured over a rendered cell of three hundred lines,
+    ;; 2.14 milliseconds character by character against 0.10 this way.
+    (while (setq pos (string-search "\n" text pos))
+      (if (eq (car-safe (get-text-property pos 'display text)) 'image)
+          (setq pos (1+ pos))
         (push (substring text from pos) lines)
-        (setq from (1+ pos)))
-      (setq pos (1+ pos)))
+        (setq pos (1+ pos)
+              from pos)))
     (push (substring text from) lines)
     (nreverse lines)))
 
@@ -449,7 +454,7 @@ region has anyway.  Those lines go under a cloak."
                    (nreverse rows))))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
          (taken 0)
-         parts spare)
+         parts cloak-from)
     (dolist (row rows)
       (let ((from (car row))
             (to (cdr row))
@@ -462,10 +467,10 @@ region has anyway.  Those lines go under a cloak."
         (if (null chunk)
             ;; Nothing to show on this line.  Open a cloak at the
             ;; newline above, or leave the open one to grow.
-            (unless spare (setq spare (1- from)))
-          (when spare
-            (push (pycell--block-cloak block spare (1- from)) parts)
-            (setq spare nil))
+            (unless cloak-from (setq cloak-from (1- from)))
+          (when cloak-from
+            (push (pycell--block-cloak block cloak-from (1- from)) parts)
+            (setq cloak-from nil))
           (let ((ov (make-overlay from to nil t))
                 (piece (string-join chunk "\n")))
             (overlay-put ov 'evaporate t)
@@ -474,8 +479,8 @@ region has anyway.  Those lines go under a cloak."
                        (overlay-put ov 'after-string piece))
               (overlay-put ov 'display piece))
             (push (pycell--block-dress block ov) parts)))))
-    (when spare
-      (push (pycell--block-cloak block spare (1- end)) parts))
+    (when cloak-from
+      (push (pycell--block-cloak block cloak-from (1- end)) parts))
     (nreverse parts)))
 
 (defun pycell--block-attach (block header body footer)
@@ -570,14 +575,19 @@ link would then run this block's commands instead of following the URL."
 The value is (image . PLIST), so a caller can read `:data\=' or `:type\='
 from it.  A `raise\=' spec, which shr uses for a superscript, is not an
 image and does not answer here."
-  (let ((pos 0) img)
+  (let ((len (length text))
+        (pos 0)
+        img)
+    ;; Run to run, not character to character: a display property that is
+    ;; not an image can cover a hundred thousand characters — a raised
+    ;; superscript, an alignment stretch — and the step of one measured
+    ;; 38.5 milliseconds over such a run against 0.001 for the jump.
     (while (and (not img)
-                (setq pos (text-property-not-all pos (length text)
-                                                 'display nil text)))
+                (setq pos (text-property-not-all pos len 'display nil text)))
       (let ((disp (get-text-property pos 'display text)))
         (if (eq (car-safe disp) 'image)
             (setq img disp)
-          (setq pos (1+ pos)))))
+          (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
 
 (defun pycell--glyph (&rest candidates)
@@ -610,8 +620,7 @@ Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), as in
 LINES how many lines it has; a descriptor whose WHEN is `image' or
 `lines' waits for those."
   (concat
-   (mapconcat
-    #'identity
+   (string-join
     (delq nil
           (mapcar
            (lambda (descriptor)
@@ -717,43 +726,38 @@ nothing that a face can move."
                                        (elt object index))))
                            columns)))
                       (vtable-objects table))))
-         (widths (let (widths)
-                  (dolist (row rows)
-                    (let ((index 0))
-                      (dolist (cell row)
-                        (setq widths (append widths
-                                             (make-list (max 0 (- (1+ index)
-                                                                  (length widths)))
-                                                        0)))
-                        (setf (nth index widths)
-                              (max (nth index widths) (string-width cell)))
-                        (setq index (1+ index)))))
-                  widths)))
-    (string-join
-     (let ((first t) lines)
-       (dolist (row rows (nreverse lines))
-         (let ((index -1))
-           (push (string-trim-right
-                  (mapconcat (lambda (cell)
-                               (setq index (1+ index))
-                               (let ((pad (- (nth index widths)
-                                             (string-width cell))))
-                                 (concat cell (make-string (max 0 pad) ?\s))))
-                             row "  "))
-                 lines))
-         (when first
-           ;; the names of the columns, in bold as a markdown table has them
-           (setcar lines (propertize (car lines) 'face 'bold))
-           (setq first nil))))
-     "\n")))
+         ;; Every row has a cell for every column, the header row
+         ;; included, so a column is as wide as its widest cell.
+         (widths (seq-map-indexed
+                  (lambda (_column index)
+                    (apply #'max (mapcar (lambda (row)
+                                           (string-width (nth index row)))
+                                         rows)))
+                  columns))
+         (lines (mapcar
+                 (lambda (row)
+                   (string-trim-right
+                    (string-join
+                     (seq-mapn (lambda (cell width)
+                                 (concat cell
+                                         (make-string
+                                          (max 0 (- width (string-width cell)))
+                                          ?\s)))
+                               row widths)
+                     "  ")))
+                 rows)))
+    ;; the names of the columns, in bold as a markdown table has them
+    (setcar lines (propertize (car lines) 'face 'bold))
+    (string-join lines "\n")))
 
 (defun pycell--strip-prompts (text)
-  "Return TEXT without the prompts around it.
+  "Return TEXT without the shell\'s prompts and its Out[N] labels.
 The prompt before the output goes, the prompt after it goes, and so does
 the one that ends up on the same line as output which stopped without a
 newline — `comint-prompt-regexp\=' anchors to a line start and cannot see
-that one.  Call this in the shell buffer, where that variable has its
-value."
+that one.  An `Out[N]:\=' label goes wherever it stands, since IPython
+writes one in front of the value of every cell.  Call this in the shell
+buffer, where that variable has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop if the prompt regexp
     ;; matches the empty string.  The last one keeps a figure: a cell
@@ -773,7 +777,13 @@ value."
                                 "\\)[ \t]*\\'")
                         text)
       (setq text (substring text 0 (match-beginning 0)))))
-  (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text))
+  ;; The search costs 0.009 milliseconds and the replacement 3.08 over a
+  ;; hundred thousand characters, measured: `replace-regexp-in-string'
+  ;; copies its argument twice even when nothing matches, and a plain
+  ;; python3 shell never writes a label at all.
+  (if (string-search "Out[" text)
+      (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
+    text))
 
 (defun pycell--detach (text)
   "Return the part of TEXT a block shows, cut loose from the shell.
@@ -815,10 +825,10 @@ object under `pycell-table\=', which `pycell-pop-output\=' shows live."
 
 (defun pycell--clean (text)
   "Return TEXT as a result block can show it.
-The prompts go and the copy is cut loose from the shell; see
-`pycell--strip-prompts\=' and `pycell--detach\=' for what each of those
-means.  Call this in the shell buffer, where `comint-prompt-regexp\=' has
-its value."
+The prompts and the Out[N] labels go, and the copy is cut loose from
+the shell; see `pycell--strip-prompts\=' and `pycell--detach\=' for what
+each of those means.  Call this in the shell buffer, where
+`comint-prompt-regexp\=' has its value."
   (pycell--detach (pycell--strip-prompts text)))
 
 (defun pycell--shorten (line)
@@ -873,15 +883,16 @@ before it caps."
 
 (defun pycell--lines-up-to (text limit)
   "Return the first LIMIT lines of TEXT and how many lines TEXT has.
-The value is (LINES . TOTAL).  Only the part that shows is copied and
-split: measured, splitting ten thousand propertized lines to keep twelve
-of them cost 15 milliseconds, and this costs nothing."
+The value is (LINES . TOTAL).  Only the part that shows is copied, and
+only where there is more than that: measured, splitting ten thousand
+propertized lines to keep twelve of them cost 15 milliseconds, and a
+text of fewer lines than the limit is not copied at all."
   (let ((pos 0) (count 0) (cut nil))
     (while (setq pos (string-search "\n" text pos))
       (setq count (1+ count)
             pos (1+ pos))
       (when (and (null cut) (= count limit)) (setq cut (1- pos))))
-    (cons (split-string (substring text 0 (or cut (length text))) "\n")
+    (cons (split-string (if cut (substring text 0 cut) text) "\n")
           (1+ count))))
 
 (defun pycell--body-lines (lines)
@@ -905,20 +916,20 @@ sit past the cut; its images are capped to
         (when image (setq stop t))))
     (nreverse shown)))
 
-(defun pycell--header (folded total shown runtime running imagep)
+(defun pycell--header (folded total shown runtime state imagep)
   "Return the header bar of a result.
 FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
-time in seconds since the cell started.  RUNNING is t while the cell
-runs, `died\=' where the interpreter went away before the cell ended, and
-nil where the cell finished.  IMAGEP marks a result with an image."
+time in seconds since the cell started.  STATE is `running\=' while the
+cell runs, `died\=' where the interpreter went away before the cell
+ended, and nil where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (pycell--buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
-         (state (cond ((eq running t)
+         (mark (cond ((eq state 'running)
                        (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
                          (string ?\s (aref frames (mod (truncate runtime 0.2)
                                                        (length frames))))))
-                      ((eq running 'died) (pycell--glyph " 󰀪" " ⚠" " !"))
+                     ((eq state 'died) (pycell--glyph " 󰀪" " ⚠" " !"))
                       ;; A single line can still be tall: one image is
                       ;; one line, and that is the block worth folding.
                       ((> total 0)
@@ -933,17 +944,17 @@ nil where the cell finished.  IMAGEP marks a result with an image."
                        (format "%d line%s%s" total (if (= total 1) "" "s")
                                (if (< shown total)
                                    (format ", showing %d" shown) "")))
-                      ((not running) "no output")))
+                      ((not state) "no output")))
          (time (format "%.1fs" runtime)))
     (pycell--bar
-     (concat state " " (string-join (delq nil (list label time)) " · "))
+     (concat mark " " (string-join (delq nil (list label time)) " · "))
      icons)))
 
 (defun pycell--update (block)
   "Make the header and the body of the result BLOCK again, and show them.
 The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
-  (pcase-let ((`(,folded ,text ,runtime ,running ,total)
+  (pcase-let ((`(,folded ,text ,runtime ,state ,total)
                (pycell--block-get block :data)))
     (pcase-let* ((`(,lines . ,count)
                   (if (string-empty-p text)
@@ -952,7 +963,7 @@ are and how many of them show, and the body is those that show."
                  (shown (pycell--body-lines lines)))
       (pycell--block-set block :header
                          (pycell--header folded (or total count)
-                                         (length shown) runtime running
+                                         (length shown) runtime state
                                          (and lines (pycell--image text))))
       (pycell--block-set block :body
                          (when (and shown (not folded))
@@ -972,20 +983,20 @@ are and how many of them show, and the body is those that show."
   :doc "Keymap inside a cell that shows a result."
   "TAB" '(menu-item "" pycell-toggle-output :filter pycell--tab-filter))
 
-(defun pycell--show (beg end text runtime &optional running total)
+(defun pycell--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the cell BEG..END.
-RUNTIME is the time in seconds since the cell started.  RUNNING is t
-while the cell runs, `died\=' where the interpreter went away before the
-cell ended, and nil where the cell finished.  Empty TEXT gets a header
-that says
-\"no output\", so the cell is recognizable as evaluated.  The fold
-state of a replaced result is kept.
-TOTAL is how many lines the cell has printed, for a running cell
-whose TEXT is only the part that shows; without it the lines of TEXT
-are counted."
+RUNTIME is the time in seconds since the cell started.  STATE is
+`running\=' while the cell runs, `died\=' where the interpreter went away
+before the cell ended, and nil where the cell finished.
+
+Empty TEXT gets a header that says \"no output\", so the cell is
+recognizable as evaluated, and the fold state of a replaced result is
+kept.  TOTAL is how many lines the cell has printed, for a running cell
+whose TEXT is only the part that shows; without it the lines of TEXT are
+counted."
   (let* ((old (car (pycell--block-in beg end 'result)))
          (folded (and old (car (pycell--block-get old :data))))
-         (data (list folded text runtime running total)))
+         (data (list folded text runtime state total)))
     (if (and old (= (overlay-start old) beg))
         ;; The ticker of a running cell comes here five times a second
         ;; with nothing new but its data.  Keeping the block it has saves
@@ -1022,7 +1033,7 @@ commands that call it give their reader."
   (interactive (list last-input-event))
   (let* ((block (pycell--result-at event))
          (data (pycell--block-get block :data)))
-    (setcar data (not (car data)))
+    (pycell--block-set block :data (cons (not (car data)) (cdr data)))
     (pycell--update block)))
 
 (defun pycell-discard-output (&optional event)
@@ -1045,8 +1056,8 @@ its markdown was rendered."
 STATE comes from `pycell--cell-state'.  A markdown cell is rendered by
 the caller, which does the whole buffer at once."
   (when-let* ((record (car state)))
-    (pcase-let* ((`(,folded ,text ,runtime ,running ,total) record)
-                 (block (pycell--show beg end text runtime running total)))
+    (pcase-let* ((`(,folded ,text ,runtime ,state ,total) record)
+                 (block (pycell--show beg end text runtime state total)))
       (when folded
         (pycell--block-set block :data record)
         (pycell--update block)))))
@@ -1170,7 +1181,7 @@ table: this package reads Python and nothing else, and a caller with
 another table current — a test, or a buffer whose mode has not been
 set yet — would otherwise get a different answer.")
 
-(defun pycell--md-head (pos)
+(defun pycell--md-cell-start (pos)
   "Return the start of the =# %% [markdown]= line above POS, or nil.
 A non-nil value marks POS as the body of a markdown cell."
   (save-excursion
@@ -1178,30 +1189,34 @@ A non-nil value marks POS as the body of a markdown cell."
     (forward-line -1)
     (and (looking-at-p pycell--md-boundary) (point))))
 
-(defun pycell--fold (from to flag)
-  "Follow a call of `outline-flag-region\=' over FROM..TO with FLAG.
-It hides the markdown blocks in that region when FLAG says so.
-A block hangs on the newline that ends its cell, and
-`outline-flag-region' stops one character short of that newline, so a
-fold never covers it.  For a markdown cell the block is the content,
-so it goes with the fold: `:hidden' takes it off the screen, and a
-refresh puts it back, since a block makes what it shows anew.
+(defun pycell--keep-result-newline (from to)
+  "Keep the newline a result block hangs on out of a fold over FROM..TO.
+A fold that reaches the end of the buffer covers that newline, where a
+fold in the middle of one stops short of it.  The block would go with
+the fold, and the reader would lose the bar that folds the result
+itself, so the invisible run is shrunk back off the newline."
+  (dolist (block (pycell--block-in from to 'result))
+    (when-let* ((nl (pycell--block-get block :newline))
+                ((<= (overlay-end nl) to)))
+      (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
+        (when (and (eq (overlay-get ov 'invisible) 'outline)
+                   (> (overlay-end ov) (overlay-start nl)))
+          (move-overlay ov (overlay-start ov)
+                        (max (overlay-start ov) (overlay-start nl))))))))
 
-A result block stays: the fold hides the code, and the block below
-keeps its own fold button.  Rather than guess at the range that any
-one fold command uses, follow the call."
-  ;; A fold that reaches the end of the buffer covers the newline a
-  ;; result block hangs on; mid-buffer folds stop short of it.  Shrink
-  ;; the fold there, so the last cell keeps its block like every other.
-  (when flag
-    (dolist (block (pycell--block-in from to 'result))
-      (when-let* ((nl (pycell--block-get block :newline))
-                  ((<= (overlay-end nl) to)))
-        (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
-          (when (and (eq (overlay-get ov 'invisible) 'outline)
-                     (> (overlay-end ov) (overlay-start nl)))
-            (move-overlay ov (overlay-start ov)
-                          (max (overlay-start ov) (overlay-start nl))))))))
+(defun pycell--outline-flag-blocks (from to flag)
+  "Hide or show the blocks in FROM..TO to match an outline fold.
+FLAG is non-nil where `outline-flag-region\=' hid the region, and this
+follows that call rather than guessing which command made it.
+
+A markdown cell is the content of its cell, so it goes under the fold:
+`:hidden\=' takes it off the screen and a refresh puts it back, since a
+block makes what it shows anew.
+
+A result block stays.  The fold hides the code and the block keeps its
+own fold button, so the two fold apart; `pycell--keep-result-newline\='
+is what leaves it room."
+  (when flag (pycell--keep-result-newline from to))
   (dolist (block (pycell--block-in from to 'markdown))
     (pycell--block-set block :hidden flag)
     (pycell--block-refresh block)))
@@ -1209,7 +1224,7 @@ one fold command uses, follow the call."
 ;; At load, not at activation: by the time this file loads, the user
 ;; has turned the mode on.  The advice is inert in buffers without
 ;; blocks, because it filters on the block properties.
-(advice-add 'outline-flag-region :after #'pycell--fold)
+(advice-add 'outline-flag-region :after #'pycell--outline-flag-blocks)
 
 (defun pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
@@ -1325,7 +1340,7 @@ reshaped into something else.")
           (error "%s exited with status %s" (car program) status)))
       (buffer-string))))
 
-(defun pycell--md-htmls (texts)
+(defun pycell--md-html-batch (texts)
   "Return the HTML of each of TEXTS, converted in one go.
 Opening a notebook renders every markdown cell, and a converter
 process costs more than the markdown: 44 milliseconds a cell with
@@ -1549,7 +1564,7 @@ Only the word =markdown= of the boundary line carries the header, so
          ;; line where it expects one.  The overlay stops before the
          ;; newline, where the cell begins.
          (hov (make-overlay (save-excursion
-                              (goto-char (pycell--md-head beg))
+                              (goto-char (pycell--md-cell-start beg))
                               (if (re-search-forward "\\[markdown\\]"
                                                      (pos-eol) t)
                                   (match-beginning 0)
@@ -1612,7 +1627,7 @@ A markdown cell is one whose boundary line reads \"# %% [markdown]\"."
     ;; It answers nil where the marker between cells did not survive,
     ;; and then each cell goes on its own, as before.
     (let ((htmls (and (cdr cells)
-                      (pycell--md-htmls
+                      (pycell--md-html-batch
                        (mapcar (lambda (cell)
                                  ;; The verbatim wrap belongs before the
                                  ;; converter, and this path converts
@@ -1755,20 +1770,58 @@ START is the `float-time' of the send and TIMER the ticker.  The last
 two belong to the live mirror: HEAD is the part of the output the
 block shows, once it can no longer change, and COUNT is (POSITION
 . LINES) counted up to POSITION, so a tick reads only what arrived
-since the one before it.")
+since the one before it.
+
+The three fields a tick reads and writes have accessors below.  A record
+that each caller takes apart by hand is a record that cannot change
+shape.")
+
+(defun pycell--run-tail ()
+  "Return the recent output kept for the prompt detection."
+  (nth 3 pycell--run))
+
+(defun pycell--set-run-tail (value)
+  "Keep VALUE as the recent output for the prompt detection."
+  (setf (nth 3 pycell--run) value))
+
+(defun pycell--run-head ()
+  "Return the part of the output the block shows, or nil while it grows."
+  (nth 6 pycell--run))
+
+(defun pycell--set-run-head (value)
+  "Keep VALUE as the part of the output the block shows."
+  (setf (nth 6 pycell--run) value))
+
+(defun pycell--run-count ()
+  "Return the (POSITION . LINES) a tick counted, or nil for none yet."
+  (nth 7 pycell--run))
+
+(defun pycell--set-run-count (value)
+  "Keep VALUE as the (POSITION . LINES) counted so far."
+  (setf (nth 7 pycell--run) value))
 
 (defvar-local pycell--cold-cell nil
   "Cell (BEG . END markers) that waits for this shell's first prompt.")
+
+(defun pycell--whole-escapes (text)
+  "Return TEXT without an escape sequence that has not arrived in full.
+comint-mime sends an image as one escape sequence, and half of one
+swallows everything after it until the rest comes.  The search is what
+makes this cheap: `replace-regexp-in-string\=' copies its argument twice
+whether it matches or not, which measured 3.19 milliseconds over a
+hundred thousand characters of propertized text against 0.040 for the
+search that stands in front of it now."
+  (if (string-search "\e]" text)
+      (replace-regexp-in-string "\e\\][^\e]*\\'" "" text)
+    text))
 
 (defun pycell--output-so-far (from)
   "Return the running cell's output after FROM, cleaned.
 An incomplete escape sequence at the end is dropped: comint-mime
 renders it only when it is complete."
-  (pycell--clean
-   (replace-regexp-in-string
-    "\e\\][^\e]*\\'" "" (buffer-substring from (point-max)))))
+  (pycell--clean (pycell--whole-escapes (buffer-substring from (point-max)))))
 
-(defun pycell--head (from)
+(defun pycell--output-head (from)
   "Return as much of the output after FROM as the block can show.
 `pycell--body-lines' takes the first `pycell-max-lines' lines and
 stops, so a tick has no reason to read — or clean — everything the
@@ -1784,17 +1837,41 @@ turned a figure into a result of no characters at all.
 Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
-  (or (nth 6 pycell--run)
-      (let* ((limit (save-excursion
+  (or (pycell--run-head)
+      (let* ((budget (and (natnump pycell-max-line-length)
+                          (> pycell-max-line-length 0)
+                          (* (+ pycell-max-lines 4)
+                             (1+ pycell-max-line-length))))
+             (limit (save-excursion
                       (goto-char from)
                       (forward-line (+ pycell-max-lines 4))
                       (point)))
+             ;; A cell that prints much on few lines never reaches that
+             ;; line, so its text is never kept and every tick reads and
+             ;; cleans everything printed so far: measured, 68
+             ;; milliseconds a tick over a hundred thousand characters on
+             ;; one line, five times a second, for the two thousand
+             ;; characters that show.  The body cuts each line to
+             ;; `pycell-max-line-length' anyway, so a bound in characters
+             ;; loses nothing that shows — except where it would cut an
+             ;; escape sequence in two.  comint-mime sends an image as
+             ;; one, and a cut inside it drops the figure: measured, a
+             ;; result of no characters at all.  So the bound holds only
+             ;; where no escape begins inside it.
+             (limit (if (and budget
+                             (> (- limit from) budget)
+                             (not (save-excursion
+                                    (goto-char from)
+                                    (search-forward
+                                     "\e]" (min (point-max) (+ from budget))
+                                     t))))
+                        (+ from budget)
+                      limit))
              (text (pycell--clean
-                    (replace-regexp-in-string
-                     "\e\\][^\e]*\\'" "" (buffer-substring from limit)))))
+                    (pycell--whole-escapes (buffer-substring from limit)))))
         (when (and (< limit (point-max))
                    (not (string-empty-p text)))
-          (setf (nth 6 pycell--run) text))
+          (pycell--set-run-head text))
         text)))
 
 (defun pycell--total (from)
@@ -1804,7 +1881,7 @@ over everything printed so far, and a cell that prints a lot pays
 that pass five times a second.  Leading blank lines go, as
 `pycell--clean' drops them, so the count agrees with the one the
 finished cell shows."
-  (let* ((state (or (nth 7 pycell--run)
+  (let* ((state (or (pycell--run-count)
                     (cons (save-excursion
                             (goto-char from)
                             (skip-chars-forward " \t\n")
@@ -1814,7 +1891,17 @@ finished cell shows."
     (save-excursion
       (goto-char (car state))
       (while (search-forward "\n" nil t) (setq count (1+ count)))
-      (setf (nth 7 pycell--run) (cons (point-marker) count)))
+      ;; The marker is moved rather than made again.  Every marker left
+      ;; behind stays in the buffer's chain until a garbage collection,
+      ;; and comint adjusts the whole chain on every insertion: 2000
+      ;; ticks over 60000 inserted lines measured 0.144 seconds with a
+      ;; fresh marker each time and 0.036 with this one.
+      (pycell--set-run-count
+       (cons (if-let* ((marker (car-safe state))
+                       ((markerp marker)))
+                 (set-marker marker (point))
+               (point-marker))
+             count)))
     ;; A line that has not ended yet is a line all the same.
     (if (and (> (point-max) (marker-position from))
              (not (eq (char-before (point-max)) ?\n)))
@@ -1832,7 +1919,7 @@ Call this in the Python shell buffer."
     (when (buffer-live-p (marker-buffer beg))
       (with-current-buffer (marker-buffer beg)
         (pycell--show beg fin text (- (float-time) start)
-                         (and died 'died))))
+                      (and died 'died))))
     ;; Keep `pycell-restart-and-run-all' going, or stop on error.
     (when pycell--queue
       (if (string-match-p "Traceback (most recent call last)" text)
@@ -1871,12 +1958,12 @@ itself when nothing runs there anymore."
       (if (not (process-live-p (get-buffer-process buf)))
           (pycell--abort)
         (pcase-let ((`(,from ,beg ,fin ,_ ,start ,_) pycell--run))
-          (let* ((text (pycell--head from))
+          (let* ((text (pycell--output-head from))
                  (total (if (string-empty-p text) 0 (pycell--total from))))
             (when (buffer-live-p (marker-buffer beg))
               (with-current-buffer (marker-buffer beg)
                 (pycell--show beg fin text (- (float-time) start)
-                                 t total)))))))))
+                              'running total)))))))))
 
 (defun pycell--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running cell.
@@ -1885,9 +1972,9 @@ no cell runs; the live mirroring is the ticker's job."
   (when pycell--run
     ;; A chunk boundary can split the prompt, so match a capped tail;
     ;; `ansi-color-filter-apply' drops the escape sequences.
-    (let ((tail (concat (nth 3 pycell--run)
+    (let ((tail (concat (pycell--run-tail)
                         (ansi-color-filter-apply output))))
-      (setf (nth 3 pycell--run)
+      (pycell--set-run-tail
             (substring tail (max 0 (- (length tail) 256))))
       (when (python-shell-comint-end-of-output-p tail)
         ;; Copy to the end of the buffer and let `pycell--clean' take
@@ -1974,8 +2061,8 @@ Call this with the cell's buffer current."
         (timer-set-function timer #'pycell--tick
                             (list (current-buffer) timer))
         (setq pycell--run (list (copy-marker (process-mark proc))
-                                   beg fin "" (float-time) timer nil nil))))
-    (pycell--show beg fin "" 0.0 t)
+                                beg fin "" (float-time) timer nil nil))))
+    (pycell--show beg fin "" 0.0 'running)
     (if (pycell--ipython-syntax-p beg fin)
         (pycell--send-to-ipython
          proc (buffer-substring-no-properties beg fin))
@@ -2004,7 +2091,7 @@ prompt.  A cell sent while another one runs is refused, with a
 `user-error\=' from `pycell--send\='."
   ;; ponytail: a second cell sent by hand is refused rather than
   ;; queued; `pycell--queue' serves `pycell-restart-and-run-all' alone.
-  (if (pycell--md-head start)
+  (if (pycell--md-cell-start start)
       ;; Keep a running restart-and-run-all chain going — no prompt
       ;; will arrive to do it.
       (progn
@@ -2037,7 +2124,9 @@ and prompts again."
   (interrupt-process (python-shell-get-process-or-error)))
 
 (defun pycell-restart ()
-  "Restart the Python interpreter and discard all results."
+  "Restart the Python interpreter, and remove every result and rendering.
+A rendered markdown cell is a block like a result, so it goes too and
+shows its source again."
   (interactive)
   (pycell-remove-overlays)
   (setq pycell--queue nil)
@@ -2107,8 +2196,8 @@ the code-cells maps."
   :lighter " pycell"
   (if pycell-mode
       (pycell-md-render-all)
-    (pycell-remove-overlays)
-    (pycell-md-unrender)))
+    ;; Every kind of block goes, rendered markdown cells included.
+    (pycell-remove-overlays)))
 
 ;;;###autoload
 (defun pycell-mode-maybe ()
