@@ -1092,14 +1092,25 @@ that shr leaves in the meantime: measured with a relative path, an
 absolute one and a `file://\=' URL alike, every local image stayed a
 placeholder.  A file on disk needs no fetching.
 
-The alt text carries the image, so a terminal that draws none still
-says what is there, and the figure is capped like a result\='s."
+The alt text carries the image, and the figure is capped like a
+result\='s.  Where the alt text is empty the file\='s name stands in, so a
+display that draws no image still says which figure is there; a terminal
+gets that label with no display property at all, since shr\='s own
+placeholder is an image and would swallow it."
   (if-let* ((file (pycell--md-image-file (or (dom-attr dom 'src) ""))))
-      (let ((limit (pycell--image-limit)))
-        (insert (propertize (or (dom-attr dom 'alt) " ")
-                            'display (apply #'create-image file nil nil
-                                            (and limit
-                                                 (list :max-height limit))))))
+      (let* ((alt (dom-attr dom 'alt))
+             (label (if (and alt (not (string-empty-p alt)))
+                        alt
+                      (format "[%s]" (file-name-nondirectory file))))
+             (limit (pycell--image-limit)))
+        (insert (if (display-images-p)
+                    (propertize label 'display
+                                (apply #'create-image file nil nil
+                                       (and limit (list :max-height limit))))
+                  ;; A terminal draws no image, and shr\='s placeholder is
+                  ;; itself an image: its display property would swallow
+                  ;; the label under it and leave a blank row.
+                  label)))
     (shr-tag-img dom)))
 
 (defconst pycell--md-rendering-functions

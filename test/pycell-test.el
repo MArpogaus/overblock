@@ -199,6 +199,24 @@ the image then belongs to shr, which says so with a box of its own."
       (should-not (pycell--md-image-file "does-not-exist.png"))
       (should-not (pycell--md-image-file "")))))
 
+(ert-deftest pycell-test-md-names-an-image-without-a-display ()
+  "Where no image can be drawn, the cell says which figure is there.
+shr\='s own placeholder is an image, and its display property swallows the
+text under it: a terminal would show a blank row where a figure belongs."
+  (skip-unless (pycell--md-program))
+  (pycell-test--with-image-file file
+    (let* ((default-directory (file-name-directory file))
+           (shown (pycell--md-rendered "![a figure](figure.png)")))
+      ;; batch draws nothing, so the label stands on its own
+      (should-not (display-images-p))
+      (should-not (pycell-block-image-in shown))
+      (should (string-match-p "a figure" (substring-no-properties shown))))
+    ;; and with no alt text, the file names itself
+    (let* ((default-directory (file-name-directory file))
+           (shown (pycell--md-rendered "![](figure.png)")))
+      (should (string-match-p "\\[figure.png\\]"
+                              (substring-no-properties shown))))))
+
 (ert-deftest pycell-test-md-draws-a-local-image ()
   "A markdown cell draws the image it names, rather than shr's placeholder.
 shr fetches an image through `url-queue-retrieve\=', which answers after
@@ -206,9 +224,10 @@ the rendering is over; a file on disk is drawn here and now."
   (skip-unless (pycell--md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
-    (let* ((default-directory (file-name-directory file))
-           (shown (pycell--md-rendered "![a figure](figure.png)"))
-           (spec (pycell-block-image-in shown)))
+    (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
+               (default-directory (file-name-directory file))
+               (shown (pycell--md-rendered "![a figure](figure.png)"))
+               (spec (pycell-block-image-in shown)))
       (should spec)
       (should (equal (plist-get (cdr spec) :file) file))
       ;; the alt text carries it, so a terminal still says what is there
@@ -220,10 +239,11 @@ the rendering is over; a file on disk is drawn here and now."
   (skip-unless (pycell--md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
-    (let* ((default-directory (file-name-directory file))
-           (shown (pycell--md-rendered
-                   "[![a figure](figure.png)](https://example.org)"))
-           (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
+    (cl-letf* (((symbol-function 'display-images-p) (lambda (&rest _) t))
+               (default-directory (file-name-directory file))
+               (shown (pycell--md-rendered
+                       "[![a figure](figure.png)](https://example.org)"))
+               (pos (text-property-not-all 0 (length shown) 'shr-url nil shown)))
       (should pos)
       (should (equal (get-text-property pos 'shr-url shown) "https://example.org"))
       (should (eq (car-safe (get-text-property pos 'display shown)) 'image))
