@@ -121,8 +121,8 @@ Point counts as inside a block that begins or ends on it, so a block
 whose region starts where point sits answers.  A caller that works from
 a click moves point there first."
   (car (overblock-in (max (1- (point)) (point-min))
-                        (min (1+ (point)) (point-max))
-                        kind)))
+                     (min (1+ (point)) (point-max))
+                     kind)))
 
 (defun overblock-delete (block)
   "Delete BLOCK and the overlays that carry what it shows."
@@ -211,7 +211,7 @@ a line with a beginning-of-buffer error, in the middle of the region."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'invisible t)
-    (overlay-put ov 'pycell-cloak t)
+    (overlay-put ov 'overblock-cloak t)
     (overblock--dress block ov)))
 
 (defun overblock--lines (text)

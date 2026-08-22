@@ -600,20 +600,20 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (pycell--buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (mark (cond ((eq state 'running)
-                       (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
-                         (string ?\s (aref frames (mod (truncate runtime 0.2)
-                                                       (length frames))))))
+                      (let ((frames (pycell--glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
+                        (string ?\s (aref frames (mod (truncate runtime 0.2)
+                                                      (length frames))))))
                      ((eq state 'died) (pycell--glyph " 󰀪" " ⚠" " !"))
-                      ;; A single line can still be tall: one image is
-                      ;; one line, and that is the block worth folding.
-                      ((> total 0)
-                       (pycell--button (if folded
-                                           (pycell--glyph " 󰍟" " ▸" " >")
-                                         (pycell--glyph " 󰍝" " ▾" " v"))
-                                          "Fold or unfold this result"
-                                          #'pycell-toggle-output))
-                      ((zerop total) (pycell--glyph " 󰄬" " ✓" " ."))
-                      (t " ")))
+                     ;; A single line can still be tall: one image is
+                     ;; one line, and that is the block worth folding.
+                     ((> total 0)
+                      (pycell--button (if folded
+                                          (pycell--glyph " 󰍟" " ▸" " >")
+                                        (pycell--glyph " 󰍝" " ▾" " v"))
+                                      "Fold or unfold this result"
+                                      #'pycell-toggle-output))
+                     ((zerop total) (pycell--glyph " 󰄬" " ✓" " ."))
+                     (t " ")))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
                                (if (< shown total)
@@ -643,13 +643,13 @@ are and how many of them show, and the body is those that show."
                               block :data (list folded text runtime state n))
                              n)))))
       (overblock-set block :header
-                         (pycell--header folded count
-                                         (length shown) runtime state
-                                         (and lines (overblock-image-in text))))
+                     (pycell--header folded count
+                                     (length shown) runtime state
+                                     (and lines (overblock-image-in text))))
       (overblock-set block :body
-                         (when (and shown (not folded))
-                           (pycell--faced (string-join shown "\n")
-                                          'pycell-output)))
+                     (when (and shown (not folded))
+                       (pycell--faced (string-join shown "\n")
+                                      'pycell-output)))
       (overblock-refresh block))))
 
 (defun pycell--tab-filter (cmd)
@@ -657,7 +657,7 @@ are and how many of them show, and the body is those that show."
   (and (eolp)
        (seq-some (lambda (o) (eq (point) (overlay-end o)))
                  (overblock-in (max (1- (point)) (point-min)) (point)
-                                   'result))
+                               'result))
        cmd))
 
 (defvar-keymap pycell-overlay-map
@@ -691,9 +691,9 @@ counted."
       (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
         (save-excursion (goto-char end) (insert "\n")))
       (let ((block (overblock-show beg end
-                                       :kind 'result
-                                       :data data
-                                       :keymap pycell-overlay-map)))
+                                   :kind 'result
+                                   :data data
+                                   :keymap pycell-overlay-map)))
         ;; An edit of the cell makes the result stale; it goes.
         (overlay-put block 'modification-hooks
                      (list (lambda (o &rest _) (overblock-delete o))))
@@ -857,7 +857,7 @@ Each cell gets one buffer, so results are comparable side by side."
                                                  0 (length text)
                                                  'pycell-table nil text)
                                                 0)
-                                           'pycell-table text)))
+                                            'pycell-table text)))
             (vtable-insert (pycell--table-copy table))
           (insert text)))
       (goto-char (point-min))
@@ -1055,7 +1055,7 @@ call per cell, as it always did."
   (unless (seq-some (lambda (text) (string-search pycell--md-marker text))
                     texts)
     (let* ((joined (string-join texts (format "\n\n%s\n\n"
-                                             pycell--md-marker)))
+                                              pycell--md-marker)))
            (pieces (split-string
                     (pycell--md-html joined)
                     (format "<p>[ \t\n]*%s[ \t\n]*</p>" pycell--md-marker))))
@@ -1288,15 +1288,15 @@ Only the word =markdown= of the boundary line carries the header, so
          ;; The block covers the source of the cell.  The pieces hang
          ;; on those lines, and the bar above them is not part of it.
          (block (overblock-show beg end
-                                    :kind 'markdown
-                                    ;; the bounds of the source, which
-                                    ;; the block itself does not cover
-                                    :data (cons (copy-marker beg)
-                                                (copy-marker end t))
-                                    :over text
-                                    :keymap pycell-md-map
-                                    :help-echo help
-                                    :attached (list hov))))
+                                :kind 'markdown
+                                ;; the bounds of the source, which
+                                ;; the block itself does not cover
+                                :data (cons (copy-marker beg)
+                                            (copy-marker end t))
+                                :over text
+                                :keymap pycell-md-map
+                                :help-echo help
+                                :attached (list hov))))
     (overlay-put hov 'evaporate t)
     (overlay-put hov 'keymap pycell-md-map)
     ;; A click on the bar lands on this overlay, so it points back at
@@ -1668,7 +1668,7 @@ reinitializes the major mode — hence also on `kill-buffer-hook' and
                            ""))
                  'face 'error)))
       (pycell--end (if (string-empty-p out) msg (concat out "\n" msg))
-                      t))))
+                   t))))
 
 (defun pycell--tick (buf timer)
   "Mirror the running cell's output and stopwatch into its overlay.
@@ -1698,7 +1698,7 @@ no cell runs; the live mirroring is the ticker's job."
     (let ((tail (concat (pycell--run-tail)
                         (ansi-color-filter-apply output))))
       (pycell--set-run-tail
-            (substring tail (max 0 (- (length tail) 256))))
+       (substring tail (max 0 (- (length tail) 256))))
       (when (python-shell-comint-end-of-output-p tail)
         ;; Copy to the end of the buffer and let `pycell--clean' take
         ;; the prompt off.  `comint-last-prompt' cannot serve as the
