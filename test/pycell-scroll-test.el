@@ -210,7 +210,7 @@ is what says so."
                                  (overblock-image-in
                                   (or (overlay-get block 'after-string) "")))
                                (overblock-in (point-min) (point-max)
-                                                 'result)))
+                                             'result)))
           (should (equal (pycell-scroll-test--stalls) nil))
           (should (equal (pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
