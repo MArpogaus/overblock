@@ -4,6 +4,7 @@
 #   make checkdoc  documentation style
 #   make lint      package-lint, the MELPA rules
 #   make test      ERT test suite
+#   make format    indent every Lisp file in place
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
 #
@@ -16,6 +17,8 @@ DEPS    ?= package-lint code-cells comint-mime
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
 TEST := $(wildcard test/*.el)
+# Everything written in Lisp, the parts that are no package included.
+LISP := $(SRC) $(TEST) $(wildcard demo/*.el) $(wildcard tools/*.el)
 
 # Elisp programs live in variables: make joins their continuation lines,
 # while a backslash inside a quoted recipe line would reach Emacs as is.
@@ -33,7 +36,7 @@ checkdoc = (progn (require (quote checkdoc)) \
 
 BATCH = $(EMACS) -Q --batch -L . -L test --eval '$(init)'
 
-.PHONY: all compile checkdoc lint test scroll clean
+.PHONY: all compile checkdoc lint test format scroll clean
 
 all: compile checkdoc lint test
 
@@ -67,6 +70,11 @@ scroll: $(SANDBOX)
 	@$(XVFB) $(EMACS) -Q -L . -L test --eval '$(init)' \
 	  -l test/run-scroll.el; status=$$?; \
 	  cat scroll-report.txt 2>/dev/null; exit $$status
+
+# The formatter answers 1 when it had to change a file, which is how the
+# hook stops a commit; from make that is a job done, not a failure.
+format:
+	@$(EMACS) -Q --batch -l tools/indent.el $(LISP) || true
 
 clean:
 	@rm -rf $(SANDBOX) ./*.elc test/*.elc scroll-report.txt
