@@ -235,7 +235,7 @@ the rendering is over; a file on disk is drawn here and now."
 
 (ert-deftest pycell-test-md-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
-`pycell--fill-prop\=' leaves the properties shr gave the link alone."
+`pycell--fill-props\=' leaves the properties shr gave the link alone."
   (skip-unless (pycell--md-program))
   (skip-unless (image-type-available-p 'png))
   (pycell-test--with-image-file file
