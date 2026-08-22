@@ -4,8 +4,8 @@
 #
 # The workflow of the same name runs them over every file, so a commit
 # made without the hooks is still checked.  A commit message is checked
-# too: `type: summary', a blank line, then the reasoning.  The licence is verbatim by
-# definition, so the whitespace hooks leave it alone.
+# too: `type: summary', a blank line, then the reasoning.  The licence
+# is verbatim by definition, so the whitespace hooks leave it alone.
 exclude: ^COPYING$
 
 repos:
