@@ -251,6 +251,12 @@ example in =code-cells-mode-map=.
 | =overblock-md-code=       | the face of inline code in a markdown cell       |
 | =overblock-fringe-face=   | the face of the bracket in the fringe            |
 
+The options named =overblock-= belong to the block layer, and every
+caller of it shares them.  The three that moved there answer to their
+old names as well — =pycell-max-image-height=, =pycell-markdown-command=
+and the =pycell-md-code= face — so a configuration that sets one keeps
+working; it will say it is obsolete.
+
 Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
 frame can draw wins, and the last one always answers, so keep a plain
