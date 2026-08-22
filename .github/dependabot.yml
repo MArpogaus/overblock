@@ -2,10 +2,10 @@
 # request against the branch the work happens on.
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    target-branch: dev
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: ci
+- package-ecosystem: github-actions
+  directory: /
+  target-branch: dev
+  schedule:
+    interval: weekly
+  commit-message:
+    prefix: ci
