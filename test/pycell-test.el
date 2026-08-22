@@ -960,7 +960,7 @@ and cannot be scrolled past at all."
           (set-window-buffer (selected-window) buffer)
           (let ((line (concat "x" pycell-test--image)))
             (let* ((overblock-image-height 0.5)
-                   (fitted (pycell--fit line)))
+                   (fitted (overblock-repl-fit line)))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
                                         (selected-window) t)))))
@@ -968,7 +968,7 @@ and cannot be scrolled past at all."
               (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
             ;; zero draws it at its own size
             (let* ((overblock-image-height 0)
-                   (fitted (pycell--fit line)))
+                   (fitted (overblock-repl-fit line)))
               (should-not (plist-get (cdr (overblock-image-in fitted))
                                      :max-height)))))
       (kill-buffer buffer))))
@@ -986,7 +986,7 @@ size, which is the block the wheel cannot get past."
           (with-current-buffer notebook
             (let* ((overblock-image-height 0.5)
                    (line (concat "x" pycell-test--image))
-                   (fitted (pycell--fit line)))
+                   (fitted (overblock-repl-fit line)))
               (should-not (get-buffer-window notebook t))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
@@ -1363,14 +1363,14 @@ a stretch; shr says where it ends.  A list counts pixels, a bare
 number characters."
   (cl-letf (((symbol-function 'frame-char-width) (lambda (&rest _) 8)))
     ;; a width in pixels, and one that is not a whole character
-    (should (= (overblock-md--space-columns '(space :width (16)) 0) 2))
-    (should (= (overblock-md--space-columns '(space :width (5.5)) 0) 1))
+    (should (= (overblock--space-columns '(space :width (16)) 0) 2))
+    (should (= (overblock--space-columns '(space :width (5.5)) 0) 1))
     ;; a width in characters
-    (should (= (overblock-md--space-columns '(space :width 3) 0) 3))
+    (should (= (overblock--space-columns '(space :width 3) 0) 3))
     ;; a target counts from where the line starts
-    (should (= (overblock-md--space-columns '(space :align-to (104)) 3) 10))
+    (should (= (overblock--space-columns '(space :align-to (104)) 3) 10))
     ;; nothing to say about a stretch of another kind
-    (should-not (overblock-md--space-columns '(space :relative-width 2) 0))))
+    (should-not (overblock--space-columns '(space :relative-width 2) 0))))
 
 (ert-deftest pycell-test-clean-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
@@ -1582,8 +1582,8 @@ refuses to insert one vtable into a second buffer."
          (should-not (eq (vtable-current-table)
                          (get-text-property
                           (text-property-not-all 0 (length text)
-                                                 'pycell-table nil text)
-                          'pycell-table text)))
+                                                 'overblock-repl-table nil text)
+                          'overblock-repl-table text)))
          ;; A copy carries the table object as well, so the object says
          ;; nothing about whether the table works.  A drawn table knows
          ;; which column is under point and can sort by it; a copy of

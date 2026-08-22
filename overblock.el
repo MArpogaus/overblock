@@ -454,6 +454,61 @@ out small only draws a smaller figure."
               ((> limit 0)))
     limit))
 
+;;;; Alignment made literal
+
+(defun overblock--space-columns (spec column)
+  "Return the columns that the space SPEC covers at COLUMN, or nil.
+A `:align-to\=' spec names where the space ends and a `:width\=' spec how
+wide it is.  Both count pixels in a list and characters in a bare
+number; a terminal's pixel is a column, a graphic frame's is
+`frame-char-width\='."
+  (let* ((plist (cdr spec))
+         (to (plist-get plist :align-to))
+         (width (plist-get plist :width))
+         (chars (lambda (n) (if (consp n)
+                                (round (car n) (frame-char-width))
+                              (and (numberp n) (round n))))))
+    (cond ((and to (funcall chars to))
+           (max 0 (- (funcall chars to) column)))
+          ((and width (funcall chars width))
+           (max 0 (funcall chars width))))))
+
+(defun overblock--flatten-alignment ()
+  "Turn the space stretches of this buffer into real spaces.
+shr aligns table columns with `(space :align-to (N))\=' display specs,
+and vtable, which is how comint-mime shows a DataFrame, with
+`(space :width (N))\='.  Both count from the window they were measured
+in.  A rendered cell and a result block are shown indented — line
+numbers, margins — so the stretches land elsewhere there and the
+columns of a row drift apart.  Literal padding aligns anywhere.  Left
+to right, so `current-column\=' already sees the padding put in before
+it."
+  (goto-char (point-min))
+  (let (match)
+    (while (setq match (text-property-search-forward 'display))
+      (let ((spec (prop-match-value match)))
+        (when (eq (car-safe spec) 'space)
+          (let* ((beg (prop-match-beginning match))
+                 (end (prop-match-end match))
+                 (pad (overblock--space-columns
+                       spec (save-excursion (goto-char beg)
+                                            (current-column)))))
+            (when pad
+              (goto-char beg)
+              (delete-region beg end)
+              ;; Zero is a zero-width stretch: the column is already
+              ;; there, and a forced space would push this row one past
+              ;; its sisters.
+              (insert (make-string pad ?\s)))))))))
+
+(defun overblock-flattened (text)
+  "Return TEXT with its space stretches as real spaces.
+See `overblock--flatten-alignment' for why a copy needs them literal."
+  (with-temp-buffer
+    (insert text)
+    (overblock--flatten-alignment)
+    (buffer-string)))
+
 ;;;; Bars, buttons and glyphs
 
 ;; What a caller puts on the header or the footer of a block.
