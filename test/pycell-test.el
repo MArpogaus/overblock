@@ -571,6 +571,28 @@ were a fifth of a second a wheel event."
     (should (equal (pycell--body-lines (list (make-string 30 ?x)))
                    (list (make-string 30 ?x))))))
 
+(ert-deftest pycell-test-md-without-a-converter-stays-plain ()
+  "A markdown cell without a converter stays text, and raises nothing.
+`pycell-md-render-all\=' asks for the program first, but evaluating a
+single cell reached the converter through `overblock-md-rendered\=' and
+called nil as a program: \"Invalid argument 3 of operation
+`call-process-region\='\".  The answer belongs where the program is
+called, so every caller gets it."
+  (let ((overblock-md-command "definitely-not-installed-42")
+        (text "# %% [markdown]\n# ## A heading\n\n# %%\nx = 1\n"))
+    (should-not (overblock-md-program))
+    (should-not (overblock-md-rendered "## A heading"))
+    (with-temp-buffer
+      (insert text)
+      (python-mode)
+      (code-cells-mode)
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell-eval-region beg end))
+      (should-not (overblock-in (point-min) (point-max)))
+      (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                     text)))))
+
 (ert-deftest pycell-test-md-program-needs-libxml ()
   "Without the parser there is no converter worth naming.
 shr reads the converter's HTML with `libxml-parse-html-region', which

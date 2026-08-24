@@ -200,8 +200,11 @@ that through as a paragraph, where anything with markup would be
 reshaped into something else.")
 
 (defun overblock-md--html (md)
-  "Return the HTML `overblock-md-command' makes of MD."
-  (let ((program (overblock-md-program)))
+  "Return the HTML `overblock-md-command' makes of MD, or nil.
+Nil where no converter is installed, which is the one caller-visible
+answer that keeps a cell plain text rather than raising: the check
+belongs here, where the program is called, and not in each caller."
+  (when-let* ((program (overblock-md-program)))
     (with-temp-buffer
       (insert md)
       ;; Send standard error nowhere: pandoc warns about math it cannot
@@ -339,22 +342,32 @@ whole buffer of cells at once.
 shr renders without its font arithmetic here: a cell\='s text hangs on
 source lines at whatever indent the buffer wears, and only literal
 columns survive a move.  The `:align-to\=' specs shr leaves behind are
-flattened to real spaces for the same reason."
-  (let ((dom (with-temp-buffer
-               (insert (or html (overblock-md--html (overblock-md--verbatim-math md))))
-               (libxml-parse-html-region (point-min) (point-max))))
-        (shr-use-fonts nil)
-        (shr-external-rendering-functions
-         (append overblock-md--rendering-functions
-                 shr-external-rendering-functions)))
-    (with-temp-buffer
-      (shr-insert-document dom)
-      (overblock--flatten-alignment)
-      ;; Trim whole blank lines, never a first line's indent: the
-      ;; columns are literal now, and a table that starts the cell
-      ;; must keep the indent its sister rows have.
-      (overblock-md--mathify
-       (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")))))
+flattened to real spaces for the same reason.
+
+The answer is nil where no converter is installed and no HTML is given.
+A caller leaves the markdown as it stands then, which is what a reader
+without a converter has to see."
+  ;; Only the converter's absence answers nil.  An empty cell converts to
+  ;; empty HTML, which parses to no document at all, and shr renders that
+  ;; as the empty string — a cell with a bar and nothing under it, which
+  ;; is what an empty cell has to be.
+  (when-let* ((page (or html (overblock-md--html
+                              (overblock-md--verbatim-math md)))))
+    (let ((dom (with-temp-buffer
+                 (insert page)
+                 (libxml-parse-html-region (point-min) (point-max))))
+          (shr-use-fonts nil)
+          (shr-external-rendering-functions
+           (append overblock-md--rendering-functions
+                   shr-external-rendering-functions)))
+      (with-temp-buffer
+        (shr-insert-document dom)
+        (overblock--flatten-alignment)
+        ;; Trim whole blank lines, never a first line's indent: the
+        ;; columns are literal now, and a table that starts the cell
+        ;; must keep the indent its sister rows have.
+        (overblock-md--mathify
+         (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here
