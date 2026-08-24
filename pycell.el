@@ -615,15 +615,19 @@ is why the =# %%= line stays visible.
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= keeps the look of every other cell boundary and
 `outline-minor-mode' still finds a heading line where it expects one."
+  (when-let* ((rendered (overblock-md-rendered
+                         (pycell--md-uncomment
+                          (buffer-substring-no-properties beg end))
+                         html)))
+    (pycell--md-block beg end rendered)))
+
+(defun pycell--md-block (beg end rendered)
+  "Show RENDERED over the markdown cell BEG..END, with a bar above it.
+See `pycell--md-show', which renders and calls this."
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
-                (overblock-faced
-                 (overblock-md-rendered
-                  (pycell--md-uncomment
-                   (buffer-substring-no-properties beg end))
-                  html)
-                 'default)
+                (overblock-faced rendered 'default)
                 'keymap pycell-md-map 'help-echo help))
          ;; The bar covers the word =markdown= of the boundary line, and
          ;; nothing else: =# %%= keeps the look of every other cell
