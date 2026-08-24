@@ -1156,6 +1156,17 @@ that caused the cold start may have moved it on already."
       (with-current-buffer (marker-buffer beg)
         (pycell--send proc beg end)))))
 
+(defun pycell--dedicated ()
+  "Return what a new shell is dedicated to, as the reader asked.
+`python-shell-dedicated\=' says it.  Its `project\=' value makes
+`run-python\=' ask which project, where the file belongs to none, and
+that is no question to put in front of a reader who evaluated a cell —
+one of a whole run, at that.  `python-shell-get-process-name\=' names
+such a shell the shared one anyway, so that is what this answers."
+  (unless (and (eq python-shell-dedicated 'project)
+               (not (project-current)))
+    python-shell-dedicated))
+
 (defun pycell-eval-region (start end)
   "Evaluate START..END as a cell and mirror the output below it.
 This matches the calling convention of
@@ -1182,7 +1193,7 @@ prompt.  A cell sent while another one runs is refused, with a
       ;; is, and below it is the shell's.  Markers into the shell
       ;; would send its start-up banner as the cell.
       (let ((cell (cons (copy-marker start) (copy-marker end t))))
-        (run-python nil python-shell-dedicated)
+        (run-python nil (pycell--dedicated))
         (with-current-buffer
             (process-buffer (python-shell-get-process-or-error))
           (setq pycell--cold-cell cell)
@@ -1212,7 +1223,7 @@ shows its source again."
         (with-current-buffer (process-buffer proc)
           (setq pycell--run nil))
         (python-shell-restart))
-    (run-python nil python-shell-dedicated)))
+    (run-python nil (pycell--dedicated))))
 
 (defun pycell--run-next ()
   "Evaluate the cell at the head of `pycell--queue'.
