@@ -167,7 +167,7 @@ Pixel filling needs font metrics, which a batch session has none of."
 The batch is only safe while the pieces come back one to a cell, and
 nothing but their number says whether they did."
   ;; one piece for each cell, and the pieces are the cells
-  (cl-letf (((symbol-function 'overblock-md-html)
+  (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (md) (replace-regexp-in-string
                            "\\([^\n]+\\)" "<p>\\1</p>" md))))
     (let ((pieces (overblock-md-html-batch '("one" "two"))))
@@ -175,7 +175,7 @@ nothing but their number says whether they did."
       (should (string-match-p "one" (nth 0 pieces)))
       (should (string-match-p "two" (nth 1 pieces)))))
   ;; and nothing at all when the marker does not come back
-  (cl-letf (((symbol-function 'overblock-md-html)
+  (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
     (should-not (overblock-md-html-batch '("one" "two")))))
 

@@ -36,12 +36,12 @@
 ;;
 ;; An anchor overlay covers the region and holds the state.  A second
 ;; overlay covers the newline that ends the region and carries what
-;; shows after it: the header, the body and the footer, each on a row of
-;; its own, in the slot that suits it.  Measured in a graphical frame: a
+;; shows after it: the header and the body, each on a row of its own, in
+;; the slot that suits it.  Measured in a graphical frame: a
 ;; bar puts its icons at the window edge with `(space :align-to (- right
 ;; ...))\=', which a display property ignores and a string does not, and
 ;; an image in a display string is swallowed while one in a string
-;; draws.  So the header and the footer are strings, and the body rides
+;; draws.  So the header is a string, and the body rides
 ;; the display property unless it holds an image.
 ;;
 ;; Text shown over the region hangs on its lines, a piece to a line.
@@ -177,7 +177,7 @@ optional:
              a line; without it the region stays as it is.
   :body      text shown after the region, on the newline that ends it,
              or on the anchor where the region ends without one.
-  :header    text above the body, :footer text below it.
+  :header    text shown above the body.
   :hidden    non-nil shows nothing at all, decorations included.
   :attached  overlays of the caller\='s own, deleted with the block.
   :keymap and :help-echo go on every overlay the block draws; an
@@ -332,7 +332,7 @@ region has anyway.  Those lines go under a cloak."
     (nreverse parts)))
 
 (defun overblock--attach (block shown)
-  "Show the header, the body and the footer of SHOWN after BLOCK.
+  "Show the header and the body of SHOWN after BLOCK.
 SHOWN is the property list of what the block shows, or nil for a block
 that shows nothing.
 Each stands on a row of its own, in the slot that suits it.
@@ -355,7 +355,6 @@ without one.
 Each string carries the line breaks that its own rows need."
   (let* ((header (plist-get shown :header))
          (body (plist-get shown :body))
-         (footer (plist-get shown :footer))
          (fringe overblock-fringe)
          (on-display (and body
                           (not (overblock-image-in body))
@@ -365,9 +364,7 @@ Each string carries the line breaks that its own rows need."
                           ;; rows on the anchor
                           (overblock-get block :newline)))
          ;; the rows that ride the anchor, in the order they show
-         (strings (delq nil (list header
-                                  (unless on-display body)
-                                  (unless on-display footer))))
+         (strings (delq nil (list header (unless on-display body))))
          ;; A row needs a break before it unless the newline it hangs on
          ;; already begins a line: a cell that ends in a blank line gives
          ;; that line to the header.
@@ -392,8 +389,6 @@ Each string carries the line breaks that its own rows need."
       (overlay-put nl 'display
                    (when on-display
                      (concat (if header "\n" lead) body "\n")))
-      (overlay-put nl 'after-string
-                   (when (and on-display footer) (concat footer "\n")))
       (overblock--dress block nl))))
 
 (defun overblock-refresh (block)
@@ -511,7 +506,7 @@ See `overblock--flatten-alignment' for why a copy needs them literal."
 
 ;;;; Bars, buttons and glyphs
 
-;; What a caller puts on the header or the footer of a block.
+;; What a caller puts on the header of a block.
 ;; A bar is a line with text at the left and icons at the right
 ;; window edge; a button is a label that answers a click; a glyph
 ;; is a character this frame can actually draw.

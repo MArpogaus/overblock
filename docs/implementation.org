@@ -92,7 +92,7 @@ like.
                   :data ANYTHING         ; what the caller keeps with it
                   :over TEXT             ; shown instead of the region
                   :body TEXT             ; shown after the region
-                  :header TEXT :footer TEXT
+                  :header TEXT
                   :hidden t              ; show nothing for now
                   :keymap MAP :help-echo STRING
                   :attached OVERLAYS)    ; the caller's own
@@ -109,7 +109,7 @@ fold takes a markdown cell off the screen and gives it back with
 
 Where each row goes was decided by measurement, in a graphical frame:
 
-- The header and the footer are strings of their own.  A bar puts its
+- The header is a string of its own.  A bar puts its
   icons at the window edge with =(space :align-to (- right ...))=, and a
   display property ignores that spec: the icons then sit beside the
   label.

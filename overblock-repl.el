@@ -148,9 +148,9 @@ nothing that a face can move."
                     (string-join
                      (seq-mapn (lambda (cell width)
                                  (concat cell
-                                         (make-string
-                                          (max 0 (- width (string-width cell)))
-                                          ?\s)))
+                                         (make-string (- width
+                                                         (string-width cell))
+                                                      ?\s)))
                                row widths)
                      "  ")))
                  rows)))

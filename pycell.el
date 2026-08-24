@@ -47,7 +47,7 @@
 ;; renderers there; a plain python3 shell yields text only.
 ;;
 ;; What draws a block on the screen is not here: `overblock' puts text
-;; over a region of a buffer with a header, a footer and a bracket in
+;; over a region of a buffer with a header and a bracket in
 ;; the fringe, `overblock-md' turns markdown into a string it can show,
 ;; and `overblock-repl' cuts the output of a shell loose from that
 ;; shell.  What is here is the part that knows about Python: the cells,
@@ -270,8 +270,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                                           (overblock-glyph " 󰍝" " ▾" " v"))
                                         "Fold or unfold this result"
                                         #'pycell-toggle-output))
-                     ((zerop total) (overblock-glyph " 󰄬" " ✓" " ."))
-                     (t " ")))
+                     ((zerop total) (overblock-glyph " 󰄬" " ✓" " ."))))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
                                (if (< shown total)
@@ -286,8 +285,10 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
   "Make the header and the body of the result BLOCK again, and show them.
 The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
-  (pcase-let ((`(,folded ,text ,runtime ,state ,total)
-               (overblock-get block :data)))
+  (let* ((data (overblock-get block :data))
+         (folded (plist-get data :folded))
+         (text (plist-get data :text))
+         (total (plist-get data :total)))
     (let* ((empty (string-empty-p text))
            (lines (unless empty (overblock-repl-first-lines text pycell-max-lines)))
            (shown (pycell--body-lines lines))
@@ -297,12 +298,13 @@ are and how many of them show, and the body is those that show."
            (count (cond (empty 0)
                         (total)
                         (t (let ((n (overblock-repl-count-lines text)))
-                             (overblock-set
-                              block :data (list folded text runtime state n))
+                             (overblock-set block :data
+                                            (plist-put data :total n))
                              n)))))
       (overblock-set block :header
-                     (pycell--header folded count
-                                     (length shown) runtime state
+                     (pycell--header folded count (length shown)
+                                     (plist-get data :runtime)
+                                     (plist-get data :state)
                                      (and lines (overblock-image-in text))))
       (overblock-set block :body
                      (when (and shown (not folded))
@@ -334,8 +336,9 @@ kept.  TOTAL is how many lines the cell has printed, for a running cell
 whose TEXT is only the part that shows; without it the lines of TEXT are
 counted."
   (let* ((old (car (overblock-in beg end 'result)))
-         (folded (and old (car (overblock-get old :data))))
-         (data (list folded text runtime state total)))
+         (data (list :folded (and old (plist-get (overblock-get old :data)
+                                                 :folded))
+                     :text text :runtime runtime :state state :total total)))
     (if (and old (= (overlay-start old) beg))
         ;; The ticker of a running cell comes here five times a second
         ;; with nothing new but its data.  Keeping the block it has saves
@@ -385,7 +388,8 @@ commands that call it give their reader."
   (interactive (list last-input-event))
   (let* ((block (pycell--result-at event))
          (data (overblock-get block :data)))
-    (overblock-set block :data (cons (not (car data)) (cdr data)))
+    (overblock-set block :data
+                   (plist-put data :folded (not (plist-get data :folded))))
     (pycell--update block)))
 
 (defun pycell-discard-output (&optional event)
@@ -408,9 +412,12 @@ its markdown was rendered."
 STATE comes from `pycell--cell-state'.  A markdown cell is rendered by
 the caller, which does the whole buffer at once."
   (when-let* ((record (car state)))
-    (pcase-let* ((`(,folded ,text ,runtime ,state ,total) record)
-                 (block (pycell--show beg end text runtime state total)))
-      (when folded
+    (let ((block (pycell--show beg end
+                               (plist-get record :text)
+                               (plist-get record :runtime)
+                               (plist-get record :state)
+                               (plist-get record :total))))
+      (when (plist-get record :folded)
         (overblock-set block :data record)
         (pycell--update block)))))
 
@@ -456,10 +463,8 @@ header keeps moving the same cell."
   (pycell-move-cell-down (- (or arg 1))))
 
 (defun pycell--text (block)
-  "Return the text of the result BLOCK.
-The one reader of that field: a record that each caller takes apart
-by hand is a record that cannot change shape."
-  (nth 1 (overblock-get block :data)))
+  "Return the text of the result BLOCK."
+  (plist-get (overblock-get block :data) :text))
 
 (defun pycell--cell-buffer-name (kind position)
   "Return the name of the KIND buffer for the cell at POSITION.
@@ -625,12 +630,12 @@ Only the word =markdown= of the boundary line carries the header, so
          ;; boundary and `outline-minor-mode\=' still finds a heading
          ;; line where it expects one.  The overlay stops before the
          ;; newline, where the cell begins.
+         ;; The boundary line is a markdown boundary because it carries
+         ;; the word, so the search cannot fail.
          (hov (make-overlay (save-excursion
                               (goto-char (pycell--md-cell-start beg))
-                              (if (re-search-forward "\\[markdown\\]"
-                                                     (pos-eol) t)
-                                  (match-beginning 0)
-                                (pos-eol)))
+                              (re-search-forward "\\[markdown\\]" (pos-eol))
+                              (match-beginning 0))
                             start))
          ;; The block covers the source of the cell.  The pieces hang
          ;; on those lines, and the bar above them is not part of it.
@@ -946,11 +951,7 @@ finished cell shows."
       ;; fresh marker each time and 0.036 with this one.
       (setq pycell--run
             (plist-put pycell--run :count
-                       (cons (if-let* ((marker (car-safe state))
-                                       ((markerp marker)))
-                                 (set-marker marker (point))
-                               (point-marker))
-                             count))))
+                       (cons (set-marker (car state) (point)) count))))
     ;; A line that has not ended yet is a line all the same.
     (if (and (> (point-max) (marker-position from))
              (not (eq (char-before (point-max)) ?\n)))

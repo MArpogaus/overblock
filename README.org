@@ -323,7 +323,7 @@ diff.
 The package is four files.  =pycell.el= is the part that knows about
 Python — the cells, the process, the commands — and the other three know
 nothing of it: =overblock.el= puts a block of text over a region of a
-buffer with a header, a footer and a bracket in the fringe,
+buffer with a header and a bracket in the fringe,
 =overblock-md.el= turns markdown into a string such a block can show,
 and =overblock-repl.el= cuts the output of a shell loose from that
 shell.  Those three are meant for a package of their own, and a second
