@@ -306,8 +306,10 @@ click, so read =last-input-event= as the commands of this package do.
 
 [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the Jupyter protocol and needs the =zmq= module.
 It gives you kernels for many languages and a notebook interface.
-=pycell= uses the inferior Python process that =python.el= starts.
-This costs one build dependency less and keeps the REPL in reach.
+=pycell= uses the inferior Python process that =python.el= starts,
+started the way =python-shell-dedicated= asks — one shell for the
+project, one for the buffer, or one shared.  This costs one build
+dependency less and keeps the REPL in reach.
 
 [[https://github.com/astoff/code-cells.el][code-cells]] gives the cells, the navigation and the evaluation
 command.  =pycell= adds what happens to the output.

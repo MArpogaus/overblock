@@ -1182,7 +1182,7 @@ prompt.  A cell sent while another one runs is refused, with a
       ;; is, and below it is the shell's.  Markers into the shell
       ;; would send its start-up banner as the cell.
       (let ((cell (cons (copy-marker start) (copy-marker end t))))
-        (run-python)
+        (run-python nil python-shell-dedicated)
         (with-current-buffer
             (process-buffer (python-shell-get-process-or-error))
           (setq pycell--cold-cell cell)
@@ -1212,7 +1212,7 @@ shows its source again."
         (with-current-buffer (process-buffer proc)
           (setq pycell--run nil))
         (python-shell-restart))
-    (run-python)))
+    (run-python nil python-shell-dedicated)))
 
 (defun pycell--run-next ()
   "Evaluate the cell at the head of `pycell--queue'.
