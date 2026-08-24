@@ -51,10 +51,6 @@
 
 ;;;; Helpers
 
-(defun pycell-test--pieces (beg end text)
-  "Return the pieces a block hangs TEXT on over the region BEG..END."
-  (overblock-get (overblock-show beg end :over text) :parts))
-
 (ert-deftest pycell-test-clean-prompts ()
   "Prompts at both ends and Out[n] markers go, whitespace is trimmed."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
@@ -110,24 +106,6 @@ would hide the rest of the output and buy no height back."
     (let ((pycell-max-lines 10))
       (should (equal (pycell--body-lines (list "before" pycell-test--image "after"))
                      (list "before" pycell-test--image "after"))))))
-
-(defconst pycell-test--png
-  (base64-decode-string
-   (concat "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
-           "z8DAwAAABQABDQottAAAAABJRU5ErkJggg=="))
-  "One pixel of PNG, to write to a file a markdown cell can name.")
-
-(defmacro pycell-test--with-image-file (name &rest body)
-  "Run BODY in a directory with a PNG file, bound to NAME."
-  (declare (indent 1))
-  `(let* ((dir (make-temp-file "pycell-img" t))
-          (,name (expand-file-name "figure.png" dir)))
-     (unwind-protect
-         (progn
-           (let ((coding-system-for-write 'no-conversion))
-             (write-region pycell-test--png nil ,name nil 'quiet))
-           ,@body)
-       (delete-directory dir t))))
 
 (ert-deftest pycell-test-md-an-edit-takes-the-bar-with-it ()
   "An edit of a rendered cell removes the rendering and its bar.
@@ -460,7 +438,7 @@ without a word."
             ;; as comint leaves it after a split chunk: inside the output
             (setq-local comint-last-prompt
                         (cons (copy-marker (+ start 7)) (copy-marker (+ start 13))))
-            (setq pycell--run (list start nil nil "" (float-time) nil))
+            (setq pycell--run (list :from start :tail "" :start (float-time)))
             (cl-letf (((symbol-function 'python-shell-comint-end-of-output-p)
                        (lambda (&rest _) t))
                       ((symbol-function 'pycell--end)
@@ -773,14 +751,15 @@ a result of no characters at all, which is why the bound asks first."
            ;; what the body can show: the lines it keeps, each cut to
            ;; the length it cuts them to
            (budget (* pycell-max-lines (1+ pycell-max-line-length))))
-      (setq-local pycell--run (list from (point-min-marker) (point-max-marker)
-                                    "" (float-time) nil nil nil))
+      (setq-local pycell--run (list :from from :beg (point-min-marker)
+                                    :end (point-max-marker) :tail ""
+                                    :start (float-time)))
       ;; one line, longer than the budget: the head stops at it
       (insert (make-string (* 3 budget) ?x))
       (should (= (length (pycell--output-head from)) budget))
       ;; the same output with an escape sequence inside the budget: all
       ;; of it is read, so comint-mime's image arrives whole
-      (pycell--set-run-head nil)
+      (setq pycell--run (plist-put pycell--run :head nil))
       (goto-char (+ from 10))
       (insert "\e]5151;file=x\e\\")
       (should (> (length (pycell--output-head from)) budget)))))
@@ -796,7 +775,7 @@ throughout."
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
       (let ((from (point-max-marker)))
-        (setq-local pycell--run (list from nil nil "" 0.0 nil nil nil))
+        (setq-local pycell--run (list :from from :tail "" :start 0.0))
         (insert (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 200) "\n")
                 "\n")
@@ -806,11 +785,11 @@ throughout."
           (should-not (string-match-p "line 100" head))
           (should (< (length head) 100)))
         ;; and it is kept, so the ticks that follow read nothing
-        (should (equal (pycell--run-head) (pycell--output-head from)))
+        (should (equal (plist-get pycell--run :head) (pycell--output-head from)))
         ;; the count is the whole output all the same, and counted
         ;; only where it arrives: the position it reached is kept
         (should (= (pycell--total from) 200))
-        (should (= (car (nth 7 pycell--run)) (point-max)))
+        (should (= (car (plist-get pycell--run :count)) (point-max)))
         (insert "line 201\nline 202")
         (should (= (pycell--total from) 202))))))
 
@@ -823,13 +802,13 @@ complete."
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
       (let ((from (point-max-marker)))
-        (setq-local pycell--run (list from nil nil "" 0.0 nil nil nil))
+        (setq-local pycell--run (list :from from :tail "" :start 0.0))
         (insert "\e]5151;{\"image/png\"\n")
         (insert (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 20) "\n")
                 "\n")
         (should (equal (pycell--output-head from) ""))
-        (should-not (pycell--run-head))))))
+        (should-not (plist-get pycell--run :head))))))
 
 (ert-deftest pycell-test-md-render-all-matches-one-by-one ()
   "Converting the buffer at once renders what one call per cell does."

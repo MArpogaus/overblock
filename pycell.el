@@ -74,6 +74,7 @@
 (require 'vtable nil t)
 (require 'python)
 (require 'ansi-color)
+(require 'map)
 (require 'seq)
 (require 'subr-x)
 
@@ -510,11 +511,7 @@ Each cell gets one buffer, so results are comparable side by side."
         ;; vtable aligns the columns for this window itself.  It goes in
         ;; as a copy, because the table of the result belongs to the
         ;; shell buffer that drew it.
-        (if-let* ((table (get-text-property (or (text-property-not-all
-                                                 0 (length text)
-                                                 'overblock-repl-table nil text)
-                                                0)
-                                            'overblock-repl-table text)))
+        (if-let* ((table (overblock-repl-table-in text)))
             (vtable-insert (overblock-repl-table-copy table))
           (insert text)))
       (goto-char (point-min))
@@ -600,7 +597,7 @@ is what leaves it room."
 With HTML, the cell is not sent to the converter again: it was
 converted with the rest of the buffer.
 The rendering hangs on the source lines themselves, a piece to a
-line \(see `pycell--md-parts'), so the cell scrolls like ordinary
+line \(see `overblock--pieces'), so the cell scrolls like ordinary
 text and stands as tall as its source, unless the rendering is
 shorter and the lines left over go under a cloak.  A cell that
 renders to nothing is the exception: it falls back to the single
@@ -835,42 +832,19 @@ and renders it; \\[pycell-md-abort] discards the edit."
 
 (defvar-local pycell--run nil
   "State of the cell that runs in this Python shell, or nil.
-A list (FROM BEG END TAIL START TIMER HEAD COUNT): FROM marks where
-the output starts here, BEG and END delimit the cell in its own
-buffer, TAIL accumulates recent output for the prompt detection,
-START is the `float-time' of the send and TIMER the ticker.  The last
-two belong to the live mirror: HEAD is the part of the output the
-block shows, once it can no longer change, and COUNT is (POSITION
-. LINES) counted up to POSITION, so a tick reads only what arrived
-since the one before it.
+A plist:
 
-The three fields a tick reads and writes have accessors below.  A record
-that each caller takes apart by hand is a record that cannot change
-shape.")
+  :from   where the output of the cell starts in this buffer
+  :beg    :end  the cell in its own buffer
+  :tail   the recent output, for the prompt detection
+  :start  the `float-time\=' of the send
+  :timer  the ticker
+  :head   the part of the output the block shows, once it can no
+          longer change
+  :count  (POSITION . LINES) counted up to POSITION, so a tick reads
+          only what arrived since the one before it
 
-(defun pycell--run-tail ()
-  "Return the recent output kept for the prompt detection."
-  (nth 3 pycell--run))
-
-(defun pycell--set-run-tail (value)
-  "Keep VALUE as the recent output for the prompt detection."
-  (setf (nth 3 pycell--run) value))
-
-(defun pycell--run-head ()
-  "Return the part of the output the block shows, or nil while it grows."
-  (nth 6 pycell--run))
-
-(defun pycell--set-run-head (value)
-  "Keep VALUE as the part of the output the block shows."
-  (setf (nth 6 pycell--run) value))
-
-(defun pycell--run-count ()
-  "Return the (POSITION . LINES) a tick counted, or nil for none yet."
-  (nth 7 pycell--run))
-
-(defun pycell--set-run-count (value)
-  "Keep VALUE as the (POSITION . LINES) counted so far."
-  (setf (nth 7 pycell--run) value))
+The last two belong to the live mirror.")
 
 (defvar-local pycell--cold-cell nil
   "Cell (BEG . END markers) that waits for this shell's first prompt.")
@@ -909,7 +883,7 @@ turned a figure into a result of no characters at all.
 Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
-  (or (pycell--run-head)
+  (or (plist-get pycell--run :head)
       (let* ((budget (and (natnump pycell-max-line-length)
                           (> pycell-max-line-length 0)
                           ;; what `pycell--body-lines' can show, and no
@@ -945,7 +919,7 @@ cell whose first lines are still on their way has more to come."
                     (pycell--whole-escapes (buffer-substring from limit)))))
         (when (and (< limit (point-max))
                    (not (string-empty-p text)))
-          (pycell--set-run-head text))
+          (setq pycell--run (plist-put pycell--run :head text)))
         text)))
 
 (defun pycell--total (from)
@@ -955,7 +929,7 @@ over everything printed so far, and a cell that prints a lot pays
 that pass five times a second.  Leading blank lines go, as
 `pycell--clean' drops them, so the count agrees with the one the
 finished cell shows."
-  (let* ((state (or (pycell--run-count)
+  (let* ((state (or (plist-get pycell--run :count)
                     (cons (save-excursion
                             (goto-char from)
                             (skip-chars-forward " \t\n")
@@ -970,12 +944,13 @@ finished cell shows."
       ;; and comint adjusts the whole chain on every insertion: 2000
       ;; ticks over 60000 inserted lines measured 0.144 seconds with a
       ;; fresh marker each time and 0.036 with this one.
-      (pycell--set-run-count
-       (cons (if-let* ((marker (car-safe state))
-                       ((markerp marker)))
-                 (set-marker marker (point))
-               (point-marker))
-             count)))
+      (setq pycell--run
+            (plist-put pycell--run :count
+                       (cons (if-let* ((marker (car-safe state))
+                                       ((markerp marker)))
+                                 (set-marker marker (point))
+                               (point-marker))
+                             count))))
     ;; A line that has not ended yet is a line all the same.
     (if (and (> (point-max) (marker-position from))
              (not (eq (char-before (point-max)) ?\n)))
@@ -986,7 +961,7 @@ finished cell shows."
   "End the running cell and show TEXT as its final result.
 The one exit for every way a cell ends; DIED marks abnormal ends.
 Call this in the Python shell buffer."
-  (pcase-let ((`(,_ ,beg ,fin ,_ ,start ,timer) pycell--run))
+  (pcase-let (((map :beg (:end fin) :start :timer) pycell--run))
     (setq pycell--run nil)
     (cancel-timer timer)
     (when died (setq pycell--queue nil))
@@ -1010,7 +985,7 @@ reinitializes the major mode — hence also on `kill-buffer-hook' and
 `change-major-mode-hook' in the Python shell."
   (when pycell--run
     (let* ((proc (get-buffer-process (current-buffer)))
-           (out (pycell--output-so-far (car pycell--run)))
+           (out (pycell--output-so-far (plist-get pycell--run :from)))
            (msg (propertize
                  (format "Process unexpectedly died%s"
                          (if proc
@@ -1031,7 +1006,7 @@ itself when nothing runs there anymore."
     (with-current-buffer buf
       (if (not (process-live-p (get-buffer-process buf)))
           (pycell--abort)
-        (pcase-let ((`(,from ,beg ,fin ,_ ,start ,_) pycell--run))
+        (pcase-let (((map (:from from) :beg (:end fin) :start) pycell--run))
           (let* ((text (pycell--output-head from))
                  (total (if (string-empty-p text) 0 (pycell--total from))))
             (when (buffer-live-p (marker-buffer beg))
@@ -1046,10 +1021,11 @@ no cell runs; the live mirroring is the ticker's job."
   (when pycell--run
     ;; A chunk boundary can split the prompt, so match a capped tail;
     ;; `ansi-color-filter-apply' drops the escape sequences.
-    (let ((tail (concat (pycell--run-tail)
+    (let ((tail (concat (plist-get pycell--run :tail)
                         (ansi-color-filter-apply output))))
-      (pycell--set-run-tail
-       (substring tail (max 0 (- (length tail) 256))))
+      (setq pycell--run
+            (plist-put pycell--run :tail
+                       (substring tail (max 0 (- (length tail) 256)))))
       (when (python-shell-comint-end-of-output-p tail)
         ;; Copy to the end of the buffer and let `pycell--clean' take
         ;; the prompt off.  `comint-last-prompt' cannot serve as the
@@ -1059,7 +1035,7 @@ no cell runs; the live mirroring is the ticker's job."
         ;; word.
         (pycell--end
          (pycell--clean
-          (buffer-substring (car pycell--run) (point-max))))))))
+          (buffer-substring (plist-get pycell--run :from) (point-max))))))))
 
 (defun pycell--ipython-syntax-p (beg end)
   "Return non-nil when BEG..END holds syntax that only IPython reads.
@@ -1134,8 +1110,10 @@ Call this with the cell's buffer current."
       (let ((timer (run-with-timer 0.2 0.2 #'ignore)))
         (timer-set-function timer #'pycell--tick
                             (list (current-buffer) timer))
-        (setq pycell--run (list (copy-marker (process-mark proc))
-                                beg fin "" (float-time) timer nil nil))))
+        (setq pycell--run (list :from (copy-marker (process-mark proc))
+                                :beg beg :end fin :tail ""
+                                :start (float-time) :timer timer
+                                :head nil :count nil))))
     (pycell--show beg fin "" 0.0 'running)
     (if (pycell--ipython-syntax-p beg fin)
         (pycell--send-to-ipython
