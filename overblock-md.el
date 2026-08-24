@@ -199,7 +199,7 @@ A word of its own in a paragraph of its own: every converter passes
 that through as a paragraph, where anything with markup would be
 reshaped into something else.")
 
-(defun overblock-md-html (md)
+(defun overblock-md--html (md)
   "Return the HTML `overblock-md-command' makes of MD."
   (let ((program (overblock-md-program)))
     (with-temp-buffer
@@ -228,7 +228,7 @@ call per cell, as it always did."
     (let* ((joined (string-join texts (format "\n\n%s\n\n"
                                               overblock-md--marker)))
            (pieces (split-string
-                    (overblock-md-html joined)
+                    (overblock-md--html joined)
                     (format "<p>[ \t\n]*%s[ \t\n]*</p>" overblock-md--marker))))
       (and (= (length pieces) (length texts)) pieces))))
 
@@ -341,7 +341,7 @@ source lines at whatever indent the buffer wears, and only literal
 columns survive a move.  The `:align-to\=' specs shr leaves behind are
 flattened to real spaces for the same reason."
   (let ((dom (with-temp-buffer
-               (insert (or html (overblock-md-html (overblock-md--verbatim-math md))))
+               (insert (or html (overblock-md--html (overblock-md--verbatim-math md))))
                (libxml-parse-html-region (point-min) (point-max))))
         (shr-use-fonts nil)
         (shr-external-rendering-functions

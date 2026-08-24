@@ -71,26 +71,24 @@ asking the first character alone accepted every candidate."
 
 (ert-deftest overblock-test-slots ()
   "Each row of a block lands in the slot that suits it.
-The header and the footer are strings, where a bar can put its icons at
+The header is a string, where a bar can put its icons at
 the window edge; a plain body rides the display property, the cheapest
 slot; a body with an image rides a string, because a display property
 swallows an image."
   (with-temp-buffer
     (insert "one\ntwo\n")
     (let* ((block (overblock-show 1 (point-max)
-                                  :header "H" :body "B" :footer "F"))
+                                  :header "H" :body "B"))
            (nl (overblock-get block :newline)))
       (should (equal (overlay-get block 'after-string) "\nH"))
       (should (equal (overlay-get nl 'display) "\nB\n"))
-      (should (equal (overlay-get nl 'after-string) "F\n"))
       ;; a body with an image moves off the display property and joins
       ;; the header on the anchor, where an image draws; the newline keeps
       ;; its own character, which is what lets a wheel pass the block
       (overblock-set block :body (concat "B" overblock-test--image))
       (overblock-refresh block)
       (should-not (overlay-get nl 'display))
-      (should (overblock-image-in (overlay-get block 'after-string)))
-      (should (string-match-p "F" (overlay-get block 'after-string))))))
+      (should (overblock-image-in (overlay-get block 'after-string))))))
 
 (ert-deftest overblock-test-body-without-a-newline ()
   "A body shows even where the region ends without a newline.

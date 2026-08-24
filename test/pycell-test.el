@@ -201,12 +201,12 @@ ten thousand lines cost 12.9 milliseconds against 0.6."
       (pycell--show beg end "one\ntwo\nthree" 0.1)
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         ;; the count is in the record, where the header reads it
-        (should (= (nth 4 (overblock-get block :data)) 3))
+        (should (= (plist-get (overblock-get block :data) :total) 3))
         (should (string-match-p "3 lines"
                                 (overlay-get block 'after-string)))
         ;; and a fold keeps it
         (pycell-toggle-output)
-        (should (= (nth 4 (overblock-get block :data)) 3))
+        (should (= (plist-get (overblock-get block :data) :total) 3))
         (should (string-match-p "3 lines"
                                 (overlay-get block 'after-string)))))))
 
@@ -216,11 +216,11 @@ ten thousand lines cost 12.9 milliseconds against 0.6."
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (pycell--show beg end "a\nb" 0.1)
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
-        (let ((data (overblock-get ov :data)))
-          (overblock-set ov :data (cons t (cdr data)))))
+        (overblock-set ov :data (plist-put (overblock-get ov :data)
+                                           :folded t)))
       (pycell--show beg end "c\nd" 0.2)
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
-        (should (car (overblock-get ov :data)))
+        (should (plist-get (overblock-get ov :data) :folded))
         ;; and the result that replaced it is the new one
         (should (equal (pycell--text ov) "c\nd"))))))
 
