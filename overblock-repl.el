@@ -79,6 +79,15 @@ and the copy carries the table object in a text property.  The value is
           (setq pos (and (< next len) next))))
       (when table (list table beg end)))))
 
+(defun overblock-repl-table-in (text)
+  "Return the table TEXT was laid out from, or nil.
+`overblock-repl-detach\=' leaves the table object on the text it laid
+out, under `overblock-repl-table\=', so a caller can show it live
+elsewhere with `overblock-repl-table-copy\='."
+  (when-let* ((pos (text-property-not-all 0 (length text)
+                                          'overblock-repl-table nil text)))
+    (get-text-property pos 'overblock-repl-table text)))
+
 (defun overblock-repl-table-copy (table)
   "Return a table of the rows and columns of TABLE, for another buffer.
 The table of a result belongs to the shell that drew it.  Emacs 31
