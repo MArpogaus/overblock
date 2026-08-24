@@ -341,9 +341,11 @@ passes.  =pycell-pop-output= shows the figure in a buffer of its own.
 :END:
 
 A rendered markdown cell makes each scroll event more expensive.
-Measured on =demo/scrolling.py= in a window of 1000x700 pixels: 2.0
-ms for an event downwards and 4.9 ms upwards.  The same file with the
-blocks off needs 0.6 ms and 1.0 ms.
+Measured again on =demo/scrolling.py= in a window of 1032x700 pixels:
+1.5 ms for an event downwards and 2.5 ms upwards, against 1.0 ms and
+1.4 ms for the same file with the blocks off.  The code before the block
+layer measures the same on that machine, to the tenth of a millisecond.
+The numbers a reader gets depend on the machine; the ratio does not.
 
 The cost comes from the face runs, and not from the height.  Rendered
 Markdown holds several hundred face runs in a line.  Source code
