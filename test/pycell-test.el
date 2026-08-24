@@ -384,6 +384,24 @@ leave a line of no height, which stops scrolling up the same way."
     (forward-line 1)
     (should-not (pycell--md-cell-start (point)))))
 
+(ert-deftest pycell-test-dedicated-asks-no-project-question ()
+  "A shell is dedicated as the reader asked, and asks nothing.
+`run-python' answers `project' by calling `project-current' with a
+prompt, so a file that belongs to no project would stop a queued run
+with a question.  `python-shell-get-process-name' names such a shell
+the shared one, and so does this."
+  (let ((python-shell-dedicated nil))
+    (should-not (pycell--dedicated)))
+  (let ((python-shell-dedicated 'buffer))
+    (should (eq (pycell--dedicated) 'buffer)))
+  (let ((python-shell-dedicated 'project))
+    ;; inside a project the reader's answer stands
+    (cl-letf (((symbol-function 'project-current) (lambda (&rest _) '(vc Git "/tmp/"))))
+      (should (eq (pycell--dedicated) 'project)))
+    ;; outside one it is the shared shell, not a question
+    (cl-letf (((symbol-function 'project-current) #'ignore))
+      (should-not (pycell--dedicated)))))
+
 (ert-deftest pycell-test-cold-cell-belongs-to-its-buffer ()
   "The cell that waits for a cold interpreter is marked in its own buffer.
 `copy-marker' on a number answers for the current buffer, so marking
