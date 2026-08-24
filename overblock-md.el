@@ -131,11 +131,16 @@ the host's /tmp."
                  (current-buffer))))
             (create-image file nil nil :ascent 'center))
         ;; Report once: without a LaTeX installation, every fragment of
-        ;; every cell would report the same thing.
+        ;; every cell would report the same thing.  Org blames its own
+        ;; process alist for a LaTeX run that produced nothing, where
+        ;; the reason is in the log LaTeX left in DIR — a package the
+        ;; preamble asks for and the installation does not have, most
+        ;; often — so the message says where to look.
         (error (unless overblock-md--latex-warned
                  (setq overblock-md--latex-warned t)
-                 (message "overblock-md: no LaTeX preview (%s), formulas stay as text"
-                          (error-message-string err)))
+                 (message "overblock-md: no LaTeX preview (%s); \
+formulas stay as text, and LaTeX left its log in %s"
+                          (error-message-string err) dir))
                nil)))))
 
 (defconst overblock-md--math-regexp
