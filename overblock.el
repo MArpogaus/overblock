@@ -205,7 +205,11 @@ every `overblock-refresh\='."
                        end))
          (block (make-overlay beg anchor-end nil t t)))
     (overlay-put block 'evaporate t)
-    (overlay-put block 'overblock props)
+    ;; The two slots the layer writes itself are there from the start, so
+    ;; every `plist-put\=' after this mutates the list in place and no
+    ;; reader can be left holding a head that is no longer the block\='s.
+    (overlay-put block 'overblock (append props (list :newline nil
+                                                      :parts nil)))
     (when (eq (char-after anchor-end) ?\n)
       (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
         (overlay-put ov 'evaporate t)
@@ -398,8 +402,6 @@ anew, so nothing has to be saved and given back."
   (mapc #'delete-overlay (overblock-get block :parts))
   (overblock-set block :parts nil)
   ;; A hidden block shows nothing, so it reads nothing.
-  ;; `overblock-set' can hand back a new plist when it adds a key, so
-  ;; SHOWN is read before any part is written.
   (let ((shown (unless (overblock-get block :hidden)
                  (overlay-get block 'overblock))))
     (overblock--dress block block)
