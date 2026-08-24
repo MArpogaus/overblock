@@ -98,10 +98,10 @@ It inherits the cell boundary face, so results match the cells.")
 (defcustom pycell-result-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
-    (save-image ("󰇚" "↧" "↓") "Save the result's image to a file"
+    (save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
                 pycell-save-image image)
-    (copy ("󰆏" "❐" "≡") "Copy this result" pycell-copy-output lines)
-    (pop ("󰏋" "↗" "^") "Show this result in its own buffer"
+    (copy ("󰄷" "◫" "≡") "Copy this result" pycell-copy-output lines)
+    (pop ("󱦴" "↗" "^") "Show this result in its own buffer"
          pycell-pop-output lines)
     (discard ("󰅖" "✕" "x") "Discard this result" pycell-discard-output t))
   "The buttons on the header of a result, left to right.
@@ -124,7 +124,7 @@ this list: they say what the result is doing."
 (defcustom pycell-markdown-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
-    (edit ("󰏋" "↗" "^") "Edit this markdown cell in its own buffer"
+    (edit ("󱦴" "↗" "^") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
     (source ("󰅖" "✕" "x") "Show the plain source" pycell-md-raw t))
   "The buttons on the header of a rendered markdown cell.
