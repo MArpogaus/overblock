@@ -105,6 +105,13 @@ simple formulas into text on its own and passes the rest through, and
 (defvar overblock-md--latex-warned nil
   "Non-nil once a failed LaTeX preview was reported in this session.")
 
+(defvar overblock-md--latex-failed (make-hash-table :test #'equal)
+  "The fragments whose preview failed in this session.
+What caches a preview is the image file, so a failure caches nothing
+and every render of the cell runs LaTeX again for the same fragment: a
+process per fragment per render, for an answer that is already known.
+`overblock-md-forget-failed-previews' empties this.")
+
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
 Org's formula machinery renders it.  The cache lives under ~/.cache,
@@ -124,6 +131,10 @@ the host's /tmp."
                   (concat (md5 (concat fg frag)) "." ext) dir)))
       (condition-case err
           (progn
+            (when (gethash frag overblock-md--latex-failed)
+              ;; Known to fail: the fragment stays text, without another
+              ;; LaTeX run.
+              (error "Preview failed before"))
             (unless (file-exists-p file)
               (make-directory dir t)
               (let ((temporary-file-directory dir))
@@ -146,12 +157,23 @@ the host's /tmp."
         ;; the reason is in the log LaTeX left in DIR — a package the
         ;; preamble asks for and the installation does not have, most
         ;; often — so the message says where to look.
-        (error (unless overblock-md--latex-warned
+        (error (puthash frag t overblock-md--latex-failed)
+               (unless overblock-md--latex-warned
                  (setq overblock-md--latex-warned t)
                  (message "overblock-md: no LaTeX preview (%s); \
 formulas stay as text, and LaTeX left its log in %s"
                           (error-message-string err) dir))
                nil)))))
+
+;;;###autoload
+(defun overblock-md-forget-failed-previews ()
+  "Ask LaTeX again for the fragments whose preview failed.
+A failure is remembered for the session, so that a cell costs one LaTeX
+run per fragment rather than one per render.  Install LaTeX, call this,
+and render the cells again."
+  (interactive)
+  (clrhash overblock-md--latex-failed)
+  (setq overblock-md--latex-warned nil))
 
 (defconst overblock-md--math-regexp
   (rx (or (seq "$$" (+? anychar) "$$")

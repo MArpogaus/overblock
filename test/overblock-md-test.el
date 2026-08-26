@@ -269,5 +269,26 @@ image."
       (should-not (overblock-image-in in-table))
       (should (overblock-image-in outside)))))
 
+(ert-deftest overblock-md-test-a-failed-preview-is-asked-once ()
+  "A fragment whose preview failed does not run LaTeX again.
+Nothing caches a failure — what caches a preview is the image file —
+so every render used to spend a LaTeX process per fragment on an
+answer that was already known."
+  (let ((overblock-md--latex-warned nil)
+        (overblock-md--latex-failed (make-hash-table :test #'equal))
+        (runs 0))
+    (cl-letf (((symbol-function 'org-create-formula-image)
+               (lambda (&rest _) (setq runs (1+ runs)) (error "No LaTeX")))
+              ((symbol-function 'require) (lambda (&rest _) t)))
+      (should-not (overblock-md--latex-image "$x$"))
+      (should-not (overblock-md--latex-image "$x$"))
+      (should-not (overblock-md--latex-image "$x$"))
+      (should (= runs 1))
+      (should (gethash "$x$" overblock-md--latex-failed))
+      ;; And the way back, for a reader who installs LaTeX.
+      (overblock-md-forget-failed-previews)
+      (should-not (overblock-md--latex-image "$x$"))
+      (should (= runs 2)))))
+
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here
