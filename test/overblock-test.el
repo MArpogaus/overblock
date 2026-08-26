@@ -332,5 +332,115 @@ for each of them drew the same image three times."
                         (overlay-get (car withimage) 'after-string))
                        "$$\na = b\n$$"))))))
 
+(ert-deftest overblock-test-image-in-sees-a-slice ()
+  "Emacs 31 slices a tall image, and a slice of an image is an image.
+The spec is then ((slice X Y W H) IMAGE), and what answers is the image
+inside it, so a caller can still read its `:data\=' and cap its height."
+  (let* ((image '(image :type png :data "x"))
+         (sliced (propertize " " 'display (list '(slice 0.0 0.0 1.0 0.25)
+                                                image))))
+    (should (equal (overblock-image-in sliced) image))
+    (should (equal (overblock-image--spec (list '(slice 0 0 1 1) image)) image))
+    (should-not (overblock-image--spec '(raise 0.5)))
+    (should-not (overblock-image--spec '((slice 0 0 1 1) "not an image")))))
+
+(ert-deftest overblock-test-refresh-leaves-a-dead-block-alone ()
+  "A block that is no longer in a buffer draws nothing and signals nothing.
+`delete-overlay\=' leaves an overlay that is still an overlay and answers
+nil to `overlay-start\=', which is the position the drawing reads."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let ((block (overblock-show (point-min) (point-max) :over "A\nB")))
+      (delete-overlay block)
+      (should-not (overlay-buffer block))
+      ;; Neither the path with a rendering nor the one without it.
+      (should (null (overblock-refresh block)))
+      (overblock-set block :over nil)
+      (should (null (overblock-refresh block))))))
+
+(ert-deftest overblock-test-refresh-draws-in-the-blocks-own-buffer ()
+  "The pieces of a block go in the buffer the block is in.
+`make-overlay\=' puts an overlay in whatever buffer is current, so a
+refresh from elsewhere would hang the pieces over unrelated text, out of
+reach of `overblock-clear\=' in the buffer they belong to."
+  (let ((home (generate-new-buffer "overblock-home"))
+        (other (generate-new-buffer "overblock-other")))
+    (unwind-protect
+        (let (block)
+          (with-current-buffer home
+            (insert "one\ntwo\nthree\n")
+            (setq block (overblock-show (point-min) (point-max) :over "A\nB")))
+          (with-current-buffer other
+            (insert "elsewhere\n")
+            (overblock-refresh block)
+            (should (= 0 (length (overlays-in (point-min) (point-max))))))
+          (with-current-buffer home
+            (should (overblock-get block :parts))
+            (dolist (part (overblock-get block :parts))
+              (should (eq (overlay-buffer part) home)))))
+      (kill-buffer home)
+      (kill-buffer other))))
+
+(ert-deftest overblock-test-refresh-under-a-narrowing-terminates ()
+  "A block that reaches past a narrowing is still drawn line by line.
+An overlay\='s positions know nothing of a narrowing, and the walk over
+the region used to run until the machine was out of memory: the end was
+outside the accessible portion, and `forward-line\=' stops at its edge
+without moving."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\nfive\n")
+    (let ((block (overblock-show 1 (point-max) :over "A\nB")))
+      (narrow-to-region 1 8)
+      ;; With a timeout, so a regression fails the test instead of
+      ;; hanging the suite.
+      (should (with-timeout (5 nil) (overblock-refresh block) t))
+      (widen)
+      (should (overblock-get block :parts)))))
+
+(ert-deftest overblock-test-a-dead-newline-overlay-is-no-newline ()
+  "The slot for the region\='s last newline can hold a deleted overlay.
+Deleting that newline kills the overlay without touching the anchor,
+whose range does not cover it, and the drawing then read nil as the end
+of the region."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    ;; A region that ends on a newline: that newline is what the slot is
+    ;; for, and the anchor stops in front of it.
+    (let* ((block (overblock-show 1 (point-max) :over "A"))
+           (newline (overblock-get block :newline)))
+      (should (overlay-buffer newline))
+      (delete-region (1- (point-max)) (point-max))
+      (should-not (overlay-buffer newline))
+      (should (overlay-buffer block))
+      (should (overblock-refresh block)))))
+
+(ert-deftest overblock-test-clear-sweeps-what-lost-its-anchor ()
+  "An overlay of the layer whose anchor is gone is swept by a clear.
+A package that deletes the overlays it finds in a region can take the
+anchor and leave a cloak, which keeps lines of the buffer invisible with
+nothing left that knows to take it off."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\n")
+    (let ((block (overblock-show (point-min) (point-max) :over "A")))
+      ;; Only the anchor, as `delete-overlay' on one found overlay does.
+      (delete-overlay block)
+      (should (> (length (overlays-in (point-min) (point-max))) 0))
+      (overblock-clear)
+      (should (= 0 (length (overlays-in (point-min) (point-max))))))))
+
+(ert-deftest overblock-test-dress-takes-a-property-off-again ()
+  "A block that no longer carries a keymap has it taken off its overlays."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let ((block (overblock-show (point-min) (point-max)
+                                 :over "A" :keymap (make-sparse-keymap)
+                                 :help-echo "help")))
+      (should (overlay-get block 'keymap))
+      (overblock-set block :keymap nil)
+      (overblock-set block :help-echo nil)
+      (overblock-refresh block)
+      (should-not (overlay-get block 'keymap))
+      (should-not (overlay-get block 'help-echo)))))
+
 (provide 'overblock-test)
 ;;; overblock-test.el ends here

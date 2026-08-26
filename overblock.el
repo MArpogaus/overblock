@@ -56,6 +56,11 @@
 
 (require 'seq)
 (require 'subr-x)
+;; `overblock--flatten-alignment' reads a match with `prop-match-value'.
+;; `text-property-search-forward' is autoloaded and its accessors are
+;; not, so the file otherwise compiles clean only when something else
+;; has pulled the library in first.
+(require 'text-property-search)
 
 (defgroup overblock nil
   "Blocks of text shown over a buffer."
@@ -156,10 +161,21 @@ a click moves point there first."
   "Delete the blocks of KIND that overlap BEG..END.
 BEG and END default to the whole buffer, KIND to every kind.  A
 narrowing hides nothing from this: the range is searched whole, so no
-block is left behind outside it."
+block is left behind outside it.
+
+A block is taken down through its anchor, which knows what it drew.
+Where the anchor is gone and what it drew is not — a package that
+deletes the overlays of a region, an anchor that evaporated with the
+line it hung on — nothing knows those overlays any more, and one of
+them can be a cloak that keeps lines of the buffer invisible.  So
+every overlay the layer makes says so, and clearing the whole buffer
+sweeps whatever is left over.  Only the whole buffer: a range says
+nothing about which block an orphan belonged to."
   (without-restriction
     (mapc #'overblock-delete
-          (overblock-in (or beg (point-min)) (or end (point-max)) kind))))
+          (overblock-in (or beg (point-min)) (or end (point-max)) kind))
+    (unless (or beg end kind)
+      (remove-overlays (point-min) (point-max) 'overblock-part t))))
 
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
@@ -205,6 +221,18 @@ every `overblock-refresh\='."
                        end))
          (block (make-overlay beg anchor-end nil t t)))
     (overlay-put block 'evaporate t)
+    (overlay-put block 'overblock-part t)
+    ;; The block goes when the region it hangs on goes.  `evaporate'
+    ;; only reaches an overlay whose own text is deleted, and the
+    ;; anchor's text can be emptied without that: a deletion that ends
+    ;; exactly at BEG leaves an empty anchor behind, with everything the
+    ;; block draws still on the screen.  The layer takes it down itself,
+    ;; where each caller used to.
+    (overlay-put block 'modification-hooks
+                 (list (lambda (ov after &rest _)
+                         (when (and after (overlay-buffer ov)
+                                    (= (overlay-start ov) (overlay-end ov)))
+                           (overblock-delete ov)))))
     ;; The two slots the layer writes itself are there from the start, so
     ;; every `plist-put\=' after this mutates the list in place and no
     ;; reader can be left holding a head that is no longer the block\='s.
@@ -213,6 +241,7 @@ every `overblock-refresh\='."
     (when (eq (char-after anchor-end) ?\n)
       (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
         (overlay-put ov 'evaporate t)
+        (overlay-put ov 'overblock-part t)
         (overblock-set block :newline ov)))
     (overblock-refresh block)
     block))
@@ -221,10 +250,11 @@ every `overblock-refresh\='."
   "Give OV the keymap and the help echo of BLOCK, and return OV.
 Everything a block shows answers to the same click and says the same
 thing under the mouse, whichever overlay carries it."
-  (when-let* ((map (overblock-get block :keymap)))
-    (overlay-put ov 'keymap map))
-  (when-let* ((help (overblock-get block :help-echo)))
-    (overlay-put ov 'help-echo help))
+  ;; Written either way: a block that no longer carries a keymap or a
+  ;; help string has it taken off its overlays, where a `when' left the
+  ;; old one on until the overlay was remade.
+  (overlay-put ov 'keymap (overblock-get block :keymap))
+  (overlay-put ov 'help-echo (overblock-get block :help-echo))
   ov)
 
 (defun overblock--cloak (block beg end)
@@ -234,6 +264,7 @@ at the end of a visible line: `scroll-down' answers a run that begins
 a line with a beginning-of-buffer error, in the middle of the region."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
+    (overlay-put ov 'overblock-part t)
     (overlay-put ov 'invisible t)
     (overlay-put ov 'overblock-cloak t)
     (overblock--dress block ov)))
@@ -280,18 +311,33 @@ region has anyway.  Those lines go under a cloak."
          ;; The last newline of the region belongs to it: the anchor
          ;; stops before that newline, and a cloak that stopped there
          ;; too would leave the last line of the region on the screen.
-         (end (if-let* ((nl (overblock-get block :newline)))
+         ;;
+         ;; A live overlay, tested by its buffer: `delete-overlay' leaves
+         ;; an overlay that is still an overlay and answers nil to
+         ;; `overlay-end'.  Deleting the region's last newline kills that
+         ;; overlay without touching the anchor, whose range does not
+         ;; cover it, so the slot can hold a corpse while the block is
+         ;; otherwise sound — and END of nil ends the walk below in
+         ;; `wrong-type-argument'.
+         (nl (overblock-get block :newline))
+         (end (if (and (overlayp nl) (overlay-buffer nl))
                   (overlay-end nl)
                 (overlay-end block)))
-         (lines (overblock--lines (string-trim text "\n" "\n")))
+         (lines (overblock--lines (string-trim text "\n+" "\n+")))
          (count (length lines))
-         (rows (save-excursion
-                 (goto-char beg)
-                 (let (rows)
-                   (while (< (point) end)
-                     (push (cons (point) (min end (pos-eol))) rows)
-                     (forward-line 1))
-                   (nreverse rows))))
+         ;; The whole buffer: an overlay's positions know nothing of a
+         ;; narrowing, and under one that ends before END this walk would
+         ;; never reach it — `forward-line' stops at the accessible end
+         ;; without moving, the test never goes false, and the list grows
+         ;; until the machine is out of memory.
+         (rows (without-restriction
+                 (save-excursion
+                   (goto-char beg)
+                   (let (rows)
+                     (while (< (point) end)
+                       (push (cons (point) (min end (pos-eol))) rows)
+                       (forward-line 1))
+                     (nreverse rows)))))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
          (filled 0)
          (rest lines)                        ; what the deal has left
@@ -326,6 +372,7 @@ region has anyway.  Those lines go under a cloak."
           (let ((ov (make-overlay from to nil t))
                 (piece (string-join chunk "\n")))
             (overlay-put ov 'evaporate t)
+            (overlay-put ov 'overblock-part t)
             (if (overblock-image-in piece)
                 (progn (overlay-put ov 'display "")
                        (overlay-put ov 'after-string piece))
@@ -397,29 +444,54 @@ Each string carries the line breaks that its own rows need."
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
-Call it after `overblock-set'.  Everything the block shows is made
-anew, so nothing has to be saved and given back."
-  (mapc #'delete-overlay (overblock-get block :parts))
-  (overblock-set block :parts nil)
-  ;; A hidden block shows nothing, so it reads nothing.
-  (let ((shown (unless (overblock-get block :hidden)
-                 (overlay-get block 'overblock))))
-    (overblock--dress block block)
-    (when-let* ((over (plist-get shown :over)))
-      (overblock-set block :parts (overblock--pieces block over)))
-    (overblock--attach block shown)
-    ;; The bracket runs beside the region; `overblock--attach' has put
-    ;; it beside the rows it wrote.
-    (when overblock-fringe
-      (overlay-put block 'line-prefix overblock--fringe-prefix)
-      (overlay-put block 'wrap-prefix overblock--fringe-prefix))
-    block))
+Call it after `overblock-set\='.  Everything the block shows is made
+anew, so nothing has to be saved and given back.
+
+A block that is no longer in a buffer draws nothing: `delete-overlay\='
+leaves an overlay that answers nil to `overlay-start\=', and the drawing
+reads that position.  What is drawn is drawn in the block\='s own buffer,
+because the overlays the pieces ride are made with `make-overlay\=',
+which puts them in whatever buffer is current — a refresh from
+elsewhere would hang them over unrelated text, out of reach of
+`overblock-clear\=' in the buffer they belong to."
+  (when-let* ((buffer (overlay-buffer block)))
+    (with-current-buffer buffer
+      (mapc #'delete-overlay (overblock-get block :parts))
+      (overblock-set block :parts nil)
+      ;; A hidden block shows nothing, so it reads nothing.
+      (let ((shown (unless (overblock-get block :hidden)
+                     (overlay-get block 'overblock))))
+        (overblock--dress block block)
+        (when-let* ((over (plist-get shown :over)))
+          (overblock-set block :parts (overblock--pieces block over)))
+        (overblock--attach block shown)
+        ;; The bracket runs beside the region; `overblock--attach' has put
+        ;; it beside the rows it wrote.  Written either way: nil is a
+        ;; property value like any other and takes the bracket off again,
+        ;; where a `when' would leave it on until the block is remade.
+        (let ((prefix (and overblock-fringe overblock--fringe-prefix)))
+          (overlay-put block 'line-prefix prefix)
+          (overlay-put block 'wrap-prefix prefix))
+        block))))
+
+(defun overblock-image--spec (display)
+  "Return the image in the DISPLAY spec, or nil.
+Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+row for each line, and a slice reads ((slice X Y W H) IMAGE) rather
+than (image . PLIST): the image is its second element.  The form is older
+than Emacs 22, so reading it costs nothing on an Emacs that does not
+slice."
+  (cond ((eq (car-safe display) 'image) display)
+        ((and (eq (car-safe (car-safe display)) 'slice)
+              (eq (car-safe (cadr display)) 'image))
+         (cadr display))))
 
 (defun overblock-image-in (text)
   "Return the `display\=' spec of the first image in TEXT, or nil.
 The value is (image . PLIST), so a caller can read `:data\=' or `:type\='
 from it.  A `raise\=' spec, which shr uses for a superscript, is not an
-image and does not answer here."
+image and does not answer here.  A slice of an image is an image, and
+the image inside it is what answers."
   (let ((len (length text))
         (pos 0)
         img)
@@ -430,8 +502,8 @@ image and does not answer here."
     (while (and (not img)
                 (setq pos (text-property-not-all pos len 'display nil text)))
       (let ((disp (get-text-property pos 'display text)))
-        (if (eq (car-safe disp) 'image)
-            (setq img disp)
+        (if-let* ((image (overblock-image--spec disp)))
+            (setq img image)
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
 
@@ -598,6 +670,16 @@ is `image' or `lines' waits for those."
     "  ")
    " "))
 
+(defun overblock--pixel-width (string)
+  "Return the width of STRING in pixels, as this buffer would draw it.
+Emacs 31 takes the buffer whose face remapping to measure with; an
+older one measures without any, and the icons of a notebook under
+`text-scale-mode\=' or `buffer-face-mode\=' are then placed by a width
+they are not drawn at."
+  (if (> (cdr (func-arity #'string-pixel-width)) 1)
+      (string-pixel-width string (current-buffer))
+    (string-pixel-width string)))
+
 (defun overblock-bar (left icons face)
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
 The alignment is pixel-exact: icon glyphs render wider than
@@ -610,7 +692,7 @@ not."
    (concat left
            (propertize " " 'display
                        `(space :align-to
-                               (- right (,(+ (string-pixel-width
+                               (- right (,(+ (overblock--pixel-width
                                               (propertize icons 'face face))
                                              (if (display-graphic-p) 0 1))))))
            icons)

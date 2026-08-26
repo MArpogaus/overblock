@@ -63,6 +63,10 @@
 (defvar org-preview-latex-process-alist)
 (defvar org-format-latex-options)
 
+;; New in Emacs 31, and bound while shr renders: declared so the file
+;; compiles on an Emacs that has never heard of it.
+(defvar shr-sliced-image-height)
+
 ;; shr parses the converter's HTML with this, and an Emacs built
 ;; without libxml2 does not have it; `overblock-md-program' answers nil
 ;; there and no markdown cell is rendered at all.  Declared so the
@@ -129,7 +133,13 @@ the host's /tmp."
                   org-format-latex-options
                   (list :foreground fg :background "Transparent"))
                  (current-buffer))))
-            (create-image file nil nil :ascent 'center))
+            (apply #'create-image file nil nil :ascent 'center
+                   ;; Capped like the images of a result and of an
+                   ;; `![](file)': a display-math block can be taller
+                   ;; than the window, and a block the wheel cannot get
+                   ;; past is what `overblock-image-height' exists for.
+                   (when-let* ((limit (overblock-image-limit)))
+                     (list :max-height limit))))
         ;; Report once: without a LaTeX installation, every fragment of
         ;; every cell would report the same thing.  Org blames its own
         ;; process alist for a LaTeX run that produced nothing, where
@@ -357,6 +367,13 @@ without a converter has to see."
                  (insert page)
                  (libxml-parse-html-region (point-min) (point-max))))
           (shr-use-fonts nil)
+          ;; Emacs 31 slices an image taller than this into a row for
+          ;; each line of the window it is drawn in.  There is no window
+          ;; here — the rendering happens in a temporary buffer and is
+          ;; laid out over source lines afterwards — and a slice is
+          ;; measured against one, so the images come whole and
+          ;; `overblock-image-limit' caps them as it always did.
+          (shr-sliced-image-height nil)
           (shr-external-rendering-functions
            (append overblock-md--rendering-functions
                    shr-external-rendering-functions)))
