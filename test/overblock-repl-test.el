@@ -149,18 +149,76 @@ own."
     (should (equal (split-string clean "\n")
                    '("first  second" "1      one" "2      two")))))
 
-(ert-deftest overblock-repl-test-fit-leaves-a-slice-alone ()
-  "A sliced image keeps its geometry: the cap is for a whole image.
-Emacs 31 slices a tall image into a row for each line, and the fractions
-in the slice were worked out against the height the image had — a cap
-under them would draw bands with gaps."
+(ert-deftest overblock-repl-test-fit-unslices-a-tall-image ()
+  "A run of slices becomes the whole image, capped, on its first row.
+Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+row for each line of the window it was rendered in.  Slicing does not
+make an image smaller, so leaving the slices alone left the cap with
+nothing to cap — and the image cannot be capped under the slice either,
+because the fractions were worked out against the height it had."
   (let* ((image '(image :type png :data "x"))
-         (slice '(slice 0.0 0.5 1.0 0.5))
-         (line (propertize " " 'display (list slice image))))
+         (rows (list '(slice 0.0 0.0 1.0 0.5) '(slice 0.0 0.5 1.0 0.5)))
+         (line (concat (propertize " " 'display (list (nth 0 rows) image))
+                       "\n"
+                       (propertize " " 'display (list (nth 1 rows) image)))))
     (cl-letf (((symbol-function 'overblock-image-limit) (lambda () 100)))
-      (let ((fitted (overblock-repl-fit line)))
-        (should (equal (get-text-property 0 'display fitted)
-                       (list slice image)))))))
+      (let* ((fitted (overblock-repl-fit line))
+             (first (get-text-property 0 'display fitted))
+             (later (get-text-property (1- (length fitted)) 'display fitted)))
+        ;; The first row carries the image, capped and no longer sliced.
+        (should (eq (car-safe first) 'image))
+        (should (= (plist-get (cdr first) :max-height) 100))
+        ;; The rows that followed it carry nothing.
+        (should (equal later ""))))))
+
+(ert-deftest overblock-repl-test-first-lines-of-nothing-is-nothing ()
+  "A limit of zero takes no lines, rather than the whole result.
+`pycell-max-lines\=' is a natnum, so zero is a legal value, and the scan
+counts from one: it never met a limit of zero and read and copied
+everything instead."
+  (should-not (overblock-repl-first-lines "a\nb\nc\n" 0))
+  (should-not (overblock-repl-first-lines "a\nb\nc\n" -1))
+  (should (equal (overblock-repl-first-lines "a\nb\nc\n" 2) '("a" "b"))))
+
+(ert-deftest overblock-repl-test-a-copy-keeps-what-the-columns-carry ()
+  "The copy of a table keeps every column property, `min-width\=' included.
+comint-mime gives each column a `:min-width\=' of its name\='s length and
+no `:width\=' at all, and a copy built from four keys came out narrower
+than the table it was made from."
+  (skip-unless (fboundp 'make-vtable))
+  (let* ((table (make-vtable :columns (list (list :name "alpha" :min-width 5)
+                                            (list :name "b" :align 'right))
+                             :objects '((1 2) (3 4))
+                             :insert nil))
+         (copy (overblock-repl-table-copy table)))
+    (should (equal (mapcar #'vtable-column-name (vtable-columns copy))
+                   '("alpha" "b")))
+    (should (equal (vtable-column-min-width
+                    (car (vtable-columns copy)))
+                   5))
+    (should (eq (vtable-column-align (cadr (vtable-columns copy))) 'right))
+    ;; Objects of its own, not the table's list.
+    (should (equal (vtable-objects copy) (vtable-objects table)))
+    (should-not (eq (car (vtable-columns copy)) (car (vtable-columns table))))))
+
+(ert-deftest overblock-repl-test-two-tables-both-survive ()
+  "A cell that shows two frames keeps both, and what follows them.
+The regions were read as the first and the last run of the property, so
+the second table and everything between them was replaced by the layout
+of the first — and the text after a table lost the newline its run had
+swallowed."
+  (skip-unless (fboundp 'make-vtable))
+  (let* ((one (make-vtable :columns '("a") :objects '((1)) :insert nil))
+         (two (make-vtable :columns '("b") :objects '((2)) :insert nil))
+         (text (concat (propertize "one\n" 'vtable one)
+                       (propertize "two\n" 'vtable two)
+                       "tail\n"))
+         (detached (overblock-repl-detach text)))
+    (should (string-search "a" detached))
+    (should (string-search "b" detached))
+    (should (string-search "tail" detached))
+    ;; The tail stands on a line of its own.
+    (should-not (string-match-p "[^\n]tail" detached))))
 
 (provide 'overblock-repl-test)
 ;;; overblock-repl-test.el ends here

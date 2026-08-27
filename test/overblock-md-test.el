@@ -274,23 +274,74 @@ image."
 Nothing caches a failure — what caches a preview is the image file —
 so every render used to spend a LaTeX process per fragment on an
 answer that was already known."
-  (let ((overblock-md--latex-warned nil)
-        (overblock-md--latex-failed (make-hash-table :test #'equal))
-        (runs 0))
-    (cl-letf (((symbol-function 'org-create-formula-image)
-               (lambda (&rest _) (setq runs (1+ runs)) (error "No LaTeX")))
-              ((symbol-function 'require) (lambda (&rest _) t)))
-      (should-not (overblock-md--latex-image "$x$"))
-      (should-not (overblock-md--latex-image "$x$"))
-      (should-not (overblock-md--latex-image "$x$"))
-      (should (= runs 1))
-      ;; Keyed by the image file, which carries the fragment and the
-      ;; colour: a theme change asks again.
-      (should (= (hash-table-count overblock-md--latex-failed) 1))
-      ;; And the way back, for a reader who installs LaTeX.
-      (overblock-md-forget-failed-previews)
-      (should-not (overblock-md--latex-image "$x$"))
-      (should (= runs 2)))))
+  ;; org for real: stubbing `require\=' made the guard in
+  ;; `overblock-md--latex-image\=' lie, and the variables org defines were
+  ;; then void — which failed this test or not depending on whether
+  ;; another test had loaded org first.
+  (skip-unless (require 'org nil t))
+  (let* ((cache (make-temp-file "overblock-cache" t))
+         (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
+                                    process-environment))
+         (overblock-md--latex-warned nil)
+         (overblock-md--latex-failed (make-hash-table :test #'equal))
+         (runs 0))
+    (unwind-protect
+        (cl-letf (((symbol-function 'org-create-formula-image)
+                   (lambda (&rest _) (setq runs (1+ runs)) (error "No LaTeX"))))
+          (should-not (overblock-md--latex-image "$x$"))
+          (should-not (overblock-md--latex-image "$x$"))
+          (should-not (overblock-md--latex-image "$x$"))
+          (should (= runs 1))
+          ;; Keyed by the image file, which carries the fragment and the
+          ;; colour: a theme change asks again.
+          (should (= (hash-table-count overblock-md--latex-failed) 1))
+          ;; And the way back, for a reader who installs LaTeX.
+          (overblock-md-forget-failed-previews)
+          (should-not (overblock-md--latex-image "$x$"))
+          (should (= runs 2)))
+      (delete-directory cache t))))
+
+(ert-deftest overblock-md-test-a-price-is-not-a-formula ()
+  "Two prices in a sentence are not a LaTeX fragment.
+The pattern guarded the opening delimiter and not the closing one, so
+\"costs $100 and that one $200\" made a formula of the prose between
+them, and so did \"`$HOME` and then `$PATH`\"."
+  (dolist (text '("This item costs $100 and that one $200 today."
+                  "Set $HOME and then $PATH for the run."
+                  "A $ on its own and another $ later."))
+    (should-not (string-match-p overblock-md--math-regexp text)))
+  ;; And what is a formula still is one.
+  (dolist (text '("$x$" "$x^2$" "$a + b$" "$\\frac{a}{b}$" "$ab$$cd$"
+                  "$$\na = b\n$$"))
+    (should (string-match-p overblock-md--math-regexp text))))
+
+(ert-deftest overblock-md-test-a-converter-that-fails-keeps-the-cell-plain ()
+  "A converter that exits non-zero answers nil rather than raising.
+`pycell-md-render-all\=' is the body of `pycell-mode\=', so a signal here
+left the mode on with nothing rendered and took the rest of
+`code-cells-mode-hook\=' with it."
+  (let ((overblock-md-command "false"))
+    (should-not (overblock-md--html "# heading"))
+    (should-not (overblock-md-rendered "# heading"))
+    (should-not (overblock-md-html-batch '("a" "b"))))
+  ;; And with no converter at all, which has always answered nil.
+  (let ((overblock-md-command "there-is-no-such-program-here"))
+    (should-not (overblock-md--html "# heading"))
+    (should-not (overblock-md-html-batch '("a" "b")))))
+
+(ert-deftest overblock-md-test-a-link-keeps-its-keymap-through-fill-props ()
+  "A link in a rendered cell keeps its own keymap when the block fills one.
+The block gives every row its keymap with `overblock-fill-props\=', which
+must leave what shr put on the link alone — this test used to assert on
+shr\='s own output and never called the function it names."
+  (skip-unless (overblock-md-program))
+  (let* ((shown (overblock-md-rendered "[text](https://example.org/)"))
+         (pos (and shown (text-property-not-all 0 (length shown) 'keymap nil
+                                                shown))))
+    (skip-unless pos)
+    (overblock-fill-props shown 'keymap (define-keymap "RET" #'ignore))
+    (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
+                #'shr-browse-url))))
 
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

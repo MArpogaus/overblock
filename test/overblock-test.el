@@ -508,7 +508,7 @@ carries a space or a tab is still a blank line."
         (should (= (length pieces) 2))
         (overblock-delete block)))))
 
-(provide 'overblock-test)
+
 
 (ert-deftest overblock-test-a-dead-newline-overlay-is-no-newline ()
   "The slot for the region\='s last newline can hold a deleted overlay.

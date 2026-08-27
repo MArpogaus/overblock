@@ -171,17 +171,22 @@ them can be a cloak that keeps lines of the buffer invisible.  So
 every overlay the layer makes says so, and clearing the whole buffer
 sweeps whatever is left over.  Only the whole buffer: a range says
 nothing about which block an orphan belonged to."
-  (without-restriction
-    (mapc #'overblock-delete
-          (overblock-in (or beg (point-min)) (or end (point-max)) kind))
-    ;; The whole buffer however it was asked for, and every kind: a sweep
-    ;; over a range would take the parts of a block that reaches into it
-    ;; from outside, and a sweep with a KIND cannot tell which kind an
-    ;; orphan belonged to.
-    (when (and (null kind)
-               (<= (or beg (point-min)) (point-min))
-               (>= (or end (point-max)) (point-max)))
-      (remove-overlays (point-min) (point-max) 'overblock-part t))))
+  ;; Asked before the widening, in the caller's own view of the buffer:
+  ;; under a narrowing the bounds a caller passes are the narrowed ones,
+  ;; and comparing them with the whole buffer's afterwards said no to a
+  ;; caller who had asked for everything it could see.
+  (let ((whole (and (null kind)
+                    (<= (or beg (point-min)) (point-min))
+                    (>= (or end (point-max)) (point-max)))))
+    (without-restriction
+      (mapc #'overblock-delete
+            (overblock-in (or beg (point-min)) (or end (point-max)) kind))
+      ;; Every kind, and only for the whole buffer: a sweep over a range
+      ;; would take the parts of a block that reaches into it from
+      ;; outside, and a sweep with a KIND cannot tell which kind an
+      ;; orphan belonged to.
+      (when whole
+        (remove-overlays (point-min) (point-max) 'overblock-part t)))))
 
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
@@ -333,7 +338,7 @@ region has anyway.  Those lines go under a cloak."
                 (overlay-end block)))
          (lines (overblock--lines
                   (string-trim text "\\(?:[ \t]*\n\\)+"
-                               "\\(?:[ \t]*\n\\)+")))
+                               "\\(?:\n[ \t]*\\)+")))
          (count (length lines))
          ;; The whole buffer: an overlay's positions know nothing of a
          ;; narrowing, and under one that ends before END this walk would
@@ -482,12 +487,24 @@ elsewhere would hang them over unrelated text, out of reach of
     (with-current-buffer buffer
       (mapc #'delete-overlay (overblock-get block :parts))
       (overblock-set block :parts nil)
+      ;; What the drawing below makes is owned as it is made: a `quit' in
+      ;; the middle used to leave the cloaks it had already created
+      ;; invisible and unowned, and no later refresh would remove them
+      ;; either, since the slot said there were none.
       ;; A hidden block shows nothing, so it reads nothing.
       (let ((shown (unless (overblock-get block :hidden)
                      (overlay-get block 'overblock))))
         (overblock--dress block block)
         (when-let* ((over (plist-get shown :over)))
           (overblock-set block :parts (overblock--pieces block over)))
+        ;; A rendering with nowhere to go: every row of the region is
+        ;; blank, so no piece could be made and the text would be
+        ;; dropped in silence.  The rows the block owns show it instead.
+        (when (and (plist-get shown :over)
+                   (null (overblock-get block :parts))
+                   (not (string-empty-p (plist-get shown :over))))
+          (setq shown (plist-put (copy-sequence shown)
+                                 :body (plist-get shown :over))))
         (overblock--attach block shown)
         ;; The bracket runs beside the region; `overblock--attach' has put
         ;; it beside the rows it wrote.  Written either way: nil is a
@@ -532,6 +549,52 @@ the image inside it is what answers."
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
 
+(defun overblock-image-cap (string)
+  "Return STRING with every image in it capped to `overblock-image-height\='.
+STRING itself is not touched: this copies before it caps, so a caller
+keeps the original to save or to pop out.
+
+Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+row for each line of the window it was rendered in, and a slice reads
+as ((slice X Y W H) IMAGE).  Slicing does not make an image smaller — it
+cuts a full-height image into rows — so a figure sliced for a tall shell
+window and shown in a shorter notebook window is exactly the block the
+wheel cannot get past, which is what the cap exists to prevent.  Nor can
+the image be capped under the slice: the fractions were worked out
+against the height it had, and shrinking it beneath them draws bands
+with gaps.  So a run of slices of one image becomes the whole image,
+capped, on its first row, and nothing on the rows that followed it —
+which is what the layer does with a rendering anyway: it deals the rows
+out over the lines it has."
+  (if-let* ((limit (overblock-image-limit))
+            ((overblock-image-in string)))
+      (let ((string (copy-sequence string))
+            (pos 0)
+            (seen nil))
+        (while (< pos (length string))
+          (let* ((next (or (next-single-property-change pos 'display string)
+                           (length string)))
+                 (spec (get-text-property pos 'display string))
+                 (image (overblock-image--spec spec))
+                 (slicep (not (eq image spec))))
+            (cond
+             ((null image))
+             ;; A later row of a run of slices: the whole image is on the
+             ;; first of them now.
+             ((and slicep (memq image seen))
+              (put-text-property pos next 'display "" string))
+             (image
+              (when slicep (push image seen))
+              (unless (plist-get (cdr image) :max-height)
+                (put-text-property
+                 pos next 'display
+                 (cons 'image (plist-put (copy-sequence (cdr image))
+                                         :max-height limit))
+                 string))))
+            (setq pos next)))
+        string)
+    string))
+
 (defun overblock-image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
 The share is `overblock-image-height\=' of the window that shows the
@@ -559,9 +622,23 @@ number; a terminal's pixel is a column, a graphic frame's is
   (let* ((plist (cdr spec))
          (to (plist-get plist :align-to))
          (width (plist-get plist :width))
-         (chars (lambda (n) (if (consp n)
-                                (round (car n) (frame-char-width))
-                              (and (numberp n) (round n))))))
+         ;; A number, or a list whose first element is one: a spec can
+         ;; also read `(- right (N))', which is the shape
+         ;; `overblock-bar' writes, and `round' on the symbol raised —
+         ;; inside a process filter, where an error takes the rest of the
+         ;; filters with it and leaves the shell busy for good.  Such a
+         ;; spec is left as it is: it aligns to the window, and there is
+         ;; no column to answer for it here.
+         ;;
+         ;; And no more columns than a buffer can want: a spec asking to
+         ;; align at two million pixels would otherwise build a string of
+         ;; two hundred and fifty thousand spaces.
+         (chars (lambda (n)
+                  (let ((pixels (cond ((and (consp n) (numberp (car n)))
+                                       (car n))
+                                      ((numberp n) (* n (frame-char-width))))))
+                    (and pixels
+                         (min 10000 (round pixels (frame-char-width))))))))
     (cond ((and to (funcall chars to))
            (max 0 (- (funcall chars to) column)))
           ((and width (funcall chars width))

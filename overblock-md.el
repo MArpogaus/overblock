@@ -86,7 +86,13 @@ lines of a Python buffer, which is fixed pitch throughout: a pitch
 says nothing there, so this face says it with a color.")
 
 (defcustom overblock-md-command
-  '("markdown" "pandoc" "markdown_py" "cmark" "cmark-gfm")
+  ;; In the order of what they can do.  Measured: `markdown_py' without
+  ;; its extensions turns a table into one line of pipes and a fenced
+  ;; block into one line of words, and `cmark' and Perl `markdown' can do
+  ;; neither at all — so the candidates that can carry a table and a code
+  ;; fence come first, and the one that needs arguments is given them.
+  '("pandoc" "markdown_py -x tables -x fenced_code" "cmark-gfm -e table"
+    "markdown" "cmark")
   "How to turn Markdown into HTML.
 Either one shell command as a string, or a list of candidates, of
 which the first one found in the variable `exec-path' is used.  The
@@ -119,6 +125,10 @@ keyed by content and theme color.  Org runs LaTeX in that directory
 as well: a LaTeX in a container reaches the home directory, but not
 the host's /tmp."
   (when (and (require 'org nil t) (fboundp 'org-create-formula-image))
+    ;; Everything below is inside the handler, the bindings included: the
+    ;; contract of this function is an image or nil, and a variable org
+    ;; had not defined yet would otherwise raise from the middle of
+    ;; shr's rendering.
     (let* ((fg (face-attribute 'default :foreground))
            (ext (or (plist-get
                      (cdr (assq org-preview-latex-default-process
@@ -150,7 +160,14 @@ the host's /tmp."
                       (list :foreground fg :background "Transparent"))
                      (current-buffer)))
                 (error (puthash file t overblock-md--latex-failed)
-                       (signal (car latex) (cdr latex)))))
+                       (signal (car latex) (cdr latex))))
+              ;; Org does not always signal when its process leaves
+              ;; nothing behind, and `create-image' on a name reads the
+              ;; name: without this a spec pointing at no file went on
+              ;; the screen, and the memo never learnt anything.
+              (unless (file-exists-p file)
+                (puthash file t overblock-md--latex-failed)
+                (error "LaTeX produced no image")))
             ;; Past the memo: a failure below is `create-image' or the
             ;; file system, not LaTeX, and remembering it would keep a
             ;; fragment as text with a good image sitting in the cache.
@@ -186,7 +203,14 @@ and render the cells again."
 
 (defconst overblock-md--math-regexp
   (rx (or (seq "$$" (+? anychar) "$$")
-          (seq "$" (not (any "$" space)) (*? (not (any "$" "\n"))) "$")
+          ;; No space just inside either delimiter, which is the rule
+          ;; CommonMark and GitHub use: guarding the opening one alone
+          ;; made a formula of the prose between two prices — "costs $100
+          ;; and that one $200" — and of "`$HOME` and then `$PATH`".  The
+          ;; `opt' is what keeps "$x$" matching.
+          (seq "$" (not (any "$" space))
+               (opt (*? (not (any "$" "\n"))) (not (any "$" space)))
+               "$")
           (seq "\\(" (+? anychar) "\\)")
           (seq "\\[" (+? anychar) "\\]")))
   "What a LaTeX fragment looks like in rendered markdown.
@@ -203,9 +227,12 @@ inside a table \(see `overblock-md--tag-table').
 Only where the display can draw an image: a preview made in a
 terminal cannot be seen."
   ;; `replace-regexp-in-string' copies its argument twice whether it
-  ;; matches or not: measured, 9.1 milliseconds over a rendered cell of
-  ;; three hundred lines with no formula in it, against 0.022 for the
-  ;; search that stands in front of it now.
+  ;; matches or not, so a search stands in front of it.  Measured again
+  ;; on this machine, the saving is small: 0.056 milliseconds against
+  ;; 0.055 over a rendered cell of three hundred lines with no formula in
+  ;; it, and 0.741 against 0.463 over three thousand lines.  (An earlier
+  ;; comment here claimed 9.1 against 0.022, which no measurement
+  ;; supports.)
   (if (or (not (display-images-p))
           (not (string-match-p "[$\\]" text)))
       text
@@ -241,21 +268,40 @@ that through as a paragraph, where anything with markup would be
 reshaped into something else.")
 
 (defun overblock-md--html (md)
-  "Return the HTML `overblock-md-command' makes of MD, or nil.
-Nil where no converter is installed, which is the one caller-visible
-answer that keeps a cell plain text rather than raising: the check
-belongs here, where the program is called, and not in each caller."
+  "Return the HTML `overblock-md-command\=' makes of MD, or nil.
+Nil where no converter is installed and nil where the one that is
+exits non-zero: this is the one caller-visible answer that keeps a cell
+plain text rather than raising.  The check belongs here, where the
+program is called, and not in each caller — `pycell-md-render-all\=' is
+the body of `pycell-mode\=', and a signal from here left the mode on with
+nothing rendered and took the rest of `code-cells-mode-hook\=' with it.
+One wrong argument in `overblock-md-command\=' was enough."
   (when-let* ((program (overblock-md-program)))
-    (with-temp-buffer
-      (insert md)
-      ;; Send standard error nowhere: pandoc warns about math it cannot
-      ;; convert, and the text would land in the HTML.
-      (let ((status (apply #'call-process-region
-                           (point-min) (point-max) (car program)
-                           t '(t nil) nil (cdr program))))
-        (unless (eq status 0)
-          (error "%s exited with status %s" (car program) status)))
-      (buffer-string))))
+    (let ((errors (make-temp-file "overblock-md-stderr")))
+      (unwind-protect
+          (with-temp-buffer
+            (insert md)
+            ;; Standard error to a file of its own: pandoc warns there
+            ;; about the math it will not convert, and that text would
+            ;; land in the HTML.  It is also the only place the reason
+            ;; for a failure lives, so a failure says its last line.
+            (let ((status (apply #'call-process-region
+                                 (point-min) (point-max) (car program)
+                                 t (list t errors) nil (cdr program))))
+              (if (eq status 0)
+                  (buffer-string)
+                (message "overblock-md: %s exited with status %s%s"
+                         (car program) status
+                         (let ((reason (with-temp-buffer
+                                         (ignore-errors
+                                           (insert-file-contents errors))
+                                         (string-trim (buffer-string)))))
+                           (if (string-empty-p reason)
+                               ""
+                             (concat ": " (car (last (split-string
+                                                      reason "\n" t)))))))
+                nil)))
+        (ignore-errors (delete-file errors))))))
 
 (defun overblock-md-html-batch (texts)
   "Return the HTML of each of TEXTS, converted in one go.
@@ -269,11 +315,17 @@ cells, or when a cell holds it already; the caller then asks for one
 call per cell, as it always did."
   (unless (seq-some (lambda (text) (string-search overblock-md--marker text))
                     texts)
-    (let* ((joined (string-join texts (format "\n\n%s\n\n"
-                                              overblock-md--marker)))
-           (pieces (split-string
-                    (overblock-md--html joined)
-                    (format "<p>[ \t\n]*%s[ \t\n]*</p>" overblock-md--marker))))
+    (when-let* ((joined (string-join texts (format "\n\n%s\n\n"
+                                                   overblock-md--marker)))
+                ;; Nil where the converter is missing or failed, which is
+                ;; what `overblock-md--html' answers and what this
+                ;; function's own docstring promises: `split-string' was
+                ;; handed that nil and raised.
+                (page (overblock-md--html joined))
+                (pieces (split-string
+                         page
+                         (format "<p>[ \t\n]*%s[ \t\n]*</p>"
+                                 overblock-md--marker))))
       (and (= (length pieces) (length texts)) pieces))))
 
 (defun overblock-md--verbatim-math (md)
@@ -414,8 +466,13 @@ without a converter has to see."
         ;; Trim whole blank lines, never a first line's indent: the
         ;; columns are literal now, and a table that starts the cell
         ;; must keep the indent its sister rows have.
-        (overblock-md--mathify
-         (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))
+        ;; Capped here as well as in a result: shr draws a `data:' or a
+        ;; `cid:' image itself, and it knows nothing of
+        ;; `overblock-image-height' — such a figure came back at its own
+        ;; height, which is the block the wheel cannot get past.
+        (overblock-image-cap
+         (overblock-md--mathify
+          (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")))))))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here
