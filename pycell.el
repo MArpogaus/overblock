@@ -450,10 +450,13 @@ header keeps moving the same cell."
       (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
       (pycell--restore-cell their-beg (+ their-beg their-length) theirs)
       (when (or (cdr mine) (cdr theirs))
-        ;; The two cells that moved, not every cell in the file.
+        ;; The two cells that moved, not every cell in the file: the
+        ;; union of the two, where the sum of the larger start and the
+        ;; larger length overshot it — and an end inside a later cell
+        ;; made `pycell-md-render-all' search with a bound behind point.
         (pycell-md-render-all (min mine-beg their-beg)
-                              (+ (max mine-beg their-beg)
-                                 (max mine-length their-length))))
+                              (max (+ mine-beg mine-length)
+                                   (+ their-beg their-length))))
       (goto-char (+ mine-beg (min offset mine-length))))))
 
 ;;;###autoload
@@ -463,8 +466,15 @@ header keeps moving the same cell."
   (pycell-move-cell-down (- (or arg 1))))
 
 (defun pycell--text (block)
-  "Return the text of the result BLOCK."
-  (plist-get (overblock-get block :data) :text))
+  "Return the text of the result BLOCK.
+While the cell runs, that is only the part that shows — the head the
+tick reads, some sixteen lines — so copying, popping out or saving says
+as much rather than handing over a fraction in silence."
+  (let ((data (overblock-get block :data)))
+    (when (eq (plist-get data :state) 'running)
+      (message "pycell: the cell is still running, so this is only \
+what shows"))
+    (plist-get data :text)))
 
 (defun pycell--cell-buffer-name (kind position)
   "Return the name of the KIND buffer for the cell at POSITION.
@@ -498,7 +508,9 @@ it from the data's magic bytes."
                 "Save image to: " nil nil nil
                 (format "figure.%s" (if (eq type 'jpeg) "jpg" type)))))
     (let ((coding-system-for-write 'no-conversion))
-      (write-region data nil file))
+      ;; Asks before it overwrites: the name comes from
+      ;; `read-file-name', which does not.
+      (write-region data nil file nil nil nil t))
     (message "pycell: image saved to %s" file)))
 
 (defun pycell-pop-output (&optional event)
@@ -552,7 +564,11 @@ fold in the middle of one stops short of it.  The block would go with
 the fold, and the reader would lose the bar that folds the result
 itself, so the invisible run is shrunk back off the newline."
   (dolist (block (overblock-in from to 'result))
+    ;; A live overlay, tested by its buffer: this runs from advice on
+    ;; `outline-flag-region', and a deleted overlay in the slot answers
+    ;; nil to `overlay-end' — which raised on every fold in the buffer.
     (when-let* ((nl (overblock-get block :newline))
+                ((overlay-buffer nl))
                 ((<= (overlay-end nl) to)))
       (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
         (when (and (eq (overlay-get ov 'invisible) 'outline)
@@ -571,7 +587,14 @@ block makes what it shows anew.
 
 A result block stays.  The fold hides the code and the block keeps its
 own fold button, so the two fold apart; `pycell--keep-result-newline\='
-is what leaves it room."
+is what leaves it room.
+
+The advice is global, so this runs on every fold in every outline buffer
+of the session.  It filters on the block properties rather than on the
+mode: a buffer can carry blocks with the mode off — the tests do it, and
+so does a mode turned off while a result is on the screen — and the two
+scans below cost two interval-tree queries where there is nothing to
+find."
   (when flag (pycell--keep-result-newline from to))
   (dolist (block (overblock-in from to 'markdown))
     (overblock-set block :hidden flag)
@@ -697,7 +720,10 @@ milliseconds against 17.7 for the two that moved."
                      (point-max))))
           (when (< beg end)
             (if program (push (cons beg end) cells) (setq missed t)))
-          (goto-char end))))
+          ;; Never past the bound: `re-search-forward' signals on a
+          ;; bound behind point, whatever its NOERROR says, and a cell
+          ;; that reaches past END would leave point there.
+          (goto-char (min end last)))))
     (setq cells (nreverse cells))
     ;; One converter process for the buffer rather than one per cell.
     ;; It answers nil where the marker between cells did not survive,
@@ -784,7 +810,12 @@ and renders it; \\[pycell-md-abort] discards the edit."
       ;; An edit of this very cell that is already under way is the
       ;; edit the reader wants back, not a fresh copy of what the file
       ;; still says.  Org answers the same, by asking.
-      (unless (and pycell-md-edit-mode (buffer-modified-p))
+      ;; The same cell, not merely the same name: the name carries a
+      ;; line number, and two cells can stand on that line at different
+      ;; times.  Keeping a stranger's pending edit committed one cell's
+      ;; text into another.
+      (unless (and pycell-md-edit-mode (buffer-modified-p)
+                   (equal pycell--md-source (list src beg end)))
         (erase-buffer)
         (insert md)
         (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
@@ -1068,7 +1099,11 @@ be sent down it."
               (throw 'found t))
             (let ((last (save-excursion
                           (goto-char eol)
-                          (skip-chars-backward " \t" (point))
+                          ;; To the start of the line: with point as
+                          ;; the limit this could not move, so `df?  '
+                          ;; took the plain Python road and IPython
+                          ;; answered with a syntax error.
+                          (skip-chars-backward " \t" (pos-bol))
                           (point))))
               (when (and (eq (char-before last) ??)
                          (let ((s (syntax-ppss (1- last))))
@@ -1120,12 +1155,24 @@ Call this with the cell's buffer current."
                                 :start (float-time) :timer timer
                                 :head nil :count nil))))
     (pycell--show beg fin "" 0.0 'running)
-    (if (pycell--ipython-syntax-p beg fin)
-        (pycell--send-to-ipython
-         proc (buffer-substring-no-properties beg fin))
-      ;; `python-shell-send-region' pads the code, so traceback line
-      ;; numbers match the buffer.
-      (python-shell-send-region beg fin))))
+    ;; The bookkeeping above says a cell is running, and the send below
+    ;; can fail — a signal from the shell, or `C-g' while the region is
+    ;; written to its temporary file.  Without this the shell stays busy
+    ;; for the rest of the session: the ticker counts up, and every later
+    ;; cell is refused.  So a failed send ends the cell as a death, which
+    ;; also empties the queue of a run-all.
+    (condition-case error
+        (if (pycell--ipython-syntax-p beg fin)
+            (pycell--send-to-ipython
+             proc (buffer-substring-no-properties beg fin))
+          ;; `python-shell-send-region' pads the code, so traceback line
+          ;; numbers match the buffer.
+          (python-shell-send-region beg fin))
+      ((error quit)
+       (with-current-buffer (process-buffer proc)
+         (pycell--end (propertize (error-message-string error) 'face 'error)
+                      t))
+       (signal (car error) (cdr error))))))
 
 (defun pycell--run-cold ()
   "Evaluate the cell that waited for the interpreter.

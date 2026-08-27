@@ -391,11 +391,124 @@ without moving."
     (insert "one\ntwo\nthree\nfour\nfive\n")
     (let ((block (overblock-show 1 (point-max) :over "A\nB")))
       (narrow-to-region 1 8)
-      ;; With a timeout, so a regression fails the test instead of
-      ;; hanging the suite.
-      (should (with-timeout (5 nil) (overblock-refresh block) t))
+      ;; Bounded rather than timed: `with-timeout\=' schedules a timer, and
+      ;; a timer does not preempt a tight Lisp loop, so the old shape of
+      ;; this test could only hang the suite or die of memory.  The region
+      ;; is five lines, so the walk makes at most five rows and the parts
+      ;; that come out of it cannot outnumber them.
+      (overblock-refresh block)
+      (let ((parts (overblock-get block :parts)))
+        (should parts)
+        (should (<= (length parts) 5)))
       (widen)
       (should (overblock-get block :parts)))))
+
+(ert-deftest overblock-test-a-dead-newline-overlay-keeps-the-body ()
+  "The body of a block shows even when the newline overlay is gone.
+The slot that says where the body rides was tested for an overlay and
+not for a live one: a deleted overlay took the body off the anchor and
+then refused the write, and the body showed nowhere at all."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let* ((block (overblock-show 1 (point-max) :body "RESULT BODY"))
+           (newline (overblock-get block :newline)))
+      (should (overlay-buffer newline))
+      (delete-region (1- (point-max)) (point-max))
+      (should-not (overlay-buffer newline))
+      (overblock-refresh block)
+      (should (string-search "RESULT BODY"
+                             (or (overlay-get block 'after-string) ""))))))
+
+(ert-deftest overblock-test-show-under-a-narrowing-keeps-its-shape ()
+  "A block made under a narrowing has the anchor and the newline it needs.
+`char-before\=' answers nil past the accessible portion, so the anchor
+swallowed the region\='s last newline and no newline overlay was made."
+  (with-temp-buffer
+    ;; A region that ends in a blank line: that line is the one the
+    ;; header stands on, so a correct `lead\=' is the empty string.
+    (insert "one\ntwo\nthree\n\n")
+    (let ((end (point-max)))
+      (narrow-to-region 1 8)
+      (overblock-test--narrowed-shape end))))
+
+(defun overblock-test--narrowed-shape (end)
+  "Check the shape of a block over 1..END made under a narrowing."
+  (let ((block (overblock-show 1 end :body "BODY")))
+      ;; The anchor stops before the region's last newline, and the
+      ;; newline has an overlay of its own — both read with `char-before\='
+      ;; and `char-after\=', which answer nil past the accessible portion.
+    (should (= (overlay-end block) (1- end)))
+    (should (overlay-buffer (overblock-get block :newline)))
+    (overblock-set block :header "HDR")
+    (overblock-refresh block)
+    ;; The row above the header is the region's blank last line, so the
+    ;; header needs no break of its own — `char-before' answering nil
+    ;; past the accessible portion put one there.
+    (should-not (string-prefix-p "\n"
+                                 (or (overlay-get block 'after-string) "")))))
+
+(ert-deftest overblock-test-clear-sweeps-the-whole-buffer-however-asked ()
+  "A sweep follows the range, not whether the arguments were given.
+Every caller but one passes a range, and the whole buffer named
+explicitly used to skip the sweep."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (dolist (args (list (list (point-min) (point-max)) (list (point-min))
+                        (list nil (point-max)) nil))
+      (let ((block (overblock-show (point-min) (point-max) :over "A")))
+        (delete-overlay block)
+        (should (overlays-in (point-min) (point-max)))
+        (apply #'overblock-clear args)
+        (should-not (overlays-in (point-min) (point-max)))))
+    ;; A kind still spares the other kinds: an orphan says nothing about
+    ;; which kind it belonged to.
+    (let ((block (overblock-show (point-min) (point-max) :over "A")))
+      (delete-overlay block)
+      (overblock-clear (point-min) (point-max) 'markdown)
+      (should (overlays-in (point-min) (point-max)))
+      (overblock-clear))))
+
+(ert-deftest overblock-test-a-hidden-block-shows-nothing-at-all ()
+  "A hidden block gives up its keymap, its help string and its bracket."
+  (let ((overblock-fringe t))
+    (with-temp-buffer
+      (insert "one\ntwo\n")
+      (let ((block (overblock-show (point-min) (point-max)
+                                   :over "A" :keymap (make-sparse-keymap)
+                                   :help-echo "H")))
+        (should (overlay-get block 'keymap))
+        (should (overlay-get block 'line-prefix))
+        (overblock-set block :hidden t)
+        (overblock-refresh block)
+        (should-not (overlay-get block 'keymap))
+        (should-not (overlay-get block 'help-echo))
+        (should-not (overlay-get block 'line-prefix))))))
+
+(ert-deftest overblock-test-the-bracket-comes-off-with-the-option ()
+  "The fringe bracket is taken off when the option goes off."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((overblock-fringe t)
+           (block (overblock-show (point-min) (point-max) :body "B")))
+      (should (overlay-get block 'line-prefix))
+      (setq overblock-fringe nil)
+      (overblock-refresh block)
+      (should-not (overlay-get block 'line-prefix)))))
+
+(ert-deftest overblock-test-a-blank-last-line-takes-no-row ()
+  "A rendering that ends in a blank line does not spend a row on it.
+`string-trim\=' with \"\\n\" took one newline, and a blank line that
+carries a space or a tab is still a blank line."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\n")
+    (dolist (text '("A\nB\n   \n" "A\nB\n\n   \n\n" "\t\nA\nB"))
+      (let* ((block (overblock-show (point-min) (point-max) :over text))
+             (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                                 (overblock-get block :parts))))
+        (should (= (length pieces) 2))
+        (overblock-delete block)))))
+
+(provide 'overblock-test)
 
 (ert-deftest overblock-test-a-dead-newline-overlay-is-no-newline ()
   "The slot for the region\='s last newline can hold a deleted overlay.

@@ -208,18 +208,19 @@ keeps the original to save or to pop out."
           (let ((next (or (next-single-property-change pos 'display line)
                           (length line)))
                 (spec (get-text-property pos 'display line)))
-            ;; A slice of an image carries the image inside it, and the
-            ;; cap goes on that: Emacs 31 slices a tall image, and the
-            ;; spec is then ((slice ...) IMAGE).
-            (when-let* ((image (overblock-image--spec spec))
-                        ((not (plist-get (cdr image) :max-height)))
-                        (capped (cons 'image
-                                      (plist-put (copy-sequence (cdr image))
-                                                 :max-height limit))))
+            ;; A whole image is capped.  A slice is left alone: Emacs 31
+            ;; slices a tall image into a row for each line, and the
+            ;; fractions in the slice were worked out against the height
+            ;; the image had — shrinking the image under them would draw
+            ;; bands with gaps rather than a smaller figure.  Such a spec
+            ;; is already bounded to one row of the window it was sliced
+            ;; for, which is what the cap is for.
+            (when (and (eq (car-safe spec) 'image)
+                       (not (plist-get (cdr spec) :max-height)))
               (put-text-property pos next 'display
-                                 (if (eq image spec)
-                                     capped
-                                   (list (car spec) capped))
+                                 (cons 'image
+                                       (plist-put (copy-sequence (cdr spec))
+                                                  :max-height limit))
                                  line))
             (setq pos next)))
         line)

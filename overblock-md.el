@@ -106,7 +106,7 @@ simple formulas into text on its own and passes the rest through, and
   "Non-nil once a failed LaTeX preview was reported in this session.")
 
 (defvar overblock-md--latex-failed (make-hash-table :test #'equal)
-  "The fragments whose preview failed in this session.
+  "The previews LaTeX failed to make, keyed by image file name.
 What caches a preview is the image file, so a failure caches nothing
 and every render of the cell runs LaTeX again for the same fragment: a
 process per fragment per render, for an answer that is already known.
@@ -131,19 +131,29 @@ the host's /tmp."
                   (concat (md5 (concat fg frag)) "." ext) dir)))
       (condition-case err
           (progn
-            (when (gethash frag overblock-md--latex-failed)
-              ;; Known to fail: the fragment stays text, without another
-              ;; LaTeX run.
-              (error "Preview failed before"))
             (unless (file-exists-p file)
+              ;; Asked only where the image is not there already, and
+              ;; keyed like the file — by content and colour — so a theme
+              ;; change asks again.  A LaTeX run that failed is the one
+              ;; thing worth remembering: what caches a preview is the
+              ;; file, so without the memo a cell costs a process per
+              ;; fragment on every render.
+              (when (gethash file overblock-md--latex-failed)
+                (error "LaTeX failed for this fragment before"))
               (make-directory dir t)
-              (let ((temporary-file-directory dir))
-                (org-create-formula-image
-                 frag file
-                 (org-combine-plists
-                  org-format-latex-options
-                  (list :foreground fg :background "Transparent"))
-                 (current-buffer))))
+              (condition-case latex
+                  (let ((temporary-file-directory dir))
+                    (org-create-formula-image
+                     frag file
+                     (org-combine-plists
+                      org-format-latex-options
+                      (list :foreground fg :background "Transparent"))
+                     (current-buffer)))
+                (error (puthash file t overblock-md--latex-failed)
+                       (signal (car latex) (cdr latex)))))
+            ;; Past the memo: a failure below is `create-image' or the
+            ;; file system, not LaTeX, and remembering it would keep a
+            ;; fragment as text with a good image sitting in the cache.
             (apply #'create-image file nil nil :ascent 'center
                    ;; Capped like the images of a result and of an
                    ;; `![](file)': a display-math block can be taller
@@ -157,8 +167,7 @@ the host's /tmp."
         ;; the reason is in the log LaTeX left in DIR — a package the
         ;; preamble asks for and the installation does not have, most
         ;; often — so the message says where to look.
-        (error (puthash frag t overblock-md--latex-failed)
-               (unless overblock-md--latex-warned
+        (error (unless overblock-md--latex-warned
                  (setq overblock-md--latex-warned t)
                  (message "overblock-md: no LaTeX preview (%s); \
 formulas stay as text, and LaTeX left its log in %s"

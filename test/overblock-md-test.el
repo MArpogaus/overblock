@@ -284,7 +284,9 @@ answer that was already known."
       (should-not (overblock-md--latex-image "$x$"))
       (should-not (overblock-md--latex-image "$x$"))
       (should (= runs 1))
-      (should (gethash "$x$" overblock-md--latex-failed))
+      ;; Keyed by the image file, which carries the fragment and the
+      ;; colour: a theme change asks again.
+      (should (= (hash-table-count overblock-md--latex-failed) 1))
       ;; And the way back, for a reader who installs LaTeX.
       (overblock-md-forget-failed-previews)
       (should-not (overblock-md--latex-image "$x$"))

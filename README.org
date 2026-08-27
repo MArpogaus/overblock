@@ -194,8 +194,21 @@ shorter if the rendering is shorter, for example a table of three
 lines that renders as one line.  The spare lines then go under a
 cloak.
 
-A =$...$= or =$$...$$= fragment becomes a preview image.  The images
-live in =~/.cache/overblock-math=.
+A =$...$= or =$$...$$= fragment becomes a preview image, capped by
+=overblock-image-height= like every other image, so that a long
+=aligned= block cannot grow taller than the window.  The images live in
+=~/.cache/overblock-math=.
+
+A fragment whose preview fails — no LaTeX, or a package the preamble
+asks for and the installation does not have — stays text, and the
+message says where LaTeX left its log.  The failure is remembered for
+the session: what caches a preview is the image file, so without that a
+cell costs one LaTeX run per fragment on every render.  Install what was
+missing and call =overblock-md-forget-failed-previews= to ask again.
+
+A converter that renders math itself leaves nothing to preview: pandoc
+turns =$x^2$= into markup of its own, while =markdown_py= and =cmark=
+pass the dollars through.  See =overblock-md-command=.
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
 at an absolute path, capped by =overblock-image-height= like a result's

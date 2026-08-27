@@ -174,7 +174,13 @@ nothing about which block an orphan belonged to."
   (without-restriction
     (mapc #'overblock-delete
           (overblock-in (or beg (point-min)) (or end (point-max)) kind))
-    (unless (or beg end kind)
+    ;; The whole buffer however it was asked for, and every kind: a sweep
+    ;; over a range would take the parts of a block that reaches into it
+    ;; from outside, and a sweep with a KIND cannot tell which kind an
+    ;; orphan belonged to.
+    (when (and (null kind)
+               (<= (or beg (point-min)) (point-min))
+               (>= (or end (point-max)) (point-max)))
       (remove-overlays (point-min) (point-max) 'overblock-part t))))
 
 (defun overblock-show (beg end &rest props)
@@ -213,7 +219,8 @@ is readable, and a caller needs it to keep an outline fold off the
 newline the block hangs on; `:parts\=' is the layer\='s own, made anew by
 every `overblock-refresh\='."
   (overblock-clear beg end (plist-get props :kind))
-  (let* ((anchor-end (if (and (eq (char-before end) ?\n)
+  (let* ((anchor-end (if (and (eq (without-restriction (char-before end))
+                                  ?\n)
                               ;; a region that is only a newline keeps a
                               ;; non-empty anchor
                               (> (1- end) beg))
@@ -222,23 +229,20 @@ every `overblock-refresh\='."
          (block (make-overlay beg anchor-end nil t t)))
     (overlay-put block 'evaporate t)
     (overlay-put block 'overblock-part t)
-    ;; The block goes when the region it hangs on goes.  `evaporate'
-    ;; only reaches an overlay whose own text is deleted, and the
-    ;; anchor's text can be emptied without that: a deletion that ends
-    ;; exactly at BEG leaves an empty anchor behind, with everything the
-    ;; block draws still on the screen.  The layer takes it down itself,
-    ;; where each caller used to.
-    (overlay-put block 'modification-hooks
-                 (list (lambda (ov after &rest _)
-                         (when (and after (overlay-buffer ov)
-                                    (= (overlay-start ov) (overlay-end ov)))
-                           (overblock-delete ov)))))
+    ;; `modification-hooks' is left to the caller.  What an edit of the
+    ;; region means is the caller's business — a stale result goes, a
+    ;; rendering goes with its source — and a hook of the layer's own was
+    ;; both unreachable and overwritten: every route that empties the
+    ;; anchor takes it down through `evaporate' first, so it is never
+    ;; live and empty at once, and each caller writes the property
+    ;; wholesale.  What the layer carries is the mark above, so
+    ;; `overblock-clear' can sweep an overlay whose anchor is gone.
     ;; The two slots the layer writes itself are there from the start, so
     ;; every `plist-put\=' after this mutates the list in place and no
     ;; reader can be left holding a head that is no longer the block\='s.
     (overlay-put block 'overblock (append props (list :newline nil
                                                       :parts nil)))
-    (when (eq (char-after anchor-end) ?\n)
+    (when (eq (without-restriction (char-after anchor-end)) ?\n)
       (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
         (overlay-put ov 'evaporate t)
         (overlay-put ov 'overblock-part t)
@@ -249,12 +253,16 @@ every `overblock-refresh\='."
 (defun overblock--dress (block ov)
   "Give OV the keymap and the help echo of BLOCK, and return OV.
 Everything a block shows answers to the same click and says the same
-thing under the mouse, whichever overlay carries it."
+thing under the mouse, whichever overlay carries it.  A hidden block
+shows nothing, and answers nothing: `:hidden\=' is documented to take the
+decorations with it."
   ;; Written either way: a block that no longer carries a keymap or a
   ;; help string has it taken off its overlays, where a `when' left the
   ;; old one on until the overlay was remade.
-  (overlay-put ov 'keymap (overblock-get block :keymap))
-  (overlay-put ov 'help-echo (overblock-get block :help-echo))
+  (let ((hidden (overblock-get block :hidden)))
+    (overlay-put ov 'keymap (unless hidden (overblock-get block :keymap)))
+    (overlay-put ov 'help-echo (unless hidden
+                                 (overblock-get block :help-echo))))
   ov)
 
 (defun overblock--cloak (block beg end)
@@ -323,7 +331,9 @@ region has anyway.  Those lines go under a cloak."
          (end (if (and (overlayp nl) (overlay-buffer nl))
                   (overlay-end nl)
                 (overlay-end block)))
-         (lines (overblock--lines (string-trim text "\n+" "\n+")))
+         (lines (overblock--lines
+                  (string-trim text "\\(?:[ \t]*\n\\)+"
+                               "\\(?:[ \t]*\n\\)+")))
          (count (length lines))
          ;; The whole buffer: an overlay's positions know nothing of a
          ;; narrowing, and under one that ends before END this walk would
@@ -407,20 +417,34 @@ Each string carries the line breaks that its own rows need."
   (let* ((header (plist-get shown :header))
          (body (plist-get shown :body))
          (fringe overblock-fringe)
+         (newline (overblock-get block :newline))
          (on-display (and body
                           (not (overblock-image-in body))
                           (not fringe)
-                          ;; without a newline there is nothing to hang a
-                          ;; display property on, so the body joins the
-                          ;; rows on the anchor
-                          (overblock-get block :newline)))
+                          ;; A live overlay, tested by its buffer: without
+                          ;; a newline there is nothing to hang a display
+                          ;; property on, so the body joins the rows on
+                          ;; the anchor.  A deleted overlay is still an
+                          ;; overlay, and testing the slot alone took the
+                          ;; body off the anchor and then skipped the
+                          ;; write below — the body showed nowhere at all.
+                          (overlayp newline)
+                          (overlay-buffer newline)))
          ;; the rows that ride the anchor, in the order they show
          (strings (delq nil (list header (unless on-display body))))
          ;; A row needs a break before it unless the newline it hangs on
          ;; already begins a line: a cell that ends in a blank line gives
          ;; that line to the header.
-         (lead (if (eq (char-before (overlay-end block)) ?\n) "" "\n"))
-         (nl (overblock-get block :newline)))
+         ;; The whole buffer: an overlay's positions know nothing of a
+         ;; narrowing, and `char-before' past the accessible portion
+         ;; answers nil — which added a blank row above the header on
+         ;; every refresh under a narrowing.
+         (lead (if (eq (without-restriction
+                         (char-before (overlay-end block)))
+                       ?\n)
+                   ""
+                 "\n"))
+         (nl newline))
     (overlay-put block 'after-string
                  (when strings
                    (let ((text (concat lead (string-join strings "\n"))))
@@ -469,7 +493,8 @@ elsewhere would hang them over unrelated text, out of reach of
         ;; it beside the rows it wrote.  Written either way: nil is a
         ;; property value like any other and takes the bracket off again,
         ;; where a `when' would leave it on until the block is remade.
-        (let ((prefix (and overblock-fringe overblock--fringe-prefix)))
+        (let ((prefix (and overblock-fringe shown
+                           overblock--fringe-prefix)))
           (overlay-put block 'line-prefix prefix)
           (overlay-put block 'wrap-prefix prefix))
         block))))
@@ -676,9 +701,12 @@ Emacs 31 takes the buffer whose face remapping to measure with; an
 older one measures without any, and the icons of a notebook under
 `text-scale-mode\=' or `buffer-face-mode\=' are then placed by a width
 they are not drawn at."
-  (if (> (cdr (func-arity #'string-pixel-width)) 1)
-      (string-pixel-width string (current-buffer))
-    (string-pixel-width string)))
+  ;; Through `apply' with a computed list, so an Emacs whose
+  ;; `string-pixel-width' takes one argument does not reject the
+  ;; two-argument call while compiling this file.
+  (apply #'string-pixel-width string
+         (when (> (cdr (func-arity #'string-pixel-width)) 1)
+           (list (current-buffer)))))
 
 (defun overblock-bar (left icons face)
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
