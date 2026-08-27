@@ -149,5 +149,18 @@ own."
     (should (equal (split-string clean "\n")
                    '("first  second" "1      one" "2      two")))))
 
+(ert-deftest overblock-repl-test-fit-leaves-a-slice-alone ()
+  "A sliced image keeps its geometry: the cap is for a whole image.
+Emacs 31 slices a tall image into a row for each line, and the fractions
+in the slice were worked out against the height the image had — a cap
+under them would draw bands with gaps."
+  (let* ((image '(image :type png :data "x"))
+         (slice '(slice 0.0 0.5 1.0 0.5))
+         (line (propertize " " 'display (list slice image))))
+    (cl-letf (((symbol-function 'overblock-image-limit) (lambda () 100)))
+      (let ((fitted (overblock-repl-fit line)))
+        (should (equal (get-text-property 0 'display fitted)
+                       (list slice image)))))))
+
 (provide 'overblock-repl-test)
 ;;; overblock-repl-test.el ends here
