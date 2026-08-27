@@ -753,7 +753,13 @@ the converter\'s HTML with")))))
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
   (interactive)
-  (overblock-clear (point-min) (point-max) 'markdown))
+  (overblock-clear (point-min) (point-max) 'markdown)
+  ;; And whatever lost its anchor: a block whose anchor evaporated with
+  ;; the line it hung on leaves its parts behind, and a clear that names
+  ;; a kind cannot sweep them — an orphan says nothing about the kind it
+  ;; belonged to.  This is the command a reader reaches for when a
+  ;; rendering looks wrong, so it takes them too.
+  (overblock-clear))
 
 (defun pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
@@ -813,7 +819,13 @@ and renders it; \\[pycell-md-abort] discards the edit."
       ;; The same cell, not merely the same name: the name carries a
       ;; line number, and two cells can stand on that line at different
       ;; times.  Keeping a stranger's pending edit committed one cell's
-      ;; text into another.
+      ;; text into another; throwing it away without a word would lose an
+      ;; hour of writing just as quietly, so the reader is asked.
+      (when (and pycell-md-edit-mode (buffer-modified-p)
+                 (not (equal pycell--md-source (list src beg end)))
+                 (not (yes-or-no-p
+                       "Discard the unsaved edit of another cell? ")))
+        (user-error "Kept the unsaved edit"))
       (unless (and pycell-md-edit-mode (buffer-modified-p)
                    (equal pycell--md-source (list src beg end)))
         (erase-buffer)
@@ -996,7 +1008,17 @@ finished cell shows."
 (defun pycell--end (text &optional died)
   "End the running cell and show TEXT as its final result.
 The one exit for every way a cell ends; DIED marks abnormal ends.
-Call this in the Python shell buffer."
+Call this in the Python shell buffer.
+
+Nothing happens where no cell is running: a failing send can end its
+cell through the filter and then signal, and the handler would call this
+a second time — `cancel-timer\=' of nil raised, which masked the error it
+was reporting.  `pycell--abort\=' asks the same question."
+  (when pycell--run
+    (pycell--end-1 text died)))
+
+(defun pycell--end-1 (text died)
+  "End the running cell, showing TEXT, DIED for an abnormal end."
   (pcase-let (((map :beg (:end fin) :start :timer) pycell--run))
     (setq pycell--run nil)
     (cancel-timer timer)
@@ -1099,11 +1121,14 @@ be sent down it."
               (throw 'found t))
             (let ((last (save-excursion
                           (goto-char eol)
-                          ;; To the start of the line: with point as
-                          ;; the limit this could not move, so `df?  '
+                          ;; To the start of the line, but never past
+                          ;; the start of the region: with point as the
+                          ;; limit this could not move at all, so `df?  '
                           ;; took the plain Python road and IPython
-                          ;; answered with a syntax error.
-                          (skip-chars-backward " \t" (pos-bol))
+                          ;; answered with a syntax error — and with the
+                          ;; line's start alone it read a `?' from text
+                          ;; the reader had not marked.
+                          (skip-chars-backward " \t" (max (pos-bol) beg))
                           (point))))
               (when (and (eq (char-before last) ??)
                          (let ((s (syntax-ppss (1- last))))

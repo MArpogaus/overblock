@@ -55,29 +55,41 @@
 (require 'subr-x)
 
 (defun overblock-repl--table-at (text)
-  "Return the vtable that part of TEXT was rendered from, and where.
+  "Return the first vtable part of TEXT was rendered from, and where.
+The value is (TABLE BEG END), or nil.  See
+`overblock-repl--table-regions\=', of which this is the first answer."
+  (car (overblock-repl--table-regions text)))
+
+(defun overblock-repl--table-regions (text)
+  "Return every (TABLE BEG END) of TEXT, front to back.
 comint-mime renders an HTML table with vtable, a DataFrame among them,
-and the copy carries the table object in a text property.  The value is
-\(TABLE BEG END), or nil."
+and the copy carries the table object in a text property.
+
+One table is several runs of that property rather than one stretch: the
+padding that `overblock-flattened\=' writes in place of the alignment
+stretches carries no properties of its own.  So the runs of one table
+are joined, and a run that names a different table starts a region of
+its own — a cell that shows two frames used to lose the second and
+everything between them, because the first and the last run were read as
+one table.
+
+Run to run, not character to character: measured, a step of one cost 30
+milliseconds over a hundred thousand characters and 223 over eight
+hundred thousand, where a jump costs nothing."
   (when (fboundp 'vtable-p)
     (let ((len (length text))
           (pos 0)
-          table beg end)
-      ;; The newline that ends a row carries no property of the table, so
-      ;; the run is not one stretch: take the first and the last place
-      ;; that names a table, and everything between them belongs to it.
-      ;; Run to run, not character to character: measured, a step of one
-      ;; cost 30 milliseconds over a hundred thousand characters and 223
-      ;; over eight hundred thousand, where a jump costs nothing.
+          regions)
       (while (and pos
                   (setq pos (text-property-not-all pos len 'vtable nil text)))
         (let ((here (get-text-property pos 'vtable text))
               (next (or (next-single-property-change pos 'vtable text) len)))
           (when (vtable-p here)
-            (unless table (setq table here beg pos))
-            (setq end next))
+            (if (eq here (car (car regions)))
+                (setf (nth 2 (car regions)) next)
+              (push (list here pos next) regions)))
           (setq pos (and (< next len) next))))
-      (when table (list table beg end)))))
+      (nreverse regions))))
 
 (defun overblock-repl-table-in (text)
   "Return the table TEXT was laid out from, or nil.
@@ -94,12 +106,12 @@ The table of a result belongs to the shell that drew it.  Emacs 31
 refuses to insert one vtable into a second buffer — \"A vtable cannot be
 inserted into more than one buffer\" — and even where it is allowed, two
 buffers holding one object is not a state worth having."
-  (make-vtable :columns (mapcar (lambda (column)
-                                  (list :name (vtable-column-name column)
-                                        :width (vtable-column-width column)
-                                        :align (vtable-column-align column)
-                                        :primary (vtable-column-primary column)))
-                                (vtable-columns table))
+  ;; The columns whole: `make-vtable' takes a `vtable-column' where it
+  ;; takes a plist, and a plist of four keys dropped what comint-mime
+  ;; actually sets — it gives every column a `:min-width' of its name's
+  ;; length and no `:width' at all, so the copy came out narrower than
+  ;; the table it was made from.
+  (make-vtable :columns (mapcar #'copy-vtable-column (vtable-columns table))
                :objects (vtable-objects table)
                :getter (vtable-getter table)
                :formatter (vtable-formatter table)
@@ -121,6 +133,11 @@ is shown elsewhere, in a face of its own, so the columns are laid out
 again here: one space of padding to the widest cell of each column, and
 nothing that a face can move."
   (let* ((columns (vtable-columns table))
+         ;; Read once for the table, not once for every cell: it is a
+         ;; slot accessor, and measured over a sixty by ten frame — the
+         ;; shape pandas hands comint-mime — asking per cell cost 0.95 of
+         ;; the 2.67 milliseconds the whole layout took.
+         (getter (vtable-getter table))
          (rows (cons (mapcar #'vtable-column-name columns)
                      (mapcar
                       (lambda (object)
@@ -129,7 +146,7 @@ nothing that a face can move."
                            (lambda (_column)
                              (setq index (1+ index))
                              (format "%s"
-                                     (if-let* ((getter (vtable-getter table)))
+                                     (if getter
                                          (funcall getter object index table)
                                        (elt object index))))
                            columns)))
@@ -188,56 +205,45 @@ object under `overblock-repl-table\=', which a caller can show live."
                     cut))))
       (remove-list-of-text-properties
        0 (length copy) '(keymap local-map mouse-face help-echo) copy)
-      (if-let* ((found (overblock-repl--table-at copy)))
-          (pcase-let* ((`(,table ,tbeg ,tend) found)
-                       (laid-out (propertize
-                                  (overblock-repl--table-text table)
-                                  'overblock-repl-table table)))
-            (concat (substring copy 0 tbeg) laid-out (substring copy tend)))
-        copy))))
+      ;; Back to front, so the places of the regions before each one
+      ;; still hold.  The newline a run swallowed is put back: without it
+      ;; the output that follows the table is glued to its last row.
+      (dolist (region (reverse (overblock-repl--table-regions copy)))
+        (pcase-let* ((`(,table ,tbeg ,tend) region)
+                     (laid-out (propertize
+                                (overblock-repl--table-text table)
+                                'overblock-repl-table table)))
+          (setq copy (concat (substring copy 0 tbeg)
+                             laid-out
+                             (if (eq (aref copy (1- tend)) ?\n) "\n" "")
+                             (substring copy tend)))))
+      copy)))
 
 (defun overblock-repl-fit (line)
-  "Return LINE with its images capped to `overblock-image-height'.
-LINE itself is not touched: this copies before it caps, so a caller
-keeps the original to save or to pop out."
-  (if-let* ((limit (overblock-image-limit))
-            ((overblock-image-in line)))
-      (let ((line (copy-sequence line))
-            (pos 0))
-        (while (< pos (length line))
-          (let ((next (or (next-single-property-change pos 'display line)
-                          (length line)))
-                (spec (get-text-property pos 'display line)))
-            ;; A whole image is capped.  A slice is left alone: Emacs 31
-            ;; slices a tall image into a row for each line, and the
-            ;; fractions in the slice were worked out against the height
-            ;; the image had — shrinking the image under them would draw
-            ;; bands with gaps rather than a smaller figure.  Such a spec
-            ;; is already bounded to one row of the window it was sliced
-            ;; for, which is what the cap is for.
-            (when (and (eq (car-safe spec) 'image)
-                       (not (plist-get (cdr spec) :max-height)))
-              (put-text-property pos next 'display
-                                 (cons 'image
-                                       (plist-put (copy-sequence (cdr spec))
-                                                  :max-height limit))
-                                 line))
-            (setq pos next)))
-        line)
-    line))
+  "Return LINE with its images capped to `overblock-image-height\='.
+LINE itself is not touched.  `overblock-image-cap\=' does the work, and
+says what it does with a sliced image."
+  (overblock-image-cap line))
 
 (defun overblock-repl-first-lines (text limit)
   "Return the first LIMIT lines of TEXT.
 Only that much is looked at and only that much is copied: a result of
 ten thousand lines costs what a result of twelve costs, which is what a
 tick five times a second needs."
-  (let ((pos 0) (count 0) (cut nil))
-    (while (and (null cut)
-                (setq pos (string-search "\n" text pos)))
-      (setq count (1+ count)
-            pos (1+ pos))
-      (when (= count limit) (setq cut (1- pos))))
-    (split-string (if cut (substring text 0 cut) text) "\n")))
+  (if (<= limit 0)
+      ;; `pycell-max-lines' is a natnum, so zero is a legal value for it,
+      ;; and the scan below counts from one: it never met a limit of zero
+      ;; and read and copied the whole result instead — measured, 18.6
+      ;; milliseconds and a full copy over twenty thousand lines, five
+      ;; times a second while the cell runs.
+      nil
+    (let ((pos 0) (count 0) (cut nil))
+      (while (and (null cut)
+                  (setq pos (string-search "\n" text pos)))
+        (setq count (1+ count)
+              pos (1+ pos))
+        (when (>= count limit) (setq cut (1- pos))))
+      (split-string (if cut (substring text 0 cut) text) "\n"))))
 
 (defun overblock-repl-count-lines (text)
   "Return how many lines TEXT holds.
