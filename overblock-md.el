@@ -49,6 +49,8 @@
 ;; shr renders the HTML and dom reads the tags out of it: this file is
 ;; the markdown renderer and has no use without them.
 (require 'shr)
+;; `url-copy-file' fetches the image a cell names by URL.
+(require 'url-handlers)
 (require 'dom)
 (require 'seq)
 (require 'subr-x)
@@ -86,13 +88,17 @@ lines of a Python buffer, which is fixed pitch throughout: a pitch
 says nothing there, so this face says it with a color.")
 
 (defcustom overblock-md-command
-  ;; In the order of what they can do.  Measured: `markdown_py' without
-  ;; its extensions turns a table into one line of pipes and a fenced
-  ;; block into one line of words, and `cmark' and Perl `markdown' can do
-  ;; neither at all — so the candidates that can carry a table and a code
-  ;; fence come first, and the one that needs arguments is given them.
-  '("pandoc" "markdown_py -x tables -x fenced_code" "cmark-gfm -e table"
-    "markdown" "cmark")
+  ;; In the order of what they can do, and each one told to leave the
+  ;; math alone.  Measured: `pandoc' on its own renders a formula itself
+  ;; — "$x_1 \\to x_2$" comes back as markup for "x1 → x2" — so nothing
+  ;; reaches the preview machinery and a notebook loses every inline
+  ;; formula; with `--mathjax' the fragment is passed through as
+  ;; "\\(x_1 \\to x_2\\)", which `overblock-md--math-regexp' reads.
+  ;; `markdown_py' without its extensions turns a table into one line of
+  ;; pipes and a fenced block into one line of words, and `cmark' and
+  ;; Perl `markdown' can do neither at all.
+  '("pandoc --mathjax" "markdown_py -x tables -x fenced_code"
+    "cmark-gfm -e table" "markdown" "cmark")
   "How to turn Markdown into HTML.
 Either one shell command as a string, or a list of candidates, of
 which the first one found in the variable `exec-path' is used.  The
@@ -107,6 +113,77 @@ simple formulas into text on its own and passes the rest through, and
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command")))
   :group 'overblock-md)
+
+(defcustom overblock-md-remote-images t
+  "Whether to fetch the images a markdown cell names by URL.
+A cell that opens with a badge names an image on the web, as the Colab
+badge of a notebook does.  shr fetches such an image
+with `url-queue-retrieve\=', which answers long after the rendering is
+over and into a buffer that is gone by then, so the badge stayed its alt
+text.  With this on, the file is fetched once, kept in the cache beside
+the LaTeX previews, and drawn from there like a local one; the link
+around it keeps its click either way.
+
+Nil renders such an image as its alt text and asks the network for
+nothing."
+  :type 'boolean
+  :group 'overblock-md)
+
+(defcustom overblock-md-remote-timeout 3
+  "Seconds to wait for an image named by URL before giving up on it.
+The fetch happens while the cell renders, so this is time the reader
+waits.  A fetch that times out leaves the alt text, and the URL is not
+asked for again in this session."
+  :type 'number
+  :group 'overblock-md)
+
+(defvar overblock-md--remote-failed (make-hash-table :test #'equal)
+  "The image URLs that could not be fetched in this session.
+A URL that failed is not asked for again: the cell renders on every
+`pycell-md-render-all\=', and a notebook that opens with a badge would
+otherwise wait for the network every time.")
+
+(defun overblock-md--remote-file (url)
+  "Return the local file the image URL was fetched into, or nil.
+The file is kept in the cache beside the LaTeX previews, named after the
+URL, so a badge is fetched once for the session and once for the
+machine."
+  (when (and overblock-md-remote-images
+             ;; Only where an image can be drawn: a terminal shows the alt
+             ;; text whatever is fetched, and a batch session — the tests
+             ;; among them — must not reach the network at all.
+             (display-images-p)
+             (string-match-p "\\`https?://" url)
+             (not (gethash url overblock-md--remote-failed)))
+    (let* ((dir (expand-file-name
+                 "overblock-images/"
+                 (or (getenv "XDG_CACHE_HOME") "~/.cache")))
+           (extension (file-name-extension url))
+           (file (expand-file-name
+                  (concat (md5 url)
+                          (if (and extension
+                                   (string-match-p "\\`[a-zA-Z0-9]+\\'"
+                                                   extension))
+                              (concat "." (downcase extension))
+                            ".img"))
+                  dir)))
+      (if (file-readable-p file)
+          file
+        (condition-case error
+            (progn
+              (make-directory dir t)
+              (let ((url-request-method "GET"))
+                (with-timeout (overblock-md-remote-timeout
+                               (error "Timed out"))
+                  (url-copy-file url file t)))
+              (and (file-readable-p file)
+                   (image-supported-file-p file)
+                   file))
+          (error (puthash url t overblock-md--remote-failed)
+                 (ignore-errors (delete-file file))
+                 (message "overblock-md: no image from %s (%s)"
+                          url (error-message-string error))
+                 nil))))))
 
 (defvar overblock-md--latex-warned nil
   "Non-nil once a failed LaTeX preview was reported in this session.")
@@ -199,6 +276,7 @@ run per fragment rather than one per render.  Install LaTeX, call this,
 and render the cells again."
   (interactive)
   (clrhash overblock-md--latex-failed)
+  (clrhash overblock-md--remote-failed)
   (setq overblock-md--latex-warned nil))
 
 (defconst overblock-md--math-regexp
@@ -401,7 +479,9 @@ result\='s.  Where the alt text is empty the file\='s name stands in, so a
 display that draws no image still says which figure is there; a terminal
 gets that label with no display property at all, since shr\='s own
 placeholder is an image and would swallow it."
-  (if-let* ((file (overblock-md--image-file (or (dom-attr dom 'src) ""))))
+  (if-let* ((src (or (dom-attr dom 'src) ""))
+            (file (or (overblock-md--image-file src)
+                      (overblock-md--remote-file src))))
       (let* ((alt (dom-attr dom 'alt))
              (label (if (and alt (not (string-empty-p alt)))
                         alt

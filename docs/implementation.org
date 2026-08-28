@@ -243,8 +243,12 @@ therefore scrolled markdown worse than one without.
 ** The converter
 
 =overblock-md-command= names the command that turns Markdown into
-HTML.  pycell looks for =markdown=, =pandoc=, =markdown_py=, =cmark=
-and =cmark-gfm=, in this order.
+HTML.  pycell looks for =pandoc --mathjax=, =markdown_py -x tables -x
+fenced_code=, =cmark-gfm -e table=, =markdown= and =cmark=, in this
+order: the ones that can carry a table and a code fence first, and each
+one told to leave the math for the preview machinery.  Plain =pandoc=
+renders a formula itself, which left a notebook with no inline math at
+all.
 
 shr reads the HTML with libxml2.  Without libxml2 the markdown cells
 stay plain text, and the mode reports which part is missing.

@@ -119,12 +119,61 @@ the rendering is over; a file on disk is drawn here and now."
                   #'shr-browse-url)))))
 
 (ert-deftest overblock-md-test-a-remote-image-stays-with-shr ()
-  "An image on the network is shr's business, and it says so with a box."
+  "An image on the network is shr\='s business where the package leaves it.
+`overblock-md-remote-images\=' is off here and shr is told to fetch
+nothing: a test asks the network for nothing at all."
   (skip-unless (overblock-md-program))
-  (let* ((shown (overblock-md-rendered "![a figure](https://example.org/f.png)"))
+  (let* ((overblock-md-remote-images nil)
+         (shr-blocked-images ".")
+         (shown (overblock-md-rendered "![a figure](https://example.org/f.png)"))
          (spec (overblock-image-in shown)))
     ;; shr leaves a placeholder of its own making, and it is not a file
     (should (or (null spec) (null (plist-get (cdr spec) :file))))))
+
+(ert-deftest overblock-md-test-a-remote-image-is-fetched-once ()
+  "An image named by URL is fetched once and drawn from the file.
+A badge in a link — the Colab badge of a notebook — stayed its alt text,
+because shr fetches with `url-queue-retrieve\=' and answers into a buffer
+that the rendering has already left."
+  (let* ((cache (make-temp-file "overblock-images" t))
+         (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
+                                    process-environment))
+         (overblock-md-remote-images t)
+         (overblock-md--remote-failed (make-hash-table :test #'equal))
+         (url "https://example.org/badge.svg")
+         (fetches 0))
+    (unwind-protect
+        (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+                  ((symbol-function 'image-supported-file-p) (lambda (_) t))
+                  ((symbol-function 'url-copy-file)
+                   (lambda (_url file &rest _)
+                     (setq fetches (1+ fetches))
+                     (with-temp-file file (insert "not really a png")))))
+          (let ((first (overblock-md--remote-file url)))
+            (should first)
+            (should (file-readable-p first))
+            (should (equal (overblock-md--remote-file url) first))
+            ;; Once for the session and once for the machine.
+            (should (= fetches 1))))
+      (delete-directory cache t))))
+
+(ert-deftest overblock-md-test-a-remote-image-that-fails-is-not-asked-again ()
+  "A URL that could not be fetched is left alone for the session."
+  (let* ((cache (make-temp-file "overblock-images" t))
+         (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
+                                    process-environment))
+         (overblock-md-remote-images t)
+         (overblock-md--remote-failed (make-hash-table :test #'equal))
+         (fetches 0))
+    (unwind-protect
+        (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+                  ((symbol-function 'url-copy-file)
+                   (lambda (&rest _) (setq fetches (1+ fetches))
+                     (error "No network"))))
+          (should-not (overblock-md--remote-file "https://example.org/x.png"))
+          (should-not (overblock-md--remote-file "https://example.org/x.png"))
+          (should (= fetches 1)))
+      (delete-directory cache t))))
 
 (ert-deftest overblock-md-test-program-takes-a-string-or-a-list ()
   "A string and a list of candidates both resolve to a program.
