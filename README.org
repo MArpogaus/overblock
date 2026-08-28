@@ -53,8 +53,10 @@ render in place, and this includes the LaTeX fragments.
 - IPython for rich output.  A plain =python3= shell gives text only,
   because comint-mime installs its renderers through IPython.
 - A converter from Markdown to HTML for the markdown cells.  pycell
-  looks for =markdown=, =pandoc=, =markdown_py=, =cmark= and
-  =cmark-gfm=, in this order.  See =overblock-md-command=.
+  looks for =pandoc --mathjax=, =markdown_py -x tables -x fenced_code=,
+  =cmark-gfm -e table=, =markdown= and =cmark=, in this order — the ones
+  that can carry a table and a code fence first, each told to leave the
+  math alone.  See =overblock-md-command=.
 - An Emacs with libxml2, because shr reads the HTML of the converter
   with it.  Without a converter or without libxml2 the markdown cells
   stay plain text.  The mode then reports which part is missing.
@@ -206,9 +208,19 @@ the session: what caches a preview is the image file, so without that a
 cell costs one LaTeX run per fragment on every render.  Install what was
 missing and call =overblock-md-forget-failed-previews= to ask again.
 
-A converter that renders math itself leaves nothing to preview: pandoc
-turns =$x^2$= into markup of its own, while =markdown_py= and =cmark=
-pass the dollars through.  See =overblock-md-command=.
+A converter that renders math itself leaves nothing to preview: plain
+=pandoc= turns =$x_1 \to x_2$= into markup for "x1 → x2", which is why
+the default asks it for =--mathjax=, where it passes the fragment on as
+=\(x_1 \to x_2\)=.  =markdown_py= and =cmark= pass the dollars through
+as they are.  See =overblock-md-command=.
+
+An image a cell names by URL — the Colab badge a notebook opens with —
+is fetched once and drawn from the file, and kept beside the previews in
+=~/.cache/overblock-images=.  shr fetches such an image asynchronously,
+which answers into a buffer the rendering has already left, so the badge
+stayed its alt text.  Set =overblock-md-remote-images= to nil to ask the
+network for nothing; a terminal never asks, since it draws no image
+either way.
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
 at an absolute path, capped by =overblock-image-height= like a result's
