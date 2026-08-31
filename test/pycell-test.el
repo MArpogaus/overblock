@@ -1024,5 +1024,35 @@ refuses to insert one vtable into a second buffer."
           (forward-line 1)
           (should (equal (vtable-current-object) '("1" "22" "333"))))))))
 
+(ert-deftest pycell-test-the-queue-belongs-to-its-shell ()
+  "Two notebooks do not share the cells a run-all still has to run.
+The queue was one global list, so a run-all in one notebook discarded
+another's cells and then fed its own down that notebook's interpreter."
+  (let ((one (generate-new-buffer "one.py"))
+        (two (generate-new-buffer "two.py"))
+        (shell-one (generate-new-buffer "*Python one*"))
+        (shell-two (generate-new-buffer "*Python two*")))
+    (unwind-protect
+        (progn
+          (dolist (shell (list shell-one shell-two))
+            (with-current-buffer shell (setq major-mode 'inferior-python-mode)))
+          ;; Each notebook answers with a shell of its own, as
+          ;; `python-shell-dedicated' gives it.
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _)
+                       (if (eq (current-buffer) one) 'proc-one 'proc-two)))
+                    ((symbol-function 'process-buffer)
+                     (lambda (proc)
+                       (if (eq proc 'proc-one) shell-one shell-two))))
+            (with-current-buffer one (pycell--queue-set '(a b c)))
+            (with-current-buffer two (pycell--queue-set '(x)))
+            (should (equal (with-current-buffer one (pycell--queued)) '(a b c)))
+            (should (equal (with-current-buffer two (pycell--queued)) '(x)))
+            ;; Stopping one leaves the other running.
+            (with-current-buffer two (pycell-stop))
+            (should (equal (with-current-buffer one (pycell--queued)) '(a b c)))
+            (should-not (with-current-buffer two (pycell--queued)))))
+      (mapc #'kill-buffer (list one two shell-one shell-two)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

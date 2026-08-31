@@ -348,10 +348,15 @@ region has anyway.  Those lines go under a cloak."
          (rows (without-restriction
                  (save-excursion
                    (goto-char beg)
-                   (let (rows)
-                     (while (< (point) end)
+                   (let (rows (moved 0))
+                     ;; While the line can still be left: a position
+                     ;; past the end of the buffer — a stale overlay, a
+                     ;; narrowing the widening above cannot undo — used
+                     ;; to spin here, growing this list until the machine
+                     ;; was out of memory.
+                     (while (and (< (point) end) (zerop moved))
                        (push (cons (point) (min end (pos-eol))) rows)
-                       (forward-line 1))
+                       (setq moved (forward-line 1)))
                      (nreverse rows)))))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
          (filled 0)

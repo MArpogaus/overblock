@@ -555,5 +555,19 @@ nothing left that knows to take it off."
       (should-not (overlay-get block 'keymap))
       (should-not (overlay-get block 'help-echo)))))
 
+(ert-deftest overblock-test-the-walk-stops-at-the-end-of-the-buffer ()
+  "The row walk ends even where the block reaches past what it can read.
+It used to test the position alone, so an end it could never reach spun
+the loop and grew its list until the machine was out of memory — which a
+test can only report if the loop stops."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\n")
+    (let ((block (overblock-show (point-min) (point-max) :over "A\nB")))
+      (narrow-to-region 1 5)
+      (overblock-refresh block)
+      ;; Four lines in the region, so four rows at the most.
+      (should (<= (length (overblock-get block :parts)) 4))
+      (widen))))
+
 (provide 'overblock-test)
 ;;; overblock-test.el ends here

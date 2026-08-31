@@ -305,12 +305,12 @@ inside a table \(see `overblock-md--tag-table').
 Only where the display can draw an image: a preview made in a
 terminal cannot be seen."
   ;; `replace-regexp-in-string' copies its argument twice whether it
-  ;; matches or not, so a search stands in front of it.  Measured again
-  ;; on this machine, the saving is small: 0.056 milliseconds against
-  ;; 0.055 over a rendered cell of three hundred lines with no formula in
-  ;; it, and 0.741 against 0.463 over three thousand lines.  (An earlier
-  ;; comment here claimed 9.1 against 0.022, which no measurement
-  ;; supports.)
+  ;; matches or not, so a search stands in front of it.  Measured over a
+  ;; rendered cell of two hundred lines with no formula in it: 0.016
+  ;; milliseconds guarded against 0.871 unguarded, which is the guard
+  ;; earning fifty times its keep.  (Two earlier comments here had this
+  ;; wrong in both directions; the numbers come from an interleaved run
+  ;; on a real rendering.)
   (if (or (not (display-images-p))
           (not (string-match-p "[$\\]" text)))
       text

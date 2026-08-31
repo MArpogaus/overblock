@@ -244,7 +244,7 @@ sit past the cut; its images are capped to
              ;; there would cost the rest of the output and buy no
              ;; height back.
              (image (and (display-images-p) (overblock-image-in l))))
-        (push (if image (overblock-repl-fit l) (pycell--shorten l)) shown)
+        (push (if image (overblock-image-cap l) (pycell--shorten l)) shown)
         (when image (setq stop t))))
     (nreverse shown)))
 
@@ -879,8 +879,33 @@ and renders it; \\[pycell-md-abort] discards the edit."
 
 ;;;; Running cells
 
-(defvar pycell--queue nil
-  "Start markers of the cells that `pycell-restart-and-run-all' still runs.")
+(defvar-local pycell--queue nil
+  "Start markers of the cells that `pycell-restart-and-run-all\' still runs.
+Kept in the Python shell\'s buffer, beside `pycell--run\': a notebook with
+a shell of its own — which `python-shell-dedicated\' gives it — has a
+queue of its own.  One global list let a run-all in one notebook discard
+another\'s cells and then feed its own down that notebook\'s interpreter.
+`pycell--queue-buffer\' is how to reach it.")
+
+(defun pycell--queue-buffer ()
+  "Return the buffer that holds the run-all queue for this one.
+That is the Python shell: this buffer where it is one, and the shell this
+notebook sends to otherwise.  Nil where there is no shell, and then there
+is nothing queued either."
+  (if (derived-mode-p 'inferior-python-mode)
+      (current-buffer)
+    (when-let* ((proc (python-shell-get-process)))
+      (process-buffer proc))))
+
+(defun pycell--queued ()
+  "Return the cells a run-all still has to run, in order."
+  (when-let* ((shell (pycell--queue-buffer)))
+    (buffer-local-value 'pycell--queue shell)))
+
+(defun pycell--queue-set (cells)
+  "Give the shell CELLS to run, and answer them."
+  (when-let* ((shell (pycell--queue-buffer)))
+    (with-current-buffer shell (setq pycell--queue cells))))
 
 (defvar-local pycell--run nil
   "State of the cell that runs in this Python shell, or nil.
@@ -1240,7 +1265,13 @@ prompt.  A cell sent while another one runs is refused, with a
         ;; invisible out of it, and upwards; put it below instead.
         (when (<= (1- start) (point) end)
           (goto-char end))
-        (when pycell--queue (pycell--run-next)))
+        ;; A loop, not a call: a markdown cell needs no prompt to
+        ;; follow, and `pycell--run-next' calling this back for the next
+        ;; one made a chain of frames — a hundred markdown cells in a row
+        ;; reached `max-lisp-eval-depth' and the run stopped there.
+        (while (and (pycell--queued) (pycell--md-next-p))
+          (pycell--run-next))
+        (when (pycell--queued) (pycell--run-next)))
     (if-let* ((proc (python-shell-get-process)))
         (pycell--send proc start end)
       ;; Mark the cell here, while its buffer is still current:
@@ -1280,13 +1311,29 @@ shows its source again."
         (python-shell-restart))
     (run-python nil (pycell--dedicated))))
 
+(defun pycell--md-next-p ()
+  "Return non-nil when the next cell of the queue is a markdown cell.
+A markdown cell renders without the shell, so a run-all can walk one
+after another in a loop; a code cell has to wait for a prompt."
+  (when-let* ((m (car (pycell--queued)))
+              ((buffer-live-p (marker-buffer m))))
+    (with-current-buffer (marker-buffer m)
+      (save-excursion
+        (goto-char m)
+        (pcase-let ((`(,start ,_end) (code-cells--bounds nil nil t)))
+          (and (pycell--md-cell-start start) t))))))
+
 (defun pycell--run-next ()
-  "Evaluate the cell at the head of `pycell--queue'.
-Point follows, so the run-all pass is visible."
+  "Evaluate the cell at the head of the shell\'s queue.
+Point follows, so the run-all pass is visible.  Called from the shell on
+its first prompt and from the notebook after a markdown cell, so the
+queue is reached through `pycell--queue-buffer\' either way."
   (remove-hook 'python-shell-first-prompt-hook #'pycell--run-next t)
-  (when-let* ((m (pop pycell--queue)))
+  (when-let* ((cells (pycell--queued))
+              (m (car cells)))
+    (pycell--queue-set (cdr cells))
     (if (not (buffer-live-p (marker-buffer m)))
-        (setq pycell--queue nil)
+        (pycell--queue-set nil)
       (with-current-buffer (marker-buffer m)
         (goto-char m)
         (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
@@ -1295,7 +1342,7 @@ Point follows, so the run-all pass is visible."
 (defun pycell-stop ()
   "Stop `pycell-restart-and-run-all' after the current cell."
   (interactive)
-  (setq pycell--queue nil)
+  (pycell--queue-set nil)
   (message "pycell: run all stopped"))
 
 (defvar-keymap pycell-stop-map
@@ -1308,7 +1355,7 @@ The pass stops at the first error, or on \
 \\<pycell-stop-map>\\[pycell-stop]."
   (interactive)
   (pycell-restart)
-  (setq pycell--queue
+  (pycell--queue-set
         (save-excursion
           (goto-char (point-min))
           (let ((cells (unless (looking-at-p code-cells-boundary-regexp)
@@ -1321,7 +1368,7 @@ The pass stops at the first error, or on \
   ;; hence the depth.  `pycell--end' chains the remaining cells.
   (with-current-buffer (process-buffer (python-shell-get-process-or-error))
     (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
-  (set-transient-map pycell-stop-map (lambda () pycell--queue) nil
+  (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
                      "Evaluating all cells, %k to stop"))
 
 ;;;###autoload
