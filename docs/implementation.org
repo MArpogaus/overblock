@@ -121,14 +121,6 @@ Where each row goes was decided by measurement, in a graphical frame:
 - The first row takes a line break only where the newline it hangs on
   does not already begin a line, so a cell that ends in a blank line
   gives that line to its header.
-- =overblock-fringe=, an option rather than a keyword, draws a line
-  down the left fringe of every block, two pixel columns wide as
-  =org-modern= draws one.  A =line-prefix= on an overlay says nothing
-  about the rows of a string, so each row carries its own; a bracketed
-  body therefore rides a string rather than the display property, where a
-  prefix draws nothing.  Feet at the two ends are left out: such a bitmap
-  lands beside the right row where the row is a line of the buffer, and
-  one row off where the row belongs to a string.
 
 Text shown =:over= a region hangs on its lines, a piece to a line, and
 lines with no piece left for them go under a cloak.  That is what makes
@@ -373,8 +365,9 @@ The output of a running cell, cleaned and shown five times a second:
 | find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
 | one tick over 100000 on one line  | 68.1 ms  | 1.1 ms  |
 
-- =overblock-repl--table-at= walks the runs of the =vtable= property, not the
-  characters of the output.
+- =overblock-repl-table-in= reads the table off a text property that
+  =overblock-repl-detach= left on the text, instead of searching the
+  output for it.
 - =pycell--clean= copies through a temporary buffer only where the text
   carries a display property, which is what a rendering leaves behind.
   Its two `replace-regexp-in-string' passes ask a search first, since
@@ -418,9 +411,7 @@ markdown, under the author's own configuration:
 | the code before the layer | 2.7 down, 3.7 up | 1834 ms            |         0 |
 
 The two were measured one after the other, on the same notebook and the
-same frame.  A bracket in the fringe costs about three times as much an
-event, because a bracketed body rides a string rather than a display
-property; nothing in this package asks for one.
+same frame.
 
 * The tests
 

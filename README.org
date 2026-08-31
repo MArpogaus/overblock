@@ -151,8 +151,8 @@ The header bar has buttons at its right:
 | =▾=    | fold or unfold the result              |
 | =⌃=    | move this cell up                      |
 | =⌄=    | move this cell down                    |
-| =⤓=    | save the image of the result to a file |
-| =⧉=    | copy the result, with the images       |
+| =↧=    | save the image of the result to a file |
+| =◫=    | copy the result, with the images       |
 | =↗=    | show the full result in its own buffer |
 | =✕=    | discard the result                     |
 
@@ -267,20 +267,15 @@ example in =code-cells-mode-map=.
 | =pycell-max-lines=        | the result lines that show inline                |
 | =pycell-max-line-length=  | the characters of a result line that show inline |
 | =overblock-image-height=  | the share of the window for an inline image      |
-| =overblock-fringe=        | whether a block draws a bracket in the fringe    |
 | =overblock-md-command=    | the shell command from Markdown to HTML          |
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
 | =overblock-md-code=       | the face of inline code in a markdown cell       |
-| =overblock-fringe-face=   | the face of the bracket in the fringe            |
 
 The options named =overblock-= belong to the block layer, and every
-caller of it shares them.  The three that moved there answer to their
-old names as well — =pycell-max-image-height=, =pycell-markdown-command=
-and the =pycell-md-code= face — so a configuration that sets one keeps
-working; it will say it is obsolete.
+caller of it shares them.
 
 Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
@@ -294,7 +289,7 @@ a glyph your font draws better:
 #+begin_src emacs-lisp
   ;; no discard button, and a plain arrow for the move
   (setq pycell-result-buttons
-        '((copy ("⧉" "≡") "Copy this result" pycell-copy-output lines)
+        '((copy ("◫" "≡") "Copy this result" pycell-copy-output lines)
           (move-up ("↑" "u") "Move this cell up" pycell-move-cell-up t)
           (move-down ("↓" "d") "Move this cell down" pycell-move-cell-down t)))
 #+end_src
@@ -348,8 +343,8 @@ diff.
 The package is four files.  =pycell.el= is the part that knows about
 Python — the cells, the process, the commands — and the other three know
 nothing of it: =overblock.el= puts a block of text over a region of a
-buffer with a header and a bracket in the fringe,
-=overblock-md.el= turns markdown into a string such a block can show,
+buffer with a header above it, =overblock-md.el= turns markdown into a
+string such a block can show,
 and =overblock-repl.el= cuts the output of a shell loose from that
 shell.  Those three are meant for a package of their own, and a second
 caller of them is already in the test suite.

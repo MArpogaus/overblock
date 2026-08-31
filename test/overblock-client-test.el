@@ -152,7 +152,7 @@ The layer decides that, not the caller: display properties do not nest."
      (let* ((block (car (overblock-in (point-min) (point-max) 'docmath)))
             (withimage (seq-filter
                         (lambda (ov)
-                          (overblock-image-in (or (overlay-get ov 'after-string) "")))
+                          (overblock-image-in (or (overlay-get ov 'before-string) "")))
                         (overblock-get block :parts))))
        (should (= (length withimage) 2))
        (should (seq-every-p (lambda (ov) (equal (overlay-get ov 'display) ""))

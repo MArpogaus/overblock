@@ -176,26 +176,6 @@ that stopped there with it would leave the last line on the screen."
       (should (= (apply #'max (mapcar #'overlay-end cloaks))
                  (1- (point-max)))))))
 
-(ert-deftest overblock-test-bracket-in-the-fringe ()
-  "The bracket rides the anchor and the rows a block writes.
-The option answers for every block: a `line-prefix\=' on an overlay says
-nothing about the rows of a string, so the string carries its own, and
-measured in a graphical frame the two together draw one line beside the
-whole block."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((overblock-fringe t)
-           (block (overblock-show 1 (point-max) :header "H" :body "B"))
-           (nl (overblock-get block :newline))
-           (fringed (lambda (s)
-                      (and s (text-property-not-all 0 (length s)
-                                                    'line-prefix nil s)))))
-      (should (overlay-get block 'line-prefix))
-      (should (funcall fringed (overlay-get block 'after-string)))
-      ;; a bracketed body rides the anchor's string, where a prefix draws
-      (should (string-match-p "B" (overlay-get block 'after-string)))
-      (should-not (overlay-get nl 'display)))))
-
 (ert-deftest overblock-test-pieces-lose-no-line ()
   "The pieces together show the rendering, whole and in order.
 A cell has as many lines as its author wrote and the rendering has as
@@ -228,9 +208,11 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
-  "The bar leaves a terminal one column of slack.
+  "The bar leaves a terminal two columns of slack.
 A bar that runs into the last column makes the line a continuation,
-and the final icon wraps onto a line of its own."
+and the final icon wraps onto a line of its own.  Measured in a 40
+column window with line numbers and a left margin, one column was not
+enough and two are."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
     (let* ((bar (overblock-bar "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -241,15 +223,21 @@ and the final icon wraps onto a line of its own."
                              (- right (,(+ (string-pixel-width
                                             (propertize "^  x " 'face
                                                         'shadow))
-                                           1)))))))))
+                                           2)))))))))
 
 (ert-deftest overblock-test-pieces-carry-an-image ()
-  "A piece with an image rides the after-string, the others a display.
+  "A piece with an image rides the before-string, the others a display.
 Display properties do not nest, so a piece with an image in a display
 string would lose it.  Hiding the line with a display string of
-nothing and hanging the piece on the after-string keeps the image and
-the line, and a cell with a preview then scrolls a line at a time
-like any other."
+nothing and hanging the piece on a string keeps the image and the
+line, and a cell with a preview then scrolls a line at a time like any
+other.
+
+The before-string and not the after-string: an after-string draws at
+the end of the piece, where the next cloak begins, and Emacs leaves
+out an overlay string inside invisible text.  Measured on a frame by
+the pixels of the image itself: 0 with the cloak there, 32 on the
+before-string."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let* ((image '(image :type png :data "x"))
@@ -259,15 +247,18 @@ like any other."
            (parts (overblock-test--pieces (point-min) (point-max) text))
            (specs (mapcar (lambda (ov)
                             (list (overlay-get ov 'display)
+                                  (overlay-get ov 'before-string)
                                   (overlay-get ov 'after-string)))
                           parts)))
       (should (= (length parts) 3))
       ;; the first and the last carry their text as a display string
-      (should (equal (nth 0 specs) '("plain piece" nil)))
-      (should (equal (nth 2 specs) '("plain again" nil)))
+      (should (equal (nth 0 specs) '("plain piece" nil nil)))
+      (should (equal (nth 2 specs) '("plain again" nil nil)))
       ;; the middle one hides its line and shows the image beside it
       (should (equal (car (nth 1 specs)) ""))
-      (should (overblock-image-in (cadr (nth 1 specs)))))))
+      (should (overblock-image-in (cadr (nth 1 specs))))
+      ;; and never on the after-string, which a cloak would swallow
+      (should-not (nth 2 (nth 1 specs))))))
 
 (ert-deftest overblock-test-space-columns-counts-pixels-and-characters ()
   "A space stretch answers with the columns it covers.
@@ -323,13 +314,13 @@ for each of them drew the same image three times."
       (let* ((parts (overblock-test--pieces (point-min) (point-max) text))
              (withimage (seq-filter
                          (lambda (ov)
-                           (overblock-image-in (or (overlay-get ov 'after-string)
+                           (overblock-image-in (or (overlay-get ov 'before-string)
                                                    (overlay-get ov 'display) "")))
                          parts)))
         ;; the image is on one piece, and only one
         (should (= (length withimage) 1))
         (should (equal (substring-no-properties
-                        (overlay-get (car withimage) 'after-string))
+                        (overlay-get (car withimage) 'before-string))
                        "$$\na = b\n$$"))))))
 
 (ert-deftest overblock-test-image-in-sees-a-slice ()
@@ -469,31 +460,19 @@ explicitly used to skip the sweep."
       (overblock-clear))))
 
 (ert-deftest overblock-test-a-hidden-block-shows-nothing-at-all ()
-  "A hidden block gives up its keymap, its help string and its bracket."
-  (let ((overblock-fringe t))
-    (with-temp-buffer
-      (insert "one\ntwo\n")
-      (let ((block (overblock-show (point-min) (point-max)
-                                   :over "A" :keymap (make-sparse-keymap)
-                                   :help-echo "H")))
-        (should (overlay-get block 'keymap))
-        (should (overlay-get block 'line-prefix))
-        (overblock-set block :hidden t)
-        (overblock-refresh block)
-        (should-not (overlay-get block 'keymap))
-        (should-not (overlay-get block 'help-echo))
-        (should-not (overlay-get block 'line-prefix))))))
-
-(ert-deftest overblock-test-the-bracket-comes-off-with-the-option ()
-  "The fringe bracket is taken off when the option goes off."
+  "A hidden block gives up its keymap and its help string."
   (with-temp-buffer
     (insert "one\ntwo\n")
-    (let* ((overblock-fringe t)
-           (block (overblock-show (point-min) (point-max) :body "B")))
-      (should (overlay-get block 'line-prefix))
-      (setq overblock-fringe nil)
+    (let ((block (overblock-show (point-min) (point-max)
+                                 :over "A" :keymap (make-sparse-keymap)
+                                 :help-echo "H")))
+      (should (overlay-get block 'keymap))
+      (should (overblock-get block :parts))
+      (overblock-set block :hidden t)
       (overblock-refresh block)
-      (should-not (overlay-get block 'line-prefix)))))
+      (should-not (overlay-get block 'keymap))
+      (should-not (overlay-get block 'help-echo))
+      (should-not (overblock-get block :parts)))))
 
 (ert-deftest overblock-test-a-blank-last-line-takes-no-row ()
   "A rendering that ends in a blank line does not spend a row on it.
@@ -568,6 +547,54 @@ test can only report if the loop stops."
       ;; Four lines in the region, so four rows at the most.
       (should (<= (length (overblock-get block :parts)) 4))
       (widen))))
+
+(ert-deftest overblock-test-the-bar-label-is-cut-to-fit ()
+  "A label wider than the room the icons leave is cut, not wrapped.
+The stretch between the two collapses to nothing once the label passes
+its target: in a narrow window the label ran into the first icon and
+the last icons wrapped onto a row of their own."
+  (with-temp-buffer
+    (let* ((icons "uu")
+           (wide (make-string 400 ?x))
+           (bar (overblock-bar wide icons 'default))
+           (plain (substring-no-properties bar)))
+      ;; the icons are still there, and the label is not
+      (should (string-suffix-p icons plain))
+      (should (< (string-width plain) 400))
+      (should (string-search "…" plain))
+      ;; a label that fits is left whole
+      (should (string-prefix-p
+               "ok" (substring-no-properties
+                     (overblock-bar "ok" icons 'default)))))))
+
+(ert-deftest overblock-test-orphans-go-and-the-living-stay ()
+  "The sweep takes what no live block owns, and only that.
+A caller that cleared one kind of block reaches for it: an orphan says
+nothing about the kind it belonged to.  A bare `overblock-clear\=' in
+its place deleted every live block of every kind first."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let ((block (overblock-show (point-min) 8 :over "A"))
+          (orphan (make-overlay 9 10)))
+      (overlay-put orphan 'overblock-part t)
+      (overblock-sweep-orphans)
+      (should (overlay-buffer block))
+      (should (overblock-get block :parts))
+      (should (seq-every-p #'overlay-buffer (overblock-get block :parts)))
+      (should-not (overlay-buffer orphan)))))
+
+(ert-deftest overblock-test-an-image-is-named-where-none-draws ()
+  "`overblock-image-label\=' says which figure a display cannot draw.
+An image rides a character, and that character is a space: the row was
+blank and said nothing at all."
+  (let ((text (concat "before "
+                      (propertize " " 'display '(image :type png :data "x"))
+                      " after")))
+    (should (equal (overblock-image-label text) "before [figure] after"))
+    (should (equal (overblock-image-label text "[plot]")
+                   "before [plot] after"))
+    ;; nothing to name, nothing changed
+    (should (equal (overblock-image-label "plain") "plain"))))
 
 (provide 'overblock-test)
 ;;; overblock-test.el ends here

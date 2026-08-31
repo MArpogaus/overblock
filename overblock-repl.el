@@ -51,7 +51,6 @@
 ;; out again here.  Optional, as it is in comint-mime: an Emacs without
 ;; vtable shows the text of the table as it came.
 (require 'vtable nil t)
-(require 'cl-lib)
 (require 'seq)
 (require 'subr-x)
 

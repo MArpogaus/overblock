@@ -238,7 +238,11 @@ scrolling, and a terminal cannot even show it — so where
             ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) (error "the terminal asked for an image"))))
     (let ((text "before $x^2$ after"))
-      (should (equal (overblock-md--mathify text) text)))))
+      (should (equal (overblock-md--mathify text) text)))
+    ;; and the MathJax delimiters still come off, or the terminal reads
+    ;; every formula of the cell as \\(x_1\\)
+    (should (equal (overblock-md--mathify "before \\(x^2\\) after")
+                   "before x^2 after"))))
 
 (ert-deftest overblock-md-test-verbatim-math-keeps-lines ()
   "Display math keeps its line structure, whatever the display draws.
@@ -391,6 +395,35 @@ shr\='s own output and never called the function it names."
     (overblock-fill-props shown 'keymap (define-keymap "RET" #'ignore))
     (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
                 #'shr-browse-url))))
+
+(ert-deftest overblock-md-test-math-that-stays-text-loses-its-braces ()
+  "A fragment no image was made for shows without MathJax delimiters.
+A formula in a table stays text, and pandoc with MathJax writes
+\\(x_1\\): the parentheses are noise on the screen.  The place they held
+is padded, because a table is padded to the width of its text and a
+narrower cell would pull the columns of its row out of line.
+
+The text itself, not a display property: a piece hangs its whole row on
+one display property, and a display property inside a display string is
+never looked at."
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+            ((symbol-function 'overblock-md--latex-image) #'ignore))
+    ;; in a table, where no preview is ever made
+    (let* ((cell (propertize "\\(x_1\\)  a source" 'overblock-md--table t))
+           (shown (substring-no-properties (overblock-md--mathify cell))))
+      (should (string-prefix-p "x_1" shown))
+      (should-not (string-search "\\(" shown))
+      ;; as wide as before, or the columns move
+      (should (= (length shown) (length "\\(x_1\\)  a source"))))
+    ;; outside a table nothing needs padding
+    (should (equal (overblock-md--mathify "before \\(x^2\\) after")
+                   "before x^2 after"))
+    ;; dollars are how a notebook writes a formula: they stay
+    (let ((text "before $x^2$ after"))
+      (should (equal (overblock-md--mathify text) text)))
+    ;; display math over several rows keeps them
+    (let ((text "\\[\na = b\n\\]"))
+      (should (equal (overblock-md--mathify text) text)))))
 
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

@@ -67,15 +67,6 @@
   :group 'convenience
   :prefix "overblock-")
 
-(defcustom overblock-fringe nil
-  "Whether a block draws a bracket in the fringe beside it.
-The bracket marks how far the block reaches, as `org-modern' marks a
-source block, and it costs what a bracket costs: a body that wears one
-rides a string rather than a display property, because a `line-prefix'
-inside a display string draws no fringe."
-  :type 'boolean
-  :group 'overblock)
-
 (defcustom overblock-image-height 0.8
   "How tall an image may be drawn inline, as a share of the window.
 Zero draws it at whatever size it came in.  `pycell-pop-output' and
@@ -95,29 +86,6 @@ on screen; a window resized afterwards keeps the size the figure
 had."
   :type 'number
   :group 'overblock)
-
-(defface overblock-fringe-face '((t :inherit shadow))
-  "Face of the bracket a block draws in the fringe."
-  :group 'overblock)
-
-;; The bracket of a block is a line down the left fringe, two pixel
-;; columns wide as `org-modern' draws one, and `(top t)' repeats it for
-;; the whole height of every row.
-;;
-;; A foot at each end, as `org-modern' draws one, would take a bitmap of
-;; its own for the first and the last row.  Measured: such a bitmap lands
-;; beside the right row where that row is a line of the buffer, and one
-;; row off where the row belongs to a string, which is what a block shows
-;; after its region.  A line without feet says the same thing and needs
-;; no overlay of its own.
-(define-fringe-bitmap 'overblock--line
-  (vector (logior (expt 2 15) (expt 2 14))) nil 16 '(top t))
-
-(defconst overblock--fringe-prefix
-  (propertize " " 'display '(left-fringe overblock--line
-                                         overblock-fringe-face))
-  "The line prefix that draws the bracket.
-One string for every block: nothing may write into its properties.")
 
 (defun overblock-get (block prop)
   "Return the PROP of BLOCK."
@@ -185,8 +153,32 @@ nothing about which block an orphan belonged to."
       ;; would take the parts of a block that reaches into it from
       ;; outside, and a sweep with a KIND cannot tell which kind an
       ;; orphan belonged to.
-      (when whole
-        (remove-overlays (point-min) (point-max) 'overblock-part t)))))
+      (when whole (overblock-sweep-orphans)))))
+
+(defun overblock-sweep-orphans ()
+  "Remove the overlays of the layer that no live block owns.
+A block is taken down through its anchor, which knows what it drew.
+Where the anchor is gone and what it drew is not — a package that
+deletes the overlays of a region, an anchor that evaporated with the
+line it hung on — nothing knows those overlays any more, and one of
+them can be a cloak that keeps lines of the buffer invisible.
+
+Every overlay the layer makes says so, so what is left over can be
+found.  A caller that cleared one kind of block reaches for this: an
+orphan says nothing about the kind it belonged to, and a clear that
+named a kind could not sweep it."
+  (without-restriction
+    (let ((owned (make-hash-table :test #'eq)))
+      (dolist (block (overblock-in (point-min) (point-max)))
+        (puthash block t owned)
+        (dolist (ov (cons (overblock-get block :newline)
+                          (append (overblock-get block :parts)
+                                  (overblock-get block :attached))))
+          (when ov (puthash ov t owned))))
+      (dolist (ov (overlays-in (point-min) (point-max)))
+        (when (and (overlay-get ov 'overblock-part)
+                   (not (gethash ov owned)))
+          (delete-overlay ov))))))
 
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
@@ -195,9 +187,9 @@ where no `:kind\=' is given.  PROPS is a plist, and every entry is
 optional:
 
   :kind      a symbol that tells the blocks of one caller from another.
-             Without it the block is anonymous, and an anonymous block
-             answers to every kind in `overblock-in\=', `-at\=' and
-             `-clear\='.
+             Without it the block is anonymous: `overblock-in\=',
+             `-at\=' and `-clear\=' reach it when they are asked for no
+             kind, and no named kind answers for it.
   :data      anything the caller keeps with the block.  The layer stores
              it and never reads it, so its shape is the caller\='s own.
   :over      text shown instead of the lines of the region, a piece to
@@ -314,8 +306,14 @@ the buffer keeps its line structure and every line keeps its height.
 A piece with an image in it cannot ride a `display' property, because
 display properties do not nest and the image would be swallowed.  Such
 a piece hides its line with a display string of nothing and rides the
-after-string instead, which draws images.  The line keeps its own row
+before-string instead, which draws images.  The line keeps its own row
 either way, which is what makes the region scroll a line at a time.
+
+The before-string and not the after-string: a cloak begins at the end
+of the piece before it, and Emacs leaves out an overlay string whose
+position is inside invisible text.  Measured on a frame, counting the
+pixels of the image itself: 0 for an after-string with a cloak at the
+piece's end, 32 for the same image on a before-string.
 
 A line without text cannot carry a piece — there is nothing to put the
 display property on — and a rendering rarely fills as many lines as the
@@ -395,7 +393,7 @@ region has anyway.  Those lines go under a cloak."
             (overlay-put ov 'overblock-part t)
             (if (overblock-image-in piece)
                 (progn (overlay-put ov 'display "")
-                       (overlay-put ov 'after-string piece))
+                       (overlay-put ov 'before-string piece))
               (overlay-put ov 'display piece))
             (push (overblock--dress block ov) parts)))))
     (when cloak-from
@@ -426,11 +424,9 @@ without one.
 Each string carries the line breaks that its own rows need."
   (let* ((header (plist-get shown :header))
          (body (plist-get shown :body))
-         (fringe overblock-fringe)
          (newline (overblock-get block :newline))
          (on-display (and body
                           (not (overblock-image-in body))
-                          (not fringe)
                           ;; A live overlay, tested by its buffer: without
                           ;; a newline there is nothing to hang a display
                           ;; property on, so the body joins the rows on
@@ -457,19 +453,7 @@ Each string carries the line breaks that its own rows need."
          (nl newline))
     (overlay-put block 'after-string
                  (when strings
-                   (let ((text (concat lead (string-join strings "\n"))))
-                     ;; A string carries the prefixes itself: measured in
-                     ;; a graphical frame, the fringe beside the rows of
-                     ;; a string follows the properties of that string,
-                     ;; and the overlay that shows it says nothing about
-                     ;; them.
-                     (when fringe
-                       (add-text-properties
-                        0 (length text)
-                        (list 'line-prefix overblock--fringe-prefix
-                              'wrap-prefix overblock--fringe-prefix)
-                        text))
-                     text)))
+                   (concat lead (string-join strings "\n"))))
     (when (and nl (overlay-buffer nl))
       (overlay-put nl 'display
                    (when on-display
@@ -502,23 +486,7 @@ elsewhere would hang them over unrelated text, out of reach of
         (overblock--dress block block)
         (when-let* ((over (plist-get shown :over)))
           (overblock-set block :parts (overblock--pieces block over)))
-        ;; A rendering with nowhere to go: every row of the region is
-        ;; blank, so no piece could be made and the text would be
-        ;; dropped in silence.  The rows the block owns show it instead.
-        (when (and (plist-get shown :over)
-                   (null (overblock-get block :parts))
-                   (not (string-empty-p (plist-get shown :over))))
-          (setq shown (plist-put (copy-sequence shown)
-                                 :body (plist-get shown :over))))
         (overblock--attach block shown)
-        ;; The bracket runs beside the region; `overblock--attach' has put
-        ;; it beside the rows it wrote.  Written either way: nil is a
-        ;; property value like any other and takes the bracket off again,
-        ;; where a `when' would leave it on until the block is remade.
-        (let ((prefix (and overblock-fringe shown
-                           overblock--fringe-prefix)))
-          (overlay-put block 'line-prefix prefix)
-          (overlay-put block 'wrap-prefix prefix))
         block))))
 
 (defun overblock-image--spec (display)
@@ -553,6 +521,25 @@ the image inside it is what answers."
             (setq img image)
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
+
+(defun overblock-image-label (text &optional label)
+  "Return TEXT with every image in it replaced by LABEL.
+For a display that draws none: an image rides a character, and that
+character is a space — a figure came out as a blank row, and a reader
+had nothing to tell an empty result from a picture.  LABEL defaults to
+\"[figure]\"."
+  (let ((label (or label "[figure]"))
+        (len (length text))
+        (pos 0)
+        pieces)
+    (while (< pos len)
+      (let ((next (or (next-single-property-change pos 'display text) len)))
+        (push (if (overblock-image--spec (get-text-property pos 'display text))
+                  label
+                (substring text pos next))
+              pieces)
+        (setq pos next)))
+    (apply #'concat (nreverse pieces))))
 
 (defun overblock-image-cap (string)
   "Return STRING with every image in it capped to `overblock-image-height\='.
@@ -794,19 +781,52 @@ they are not drawn at."
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
 The alignment is pixel-exact: icon glyphs render wider than
 `string-width' counts, and (N) in the display spec means N pixels.
-A terminal gets one column of slack: a bar that runs into the last
+A terminal gets two columns of slack: a bar that runs into the last
 column makes the line a continuation there, and the final icon wraps
-onto a line of its own — measured at exactly one column, margins or
-not."
-  (overblock-faced
-   (concat left
-           (propertize " " 'display
-                       `(space :align-to
-                               (- right (,(+ (overblock--pixel-width
-                                              (propertize icons 'face face))
-                                             (if (display-graphic-p) 0 1))))))
-           icons)
-   face))
+onto a line of its own.  Measured in a 40 column window with line
+numbers and a left margin, one column was not enough and two are.
+
+LEFT is cut where the icons leave no room for it.  The stretch between
+the two collapses to nothing once the label passes its target, so in a
+window of 42 columns a label of 48 ran into the first icon and the last
+two icons wrapped onto a row of their own.  The room is the narrowest
+window that shows the buffer: the same string is drawn in all of them."
+  (let* ((width (+ (overblock--pixel-width (propertize icons 'face face))
+                   (if (display-graphic-p) 0 2)))
+         ;; The narrowest window that shows the buffer: one string is
+         ;; drawn in every window at once, and a label cut to fit a wide
+         ;; one still wrapped in a narrow one beside it.  Cut for the
+         ;; narrow one, and the wide one loses a few characters of a
+         ;; label it could have shown whole.
+         ;; Line numbers are drawn in the text area, so the row starts
+         ;; where they end: without that term the label was still four
+         ;; or five columns too long.
+         (room (- (apply #'min
+                         (mapcar (lambda (window)
+                                   (with-selected-window window
+                                     (- (window-body-width window t)
+                                        (if (bound-and-true-p
+                                             display-line-numbers)
+                                            (line-number-display-width t)
+                                          0))))
+                                 (or (get-buffer-window-list nil nil t)
+                                     (list (selected-window)))))
+                  width))
+         ;; Three columns of slack on a terminal: measured in a 40
+         ;; column window with line numbers and a margin, a label cut to
+         ;; the room exactly still put the last icon on a row of its
+         ;; own.
+         (columns (max 1 (- (/ room (frame-char-width))
+                            (if (display-graphic-p) 1 3))))
+         (left (if (and (> room 0) (> (string-width left) columns))
+                   (truncate-string-to-width left columns nil nil t)
+                 left)))
+    (overblock-faced
+     (concat left
+             (propertize " " 'display
+                         `(space :align-to (- right (,width))))
+             icons)
+     face)))
 
 (provide 'overblock)
 ;;; overblock.el ends here
