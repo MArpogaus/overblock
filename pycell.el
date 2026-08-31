@@ -284,7 +284,8 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                                           (overblock-glyph " 󰍝" " ▾" " v"))
                                         "Fold or unfold this result"
                                         #'pycell-toggle-output))
-                     ((zerop total) (overblock-glyph " 󰄬" " ✓" " ."))))
+                     ;; nothing printed: every other case is above
+                     (t (overblock-glyph " 󰄬" " ✓" " ."))))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
                                (if (< shown total)
@@ -369,12 +370,7 @@ counted."
                                    :kind 'result
                                    :data data
                                    :keymap pycell-overlay-map)))
-        ;; An edit of the cell makes the result stale; it goes.  All
-        ;; three hooks: `modification-hooks\=' runs for a change in the
-        ;; interior alone, and the anchor stops one character short of
-        ;; the cell's last newline — so typing on the blank line that
-        ;; ends a cell, which is where `C-e\=' on the last line puts
-        ;; point, is an insertion at the end and reached none of them.
+        ;; An edit of the cell makes the result stale; it goes.
         (pycell--stale-when-edited block)
         (pycell--update block)
         block))))
@@ -671,11 +667,9 @@ See `pycell--md-show', which renders and calls this."
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
                 'keymap pycell-md-map 'help-echo help))
-         ;; The bar covers the word =markdown= of the boundary line, and
-         ;; nothing else: =# %%= keeps the look of every other cell
-         ;; boundary and `outline-minor-mode\=' still finds a heading
-         ;; line where it expects one.  The overlay stops before the
-         ;; newline, where the cell begins.
+         ;; The bar covers the word =markdown= of the boundary line and
+         ;; nothing else, and stops before the newline where the cell
+         ;; begins.
          ;; The boundary line is a markdown boundary because it carries
          ;; the word, so the search cannot fail.
          (hov (make-overlay (save-excursion
@@ -973,12 +967,9 @@ stops, so a tick has no reason to read — or clean — everything the
 cell has printed.  Once those lines are all in, the text cannot
 change anymore and is kept, and the ticks after that read nothing.
 
-A cell that prints much on few lines never reaches that line, so its
-text is never kept and every tick reads it whole.  A bound in characters
-would end that, and it may not be had: comint-mime sends an image as one
-escape sequence of its own, a cut inside it leaves an unfinished
-sequence, and this function drops what follows one.  Measured, that
-turned a figure into a result of no characters at all.
+A cell that prints much on few lines never reaches that line, so the
+read is bounded in characters as well; the comment below says why that
+bound holds only where no escape sequence begins inside it.
 Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
