@@ -208,11 +208,12 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
-  "The bar leaves a terminal two columns of slack.
-A bar that runs into the last column makes the line a continuation,
-and the final icon wraps onto a line of its own.  Measured in a 40
-column window with line numbers and a left margin, one column was not
-enough and two are."
+  "A terminal gets slack in the stretch and again in the label.
+Two columns in the stretch: a bar that runs into the last column makes
+the line a continuation, and the final icon wraps onto a line of its
+own.  Three more off the label: a label cut to the room exactly still
+put that icon on a row of its own.  Both measured in a 40 column window
+with line numbers and a left margin."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
     (let* ((bar (overblock-bar "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -223,7 +224,20 @@ enough and two are."
                              (- right (,(+ (string-pixel-width
                                             (propertize "^  x " 'face
                                                         'shadow))
-                                           2)))))))))
+                                           2))))))
+      ;; and three more columns off the label, which the stretch does
+      ;; not show: a label of the full room still wrapped the last icon
+      (let* ((icons "^  x ")
+             (room (- (window-body-width nil t)
+                      (string-pixel-width (propertize icons 'face 'shadow))
+                      2))
+             (fits (/ room (frame-char-width)))
+             (bar (substring-no-properties
+                   (overblock-bar (make-string fits ?x) icons 'shadow)))
+             ;; the label is what stands before the stretch and the icons
+             (label (substring bar 0 (- (length bar) (length icons) 1))))
+        (should (string-suffix-p icons bar))
+        (should (= (string-width label) (- fits 3)))))))
 
 (ert-deftest overblock-test-pieces-carry-an-image ()
   "A piece with an image rides the before-string, the others a display.

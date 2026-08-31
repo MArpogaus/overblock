@@ -123,12 +123,23 @@ the rendering is over; a file on disk is drawn here and now."
 `overblock-md-remote-images\=' is off here and shr is told to fetch
 nothing: a test asks the network for nothing at all."
   (skip-unless (overblock-md-program))
-  (let* ((overblock-md-remote-images nil)
-         (shr-blocked-images ".")
-         (shown (overblock-md-rendered "![a figure](https://example.org/f.png)"))
-         (spec (overblock-image-in shown)))
-    ;; shr leaves a placeholder of its own making, and it is not a file
-    (should (or (null spec) (null (plist-get (cdr spec) :file))))))
+  ;; A display that draws images, or the option under test says nothing:
+  ;; `overblock-md--remote-file' answers nil in a batch session whatever
+  ;; the option is, and the test then passed with the option on.
+  (let ((fetches 0))
+    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+              ((symbol-function 'url-copy-file)
+               (lambda (&rest _) (setq fetches (1+ fetches)))))
+      (let* ((overblock-md-remote-images nil)
+             (shr-blocked-images ".")
+             (shown (overblock-md-rendered
+                     "![a figure](https://example.org/f.png)"))
+             (spec (overblock-image-in shown)))
+        ;; nothing was asked of the network, which is the option's whole
+        ;; promise
+        (should (= fetches 0))
+        ;; shr leaves a placeholder of its own making, and it is not a file
+        (should (or (null spec) (null (plist-get (cdr spec) :file))))))))
 
 (ert-deftest overblock-md-test-a-remote-image-is-fetched-once ()
   "An image named by URL is fetched once and drawn from the file.

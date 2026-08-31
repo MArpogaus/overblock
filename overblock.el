@@ -117,12 +117,18 @@ a click moves point there first."
                      (min (1+ (point)) (point-max))
                      kind)))
 
+(defun overblock--carriers (block)
+  "Return the overlays that carry what BLOCK shows, the anchor apart.
+One list for the two readers: `overblock-delete\=' takes them down and
+`overblock-sweep-orphans\=' keeps them, so a slot named in one place and
+not the other would have the sweep delete a live overlay."
+  (delq nil (append (list (overblock-get block :newline))
+                    (overblock-get block :parts)
+                    (overblock-get block :attached))))
+
 (defun overblock-delete (block)
   "Delete BLOCK and the overlays that carry what it shows."
-  (mapc #'delete-overlay
-        (delq nil (append (list (overblock-get block :newline))
-                          (overblock-get block :parts)
-                          (overblock-get block :attached))))
+  (mapc #'delete-overlay (overblock--carriers block))
   (delete-overlay block))
 
 (defun overblock-clear (&optional beg end kind)
@@ -131,14 +137,10 @@ BEG and END default to the whole buffer, KIND to every kind.  A
 narrowing hides nothing from this: the range is searched whole, so no
 block is left behind outside it.
 
-A block is taken down through its anchor, which knows what it drew.
-Where the anchor is gone and what it drew is not — a package that
-deletes the overlays of a region, an anchor that evaporated with the
-line it hung on — nothing knows those overlays any more, and one of
-them can be a cloak that keeps lines of the buffer invisible.  So
-every overlay the layer makes says so, and clearing the whole buffer
-sweeps whatever is left over.  Only the whole buffer: a range says
-nothing about which block an orphan belonged to."
+Clearing the whole buffer sweeps what lost its anchor as well; see
+`overblock-sweep-orphans\=' for what that is and why it matters.  Only the
+whole buffer: a range says nothing about which block an orphan belonged
+to."
   ;; Asked before the widening, in the caller's own view of the buffer:
   ;; under a narrowing the bounds a caller passes are the narrowed ones,
   ;; and comparing them with the whole buffer's afterwards said no to a
@@ -171,10 +173,8 @@ named a kind could not sweep it."
     (let ((owned (make-hash-table :test #'eq)))
       (dolist (block (overblock-in (point-min) (point-max)))
         (puthash block t owned)
-        (dolist (ov (cons (overblock-get block :newline)
-                          (append (overblock-get block :parts)
-                                  (overblock-get block :attached))))
-          (when ov (puthash ov t owned))))
+        (dolist (ov (overblock--carriers block))
+          (puthash ov t owned)))
       (dolist (ov (overlays-in (point-min) (point-max)))
         (when (and (overlay-get ov 'overblock-part)
                    (not (gethash ov owned)))
@@ -449,16 +449,15 @@ Each string carries the line breaks that its own rows need."
                          (char-before (overlay-end block)))
                        ?\n)
                    ""
-                 "\n"))
-         (nl newline))
+                 "\n")))
     (overlay-put block 'after-string
                  (when strings
                    (concat lead (string-join strings "\n"))))
-    (when (and nl (overlay-buffer nl))
-      (overlay-put nl 'display
+    (when (and newline (overlay-buffer newline))
+      (overlay-put newline 'display
                    (when on-display
                      (concat (if header "\n" lead) body "\n")))
-      (overblock--dress block nl))))
+      (overblock--dress block newline))))
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
@@ -781,10 +780,13 @@ they are not drawn at."
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
 The alignment is pixel-exact: icon glyphs render wider than
 `string-width' counts, and (N) in the display spec means N pixels.
-A terminal gets two columns of slack: a bar that runs into the last
-column makes the line a continuation there, and the final icon wraps
-onto a line of its own.  Measured in a 40 column window with line
-numbers and a left margin, one column was not enough and two are.
+A terminal gets slack twice over: the stretch ends two columns short of
+the right edge, because a bar that runs into the last column makes the
+line a continuation there and the final icon wraps onto a line of its
+own; and the label is cut three columns shorter than the room, because a
+label cut to the room exactly still put that icon on a row of its own.
+Both measured in a 40 column window with line numbers and a left
+margin.
 
 LEFT is cut where the icons leave no room for it.  The stretch between
 the two collapses to nothing once the label passes its target, so in a
@@ -812,10 +814,6 @@ window that shows the buffer: the same string is drawn in all of them."
                                  (or (get-buffer-window-list nil nil t)
                                      (list (selected-window)))))
                   width))
-         ;; Three columns of slack on a terminal: measured in a 40
-         ;; column window with line numbers and a margin, a label cut to
-         ;; the room exactly still put the last icon on a row of its
-         ;; own.
          (columns (max 1 (- (/ room (frame-char-width))
                             (if (display-graphic-p) 1 3))))
          (left (if (and (> room 0) (> (string-width left) columns))
