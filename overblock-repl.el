@@ -37,9 +37,9 @@
 ;; cuts a copy loose from all of that: the properties of the shell go,
 ;; the columns of a table are laid out in characters, and the table
 ;; keeps its object under `overblock-repl-table\=' so a caller can show
-;; it live elsewhere.  `overblock-repl-fit\=' caps the images of a line
-;; and `overblock-repl-first-lines\=' takes the head of a long output
-;; without reading the rest of it.
+;; it live elsewhere, and `overblock-repl-first-lines\=' takes the head of
+;; a long output without reading the rest of it.  Capping the images of a
+;; line belongs to the layer: `overblock-image-cap\='.
 ;;
 ;; The prompts are the caller\='s business: what one looks like belongs
 ;; to the shell it came from, and this file needs no comint at all.
@@ -51,14 +51,9 @@
 ;; out again here.  Optional, as it is in comint-mime: an Emacs without
 ;; vtable shows the text of the table as it came.
 (require 'vtable nil t)
+(require 'cl-lib)
 (require 'seq)
 (require 'subr-x)
-
-(defun overblock-repl--table-at (text)
-  "Return the first vtable part of TEXT was rendered from, and where.
-The value is (TABLE BEG END), or nil.  See
-`overblock-repl--table-regions\=', of which this is the first answer."
-  (car (overblock-repl--table-regions text)))
 
 (defun overblock-repl--table-regions (text)
   "Return every (TABLE BEG END) of TEXT, front to back.
@@ -218,12 +213,6 @@ object under `overblock-repl-table\=', which a caller can show live."
                              (if (eq (aref copy (1- tend)) ?\n) "\n" "")
                              (substring copy tend)))))
       copy)))
-
-(defun overblock-repl-fit (line)
-  "Return LINE with its images capped to `overblock-image-height\='.
-LINE itself is not touched.  `overblock-image-cap\=' does the work, and
-says what it does with a sliced image."
-  (overblock-image-cap line))
 
 (defun overblock-repl-first-lines (text limit)
   "Return the first LIMIT lines of TEXT.
