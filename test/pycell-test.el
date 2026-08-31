@@ -1078,15 +1078,22 @@ another's cells and then fed its own down that notebook's interpreter."
             (should-not (with-current-buffer two (pycell--queued)))))
       (mapc #'kill-buffer (list one two shell-one shell-two)))))
 
-(ert-deftest pycell-test-out-label-on-the-output-line ()
-  "An Out[N] label goes wherever it stands, line start or not.
-IPython writes it after output that stopped without a newline, on that
-same line: an anchored search left `Out[8]: 19' glued to the output of
-a `sys.stdout.write'."
+(ert-deftest pycell-test-out-label-goes-where-it-begins-a-line ()
+  "An Out[N] label goes where it begins a line, and nowhere else.
+That is where the shell writes one.  A label that stands in the middle
+of a line cannot be told from the same characters inside a value:
+unanchored, this took `Out[1]: \=' out of a value that held it, and
+`pycell-copy-output\=' yanked the hole with the text.  A label left on
+the screen is the cheaper fault."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
-    (should (equal (pycell--clean "no trailing newlineOut[8]: 19")
-                   "no trailing newline19"))
-    (should (equal (pycell--clean "a\nOut[3]: 42\n") "a\n42"))))
+    ;; the label the shell wrote, at a line start
+    (should (equal (pycell--clean "a\nOut[3]: 42\n") "a\n42"))
+    (should (equal (pycell--clean "Out[1]: 42") "42"))
+    ;; and the characters inside a value, which stay
+    (should (equal (pycell--clean "Out[1]: 'it reads Out[1]: here'")
+                   "'it reads Out[1]: here'"))
+    (should (equal (pycell--clean "a fake label: Out[42]: done")
+                   "a fake label: Out[42]: done"))))
 
 (ert-deftest pycell-test-an-edit-at-the-end-of-a-cell-drops-the-block ()
   "Typing on the blank line that ends a cell takes the result with it.
@@ -1103,6 +1110,26 @@ cell is the same story from the other end."
         (goto-char (if (eq where 'end) (1- end) beg))
         (insert "print(1)")
         (should-not (overblock-in (point-min) (point-max) 'result))))))
+
+(ert-deftest pycell-test-a-final-newline-does-not-unrender-the-last-cell ()
+  "A markdown cell at the end of a file survives the newline on save.
+Without a final newline the anchor ends at `point-max\=', so the newline
+`require-final-newline\=' adds is an insertion at the anchor's end — and
+the rendering came off as the reader saved.  The cell gets that newline
+when it is rendered, as a result's cell does."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# text")          ; no final newline
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (should (overblock-in (point-min) (point-max) 'markdown))
+    ;; the render gave the buffer its newline
+    (should (eq (char-before (point-max)) ?\n))
+    ;; and one more at the end, as a save would add, leaves it alone
+    (goto-char (point-max))
+    (insert "\n")
+    (should (overblock-in (point-min) (point-max) 'markdown))))
 
 (ert-deftest pycell-test-unrender-keeps-the-results ()
   "`pycell-md-unrender\=' takes the renderings and nothing else.

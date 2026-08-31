@@ -208,12 +208,9 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
-  "A terminal gets slack in the stretch and again in the label.
-Two columns in the stretch: a bar that runs into the last column makes
-the line a continuation, and the final icon wraps onto a line of its
-own.  Three more off the label: a label cut to the room exactly still
-put that icon on a row of its own.  Both measured in a 40 column window
-with line numbers and a left margin."
+  "The stretch ends two columns short of the right edge on a terminal.
+A bar that runs into the last column makes the line a continuation, and
+the final icon wraps onto a line of its own."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
     (let* ((bar (overblock-bar "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -224,20 +221,49 @@ with line numbers and a left margin."
                              (- right (,(+ (string-pixel-width
                                             (propertize "^  x " 'face
                                                         'shadow))
-                                           2))))))
-      ;; and three more columns off the label, which the stretch does
-      ;; not show: a label of the full room still wrapped the last icon
-      (let* ((icons "^  x ")
-             (room (- (window-body-width nil t)
-                      (string-pixel-width (propertize icons 'face 'shadow))
-                      2))
-             (fits (/ room (frame-char-width)))
-             (bar (substring-no-properties
-                   (overblock-bar (make-string fits ?x) icons 'shadow)))
-             ;; the label is what stands before the stretch and the icons
-             (label (substring bar 0 (- (length bar) (length icons) 1))))
-        (should (string-suffix-p icons bar))
-        (should (= (string-width label) (- fits 3)))))))
+                                           2)))))))))
+
+(ert-deftest overblock-test-the-bar-label-is-cut-to-fit ()
+  "A label wider than the room the icons leave is cut, not wrapped.
+The stretch between the two collapses to nothing once the label has
+passed its target: in a narrow window the label ran into the first icon
+and the last icons wrapped onto a row of their own.  The room is
+`window-max-chars-per-line\=', which counts the line-number area and the
+margins, less the icons and one column of slack — a label cut to the
+room exactly still put the last icon on a row of its own."
+  (with-temp-buffer
+    (set-window-buffer nil (current-buffer))
+    (let* ((icons "uu")
+           (room (- (window-max-chars-per-line)
+                    (ceiling (+ (string-pixel-width
+                                 (propertize icons 'face 'default))
+                                (if (display-graphic-p) 0 2))
+                             (frame-char-width))
+                    1))
+           (bar (substring-no-properties
+                 (overblock-bar (make-string (* 4 room) ?x) icons 'default))))
+      ;; the icons are still there, the label is cut, and to the room
+      (should (string-suffix-p icons bar))
+      (should (string-search "…" bar))
+      (should (= (string-width (substring bar 0 (string-search "…" bar)))
+                 (1- room)))
+      ;; a label that fits is left whole
+      (should (string-prefix-p
+               "ok" (substring-no-properties
+                     (overblock-bar "ok" icons 'default)))))))
+
+(ert-deftest overblock-test-a-bar-for-no-window-is-not-cut ()
+  "A buffer in no window has its label left whole.
+There is nothing to wrap in, and the cut is baked into the string: a
+long cell running while the reader looked at another buffer had its
+header cut to the width of that buffer's window, and the cut stayed
+when the notebook came back."
+  (with-temp-buffer
+    (let ((label (make-string 400 ?x)))
+      (should-not (get-buffer-window-list nil nil 'visible))
+      (should (string-prefix-p
+               label (substring-no-properties
+                      (overblock-bar label "uu" 'default)))))))
 
 (ert-deftest overblock-test-pieces-carry-an-image ()
   "A piece with an image rides the before-string, the others a display.
@@ -561,25 +587,6 @@ test can only report if the loop stops."
       ;; Four lines in the region, so four rows at the most.
       (should (<= (length (overblock-get block :parts)) 4))
       (widen))))
-
-(ert-deftest overblock-test-the-bar-label-is-cut-to-fit ()
-  "A label wider than the room the icons leave is cut, not wrapped.
-The stretch between the two collapses to nothing once the label passes
-its target: in a narrow window the label ran into the first icon and
-the last icons wrapped onto a row of their own."
-  (with-temp-buffer
-    (let* ((icons "uu")
-           (wide (make-string 400 ?x))
-           (bar (overblock-bar wide icons 'default))
-           (plain (substring-no-properties bar)))
-      ;; the icons are still there, and the label is not
-      (should (string-suffix-p icons plain))
-      (should (< (string-width plain) 400))
-      (should (string-search "…" plain))
-      ;; a label that fits is left whole
-      (should (string-prefix-p
-               "ok" (substring-no-properties
-                     (overblock-bar "ok" icons 'default)))))))
 
 (ert-deftest overblock-test-orphans-go-and-the-living-stay ()
   "The sweep takes what no live block owns, and only that.
