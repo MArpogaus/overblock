@@ -101,11 +101,14 @@ left a cell whose only output is a figure with an empty block."
 (ert-deftest pycell-test-body-lines-run-on-without-images ()
   "A display that cannot draw an image has nothing to stop for.
 In a terminal the image is the space it rides on, so stopping there
-would hide the rest of the output and buy no height back."
+would hide the rest of the output and buy no height back.  The image is
+named where it cannot be drawn: the space alone was a blank row, and a
+reader could not tell it from a result with no output."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (let ((pycell-max-lines 10))
-      (should (equal (pycell--body-lines (list "before" pycell-test--image "after"))
-                     (list "before" pycell-test--image "after"))))))
+      (should (equal (pycell--body-lines
+                      (list "before" pycell-test--image "after"))
+                     (list "before" "[figure]" "after"))))))
 
 (ert-deftest pycell-test-md-an-edit-takes-the-bar-with-it ()
   "An edit of a rendered cell removes the rendering and its bar.
@@ -159,14 +162,35 @@ bar puts its icons at the window edge and a display property cannot."
 (ert-deftest pycell-test-show-image-result ()
   "An image result rides the after-string of the anchor, images and all.
 A display string swallows an image, so those rows go into a string; the
-newline keeps its own character, and a wheel can pass the block."
-  (pycell-test--with-cells
-    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
-      (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
-             (nl (overblock-get block :newline)))
-        (should (overblock-image-in (overlay-get block 'after-string)))
-        (should-not (overlay-get nl 'display))))))
+newline keeps its own character, and a wheel can pass the block.
+
+Only a display that draws images gets that far, so this says so: on a
+terminal the figure is named instead and the body takes the cheap
+display property, which is the whole point of asking."
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
+    (pycell-test--with-cells
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
+        (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
+               (nl (overblock-get block :newline)))
+          (should (overblock-image-in (overlay-get block 'after-string)))
+          (should-not (overlay-get nl 'display)))))))
+
+(ert-deftest pycell-test-a-figure-is-named-in-a-terminal ()
+  "A figure a terminal cannot draw is named, in the block and out of it.
+comint-mime sends one space carrying the image, and a display that
+draws none shows the space: the row was blank, and `pycell-pop-output\='
+gave a buffer holding that one space."
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
+    (pycell-test--with-cells
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end (concat "plot\n" pycell-test--image) 0.5)
+        (let ((block (car (overblock-in (point-min) (point-max) 'result))))
+          (should (string-match-p
+                   "\\[figure\\]"
+                   (concat (overlay-get block 'after-string)
+                           (overlay-get (overblock-get block :newline)
+                                        'display)))))))))
 
 (ert-deftest pycell-test-raised-text-is-not-an-image ()
   "Superscripts do not push a result onto the string path.
@@ -1053,6 +1077,112 @@ another's cells and then fed its own down that notebook's interpreter."
             (should (equal (with-current-buffer one (pycell--queued)) '(a b c)))
             (should-not (with-current-buffer two (pycell--queued)))))
       (mapc #'kill-buffer (list one two shell-one shell-two)))))
+
+(ert-deftest pycell-test-out-label-on-the-output-line ()
+  "An Out[N] label goes wherever it stands, line start or not.
+IPython writes it after output that stopped without a newline, on that
+same line: an anchored search left `Out[8]: 19' glued to the output of
+a `sys.stdout.write'."
+  (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
+    (should (equal (pycell--clean "no trailing newlineOut[8]: 19")
+                   "no trailing newline19"))
+    (should (equal (pycell--clean "a\nOut[3]: 42\n") "a\n42"))))
+
+(ert-deftest pycell-test-an-edit-at-the-end-of-a-cell-drops-the-block ()
+  "Typing on the blank line that ends a cell takes the result with it.
+A block's anchor stops one character short of the cell's last newline,
+so that line is an insertion at the end of the overlay, which
+`modification-hooks\=' never sees.  The result stayed and showed the
+output of text that had changed under it.  The first character of the
+cell is the same story from the other end."
+  (dolist (where '(end start))
+    (pycell-test--with-cells
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end "old output" 0.1)
+        (should (overblock-in (point-min) (point-max) 'result))
+        (goto-char (if (eq where 'end) (1- end) beg))
+        (insert "print(1)")
+        (should-not (overblock-in (point-min) (point-max) 'result))))))
+
+(ert-deftest pycell-test-unrender-keeps-the-results ()
+  "`pycell-md-unrender\=' takes the renderings and nothing else.
+It swept orphaned parts with a bare `overblock-clear\=', which with no
+argument deletes every live block of every kind first: a reader who
+unrendered markdown lost the result of a five-minute cell."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "output" 0.1))
+    ;; a rendering, made by hand so no converter is needed
+    (goto-char (point-max))
+    (insert "# %% [markdown]\n# text\n")
+    (let ((block (overblock-show (- (point-max) 7) (point-max)
+                                 :kind 'markdown :over "text")))
+      (should block))
+    ;; and an orphan: a part whose anchor is gone
+    (let ((orphan (make-overlay (point-min) (1+ (point-min)))))
+      (overlay-put orphan 'overblock-part t)
+      (pycell-md-unrender)
+      (should (overblock-in (point-min) (point-max) 'result))
+      (should-not (overblock-in (point-min) (point-max) 'markdown))
+      (should-not (overlay-buffer orphan)))))
+
+(ert-deftest pycell-test-the-queue-walks-markdown-cells-in-one-frame ()
+  "A run-all pass crosses markdown cells without building a frame each.
+`pycell--run-next\=' used to call `pycell-eval-region\=', which called it
+back: two markdown cells in a row made two frames, and each frame ran
+its own tail on the way out — the second sending a code cell while the
+first was still running.  `pycell--send\=' refused that one from inside
+the process filter, and the cell, already off the queue, never ran."
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# one\n\n# %% [markdown]\n# two\n\n"
+            "# %%\nx = 1\n\n# %%\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (let ((notebook (current-buffer))
+          (shell (generate-new-buffer " *pycell-test-shell*"))
+          (sent nil)
+          (depth 0)
+          (deepest 0))
+      (unwind-protect
+          (cl-letf* (((symbol-function 'pycell--queue-buffer)
+                      (lambda (&rest _) shell))
+                     ((symbol-function 'overblock-md-rendered)
+                      (lambda (md &rest _) md))
+                     ;; A code cell is where the walk has to stop.
+                     ((symbol-function 'python-shell-get-process)
+                      (lambda (&rest _) 'process))
+                     (send (symbol-function 'pycell--send))
+                     ((symbol-function 'pycell--send)
+                      (lambda (_proc beg _end)
+                        (ignore send)
+                        (setq depth (1+ depth)
+                              deepest (max deepest depth))
+                        (push beg sent)
+                        (setq depth (1- depth)))))
+            ;; The markers belong to the notebook: `copy-marker' made
+            ;; in the shell buffer points into the shell.
+            (let ((cells (with-current-buffer notebook
+                           (save-excursion
+                             (goto-char (point-min))
+                             (let ((marks (list (point-marker))))
+                               (dotimes (_ 3)
+                                 (code-cells-forward-cell)
+                                 (push (point-marker) marks))
+                               (nreverse marks))))))
+              (with-current-buffer shell
+                (setq-local pycell--queue cells)))
+            (pycell--run-next)
+            ;; The two markdown cells are rendered, the first code cell
+            ;; is sent, and the walk stops there: the second code cell
+            ;; waits for the prompt of the first.  The old shape sent
+            ;; both, and the second was refused and lost.
+            (should (= (length (overblock-in (point-min) (point-max)
+                                            'markdown))
+                       2))
+            (should (= (length sent) 1))
+            (should (= deepest 1))
+            (should (= (length (pycell--queued)) 1)))
+        (kill-buffer shell)))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

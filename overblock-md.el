@@ -97,7 +97,8 @@ says nothing there, so this face says it with a color.")
   ;; `markdown_py' without its extensions turns a table into one line of
   ;; pipes and a fenced block into one line of words, and `cmark' and
   ;; Perl `markdown' can do neither at all.
-  '("pandoc --mathjax" "markdown_py -x tables -x fenced_code"
+  '("pandoc --mathjax -f markdown-implicit_figures"
+    "markdown_py -x tables -x fenced_code"
     "cmark-gfm -e table" "markdown" "cmark")
   "How to turn Markdown into HTML.
 Either one shell command as a string, or a list of candidates, of
@@ -127,14 +128,6 @@ around it keeps its click either way.
 Nil renders such an image as its alt text and asks the network for
 nothing."
   :type 'boolean
-  :group 'overblock-md)
-
-(defcustom overblock-md-remote-timeout 3
-  "Seconds to wait for an image named by URL before giving up on it.
-The fetch happens while the cell renders, so this is time the reader
-waits.  A fetch that times out leaves the alt text, and the URL is not
-asked for again in this session."
-  :type 'number
   :group 'overblock-md)
 
 (defvar overblock-md--remote-failed (make-hash-table :test #'equal)
@@ -173,8 +166,11 @@ machine."
             (progn
               (make-directory dir t)
               (let ((url-request-method "GET"))
-                (with-timeout (overblock-md-remote-timeout
-                               (error "Timed out"))
+                ;; Three seconds: the fetch happens while the cell
+                ;; renders, so this is time the reader waits.  A fetch
+                ;; that times out leaves the alt text, and the URL is
+                ;; not asked for again in this session.
+                (with-timeout (3 (error "Timed out"))
                   (url-copy-file url file t)))
               (and (file-readable-p file)
                    (image-supported-file-p file)
@@ -296,6 +292,31 @@ Most converters leave the dollar delimiters alone.  Pandoc renders
 simple formulas as text and passes the rest through, either in dollars
 or, when told to use MathJax, in parentheses and brackets.")
 
+(defun overblock-md--bare-math (frag)
+  "Return FRAG with its MathJax delimiters taken off.
+A fragment that stays text is read as text, and pandoc with MathJax
+wrote \\(x_1\\): the parentheses say nothing to a reader.  Dollars are
+how a notebook writes a formula and read as themselves, so those stay.
+
+The text and not a display property: a piece hangs a whole row on one
+display property, and display properties do not nest — a property
+inside that string is never looked at.
+
+In a table the place the delimiters held is padded with spaces.  A
+table is padded to the width of its text, so a cell that lost four
+characters would pull the columns of its row out of line.
+
+A fragment with a line break in it is left alone.  Display math that
+stays text keeps its rows."
+  (if (or (string-search "\n" frag)
+          (not (or (string-prefix-p "\\(" frag)
+                   (string-prefix-p "\\[" frag))))
+      frag
+    (let ((bare (substring frag 2 -2)))
+      (if (get-text-property 0 'overblock-md--table frag)
+          (concat bare (make-string (- (length frag) (length bare)) ?\s))
+        bare))))
+
 (defun overblock-md--mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
@@ -303,7 +324,8 @@ fragment that fails to render here stays plain, and so does one
 inside a table \(see `overblock-md--tag-table').
 
 Only where the display can draw an image: a preview made in a
-terminal cannot be seen."
+terminal cannot be seen.  A terminal still has the delimiters taken
+off, or every formula of the cell reads \\(x_1\\)."
   ;; `replace-regexp-in-string' copies its argument twice whether it
   ;; matches or not, so a search stands in front of it.  Measured over a
   ;; rendered cell of two hundred lines with no formula in it: 0.016
@@ -311,8 +333,7 @@ terminal cannot be seen."
   ;; earning fifty times its keep.  (Two earlier comments here had this
   ;; wrong in both directions; the numbers come from an interleaved run
   ;; on a real rendering.)
-  (if (or (not (display-images-p))
-          (not (string-match-p "[$\\]" text)))
+  (if (not (string-match-p "[$\\]" text))
       text
     (replace-regexp-in-string
      overblock-md--math-regexp
@@ -320,10 +341,11 @@ terminal cannot be seen."
        ;; `replace-regexp-in-string' uses the match data after the
        ;; replacement function returns; rendering must not touch it.
        (save-match-data
-         (if-let* (((not (get-text-property 0 'overblock-md--table frag)))
+         (if-let* (((display-images-p))
+                   ((not (get-text-property 0 'overblock-md--table frag)))
                    (img (overblock-md--latex-image frag)))
              (propertize frag 'display img)
-           frag)))
+           (overblock-md--bare-math frag))))
      text t t)))
 
 (defun overblock-md-program ()
@@ -393,8 +415,11 @@ cells, or when a cell holds it already; the caller then asks for one
 call per cell, as it always did."
   (unless (seq-some (lambda (text) (string-search overblock-md--marker text))
                     texts)
-    (when-let* ((joined (string-join texts (format "\n\n%s\n\n"
-                                                   overblock-md--marker)))
+    (when-let* ((joined (string-join
+                         ;; The wrap belongs before the converter, and
+                         ;; this is the converter.
+                         (mapcar #'overblock-md--verbatim-math texts)
+                         (format "\n\n%s\n\n" overblock-md--marker)))
                 ;; Nil where the converter is missing or failed, which is
                 ;; what `overblock-md--html' answers and what this
                 ;; function's own docstring promises: `split-string' was
@@ -426,18 +451,6 @@ matched across its lines and replaced whole."
      "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
      "<pre>$$\n\\1$$</pre>"
      md)))
-
-(defun overblock-md--tag-th (dom)
-  "Render the header cell DOM in bold.
-shr has no function for a =th=, so a header cell reads like any other
-row.  A table wants its header to stand out."
-  (shr-fontize-dom dom 'bold))
-
-(defun overblock-md--tag-code (dom)
-  "Render the inline code DOM in `overblock-md-code'.
-shr draws code in a fixed pitch face, which says nothing in a buffer
-that is fixed pitch throughout: code came out as prose."
-  (shr-fontize-dom dom 'overblock-md-code))
 
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
@@ -497,14 +510,6 @@ placeholder is an image and would swallow it."
                   label)))
     (shr-tag-img dom)))
 
-(defconst overblock-md--rendering-functions
-  (list (cons 'th #'overblock-md--tag-th)
-        (cons 'code #'overblock-md--tag-code)
-        (cons 'img #'overblock-md--tag-img)
-        (cons 'table #'overblock-md--tag-table))
-  "How this package renders the tags shr renders differently.
-See `shr-external-rendering-functions'.")
-
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
 `overblock-md-command\=' produces HTML, shr renders it, and LaTeX
@@ -537,9 +542,17 @@ without a converter has to see."
           ;; measured against one, so the images come whole and
           ;; `overblock-image-limit' caps them as it always did.
           (shr-sliced-image-height nil)
+          ;; shr has no function for a =th=, so a header cell reads
+          ;; like any other row, and it draws code in a fixed pitch
+          ;; face, which says nothing in a buffer that is fixed pitch
+          ;; throughout: code came out as prose.
           (shr-external-rendering-functions
-           (append overblock-md--rendering-functions
-                   shr-external-rendering-functions)))
+           `((th . ,(lambda (dom) (shr-fontize-dom dom 'bold)))
+             (code . ,(lambda (dom)
+                        (shr-fontize-dom dom 'overblock-md-code)))
+             (img . overblock-md--tag-img)
+             (table . overblock-md--tag-table)
+             ,@shr-external-rendering-functions)))
       (with-temp-buffer
         (shr-insert-document dom)
         (overblock--flatten-alignment)
