@@ -183,9 +183,10 @@ showing the result of text that had changed under it."
 The prompt before the output goes, the prompt after it goes, and so does
 the one that ends up on the same line as output which stopped without a
 newline — `comint-prompt-regexp\=' anchors to a line start and cannot see
-that one.  An `Out[N]:\=' label goes wherever it stands, since IPython
-writes one in front of the value of every cell.  Call this in the shell
-buffer, where that variable has its value."
+that one.  An `Out[N]:\=' label goes where it begins a line, which is
+where the shell writes one; see the comment below for the one that does
+not, and why it stays.  Call this in the shell buffer, where that
+variable has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop if the prompt regexp
     ;; matches the empty string.  The last one keeps a figure: a cell
@@ -209,11 +210,19 @@ buffer, where that variable has its value."
   ;; hundred thousand characters, measured: `replace-regexp-in-string'
   ;; copies its argument twice even when nothing matches, and a plain
   ;; python3 shell never writes a label at all.
+  ;;
+  ;; Anchored to a line start, which is where the shell writes one.  A
+  ;; label the shell wrote after output that stopped without a newline
+  ;; sits on that same line and stays: unanchored, this took `Out[1]: '
+  ;; out of the middle of a value that held those characters itself —
+  ;; `'a value that says Out[1]: inside it'' came out as `'a value that
+  ;; says inside it'', and `pycell--text' hands that to
+  ;; `pycell-copy-output', so the reader yanked the hole as well.  The
+  ;; two cannot be told apart: a trailing prompt takes the newline after
+  ;; a `print' with it, so "ends the text" says nothing either.  A label
+  ;; left on the screen is the cheaper fault of the two.
   (if (string-search "Out[" text)
-      ;; Not anchored to a line start: IPython writes the label after
-      ;; output that stopped without a newline, on that same line, and
-      ;; an anchored search left it there.
-      (replace-regexp-in-string "Out\\[[0-9]+\\]: " "" text)
+      (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
 (defun pycell--clean (text)
@@ -662,6 +671,13 @@ Only the word =markdown= of the boundary line carries the header, so
 (defun pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
 See `pycell--md-show', which renders and calls this."
+  ;; Give the last cell of a file with no final newline one, as
+  ;; `pycell--show' does.  Without it the anchor ends at `point-max',
+  ;; so the newline `require-final-newline' adds on save is an
+  ;; insertion at the anchor's end — and the rendering came off as the
+  ;; reader saved the file.
+  (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
+    (save-excursion (goto-char end) (insert "\n")))
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
