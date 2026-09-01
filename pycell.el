@@ -690,8 +690,51 @@ find."
 (defvar-keymap pycell-md-map
   :doc "Keymap on rendered markdown cells."
   "RET" #'pycell-md-edit
+  "C-c C-o" #'pycell-md-follow-link
   "<mouse-2>" #'pycell-md-edit
   "<mouse-1>" #'pycell-md-raw)
+
+(defun pycell--md-links (block)
+  "Return the links of BLOCK\='s rendering, newest last.
+Each is a cons of the text the reader sees and the URL under it."
+  (let (links)
+    (dolist (part (overblock-get block :parts))
+      (let ((shown (or (overlay-get part 'display)
+                       (overlay-get part 'before-string))))
+        (when (stringp shown)
+          (let ((pos 0) (len (length shown)))
+            (while (< pos len)
+              (let ((url (get-text-property pos 'shr-url shown))
+                    (next (or (next-single-property-change pos 'shr-url
+                                                           shown)
+                              len)))
+                (when (stringp url)
+                  (push (cons (string-trim (substring-no-properties
+                                            shown pos next))
+                              url)
+                        links))
+                (setq pos next)))))))
+    (nreverse links)))
+
+;;;###autoload
+(defun pycell-md-follow-link ()
+  "Follow a link of the rendered markdown cell at point.
+Clicking a link follows it already: a click is answered by the string
+it lands on, and the rendering carries shr\='s own keymap there.  Point
+cannot be put on a link at all — it never enters a display string, and
+the row under it belongs to the source, not to the rendering — so this
+asks the cell for its links instead.  With one, it is followed; with
+several, the reader chooses."
+  (interactive)
+  (let* ((block (pycell--md-at nil))
+         (links (pycell--md-links block)))
+    (cond
+     ((null links) (user-error "No link in this cell"))
+     ((null (cdr links)) (browse-url (cdar links)))
+     (t (browse-url
+         (cdr (assoc (completing-read "Follow link: " (mapcar #'car links)
+                                      nil t)
+                     links)))))))
 
 (defun pycell--md-show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.
