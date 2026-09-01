@@ -525,6 +525,16 @@ the caller, which does the whole buffer at once."
     (pycell--update block)))
 
 ;;;###autoload
+(defun pycell--running-in-p (beg end)
+  "Return non-nil where the cell the shell is running lies in BEG..END.
+Asked of this buffer alone: another notebook on the same shell may be
+the one running, and its cells are not moving."
+  (when-let* ((proc (python-shell-get-process))
+              (run (buffer-local-value 'pycell--run (process-buffer proc)))
+              (mark (plist-get run :beg))
+              ((eq (marker-buffer mark) (current-buffer))))
+    (<= beg mark end)))
+
 (defun pycell-move-cell-down (&optional arg)
   "Move the cell at point down ARG cells, with what it shows.
 A negative ARG moves it up, which is all `pycell-move-cell-up' does.
@@ -552,6 +562,12 @@ cell."
                (offset (- (point) beg))
                (mine (pycell--cell-state beg end))
                (theirs (pycell--cell-state nbeg nend)))
+    ;; A cell the shell is still writing into cannot move: the run holds
+    ;; markers into its text, and the move cuts that text out — the
+    ;; markers collapsed, the block came back frozen at whatever the
+    ;; last tick had shown, and the rest of the output went nowhere.
+    (when (pycell--running-in-p (min beg nbeg) (max end nend))
+      (user-error "Wait for the cell to finish, or M-x pycell-interrupt"))
     ;; From the cell's own boundary line: `code-cells-mode' takes the
     ;; major mode's headings into `outline-regexp' as well, so
     ;; `outline-back-to-heading' from inside a cell that holds a `def'
@@ -562,7 +578,12 @@ cell."
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
     (let ((pycell--moving t))
-      (outline-move-subtree-down arg))
+      (condition-case nil
+          (outline-move-subtree-down arg)
+        ;; The text before the first boundary line is a cell to
+        ;; code-cells and no subtree at all to outline.
+        (outline-before-first-heading
+         (user-error "Can't move the text above the first cell"))))
     ;; Point is where the cell that moved now begins, so the buffer is
     ;; asked for the two ranges rather than counting them out.
     (overblock-clear (min beg nbeg) (max end nend))
@@ -640,11 +661,27 @@ holds what a result popped out after the fact would hold."
   (when-let* ((buffer (car-safe follow))
               ((buffer-live-p buffer)))
     (with-current-buffer buffer
-      (let ((inhibit-read-only t)
-            (at-end (= (point) (point-max))))
+      (let* ((inhibit-read-only t)
+             (end (point-max))
+             (at-end (= (point) end))
+             ;; Every window, not the buffer's point alone: `erase-buffer'
+             ;; puts them all at 1, and a reader watching in a window of
+             ;; its own was scrolled back to the top at the very moment
+             ;; the last of the output arrived.
+             (following (seq-filter (lambda (window)
+                                      (= (window-point window) end))
+                                    (get-buffer-window-list buffer nil t))))
         (erase-buffer)
         (pycell--insert-result text)
-        (goto-char (if at-end (point-max) (point-min)))))))
+        (goto-char (if at-end (point-max) (point-min)))
+        (dolist (window following)
+          (set-window-point window (point-max)))))))
+
+(defvar-local pycell--cell nil
+  "Where the cell a popped-out result shows begins, as a marker.
+`pycell-interrupt\=' asks whether that is still the cell the shell is
+running: a buffer showing a result that has ended, or one whose cell is
+long finished, must not stop somebody else\='s run.")
 
 (defvar-local pycell--shell nil
   "The Python shell a popped-out result came from.
@@ -664,16 +701,40 @@ all.  Both are bound, and `i\=' is the one to rely on."
   "C-c C-c" #'pycell-interrupt)
 
 (defun pycell--insert-result (text)
-  "Insert TEXT as a popped-out result, in the current buffer."
-  ;; A table goes in live: every binding of vtable works here, and
-  ;; vtable aligns the columns for this window itself.  It goes in as a
-  ;; copy, because the table of the result belongs to the shell buffer
-  ;; that drew it.
-  (if-let* ((table (overblock-repl-table-in text)))
-      (vtable-insert (overblock-repl-table-copy table))
-    ;; A figure here is one space carrying an image: on a display that
-    ;; draws none, this buffer held that space and nothing else.
-    (insert (if (display-images-p) text (overblock-image-label text)))))
+  "Insert TEXT as a popped-out result, in the current buffer.
+A table goes in live: every binding of vtable works here, and vtable
+aligns the columns for this window itself.  It goes in as a copy,
+because the table of the result belongs to the shell buffer that drew
+it.
+
+Only the table did, once, and the rest of the cell\='s output went
+missing — the six lines a cell printed before its DataFrame, and the
+lines a follower had already seen.  This buffer is the one that holds
+more than the block, so what is around a table goes in with it."
+  (let ((pos 0)
+        (len (length text))
+        (drawn nil))
+    (while (< pos len)
+      (let ((table (get-text-property pos 'overblock-repl-table text))
+            (next (or (next-single-property-change
+                       pos 'overblock-repl-table text)
+                      len)))
+        (cond
+         ;; `overblock-repl-detach' leaves the table on the text it laid
+         ;; out; the padding between its runs carries no property, so
+         ;; one table can arrive in several pieces and is drawn once.
+         ((and table (not (eq table drawn)))
+          (vtable-insert (overblock-repl-table-copy table))
+          (setq drawn table))
+         (table nil)
+         (t
+          (let ((part (substring text pos next)))
+            ;; A figure is one space carrying an image: on a display
+            ;; that draws none, this buffer held that space and nothing
+            ;; else.
+            (insert (if (display-images-p) part
+                      (overblock-image-label part))))))
+        (setq pos next)))))
 
 (defun pycell-pop-output (&optional event)
   "Show the result at point, or the one clicked in EVENT, in a buffer.
@@ -701,9 +762,14 @@ taken off and a table laid out live."
         (erase-buffer)
         (pycell--insert-result text))
       (goto-char (point-max)))
-    (when-let* ((proc (python-shell-get-process)))
+    (when-let* ((proc (python-shell-get-process))
+                (shell (process-buffer proc)))
       (with-current-buffer buffer
-        (setq pycell--shell (process-buffer proc))))
+        (setq pycell--shell shell
+              pycell--cell (and runningp
+                                (plist-get (buffer-local-value 'pycell--run
+                                                               shell)
+                                           :beg)))))
     (when runningp (pycell--follow buffer))
     (pop-to-buffer buffer)))
 
@@ -1573,12 +1639,25 @@ Works in a popped-out result as well as in the notebook, which is where
 a reader watching a long run has their point: such a buffer is not a
 Python buffer, so it remembers the shell it came from rather than
 letting `python-shell-get-process' answer with whatever the settings
-point at."
+point at.
+
+In such a buffer it interrupts the cell that buffer shows, and nothing
+else.  It asked the shell for whatever was running: a pop-out of a
+result that had finished, or one whose own shell was gone, then killed
+another notebook\='s run at a keystroke, with no message and nothing to
+undo it."
   (interactive)
-  (interrupt-process
-   (or (and (buffer-live-p pycell--shell)
-            (get-buffer-process pycell--shell))
-       (python-shell-get-process-or-error))))
+  (if (not pycell--shell)
+      (interrupt-process (python-shell-get-process-or-error))
+    (unless (buffer-live-p pycell--shell)
+      (user-error "The shell this result came from is gone"))
+    (let* ((run (buffer-local-value 'pycell--run pycell--shell))
+           (beg (plist-get run :beg)))
+      (unless (and beg pycell--cell
+                   (eq (marker-buffer beg) (marker-buffer pycell--cell))
+                   (= beg pycell--cell))
+        (user-error "The cell this buffer shows is not running"))
+      (interrupt-process (get-buffer-process pycell--shell)))))
 
 (defun pycell--clear-results ()
   "Take the results of the buffer down, and sweep what lost its anchor.
