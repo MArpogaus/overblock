@@ -41,7 +41,7 @@
 ;; image is drawn on the spot rather than fetched.
 ;;
 ;; Rendering a whole buffer of cells calls the program once, with
-;; `overblock-md-html-batch\='.
+;; `overblock-md-html-batch'.
 
 ;;; Code:
 
@@ -119,7 +119,7 @@ simple formulas into text on its own and passes the rest through, and
   "Whether to fetch the images a markdown cell names by URL.
 A cell that opens with a badge names an image on the web, as the Colab
 badge of a notebook does.  shr fetches such an image
-with `url-queue-retrieve\=', which answers long after the rendering is
+with `url-queue-retrieve', which answers long after the rendering is
 over and into a buffer that is gone by then, so the badge stayed its alt
 text.  With this on, the file is fetched once, kept in the cache beside
 the LaTeX previews, and drawn from there like a local one; the link
@@ -133,7 +133,7 @@ nothing."
 (defvar overblock-md--remote-failed (make-hash-table :test #'equal)
   "The image URLs that could not be fetched in this session.
 A URL that failed is not asked for again: the cell renders on every
-`pycell-md-render-all\=', and a notebook that opens with a badge would
+`pycell-md-render-all', and a notebook that opens with a badge would
 otherwise wait for the network every time.")
 
 (defun overblock-md--remote-file (url)
@@ -367,14 +367,14 @@ that through as a paragraph, where anything with markup would be
 reshaped into something else.")
 
 (defun overblock-md--html (md)
-  "Return the HTML `overblock-md-command\=' makes of MD, or nil.
+  "Return the HTML `overblock-md-command' makes of MD, or nil.
 Nil where no converter is installed and nil where the one that is
 exits non-zero: this is the one caller-visible answer that keeps a cell
 plain text rather than raising.  The check belongs here, where the
-program is called, and not in each caller — `pycell-md-render-all\=' is
-the body of `pycell-mode\=', and a signal from here left the mode on with
-nothing rendered and took the rest of `code-cells-mode-hook\=' with it.
-One wrong argument in `overblock-md-command\=' was enough."
+program is called, and not in each caller — `pycell-md-render-all' is
+the body of `pycell-mode', and a signal from here left the mode on with
+nothing rendered and took the rest of `code-cells-mode-hook' with it.
+One wrong argument in `overblock-md-command' was enough."
   (when-let* ((program (overblock-md-program)))
     (let ((errors (make-temp-file "overblock-md-stderr")))
       (unwind-protect
@@ -406,7 +406,7 @@ One wrong argument in `overblock-md-command\=' was enough."
   "Return the HTML of each of TEXTS, converted in one go.
 Opening a notebook renders every markdown cell, and a converter
 process costs more than the markdown: 44 milliseconds a cell with
-`markdown_py\=', which is two seconds for fifty cells and nine for two
+`markdown_py', which is two seconds for fifty cells and nine for two
 hundred.  One process for the buffer costs that once.
 
 Nil when the marker does not come back once between every pair of
@@ -453,7 +453,7 @@ matched across its lines and replaced whole."
 
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
-`overblock-md--mathify\=' leaves marked text alone.  A table is padded to
+`overblock-md--mathify' leaves marked text alone.  A table is padded to
 the width of its text, and a preview image is never as wide as the
 text it replaces, so a formula in a cell would pull the columns of its
 row out of line."
@@ -463,9 +463,9 @@ row out of line."
 
 (defun overblock-md--image-file (src)
   "Return the readable local image file that SRC names, or nil.
-A markdown cell writes `![a figure](figure.png)\=', and a path like that
+A markdown cell writes `![a figure](figure.png)', and a path like that
 belongs to the directory of the notebook.  An absolute path and a
-`file://\=' URL name the file directly; anything with another scheme is
+`file://' URL name the file directly; anything with another scheme is
 not ours to open."
   (when-let* ((path (cond ((string-prefix-p "file://" src)
                            (url-unhex-string (substring src 7)))
@@ -480,16 +480,16 @@ not ours to open."
 
 (defun overblock-md--tag-img (dom)
   "Draw the image DOM names when it is a file, and leave the rest to shr.
-shr fetches an image with `url-queue-retrieve\=', which answers long
+shr fetches an image with `url-queue-retrieve', which answers long
 after the cell is rendered, so the rendering keeps the grey placeholder
 that shr leaves in the meantime: measured with a relative path, an
-absolute one and a `file://\=' URL alike, every local image stayed a
+absolute one and a `file://' URL alike, every local image stayed a
 placeholder.  A file on disk needs no fetching.
 
 The alt text carries the image, and the figure is capped like a
-result\='s.  Where the alt text is empty the file\='s name stands in, so a
+result's.  Where the alt text is empty the file's name stands in, so a
 display that draws no image still says which figure is there; a terminal
-gets that label with no display property at all, since shr\='s own
+gets that label with no display property at all, since shr's own
 placeholder is an image and would swallow it."
   (if-let* ((src (or (dom-attr dom 'src) ""))
             (file (or (overblock-md--image-file src)
@@ -503,7 +503,7 @@ placeholder is an image and would swallow it."
                     (propertize label 'display
                                 (apply #'create-image file nil nil
                                        (and limit (list :max-height limit))))
-                  ;; A terminal draws no image, and shr\='s placeholder is
+                  ;; A terminal draws no image, and shr's placeholder is
                   ;; itself an image: its display property would swallow
                   ;; the label under it and leave a blank row.
                   label)))
@@ -511,14 +511,14 @@ placeholder is an image and would swallow it."
 
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
-`overblock-md-command\=' produces HTML, shr renders it, and LaTeX
+`overblock-md-command' produces HTML, shr renders it, and LaTeX
 fragments become preview images.  With HTML, that is rendered instead
-and MD is not converted again: `overblock-md-html-batch\=' converts a
+and MD is not converted again: `overblock-md-html-batch' converts a
 whole buffer of cells at once.
 
-shr renders without its font arithmetic here: a cell\='s text hangs on
+shr renders without its font arithmetic here: a cell's text hangs on
 source lines at whatever indent the buffer wears, and only literal
-columns survive a move.  The `:align-to\=' specs shr leaves behind are
+columns survive a move.  The `:align-to' specs shr leaves behind are
 flattened to real spaces for the same reason.
 
 The answer is nil where no converter is installed and no HTML is given.

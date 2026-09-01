@@ -69,7 +69,7 @@ the image then belongs to shr, which says so with a box of its own."
 
 (ert-deftest overblock-md-test-names-an-image-without-a-display ()
   "Where no image can be drawn, the cell says which figure is there.
-shr\='s own placeholder is an image, and its display property swallows the
+shr's own placeholder is an image, and its display property swallows the
 text under it: a terminal would show a blank row where a figure belongs."
   (skip-unless (overblock-md-program))
   (overblock-md-test--with-image-file file
@@ -87,7 +87,7 @@ text under it: a terminal would show a blank row where a figure belongs."
 
 (ert-deftest overblock-md-test-draws-a-local-image ()
   "A markdown cell draws the image it names, rather than shr's placeholder.
-shr fetches an image through `url-queue-retrieve\=', which answers after
+shr fetches an image through `url-queue-retrieve', which answers after
 the rendering is over; a file on disk is drawn here and now."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
@@ -103,7 +103,7 @@ the rendering is over; a file on disk is drawn here and now."
 
 (ert-deftest overblock-md-test-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
-`overblock-fill-props\=' leaves the properties shr gave the link alone."
+`overblock-fill-props' leaves the properties shr gave the link alone."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
@@ -119,8 +119,8 @@ the rendering is over; a file on disk is drawn here and now."
                   #'shr-browse-url)))))
 
 (ert-deftest overblock-md-test-a-remote-image-stays-with-shr ()
-  "An image on the network is shr\='s business where the package leaves it.
-`overblock-md-remote-images\=' is off here and shr is told to fetch
+  "An image on the network is shr's business where the package leaves it.
+`overblock-md-remote-images' is off here and shr is told to fetch
 nothing: a test asks the network for nothing at all."
   (skip-unless (overblock-md-program))
   ;; A display that draws images, or the option under test says nothing:
@@ -144,7 +144,7 @@ nothing: a test asks the network for nothing at all."
 (ert-deftest overblock-md-test-a-remote-image-is-fetched-once ()
   "An image named by URL is fetched once and drawn from the file.
 A badge in a link — the Colab badge of a notebook — stayed its alt text,
-because shr fetches with `url-queue-retrieve\=' and answers into a buffer
+because shr fetches with `url-queue-retrieve' and answers into a buffer
 that the rendering has already left."
   (let* ((cache (make-temp-file "overblock-images" t))
          (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
@@ -243,7 +243,7 @@ nothing but their number says whether they did."
   "A display that cannot draw images gets no preview substitution.
 One image in the rendered text costs the cell its piece-per-line
 scrolling, and a terminal cannot even show it — so where
-`display-images-p\=' says no, the fragments stay text, untouched."
+`display-images-p' says no, the fragments stay text, untouched."
   (cl-letf (((symbol-function 'display-images-p) #'ignore)
             ;; A LaTeX that would succeed, to prove it is never asked.
             ((symbol-function 'overblock-md--latex-image)
@@ -285,9 +285,9 @@ costs the preview nothing."
 
 (ert-deftest overblock-md-test-table-columns-are-literal ()
   "A rendered table aligns with real spaces, not display specs.
-shr\='s `:align-to\=' counts from the line\='s visual start, and a cell is
-shown indented, so only literal columns survive.  The second row\='s
-cells must start where the header\='s do."
+shr's `:align-to' counts from the line's visual start, and a cell is
+shown indented, so only literal columns survive.  The second row's
+cells must start where the header's do."
   (skip-unless (overblock-md-program))
   (let* ((rendered (overblock-md-rendered
                     "| node | form |\n|------|------|\n| X1 | h1 |\n"))
@@ -305,7 +305,7 @@ cells must start where the header\='s do."
   "A header cell is bold and inline code wears the face of code.
 shr has no function for a =th=, and it draws code in a fixed pitch
 face, which says nothing where the rendering runs with
-`shr-use-fonts\=' nil."
+`shr-use-fonts' nil."
   (skip-unless (overblock-md-program))
   (let* ((rendered (overblock-md-rendered
                     "| head | x |\n|------|---|\n| `code_here` | y |\n"))
@@ -338,8 +338,8 @@ image."
 Nothing caches a failure — what caches a preview is the image file —
 so every render used to spend a LaTeX process per fragment on an
 answer that was already known."
-  ;; org for real: stubbing `require\=' made the guard in
-  ;; `overblock-md--latex-image\=' lie, and the variables org defines were
+  ;; org for real: stubbing `require' made the guard in
+  ;; `overblock-md--latex-image' lie, and the variables org defines were
   ;; then void — which failed this test or not depending on whether
   ;; another test had loaded org first.
   (skip-unless (require 'org nil t))
@@ -381,9 +381,9 @@ them, and so did \"`$HOME` and then `$PATH`\"."
 
 (ert-deftest overblock-md-test-a-converter-that-fails-keeps-the-cell-plain ()
   "A converter that exits non-zero answers nil rather than raising.
-`pycell-md-render-all\=' is the body of `pycell-mode\=', so a signal here
+`pycell-md-render-all' is the body of `pycell-mode', so a signal here
 left the mode on with nothing rendered and took the rest of
-`code-cells-mode-hook\=' with it."
+`code-cells-mode-hook' with it."
   (let ((overblock-md-command "false"))
     (should-not (overblock-md--html "# heading"))
     (should-not (overblock-md-rendered "# heading"))
@@ -395,9 +395,9 @@ left the mode on with nothing rendered and took the rest of
 
 (ert-deftest overblock-md-test-a-link-keeps-its-keymap-through-fill-props ()
   "A link in a rendered cell keeps its own keymap when the block fills one.
-The block gives every row its keymap with `overblock-fill-props\=', which
+The block gives every row its keymap with `overblock-fill-props', which
 must leave what shr put on the link alone — this test used to assert on
-shr\='s own output and never called the function it names."
+shr's own output and never called the function it names."
   (skip-unless (overblock-md-program))
   (let* ((shown (overblock-md-rendered "[text](https://example.org/)"))
          (pos (and shown (text-property-not-all 0 (length shown) 'keymap nil

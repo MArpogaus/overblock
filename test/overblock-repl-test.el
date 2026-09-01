@@ -151,7 +151,7 @@ own."
 
 (ert-deftest overblock-test-image-cap-unslices-a-tall-image ()
   "A run of slices becomes the whole image, capped, on its first row.
-Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line of the window it was rendered in.  Slicing does not
 make an image smaller, so leaving the slices alone left the cap with
 nothing to cap — and the image cannot be capped under the slice either,
@@ -173,7 +173,7 @@ because the fractions were worked out against the height it had."
 
 (ert-deftest overblock-repl-test-first-lines-of-nothing-is-nothing ()
   "A limit of zero takes no lines, rather than the whole result.
-`pycell-max-lines\=' is a natnum, so zero is a legal value, and the scan
+`pycell-max-lines' is a natnum, so zero is a legal value, and the scan
 counts from one: it never met a limit of zero and read and copied
 everything instead."
   (should-not (overblock-repl-first-lines "a\nb\nc\n" 0))
@@ -181,9 +181,9 @@ everything instead."
   (should (equal (overblock-repl-first-lines "a\nb\nc\n" 2) '("a" "b"))))
 
 (ert-deftest overblock-repl-test-a-copy-keeps-what-the-columns-carry ()
-  "The copy of a table keeps every column property, `min-width\=' included.
-comint-mime gives each column a `:min-width\=' of its name\='s length and
-no `:width\=' at all, and a copy built from four keys came out narrower
+  "The copy of a table keeps every column property, `min-width' included.
+comint-mime gives each column a `:min-width' of its name's length and
+no `:width' at all, and a copy built from four keys came out narrower
 than the table it was made from."
   (skip-unless (fboundp 'make-vtable))
   (let* ((table (make-vtable :columns (list (list :name "alpha" :min-width 5)

@@ -210,10 +210,10 @@ The rendered markdown keeps the keymap that shr gave its links."
 (ert-deftest overblock-test-the-overlays-answer-for-point ()
   "Every overlay a block draws carries its keymap and its help echo.
 A click resolves its keymap from the string it landed on, and a
-rendering may put shr\='s own map on a link there.  Point is the other
+rendering may put shr's own map on a link there.  Point is the other
 half: it never enters a display string, so a key pressed in a block is
 answered by the overlays alone.  Taking these off them left RET in a
-rendered cell running `newline\=', which split the source line and took
+rendered cell running `newline', which split the source line and took
 the rendering with it."
   (with-temp-buffer
     (insert "one\ntwo\n")
@@ -248,7 +248,7 @@ the final icon wraps onto a line of its own."
 The stretch between the two collapses to nothing once the label has
 passed its target: in a narrow window the label ran into the first icon
 and the last icons wrapped onto a row of their own.  The room is
-`window-max-chars-per-line\=', which counts the line-number area and the
+`window-max-chars-per-line', which counts the line-number area and the
 margins, less the icons and one column of slack — a label cut to the
 room exactly still put the last icon on a row of its own."
   (with-temp-buffer
@@ -338,7 +338,7 @@ number characters."
 
 (ert-deftest overblock-test-buttons-come-from-their-descriptors ()
   "The header shows the buttons of the option, in its order.
-A descriptor whose WHEN is `image\=' or `lines\=' waits for those."
+A descriptor whose WHEN is `image' or `lines' waits for those."
   (let ((descriptors '((one ("1") "first" ignore t)
                        (two ("2") "second" ignore lines)
                        (three ("3") "third" ignore image))))
@@ -386,7 +386,7 @@ for each of them drew the same image three times."
 (ert-deftest overblock-test-image-in-sees-a-slice ()
   "Emacs 31 slices a tall image, and a slice of an image is an image.
 The spec is then ((slice X Y W H) IMAGE), and what answers is the image
-inside it, so a caller can still read its `:data\=' and cap its height."
+inside it, so a caller can still read its `:data' and cap its height."
   (let* ((image '(image :type png :data "x"))
          (sliced (propertize " " 'display (list '(slice 0.0 0.0 1.0 0.25)
                                                 image))))
@@ -397,8 +397,8 @@ inside it, so a caller can still read its `:data\=' and cap its height."
 
 (ert-deftest overblock-test-refresh-leaves-a-dead-block-alone ()
   "A block that is no longer in a buffer draws nothing and signals nothing.
-`delete-overlay\=' leaves an overlay that is still an overlay and answers
-nil to `overlay-start\=', which is the position the drawing reads."
+`delete-overlay' leaves an overlay that is still an overlay and answers
+nil to `overlay-start', which is the position the drawing reads."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let ((block (overblock-show (point-min) (point-max) :over "A\nB")))
@@ -411,9 +411,9 @@ nil to `overlay-start\=', which is the position the drawing reads."
 
 (ert-deftest overblock-test-refresh-draws-in-the-blocks-own-buffer ()
   "The pieces of a block go in the buffer the block is in.
-`make-overlay\=' puts an overlay in whatever buffer is current, so a
+`make-overlay' puts an overlay in whatever buffer is current, so a
 refresh from elsewhere would hang the pieces over unrelated text, out of
-reach of `overblock-clear\=' in the buffer they belong to."
+reach of `overblock-clear' in the buffer they belong to."
   (let ((home (generate-new-buffer "overblock-home"))
         (other (generate-new-buffer "overblock-other")))
     (unwind-protect
@@ -434,15 +434,15 @@ reach of `overblock-clear\=' in the buffer they belong to."
 
 (ert-deftest overblock-test-refresh-under-a-narrowing-terminates ()
   "A block that reaches past a narrowing is still drawn line by line.
-An overlay\='s positions know nothing of a narrowing, and the walk over
+An overlay's positions know nothing of a narrowing, and the walk over
 the region used to run until the machine was out of memory: the end was
-outside the accessible portion, and `forward-line\=' stops at its edge
+outside the accessible portion, and `forward-line' stops at its edge
 without moving."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\nfive\n")
     (let ((block (overblock-show 1 (point-max) :over "A\nB")))
       (narrow-to-region 1 8)
-      ;; Bounded rather than timed: `with-timeout\=' schedules a timer, and
+      ;; Bounded rather than timed: `with-timeout' schedules a timer, and
       ;; a timer does not preempt a tight Lisp loop, so the old shape of
       ;; this test could only hang the suite or die of memory.  The region
       ;; is five lines, so the walk makes at most five rows and the parts
@@ -472,11 +472,11 @@ then refused the write, and the body showed nowhere at all."
 
 (ert-deftest overblock-test-show-under-a-narrowing-keeps-its-shape ()
   "A block made under a narrowing has the anchor and the newline it needs.
-`char-before\=' answers nil past the accessible portion, so the anchor
-swallowed the region\='s last newline and no newline overlay was made."
+`char-before' answers nil past the accessible portion, so the anchor
+swallowed the region's last newline and no newline overlay was made."
   (with-temp-buffer
     ;; A region that ends in a blank line: that line is the one the
-    ;; header stands on, so a correct `lead\=' is the empty string.
+    ;; header stands on, so a correct `lead' is the empty string.
     (insert "one\ntwo\nthree\n\n")
     (let ((end (point-max)))
       (narrow-to-region 1 8)
@@ -486,8 +486,8 @@ swallowed the region\='s last newline and no newline overlay was made."
   "Check the shape of a block over 1..END made under a narrowing."
   (let ((block (overblock-show 1 end :body "BODY")))
       ;; The anchor stops before the region's last newline, and the
-      ;; newline has an overlay of its own — both read with `char-before\='
-      ;; and `char-after\=', which answer nil past the accessible portion.
+      ;; newline has an overlay of its own — both read with `char-before'
+      ;; and `char-after', which answer nil past the accessible portion.
     (should (= (overlay-end block) (1- end)))
     (should (overlay-buffer (overblock-get block :newline)))
     (overblock-set block :header "HDR")
@@ -536,7 +536,7 @@ explicitly used to skip the sweep."
 
 (ert-deftest overblock-test-a-blank-last-line-takes-no-row ()
   "A rendering that ends in a blank line does not spend a row on it.
-`string-trim\=' with \"\\n\" took one newline, and a blank line that
+`string-trim' with \"\\n\" took one newline, and a blank line that
 carries a space or a tab is still a blank line."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
@@ -550,7 +550,7 @@ carries a space or a tab is still a blank line."
 
 
 (ert-deftest overblock-test-a-dead-newline-overlay-is-no-newline ()
-  "The slot for the region\='s last newline can hold a deleted overlay.
+  "The slot for the region's last newline can hold a deleted overlay.
 Deleting that newline kills the overlay without touching the anchor,
 whose range does not cover it, and the drawing then read nil as the end
 of the region."
@@ -611,7 +611,7 @@ test can only report if the loop stops."
 (ert-deftest overblock-test-orphans-go-and-the-living-stay ()
   "The sweep takes what no live block owns, and only that.
 A caller that cleared one kind of block reaches for it: an orphan says
-nothing about the kind it belonged to.  A bare `overblock-clear\=' in
+nothing about the kind it belonged to.  A bare `overblock-clear' in
 its place deleted every live block of every kind first."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
@@ -625,7 +625,7 @@ its place deleted every live block of every kind first."
       (should-not (overlay-buffer orphan)))))
 
 (ert-deftest overblock-test-an-image-is-named-where-none-draws ()
-  "`overblock-image-label\=' says which figure a display cannot draw.
+  "`overblock-image-label' says which figure a display cannot draw.
 An image rides a character, and that character is a space: the row was
 blank and said nothing at all."
   (let ((text (concat "before "

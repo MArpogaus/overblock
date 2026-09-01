@@ -114,7 +114,7 @@ reader could not tell it from a result with no output."
   "An edit of a rendered cell removes the rendering and its bar.
 The block evaporates with the text it covers, and the bar sits on the
 boundary line above, where no edit of the cell reaches it: without the
-modification hook it stayed behind, and `pycell-md-commit\=' drew a
+modification hook it stayed behind, and `pycell-md-commit' drew a
 second bar beside it."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
@@ -179,7 +179,7 @@ display property, which is the whole point of asking."
 (ert-deftest pycell-test-a-figure-is-named-in-a-terminal ()
   "A figure a terminal cannot draw is named, in the block and out of it.
 comint-mime sends one space carrying the image, and a display that
-draws none shows the space: the row was blank, and `pycell-pop-output\='
+draws none shows the space: the row was blank, and `pycell-pop-output'
 gave a buffer holding that one space."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (pycell-test--with-cells
@@ -597,10 +597,10 @@ were a fifth of a second a wheel event."
 
 (ert-deftest pycell-test-md-without-a-converter-stays-plain ()
   "A markdown cell without a converter stays text, and raises nothing.
-`pycell-md-render-all\=' asks for the program first, but evaluating a
-single cell reached the converter through `overblock-md-rendered\=' and
+`pycell-md-render-all' asks for the program first, but evaluating a
+single cell reached the converter through `overblock-md-rendered' and
 called nil as a program: \"Invalid argument 3 of operation
-`call-process-region\='\".  The answer belongs where the program is
+`call-process-region'\".  The answer belongs where the program is
 called, so every caller gets it."
   (let ((overblock-md-command "definitely-not-installed-42")
         (text "# %% [markdown]\n# ## A heading\n\n# %%\nx = 1\n"))
@@ -745,7 +745,7 @@ it into a bare #, so a commit that changed nothing changed the file."
       (kill-buffer notebook))))
 
 (ert-deftest pycell-test-md-edit-keeps-another-cell-s-edit ()
-  "Opening a second cell\='s edit leaves the first one\='s text alone.
+  "Opening a second cell's edit leaves the first one's text alone.
 One edit buffer for the whole file wrote the cell opened second over
 the cell opened first, and unsaved writing went with it."
   (skip-unless (overblock-md-program))
@@ -975,9 +975,9 @@ Its pieces hang on its source lines, and the lines move under them."
 
 (ert-deftest pycell-test-move-cell-carries-a-cell-that-holds-a-def ()
   "A cell moves whole, from anywhere inside it, defs and all.
-`code-cells-mode\=' takes the major mode's own headings into
-`outline-regexp\=', so a `def\=' in a cell is an outline heading too:
-`outline-back-to-heading\=' from inside one finds the def, and the move
+`code-cells-mode' takes the major mode's own headings into
+`outline-regexp', so a `def' in a cell is an outline heading too:
+`outline-back-to-heading' from inside one finds the def, and the move
 tried to move that — it refused with \"Cannot move past superior
 level\" and the cell stayed where it was."
   (with-temp-buffer
@@ -1000,7 +1000,7 @@ level\" and the cell stayed where it was."
   "A move takes the two cells it moves, and no others.
 The text a move inserts lands at the first character of the cell below
 it, which is where that cell's anchor begins: its
-`insert-in-front-hooks\=' ran, and a third cell that had nothing to do
+`insert-in-front-hooks' ran, and a third cell that had nothing to do
 with the move lost its result on every move down."
   (with-temp-buffer
     (insert "# %%\na = 1\n\n# %%\nb = 2\n\n# %%\nc = 3\n")
@@ -1032,7 +1032,7 @@ with the move lost its result on every move down."
 
 (ert-deftest pycell-test-move-cell-stops-at-the-ends ()
   "The first cell cannot move up and the last cannot move down.
-`outline-move-subtree-down\=' says so — there is no sibling that way —
+`outline-move-subtree-down' says so — there is no sibling that way —
 and nothing is taken off before it has said it."
   (with-temp-buffer
     (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n")
@@ -1139,8 +1139,8 @@ another's cells and then fed its own down that notebook's interpreter."
   "An Out[N] label goes where it begins a line, and nowhere else.
 That is where the shell writes one.  A label that stands in the middle
 of a line cannot be told from the same characters inside a value:
-unanchored, this took `Out[1]: \=' out of a value that held it, and
-`pycell-copy-output\=' yanked the hole with the text.  A label left on
+unanchored, this took `Out[1]: ' out of a value that held it, and
+`pycell-copy-output' yanked the hole with the text.  A label left on
 the screen is the cheaper fault."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
     ;; the label the shell wrote, at a line start
@@ -1156,7 +1156,7 @@ the screen is the cheaper fault."
   "Typing on the blank line that ends a cell takes the result with it.
 A block's anchor stops one character short of the cell's last newline,
 so that line is an insertion at the end of the overlay, which
-`modification-hooks\=' never sees.  The result stayed and showed the
+`modification-hooks' never sees.  The result stayed and showed the
 output of text that had changed under it.  The first character of the
 cell is the same story from the other end."
   (dolist (where '(end start))
@@ -1170,13 +1170,13 @@ cell is the same story from the other end."
 
 (ert-deftest pycell-test-a-final-newline-does-not-unrender-the-last-cell ()
   "A markdown cell at the end of a file survives the newline on save.
-Without a final newline the anchor ends at `point-max\=', so the newline
-`require-final-newline\=' adds is an insertion at the anchor's end — and
+Without a final newline the anchor ends at `point-max', so the newline
+`require-final-newline' adds is an insertion at the anchor's end — and
 the rendering came off as the reader saved.  A newline there changes
 nothing the cell renders, so the block stays.
 
 The render itself writes nothing: appending the newline there signalled
-`buffer-read-only\=' on a read-only notebook, and marked a buffer
+`buffer-read-only' on a read-only notebook, and marked a buffer
 modified by the act of visiting it."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
@@ -1200,8 +1200,8 @@ modified by the act of visiting it."
 
 (ert-deftest pycell-test-a-read-only-notebook-renders ()
   "Rendering a markdown cell writes nothing, so a read-only buffer renders.
-Appending the final newline at render time signalled `buffer-read-only\='
-and the cell stayed plain — reachable through `view-file\=', a read-only
+Appending the final newline at render time signalled `buffer-read-only'
+and the cell stayed plain — reachable through `view-file', a read-only
 checkout, or any file the reader cannot write."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
@@ -1216,7 +1216,7 @@ checkout, or any file the reader cannot write."
   "RET in a rendered markdown cell opens it, and does not insert a newline.
 Point never enters a display string, so the keymap that answers a key
 is the one on the overlays.  With the rendering left to answer for
-itself, RET ran `newline\=': it split the source line under the
+itself, RET ran `newline': it split the source line under the
 rendering and took the rendering with it.  No test bound a key, which
 is how that got through."
   (skip-unless (overblock-md-program))
@@ -1289,7 +1289,7 @@ cell is asked for its links instead."
 
 (ert-deftest pycell-test-a-pop-out-follows-a-running-cell ()
   "A popped-out result keeps filling while the cell runs.
-The block shows `pycell-max-lines\=' of the output and no more; the
+The block shows `pycell-max-lines' of the output and no more; the
 buffer takes the whole of it, so a long run can be followed in a window
 of its own.  Only what is new is copied each time, and the cell's end
 writes the whole of it again with the prompts off."
@@ -1344,9 +1344,9 @@ invisible, with nothing able to remove it."
 
 (ert-deftest pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.
-It took both, and `pycell-restart-and-run-all\=' puts a rendering back
+It took both, and `pycell-restart-and-run-all' puts a rendering back
 only when the pass reaches its cell — so a pass that stopped at an
-error, or on `pycell-stop\=', left every cell after that point plain.  A
+error, or on `pycell-stop', left every cell after that point plain.  A
 rendering has nothing to do with the interpreter."
   (cl-letf (((symbol-function 'run-python) #'ignore)
             ((symbol-function 'python-shell-get-process) #'ignore)
@@ -1366,8 +1366,8 @@ rendering has nothing to do with the interpreter."
       (should (overblock-in (point-min) (point-max) 'markdown)))))
 
 (ert-deftest pycell-test-unrender-keeps-the-results ()
-  "`pycell-md-unrender\=' takes the renderings and nothing else.
-It swept orphaned parts with a bare `overblock-clear\=', which with no
+  "`pycell-md-unrender' takes the renderings and nothing else.
+It swept orphaned parts with a bare `overblock-clear', which with no
 argument deletes every live block of every kind first: a reader who
 unrendered markdown lost the result of a five-minute cell."
   (pycell-test--with-cells
@@ -1389,10 +1389,10 @@ unrendered markdown lost the result of a five-minute cell."
 
 (ert-deftest pycell-test-the-queue-walks-markdown-cells-in-one-frame ()
   "A run-all pass crosses markdown cells without building a frame each.
-`pycell--run-next\=' used to call `pycell-eval-region\=', which called it
+`pycell--run-next' used to call `pycell-eval-region', which called it
 back: two markdown cells in a row made two frames, and each frame ran
 its own tail on the way out — the second sending a code cell while the
-first was still running.  `pycell--send\=' refused that one from inside
+first was still running.  `pycell--send' refused that one from inside
 the process filter, and the cell, already off the queue, never ran."
   (with-temp-buffer
     (insert "# %% [markdown]\n# one\n\n# %% [markdown]\n# two\n\n"
