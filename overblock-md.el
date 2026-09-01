@@ -52,6 +52,10 @@
 ;; `url-copy-file' fetches the image a cell names by URL.
 (require 'url-handlers)
 (require 'dom)
+;; `xdg-cache-home' is where the LaTeX previews and the fetched images
+;; live.  It reads XDG_CACHE_HOME as the specification says to, which a
+;; bare `getenv' does not: a relative value there names no directory.
+(require 'xdg)
 (require 'seq)
 (require 'subr-x)
 
@@ -148,9 +152,7 @@ machine."
              (display-images-p)
              (string-match-p "\\`https?://" url)
              (not (gethash url overblock-md--remote-failed)))
-    (let* ((dir (expand-file-name
-                 "overblock-images/"
-                 (or (getenv "XDG_CACHE_HOME") "~/.cache")))
+    (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
            (extension (file-name-extension url))
            (file (expand-file-name
                   (concat (md5 url)
@@ -207,8 +209,7 @@ the host's /tmp."
                                 org-preview-latex-process-alist))
                      :image-output-type)
                     "png"))
-           (dir (expand-file-name
-                 "overblock-math/" (or (getenv "XDG_CACHE_HOME") "~/.cache")))
+           (dir (expand-file-name "overblock-math/" (xdg-cache-home)))
            (file (expand-file-name
                   (concat (md5 (concat fg frag)) "." ext) dir)))
       (condition-case err
