@@ -163,6 +163,16 @@ the buffer is not touched."
   (interactive)
   (overblock-clear))
 
+(defvar pycell--moving nil
+  "Non-nil while `pycell-move-cell-down\=' is moving a cell.
+`pycell--stale-hook\=' stands down while it is: a move relocates whole
+cells rather than editing the text of one, and the command takes the
+blocks of both cells off and puts them back itself.  The text the move
+inserts lands at the first character of the cell below, which is where
+that cell\='s anchor begins, so its `insert-in-front-hooks\=' ran and its
+result went with the insertion — measured, a third cell that had
+nothing to do with the move lost its result on every move down.")
+
 (defun pycell--stale-hook (block after beg end &optional _length)
   "Take BLOCK down when the text it covers changes, BEG..END.
 AFTER marks the call that follows the change; see
@@ -186,18 +196,20 @@ interior and takes it down.
 The whole buffer, not the accessible part: under a narrowing
 `point-max\=' is the end of that, and an insertion there is in the middle
 of the buffer like any other."
-  (if after
-      (unless (and (equal (buffer-substring-no-properties beg end) "\n")
-                   (= end (without-restriction (point-max))))
-        (overblock-delete block))
+  (if pycell--moving
+      nil
+    (if after
+        (unless (and (equal (buffer-substring-no-properties beg end) "\n")
+                     (= end (without-restriction (point-max))))
+          (overblock-delete block))
     ;; Before the change, an insertion has nothing to read: BEG and END
     ;; are the one position it will go to.  A deletion is judged here
     ;; all the same, because the anchor evaporates with the text it
     ;; covers and the call after the change would never come — and then
     ;; the bar above a rendered cell, which the anchor does not cover,
     ;; stayed behind.
-    (unless (= beg end)
-      (overblock-delete block))))
+      (unless (= beg end)
+        (overblock-delete block)))))
 
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
@@ -519,7 +531,8 @@ cell."
     (goto-char beg)
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
-    (outline-move-subtree-down arg)
+    (let ((pycell--moving t))
+      (outline-move-subtree-down arg))
     ;; Point is where the cell that moved now begins, so the buffer is
     ;; asked for the two ranges rather than counting them out.
     (overblock-clear (min beg nbeg) (max end nend))

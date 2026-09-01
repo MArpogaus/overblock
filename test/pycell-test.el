@@ -996,6 +996,40 @@ level\" and the cell stayed where it was."
       (should (string-match-p "def one"
                               (buffer-substring-no-properties beg end))))))
 
+(ert-deftest pycell-test-a-move-keeps-the-results-of-other-cells ()
+  "A move takes the two cells it moves, and no others.
+The text a move inserts lands at the first character of the cell below
+it, which is where that cell's anchor begins: its
+`insert-in-front-hooks\=' ran, and a third cell that had nothing to do
+with the move lost its result on every move down."
+  (with-temp-buffer
+    (insert "# %%\na = 1\n\n# %%\nb = 2\n\n# %%\nc = 3\n")
+    (python-mode)
+    (code-cells-mode)
+    ;; a result on each of the three cells
+    (goto-char (point-min))
+    (dolist (text '("one" "two" "three"))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end text 0.1))
+      (code-cells-forward-cell))
+    (let ((texts (lambda ()
+                   (mapcar (lambda (b)
+                             (string-trim
+                              (plist-get (overblock-get b :data) :text)))
+                           (sort (overblock-in (point-min) (point-max)
+                                               'result)
+                                 (lambda (a b) (< (overlay-start a)
+                                                  (overlay-start b))))))))
+      (should (equal (funcall texts) '("one" "two" "three")))
+      ;; move the first cell down: the third keeps its result
+      (goto-char (point-min))
+      (forward-line 1)
+      (pycell-move-cell-down 1)
+      (should (equal (funcall texts) '("two" "one" "three")))
+      ;; and back
+      (pycell-move-cell-up 1)
+      (should (equal (funcall texts) '("one" "two" "three"))))))
+
 (ert-deftest pycell-test-move-cell-stops-at-the-ends ()
   "The first cell cannot move up and the last cannot move down.
 `code-cells-move-cell-down' says so, and nothing is taken off before
