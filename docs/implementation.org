@@ -148,25 +148,44 @@ buttons of the reader's choosing: they say what the result is doing.
 
 * Moving a cell
 
-=code-cells-move-cell-down= transposes the text of two cells with
-=transpose-regions=, which leaves an overlay where the text used to
-be: the result of one cell would end up under the other.
-=pycell-move-cell-down= therefore reads what both cells show, lets
-code-cells move the text, and puts each block back on the cell it
-belongs to.  The new bounds come from the lengths, as
-=transpose-regions= leaves them:
+=code-cells-mode= puts the cell boundaries into =outline-regexp=, so a
+cell is an outline subtree and =outline-move-subtree-down= moves it.
+It cuts the text out and puts it back, where
+=code-cells-move-cell-down= transposed two regions with
+=transpose-regions= — and a transpose leaves an overlay where the text
+used to be, so the result of one cell ended up under the other.  It
+also writes the final newline a last cell may lack, which a transpose
+does not: without it the two cells came back as =# omega# %%=, one
+cell where there were two.
 
-- Moving down, the cell ends where the other one ended.
-- Moving up, it starts where the other one started.
+=pycell-move-cell-down= reads what both cells show, moves the text,
+and puts each block back on the cell it belongs to.  Point ends where
+the moved cell now begins, so the two new ranges are asked of the
+buffer rather than counted from the old positions and lengths.
+
+Three things the move has to know:
+
+- The move starts at the cell's own boundary line.  =code-cells-mode=
+  puts the major mode's headings into =outline-regexp= as well, so a
+  =def= inside a cell is an outline heading too: from inside one,
+  =outline-back-to-heading= finds the def and the move refuses with
+  "Cannot move past superior level".
+- =pycell--stale-hook= stands down while the move runs.  The text
+  lands at the first character of the cell the moved cell passes,
+  which is where that cell's anchor begins, so its
+  =insert-in-front-hooks= ran and took its result down — a cell with
+  nothing to do with the move lost its result on every move.
+- What is left of the moved cell's own blocks is swept: its text was
+  cut out, so its parts outlived the anchor that owned them.
 
 Point keeps its offset inside the cell that moved, so a repeated click
 on a header button keeps moving the same cell.  A rendered markdown
 cell is rendered again after the move, because its pieces hang on the
 source lines and those lines have moved.
 
-The command signals before it takes anything off: code-cells refuses
-to move the first cell up or the last one down, and a refused move
-leaves the buffer as it was.
+The command signals before it takes anything off: outline refuses to
+move the first cell up or the last one down, and a refused move leaves
+the buffer as it was.
 
 * The live mirror
 

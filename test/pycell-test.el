@@ -1032,8 +1032,8 @@ with the move lost its result on every move down."
 
 (ert-deftest pycell-test-move-cell-stops-at-the-ends ()
   "The first cell cannot move up and the last cannot move down.
-`code-cells-move-cell-down' says so, and nothing is taken off before
-it has said it."
+`outline-move-subtree-down\=' says so — there is no sibling that way —
+and nothing is taken off before it has said it."
   (with-temp-buffer
     (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n")
     (python-mode)
