@@ -67,6 +67,7 @@
 (require 'overblock-md)
 (require 'overblock-repl)
 (require 'code-cells)
+(require 'outline)
 (require 'comint-mime)
 ;; comint-mime renders a table with it, and a block lays that table
 ;; out again.  Optional, as it is in comint-mime: an Emacs without
@@ -485,48 +486,45 @@ the caller, which does the whole buffer at once."
 (defun pycell-move-cell-down (&optional arg)
   "Move the cell at point down ARG cells, with what it shows.
 A negative ARG moves it up, which is all `pycell-move-cell-up\=' does.
-`code-cells-move-cell-down' transposes the text of the two cells, and
-`transpose-regions' leaves an overlay where the text used to be: the
-result of one cell would end up under the other.  So both blocks come
-off, the text moves, and each block goes back on the cell it belongs
-to.  Point travels with the cell, so a click on the button of a
-header keeps moving the same cell."
+
+An outline move, because `code-cells-mode\=' makes every boundary line an
+outline heading and a cell is therefore a subtree.  Outline cuts the
+text and puts it back; `code-cells-move-cell-down\=' transposed the two
+regions, and `transpose-regions\=' leaves an overlay where the text used
+to be — the result of one cell ended up under the other.  It also glued
+the file together where the last cell had no final newline, writing
+\"# omega# %%\" and leaving one cell where there were two; outline
+writes that newline itself.
+
+The blocks of both cells come off after the move — the moved cell\='s go
+with the text it was cut from, parts and all, so what is left of them
+is swept — and go back on the cells they belong to.  Point travels with
+the cell, so a click on the button of a header keeps moving the same
+cell."
   (interactive "p")
   (setq arg (or arg 1))
-  ;; A buffer that does not end in a newline gets one first.
-  ;; `code-cells-move-cell-down\=' transposes the two cells as they
-  ;; stand, and a last cell without that newline comes back glued to
-  ;; the boundary line of the cell it passed — "# omega# %%", one
-  ;; markdown cell where there were two.  A move is an edit, so writing
-  ;; here is fair, where writing at render time was not.
-  (without-restriction
-    (when (/= (char-before (point-max)) ?\n)
-      (save-excursion (goto-char (point-max)) (insert "\n"))))
   (pcase-let* ((`(,beg ,end) (code-cells--bounds))
                (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
                (offset (- (point) beg))
                (mine (pycell--cell-state beg end))
-               (theirs (pycell--cell-state nbeg nend))
-               (down (> nbeg beg))
-               (mine-length (- end beg))
-               (their-length (- nend nbeg)))
+               (theirs (pycell--cell-state nbeg nend)))
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
-    (code-cells-move-cell-down arg)
+    (outline-move-subtree-down arg)
+    ;; Point is where the cell that moved now begins, so the buffer is
+    ;; asked for the two ranges rather than counting them out.
     (overblock-clear (min beg nbeg) (max end nend))
-    (let ((mine-beg (if down (- nend mine-length) nbeg))
-          (their-beg (if down beg (- end their-length))))
-      (pycell--restore-cell mine-beg (+ mine-beg mine-length) mine)
-      (pycell--restore-cell their-beg (+ their-beg their-length) theirs)
+    ;; The text of the moved cell was cut out, so its parts outlived
+    ;; the anchor that owned them.
+    (overblock-sweep-orphans)
+    (pcase-let* ((`(,mbeg ,mend) (code-cells--bounds))
+                 (`(,tbeg ,tend) (code-cells--neighbor-bounds (- arg))))
+      (pycell--restore-cell mbeg mend mine)
+      (pycell--restore-cell tbeg tend theirs)
       (when (or (cdr mine) (cdr theirs))
-        ;; The two cells that moved, not every cell in the file: the
-        ;; union of the two, where the sum of the larger start and the
-        ;; larger length overshot it — and an end inside a later cell
-        ;; made `pycell-md-render-all' search with a bound behind point.
-        (pycell-md-render-all (min mine-beg their-beg)
-                              (max (+ mine-beg mine-length)
-                                   (+ their-beg their-length))))
-      (goto-char (+ mine-beg (min offset mine-length))))))
+        ;; The two cells that moved, not every cell in the file.
+        (pycell-md-render-all (min mbeg tbeg) (max mend tend)))
+      (goto-char (+ mbeg (min offset (- mend mbeg)))))))
 
 ;;;###autoload
 (defun pycell-move-cell-up (&optional arg)
