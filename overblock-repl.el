@@ -36,12 +36,12 @@
 ;;
 ;; cuts a copy loose from all of that: the properties of the shell go,
 ;; the columns of a table are laid out in characters, and the table
-;; keeps its object under `overblock-repl-table\=' so a caller can show
-;; it live elsewhere, and `overblock-repl-first-lines\=' takes the head of
+;; keeps its object under `overblock-repl-table' so a caller can show
+;; it live elsewhere, and `overblock-repl-first-lines' takes the head of
 ;; a long output without reading the rest of it.  Capping the images of a
-;; line belongs to the layer: `overblock-image-cap\='.
+;; line belongs to the layer: `overblock-image-cap'.
 ;;
-;; The prompts are the caller\='s business: what one looks like belongs
+;; The prompts are the caller's business: what one looks like belongs
 ;; to the shell it came from, and this file needs no comint at all.
 
 ;;; Code:
@@ -62,7 +62,7 @@ comint-mime renders an HTML table with vtable, a DataFrame among them,
 and the copy carries the table object in a text property.
 
 One table is several runs of that property rather than one stretch: the
-padding that `overblock-flattened\=' writes in place of the alignment
+padding that `overblock-flattened' writes in place of the alignment
 stretches carries no properties of its own.  So the runs of one table
 are joined, and a run that names a different table starts a region of
 its own — a cell that shows two frames used to lose the second and
@@ -88,9 +88,9 @@ hundred thousand, where a jump costs nothing."
 
 (defun overblock-repl-table-in (text)
   "Return the table TEXT was laid out from, or nil.
-`overblock-repl-detach\=' leaves the table object on the text it laid
-out, under `overblock-repl-table\=', so a caller can show it live
-elsewhere with `overblock-repl-table-copy\='."
+`overblock-repl-detach' leaves the table object on the text it laid
+out, under `overblock-repl-table', so a caller can show it live
+elsewhere with `overblock-repl-table-copy'."
   (when-let* ((pos (text-property-not-all 0 (length text)
                                           'overblock-repl-table nil text)))
     (get-text-property pos 'overblock-repl-table text)))
@@ -172,7 +172,7 @@ nothing that a face can move."
   "Return the part of TEXT a block shows, cut loose from the shell.
 The outer whitespace goes, except whitespace that carries a display
 property: comint-mime renders an image as one space with such a
-property, and `string-trim\=' would delete it.
+property, and `string-trim' would delete it.
 
 What the shell buffer shows is not what a copy of it shows.  comint-mime
 renders a DataFrame as a vtable, which aligns its columns with pixel
@@ -180,7 +180,7 @@ targets measured in that window and carries the keymap of a live table.
 In a result block the targets land elsewhere, and no binding of that
 keymap can find a table.  So the columns become literal spaces, the
 keymap, the mouse face and the help echo go, and a table keeps its
-object under `overblock-repl-table\=', which a caller can show live."
+object under `overblock-repl-table', which a caller can show live."
   (let* ((beg 0)
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
@@ -238,9 +238,9 @@ The whole of it is searched, so a caller that already knows the number
 had better not ask: measured, ten thousand lines cost 3.1 milliseconds
 and a fold of such a result asked on every keypress.
 
-The search is why this is a loop and not `cl-count\=': over the same ten
-thousand lines, `string-search\=' measured 1.5 milliseconds against 8.0
-for `cl-count\=' and 108 for `seq-count\=', all three answering alike."
+The search is why this is a loop and not `cl-count': over the same ten
+thousand lines, `string-search' measured 1.5 milliseconds against 8.0
+for `cl-count' and 108 for `seq-count', all three answering alike."
   (let ((pos 0) (count 1))
     (while (setq pos (string-search "\n" text pos))
       (setq count (1+ count)

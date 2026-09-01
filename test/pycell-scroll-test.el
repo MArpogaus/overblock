@@ -172,7 +172,7 @@ a short one after them, which is where redisplay changes lines."
 The rows of such a result ride a string, because a display property
 swallows an image.  Measured while this test was written: with those rows
 on the after-string of the newline and the newline itself replaced by an
-empty display string, `pixel-scroll-precision-scroll-up\=' refused to
+empty display string, `pixel-scroll-precision-scroll-up' refused to
 pass the block — 280 refusals with a beginning-of-buffer error over six
 figures — where the same buffer with the newline left alone scrolls to
 the top without one.  The rows therefore ride the anchor, and this test

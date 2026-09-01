@@ -32,14 +32,14 @@
 ;; or about markdown: a caller renders text and a block puts it on the
 ;; screen.
 ;;
-;;     (overblock-show BEG END :kind \='result :body TEXT :header TEXT)
+;;     (overblock-show BEG END :kind 'result :body TEXT :header TEXT)
 ;;
 ;; An anchor overlay covers the region and holds the state.  A second
 ;; overlay covers the newline that ends the region and carries what
 ;; shows after it: the header and the body, each on a row of its own, in
 ;; the slot that suits it.  Measured in a graphical frame: a
 ;; bar puts its icons at the window edge with `(space :align-to (- right
-;; ...))\=', which a display property ignores and a string does not, and
+;; ...))', which a display property ignores and a string does not, and
 ;; an image in a display string is swallowed while one in a string
 ;; draws.  So the header is a string, and the body rides
 ;; the display property unless it holds an image.
@@ -100,7 +100,7 @@ The screen follows on the next `overblock-refresh'."
 
 (defun overblock-in (beg end &optional kind)
   "Return the blocks that overlap BEG..END, those of KIND when it is given.
-The order is whatever `overlays-in\=' gives, so a caller that takes the
+The order is whatever `overlays-in' gives, so a caller that takes the
 first is relying on one block of a kind to a region.  Without KIND every
 kind answers."
   (seq-filter (lambda (ov)
@@ -119,8 +119,8 @@ a click moves point there first."
 
 (defun overblock--carriers (block)
   "Return the overlays that carry what BLOCK shows, the anchor apart.
-One list for the two readers: `overblock-delete\=' takes them down and
-`overblock-sweep-orphans\=' keeps them, so a slot named in one place and
+One list for the two readers: `overblock-delete' takes them down and
+`overblock-sweep-orphans' keeps them, so a slot named in one place and
 not the other would have the sweep delete a live overlay."
   (delq nil (append (list (overblock-get block :newline))
                     (overblock-get block :parts)
@@ -138,7 +138,7 @@ narrowing hides nothing from this: the range is searched whole, so no
 block is left behind outside it.
 
 Clearing the whole buffer sweeps what lost its anchor as well; see
-`overblock-sweep-orphans\=' for what that is and why it matters.  Only the
+`overblock-sweep-orphans' for what that is and why it matters.  Only the
 whole buffer: a range says nothing about which block an orphan belonged
 to."
   ;; Asked before the widening, in the caller's own view of the buffer:
@@ -183,27 +183,27 @@ named a kind could not sweep it."
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
 It replaces the blocks of its own kind in that region — every kind,
-where no `:kind\=' is given.  PROPS is a plist, and every entry is
+where no `:kind' is given.  PROPS is a plist, and every entry is
 optional:
 
   :kind      a symbol that tells the blocks of one caller from another.
-             Without it the block is anonymous: `overblock-in\=',
-             `-at\=' and `-clear\=' reach it when they are asked for no
+             Without it the block is anonymous: `overblock-in',
+             `-at' and `-clear' reach it when they are asked for no
              kind, and no named kind answers for it.
   :data      anything the caller keeps with the block.  The layer stores
-             it and never reads it, so its shape is the caller\='s own.
+             it and never reads it, so its shape is the caller's own.
   :over      text shown instead of the lines of the region, a piece to
              a line; without it the region stays as it is.
   :body      text shown after the region, on the newline that ends it,
              or on the anchor where the region ends without one.
   :header    text shown above the body.
   :hidden    non-nil shows nothing at all, decorations included.
-  :attached  overlays of the caller\='s own, deleted with the block.
+  :attached  overlays of the caller's own, deleted with the block.
   :keymap and :help-echo go on every overlay the block draws; an
-             overlay of the caller\='s own under `:attached\=' keeps
+             overlay of the caller's own under `:attached' keeps
              whatever the caller put on it.  A click lands on the
-             string and is answered by whatever `overblock-fill-props\='
-             left there — shr\='s own keymap on a link, say — so the two
+             string and is answered by whatever `overblock-fill-props'
+             left there — shr's own keymap on a link, say — so the two
              live side by side: the string answers the mouse, the
              overlays answer point.
 
@@ -215,10 +215,10 @@ The anchor ends before the newline of the region, so a window that
 starts at the next line keeps the block out of view.  Both overlays
 advance with text typed at their end.
 
-A block also keeps the overlays that carry what it shows.  `:newline\='
+A block also keeps the overlays that carry what it shows.  `:newline'
 is readable, and a caller needs it to keep an outline fold off the
-newline the block hangs on; `:parts\=' is the layer\='s own, made anew by
-every `overblock-refresh\='."
+newline the block hangs on; `:parts' is the layer's own, made anew by
+every `overblock-refresh'."
   (overblock-clear beg end (plist-get props :kind))
   (let* ((anchor-end (if (and (eq (without-restriction (char-before end))
                                   ?\n)
@@ -239,8 +239,8 @@ every `overblock-refresh\='."
     ;; wholesale.  What the layer carries is the mark above, so
     ;; `overblock-clear' can sweep an overlay whose anchor is gone.
     ;; The two slots the layer writes itself are there from the start, so
-    ;; every `plist-put\=' after this mutates the list in place and no
-    ;; reader can be left holding a head that is no longer the block\='s.
+    ;; every `plist-put' after this mutates the list in place and no
+    ;; reader can be left holding a head that is no longer the block's.
     (overlay-put block 'overblock (append props (list :newline nil
                                                       :parts nil)))
     (when (eq (without-restriction (char-after anchor-end)) ?\n)
@@ -255,15 +255,15 @@ every `overblock-refresh\='."
   "Give OV the keymap and the help echo of BLOCK, and return OV.
 Everything a block shows answers to the same click and says the same
 thing under the mouse, whichever overlay carries it.  A hidden block
-shows nothing, and answers nothing: `:hidden\=' is documented to take the
+shows nothing, and answers nothing: `:hidden' is documented to take the
 decorations with it.
 
 The overlays and not the string: a click resolves its keymap from the
 string it landed on, but a key pressed at point does not — point never
-enters a display string, and `get-char-property\=' at point reads the
+enters a display string, and `get-char-property' at point reads the
 buffer and the overlays alone.  Taking these off the overlays, so that a
 rendering carrying keymaps of its own could answer for its links, left
-RET in a rendered markdown cell running `newline\=': it split the source
+RET in a rendered markdown cell running `newline': it split the source
 line and took the rendering with it.  A link is followed by clicking
 it, which works because the string answers the click."
   ;; Written either way: a block that no longer carries a keymap or a
@@ -419,7 +419,7 @@ Each stands on a row of its own, in the slot that suits it.
 
 A row that must be a string rides the after-string of the anchor: a bar
 draws its icons at the window edge with `(space :align-to (- right
-...))\=', which a display property ignores, and an image in a display
+...))', which a display property ignores, and an image in a display
 string is swallowed while one in a string draws.
 
 A plain body rides the display property of the newline that ends the
@@ -427,7 +427,7 @@ region, which is the cheapest place for text.
 
 The newline is never hidden.  Measured: with the rows of a figure on the
 after-string of that newline and the newline itself replaced by an empty
-display string, `pixel-scroll-precision-scroll-up\=' refused to pass the
+display string, `pixel-scroll-precision-scroll-up' refused to pass the
 block — 280 refusals with a beginning-of-buffer error over six figures,
 where the same buffer with the newline left alone scrolls to the top
 without one.
@@ -472,16 +472,16 @@ Each string carries the line breaks that its own rows need."
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
-Call it after `overblock-set\='.  Everything the block shows is made
+Call it after `overblock-set'.  Everything the block shows is made
 anew, so nothing has to be saved and given back.
 
-A block that is no longer in a buffer draws nothing: `delete-overlay\='
-leaves an overlay that answers nil to `overlay-start\=', and the drawing
-reads that position.  What is drawn is drawn in the block\='s own buffer,
-because the overlays the pieces ride are made with `make-overlay\=',
+A block that is no longer in a buffer draws nothing: `delete-overlay'
+leaves an overlay that answers nil to `overlay-start', and the drawing
+reads that position.  What is drawn is drawn in the block's own buffer,
+because the overlays the pieces ride are made with `make-overlay',
 which puts them in whatever buffer is current — a refresh from
 elsewhere would hang them over unrelated text, out of reach of
-`overblock-clear\=' in the buffer they belong to."
+`overblock-clear' in the buffer they belong to."
   (when-let* ((buffer (overlay-buffer block)))
     (with-current-buffer buffer
       (mapc #'delete-overlay (overblock-get block :parts))
@@ -501,7 +501,7 @@ elsewhere would hang them over unrelated text, out of reach of
 
 (defun overblock-image--spec (display)
   "Return the image in the DISPLAY spec, or nil.
-Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line, and a slice reads ((slice X Y W H) IMAGE) rather
 than (image . PLIST): the image is its second element.  The form is older
 than Emacs 22, so reading it costs nothing on an Emacs that does not
@@ -512,9 +512,9 @@ slice."
          (cadr display))))
 
 (defun overblock-image-in (text)
-  "Return the `display\=' spec of the first image in TEXT, or nil.
-The value is (image . PLIST), so a caller can read `:data\=' or `:type\='
-from it.  A `raise\=' spec, which shr uses for a superscript, is not an
+  "Return the `display' spec of the first image in TEXT, or nil.
+The value is (image . PLIST), so a caller can read `:data' or `:type'
+from it.  A `raise' spec, which shr uses for a superscript, is not an
 image and does not answer here.  A slice of an image is an image, and
 the image inside it is what answers."
   (let ((len (length text))
@@ -552,11 +552,11 @@ had nothing to tell an empty result from a picture.  LABEL defaults to
     (apply #'concat (nreverse pieces))))
 
 (defun overblock-image-cap (string)
-  "Return STRING with every image in it capped to `overblock-image-height\='.
+  "Return STRING with every image in it capped to `overblock-image-height'.
 STRING itself is not touched: this copies before it caps, so a caller
 keeps the original to save or to pop out.
 
-Emacs 31 slices an image taller than `shr-sliced-image-height\=' into a
+Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line of the window it was rendered in, and a slice reads
 as ((slice X Y W H) IMAGE).  Slicing does not make an image smaller — it
 cuts a full-height image into rows — so a figure sliced for a tall shell
@@ -599,7 +599,7 @@ out over the lines it has."
 
 (defun overblock-image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
-The share is `overblock-image-height\=' of the window that shows the
+The share is `overblock-image-height' of the window that shows the
 notebook.  A cell can finish while its notebook is elsewhere — sent and
 switched away from, or one of a whole run — and no window at all would
 mean no cap and a block the wheel cannot get past.  The selected window
@@ -617,10 +617,10 @@ out small only draws a smaller figure."
 
 (defun overblock--space-columns (spec column)
   "Return the columns that the space SPEC covers at COLUMN, or nil.
-A `:align-to\=' spec names where the space ends and a `:width\=' spec how
+A `:align-to' spec names where the space ends and a `:width' spec how
 wide it is.  Both count pixels in a list and characters in a bare
 number; a terminal's pixel is a column, a graphic frame's is
-`frame-char-width\='."
+`frame-char-width'."
   (let* ((plist (cdr spec))
          (to (plist-get plist :align-to))
          (width (plist-get plist :width))
@@ -648,13 +648,13 @@ number; a terminal's pixel is a column, a graphic frame's is
 
 (defun overblock--flatten-alignment ()
   "Turn the space stretches of this buffer into real spaces.
-shr aligns table columns with `(space :align-to (N))\=' display specs,
+shr aligns table columns with `(space :align-to (N))' display specs,
 and vtable, which is how comint-mime shows a DataFrame, with
-`(space :width (N))\='.  Both count from the window they were measured
+`(space :width (N))'.  Both count from the window they were measured
 in.  A rendered cell and a result block are shown indented — line
 numbers, margins — so the stretches land elsewhere there and the
 columns of a row drift apart.  Literal padding aligns anywhere.  Left
-to right, so `current-column\=' already sees the padding put in before
+to right, so `current-column' already sees the padding put in before
 it."
   (goto-char (point-min))
   (let (match)
@@ -779,7 +779,7 @@ is `image' or `lines' waits for those."
   "Return the width of STRING in pixels, as this buffer would draw it.
 Emacs 31 takes the buffer whose face remapping to measure with; an
 older one measures without any, and the icons of a notebook under
-`text-scale-mode\=' or `buffer-face-mode\=' are then placed by a width
+`text-scale-mode' or `buffer-face-mode' are then placed by a width
 they are not drawn at."
   ;; Through `apply' with a computed list, so an Emacs whose
   ;; `string-pixel-width' takes one argument does not reject the
@@ -791,7 +791,7 @@ they are not drawn at."
 (defun overblock-bar (left icons face)
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
 The alignment is pixel-exact: icon glyphs render wider than
-`string-width\=' counts, and (N) in the display spec means N pixels.  A
+`string-width' counts, and (N) in the display spec means N pixels.  A
 terminal gets two columns of slack there: a bar that runs into the last
 column makes the line a continuation, and the final icon wraps onto a
 line of its own.
@@ -801,8 +801,8 @@ the two collapses to nothing once the label has passed its target, so a
 label of 48 columns in a window of 42 ran into the first icon and put
 the last two on a row of their own.
 
-The room is `window-max-chars-per-line\=', which counts the line-number
-area and the margins as `window-body-width\=' does not, of the narrowest
+The room is `window-max-chars-per-line', which counts the line-number
+area and the margins as `window-body-width' does not, of the narrowest
 window that shows the buffer on a visible frame.  The narrowest, because
 one string is drawn in all of them at once and a label cut to fit a wide
 window still wrapped in a narrow one beside it; the wide one then loses
@@ -811,12 +811,12 @@ a few characters of a label it could have shown whole.
 A buffer in no such window is not cut at all.  There is nothing to wrap
 in, and the cut is baked into the string: measured, a long cell running
 while the reader looked at another buffer had its header cut to the
-width of that buffer\='s window — down to \" ▾…\" — and the cut stayed
+width of that buffer's window — down to \" ▾…\" — and the cut stayed
 there when the notebook came back into a window of 160 columns, because
 nothing rebuilds the header after the cell has ended."
   (let* ((width (+ (overblock--pixel-width (propertize icons 'face face))
                    (if (display-graphic-p) 0 2)))
-         ;; `visible\=' and not t: an invisible or iconified frame counts
+         ;; `visible' and not t: an invisible or iconified frame counts
          ;; under t, and a notebook shown in the root window of a hidden
          ;; 20 column frame had its header cut to that.
          (windows (get-buffer-window-list nil nil 'visible))

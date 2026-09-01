@@ -157,26 +157,26 @@ list or a base64 blob is one such line."
 
 (defun pycell-remove-overlays ()
   "Remove the blocks of the buffer.
-This is the command a reader binds, and `overblock-clear\=' is the same
+This is the command a reader binds, and `overblock-clear' is the same
 thing under it.  Results and rendered markdown cells go; the text of
 the buffer is not touched."
   (interactive)
   (overblock-clear))
 
 (defvar pycell--moving nil
-  "Non-nil while `pycell-move-cell-down\=' is moving a cell.
-`pycell--stale-hook\=' stands down while it is: a move relocates whole
+  "Non-nil while `pycell-move-cell-down' is moving a cell.
+`pycell--stale-hook' stands down while it is: a move relocates whole
 cells rather than editing the text of one, and the command takes the
 blocks of both cells off and puts them back itself.  The text the move
 inserts lands at the first character of the cell below, which is where
-that cell\='s anchor begins, so its `insert-in-front-hooks\=' ran and its
+that cell's anchor begins, so its `insert-in-front-hooks' ran and its
 result went with the insertion — measured, a third cell that had
 nothing to do with the move lost its result on every move down.")
 
 (defun pycell--stale-hook (block after beg end &optional _length)
   "Take BLOCK down when the text it covers changes, BEG..END.
 AFTER marks the call that follows the change; see
-`pycell--stale-when-edited\='.
+`pycell--stale-when-edited'.
 
 An insertion is judged on that call and no earlier: the call before the
 change has nothing to read, and acting on it took the block down before
@@ -186,15 +186,15 @@ follow.
 What it reads for is one insertion the block must survive: a single
 newline at the end of the buffer.  A block\'s anchor stops one character
 short of the last newline of its cell, so a cell at the end of a file
-that has none has an anchor ending at `point-max\=' — and then the
-newline `require-final-newline\=' adds is an insertion at that end.  The
+that has none has an anchor ending at `point-max' — and then the
+newline `require-final-newline' adds is an insertion at that end.  The
 rendering came off as the reader saved the file.  A newline there
 changes nothing the cell renders, typed by hand or added by a save, so
 the block stays either way; a second character reaches the anchor\'s
 interior and takes it down.
 
 The whole buffer, not the accessible part: under a narrowing
-`point-max\=' is the end of that, and an insertion there is in the middle
+`point-max' is the end of that, and an insertion there is in the middle
 of the buffer like any other."
   (if pycell--moving
       nil
@@ -213,12 +213,12 @@ of the buffer like any other."
 
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
-Three hooks and not one: `modification-hooks\=' runs for a change inside
-an overlay, `insert-in-front-hooks\=' for one at its first character and
-`insert-behind-hooks\=' for one at its end.  A block's anchor stops one
+Three hooks and not one: `modification-hooks' runs for a change inside
+an overlay, `insert-in-front-hooks' for one at its first character and
+`insert-behind-hooks' for one at its end.  A block's anchor stops one
 character short of the cell's last newline, so the blank line that ends
-a cell — where `C-e\=' on the last line puts point — is an insertion at
-the end: with `modification-hooks\=' alone the block stayed behind,
+a cell — where `C-e' on the last line puts point — is an insertion at
+the end: with `modification-hooks' alone the block stayed behind,
 showing the result of text that had changed under it."
   (let ((drop (list #'pycell--stale-hook)))
     (overlay-put block 'modification-hooks drop)
@@ -231,8 +231,8 @@ showing the result of text that had changed under it."
   "Return TEXT without the shell\'s prompts and its Out[N] labels.
 The prompt before the output goes, the prompt after it goes, and so does
 the one that ends up on the same line as output which stopped without a
-newline — `comint-prompt-regexp\=' anchors to a line start and cannot see
-that one.  An `Out[N]:\=' label goes where it begins a line, which is
+newline — `comint-prompt-regexp' anchors to a line start and cannot see
+that one.  An `Out[N]:' label goes where it begins a line, which is
 where the shell writes one; see the comment below for the one that does
 not, and why it stays.  Call this in the shell buffer, where that
 variable has its value."
@@ -277,9 +277,9 @@ variable has its value."
 (defun pycell--clean (text)
   "Return TEXT as a result block can show it.
 The prompts and the Out[N] labels go, and the copy is cut loose from
-the shell; see `pycell--strip-prompts\=' and `overblock-repl-detach\=' for what
+the shell; see `pycell--strip-prompts' and `overblock-repl-detach' for what
 each of those means.  Call this in the shell buffer, where
-`comint-prompt-regexp\=' has its value."
+`comint-prompt-regexp' has its value."
   (overblock-repl-detach (pycell--strip-prompts text)))
 
 (defun pycell--shorten (line)
@@ -324,8 +324,8 @@ since the image may sit past the cut; its images are capped to
   "Return the header bar of a result.
 FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
-time in seconds since the cell started.  STATE is `running\=' while the
-cell runs, `died\=' where the interpreter went away before the cell
+time in seconds since the cell started.  STATE is `running' while the
+cell runs, `died' where the interpreter went away before the cell
 ended, and nil where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (overblock-buttons pycell-result-buttons imagep total))
          ;; The stopwatch drives the spinner: one frame for each tick.
@@ -400,7 +400,7 @@ are and how many of them show, and the body is those that show."
 (defun pycell--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the cell BEG..END.
 RUNTIME is the time in seconds since the cell started.  STATE is
-`running\=' while the cell runs, `died\=' where the interpreter went away
+`running' while the cell runs, `died' where the interpreter went away
 before the cell ended, and nil where the cell finished.
 
 Empty TEXT gets a header that says \"no output\", so the cell is
@@ -422,9 +422,9 @@ counted."
                old)
       ;; The newline that ends the cell carries the result; give the
       ;; last cell of the buffer one.  The whole buffer: under a
-      ;; narrowing `point-max\=' is the end of the accessible part, and
+      ;; narrowing `point-max' is the end of the accessible part, and
       ;; the newline went into the middle of the buffer — measured, it
-      ;; cut a `print(2)\=' in two.
+      ;; cut a `print(2)' in two.
       (without-restriction
         (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
           (save-excursion (goto-char end) (insert "\n"))))
@@ -440,8 +440,8 @@ counted."
 (defun pycell--goto-event (event)
   "Select the window of EVENT and move point to the click.
 Anything that is not a click leaves point where it is: the commands read
-EVENT from `last-input-event\=', so it can be any event at all, and a
-`switch-frame\=' is a cons whose start is a frame rather than a place."
+EVENT from `last-input-event', so it can be any event at all, and a
+`switch-frame' is a cons whose start is a frame rather than a place."
   (when-let* (((consp event))
               (posn (event-start event))
               ((consp posn))
@@ -452,7 +452,7 @@ EVENT from `last-input-event\=', so it can be any event at all, and a
 (defun pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
 Point first, then anywhere in the cell around it.  Signals a
-`user-error\=' where the cell has no result, which is the answer the
+`user-error' where the cell has no result, which is the answer the
 commands that call it give their reader."
   (pycell--goto-event event)
   (or (overblock-at 'result)
@@ -497,20 +497,20 @@ the caller, which does the whole buffer at once."
 ;;;###autoload
 (defun pycell-move-cell-down (&optional arg)
   "Move the cell at point down ARG cells, with what it shows.
-A negative ARG moves it up, which is all `pycell-move-cell-up\=' does.
+A negative ARG moves it up, which is all `pycell-move-cell-up' does.
 
-An outline move, because `code-cells-mode\=' makes every boundary line an
+An outline move, because `code-cells-mode' makes every boundary line an
 outline heading and a cell is therefore a subtree.  From the boundary
-line, since that mode takes the major mode\='s own headings into
-`outline-regexp\=' too.  Outline cuts the
-text and puts it back; `code-cells-move-cell-down\=' transposed the two
-regions, and `transpose-regions\=' leaves an overlay where the text used
+line, since that mode takes the major mode's own headings into
+`outline-regexp' too.  Outline cuts the
+text and puts it back; `code-cells-move-cell-down' transposed the two
+regions, and `transpose-regions' leaves an overlay where the text used
 to be — the result of one cell ended up under the other.  It also glued
 the file together where the last cell had no final newline, writing
 \"# omega# %%\" and leaving one cell where there were two; outline
 writes that newline itself.
 
-The blocks of both cells come off after the move — the moved cell\='s go
+The blocks of both cells come off after the move — the moved cell's go
 with the text it was cut from, parts and all, so what is left of them
 is swept — and go back on the cells they belong to.  Point travels with
 the cell, so a click on the button of a header keeps moving the same
@@ -567,7 +567,7 @@ what shows"))
 
 (defun pycell--cell-buffer-name (kind position)
   "Return the name of the KIND buffer for the cell at POSITION.
-KIND is the word after `pycell\=' in the name, or nil for a result.
+KIND is the word after `pycell' in the name, or nil for a result.
 The name carries the line of the cell, so each cell has a buffer of
 its own and the buffers of two cells cannot collide."
   (format "*pycell%s: %s:%d*"
@@ -603,8 +603,8 @@ it from the data's magic bytes."
     (message "pycell: image saved to %s" file)))
 
 (defun pycell--follow-done (follow text)
-  "Put TEXT, the whole of what the cell printed, into FOLLOW\='s buffer.
-The tail the run wrote there is raw: it carries the shell\='s prompts,
+  "Put TEXT, the whole of what the cell printed, into FOLLOW's buffer.
+The tail the run wrote there is raw: it carries the shell's prompts,
 and the last of it arrives after the closing one.  The finished buffer
 holds what a result popped out after the fact would hold."
   (when-let* ((buffer (car-safe follow))
@@ -633,7 +633,7 @@ holds what a result popped out after the fact would hold."
 Each cell gets one buffer, so results are comparable side by side.
 
 A cell that is still running keeps writing there: the whole of what it
-prints, where the block itself shows `pycell-max-lines\=' of it, so a
+prints, where the block itself shows `pycell-max-lines' of it, so a
 long run can be followed in a window of its own.  Point at the end of
 that buffer follows the output; anywhere else it stays where it is.
 The buffer is written once more when the cell ends, with the prompts
@@ -641,7 +641,7 @@ taken off and a table laid out live."
   (interactive (list last-input-event))
   (let* ((ov (pycell--result-at event))
          (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
-         ;; Not `pycell--text\=': that answers with the head the tick
+         ;; Not `pycell--text': that answers with the head the tick
          ;; reads and says so.  A buffer that is about to follow the
          ;; cell wants everything printed so far instead.
          (text (if runningp "" (pycell--text ov)))
@@ -661,7 +661,7 @@ taken off and a table laid out live."
 (defconst pycell--md-boundary
   "#+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
   "What marks a cell boundary line as a markdown cell.
-Loose where `code-cells-boundary-regexp\=' is loose: any number of
+Loose where `code-cells-boundary-regexp' is loose: any number of
 comment characters, with or without a space, since VS Code and Spyder
 write =#%% [markdown]= where jupytext writes =# %% [markdown]=.  A
 tag list or a title may follow, as they may on a code cell.
@@ -700,15 +700,15 @@ itself, so the invisible run is shrunk back off the newline."
 
 (defun pycell--outline-flag-blocks (from to flag)
   "Hide or show the blocks in FROM..TO to match an outline fold.
-FLAG is non-nil where `outline-flag-region\=' hid the region, and this
+FLAG is non-nil where `outline-flag-region' hid the region, and this
 follows that call rather than guessing which command made it.
 
 A markdown cell is the content of its cell, so it goes under the fold:
-`:hidden\=' takes it off the screen and a refresh puts it back, since a
+`:hidden' takes it off the screen and a refresh puts it back, since a
 block makes what it shows anew.
 
 A result block stays.  The fold hides the code and the block keeps its
-own fold button, so the two fold apart; `pycell--keep-result-newline\='
+own fold button, so the two fold apart; `pycell--keep-result-newline'
 is what leaves it room.
 
 The advice is global, so this runs on every fold in every outline buffer
@@ -744,7 +744,7 @@ find."
   "<mouse-1>" #'pycell-md-raw)
 
 (defun pycell--md-links (block)
-  "Return the links of BLOCK\='s rendering, in the order they are shown.
+  "Return the links of BLOCK's rendering, in the order they are shown.
 Each is a cons of the text the reader sees and the URL under it.
 
 The rendering itself, not the pieces it was dealt into: a piece that
@@ -774,7 +774,7 @@ notebook opens with included."
 (defun pycell-md-follow-link ()
   "Follow a link of the rendered markdown cell at point.
 Clicking a link follows it already: a click is answered by the string
-it lands on, and the rendering carries shr\='s own keymap there.  Point
+it lands on, and the rendering carries shr's own keymap there.  Point
 cannot be put on a link at all — it never enters a display string, and
 the row under it belongs to the source, not to the rendering — so this
 asks the cell for its links instead.  With one, it is followed; with
@@ -922,13 +922,13 @@ the converter\'s HTML with")))))
   ;; a kind cannot sweep them — an orphan says nothing about the kind it
   ;; belonged to.  This is the command a reader reaches for when a
   ;; rendering looks wrong, so it takes them too.  The results stay: a
-  ;; bare `overblock-clear\=' here took every one of them with it.
+  ;; bare `overblock-clear' here took every one of them with it.
   (overblock-sweep-orphans))
 
 (defun pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
 A click on the bar lands on the small overlay that draws it, which
-points back at the block.  Signals a `user-error\=' where there is no
+points back at the block.  Signals a `user-error' where there is no
 rendered cell, which is the answer the commands that call it give."
   (pycell--goto-event event)
   (or (overblock-at 'markdown)
@@ -972,7 +972,7 @@ and renders it; \\[pycell-md-abort] discards the edit."
                ;; boundary line, so it holds the blank line jupytext
                ;; writes between cells.  With that line in the edit
                ;; buffer a paragraph typed at the end landed after it,
-               ;; and `pycell-md-commit\=' put the gap back below —
+               ;; and `pycell-md-commit' put the gap back below —
                ;; three comment lines a round, compounding.
                (md (string-trim-right
                     (pycell--md-uncomment
@@ -1085,7 +1085,7 @@ A plist:
   :from   where the output of the cell starts in this buffer
   :beg    :end  the cell in its own buffer
   :tail   the recent output, for the prompt detection
-  :start  the `float-time\=' of the send
+  :start  the `float-time' of the send
   :timer  the ticker
   :head   the part of the output the block shows, once it can no
           longer change
@@ -1101,7 +1101,7 @@ The last two belong to the live mirror.")
   "Return TEXT without an escape sequence that has not arrived in full.
 comint-mime sends an image as one escape sequence, and half of one
 swallows everything after it until the rest comes.  The search is what
-makes this cheap: `replace-regexp-in-string\=' copies its argument twice
+makes this cheap: `replace-regexp-in-string' copies its argument twice
 whether it matches or not, which measured 3.19 milliseconds over a
 hundred thousand characters of propertized text against 0.040 for the
 search that stands in front of it now."
@@ -1205,8 +1205,8 @@ Call this in the Python shell buffer.
 
 Nothing happens where no cell is running: a failing send can end its
 cell through the filter and then signal, and the handler would call this
-a second time — `cancel-timer\=' of nil raised, which masked the error it
-was reporting.  `pycell--abort\=' asks the same question."
+a second time — `cancel-timer' of nil raised, which masked the error it
+was reporting.  `pycell--abort' asks the same question."
   (when pycell--run
     (pcase-let (((map :beg (:end fin) :start :timer :follow) pycell--run))
       ;; The last of the output, and then the whole of it cleaned: the
@@ -1274,7 +1274,7 @@ of it has been copied lives there, in the record of the run."
   "Copy what the cell has printed since the last look into its buffer.
 Call this in the Python shell buffer.
 
-Only what is new: the whole output is what the block\='s own head is
+Only what is new: the whole output is what the block's own head is
 bounded away from reading five times a second, and a cell that prints a
 hundred thousand characters would cost that on every tick here as well.
 
@@ -1460,10 +1460,10 @@ that caused the cold start may have moved it on already."
 
 (defun pycell--dedicated ()
   "Return what a new shell is dedicated to, as the reader asked.
-`python-shell-dedicated\=' says it.  Its `project\=' value makes
-`run-python\=' ask which project, where the file belongs to none, and
+`python-shell-dedicated' says it.  Its `project' value makes
+`run-python' ask which project, where the file belongs to none, and
 that is no question to put in front of a reader who evaluated a cell —
-one of a whole run, at that.  `python-shell-get-process-name\=' names
+one of a whole run, at that.  `python-shell-get-process-name' names
 such a shell the shared one anyway, so that is what this answers."
   (unless (and (eq python-shell-dedicated 'project)
                (not (project-current)))
@@ -1475,7 +1475,7 @@ This matches the calling convention of
 `code-cells-eval-region-commands'.  A markdown cell renders instead.
 Without an interpreter, one starts and the cell follows on its first
 prompt.  A cell sent while another one runs is refused, with a
-`user-error\=' from `pycell--send\='."
+`user-error' from `pycell--send'."
   ;; ponytail: a second cell sent by hand is refused rather than
   ;; queued; `pycell--queue' serves `pycell-restart-and-run-all' alone.
   (if (pycell--md-cell-start start)
@@ -1514,7 +1514,7 @@ and prompts again."
 The renderings stay.  A clear that names a kind cannot sweep an orphan —
 an orphan says nothing about the kind it belonged to — so the sweep is
 asked for by name here: taking the results down with
-`overblock-clear\=' alone left a cloak of a lost block keeping lines of
+`overblock-clear' alone left a cloak of a lost block keeping lines of
 the buffer invisible, with nothing able to remove it."
   (overblock-clear nil nil 'result)
   (overblock-sweep-orphans))
@@ -1523,9 +1523,9 @@ the buffer invisible, with nothing able to remove it."
   "Restart the Python interpreter and remove every result.
 The rendered markdown cells stay.  They were taken down with the
 results, on the grounds that a rendering is a block like any other, and
-that cost a whole notebook its renderings: `pycell-restart-and-run-all\='
+that cost a whole notebook its renderings: `pycell-restart-and-run-all'
 puts them back one cell at a time as the pass reaches them, so a pass
-that stops — at an error, or on `pycell-stop\=' — leaves every cell after
+that stops — at an error, or on `pycell-stop' — leaves every cell after
 that point plain.  A rendering has nothing to do with the interpreter."
   (interactive)
   (if-let* ((proc (python-shell-get-process)))
@@ -1636,7 +1636,7 @@ the code-cells maps."
   "Enable `pycell-mode' in Python cell buffers.
 Made for `code-cells-mode-hook', where your configuration adds it:
 
-  (add-hook \='code-cells-mode-hook #\='pycell-mode-maybe)
+  (add-hook \\='code-cells-mode-hook #\\='pycell-mode-maybe)
 
 The package installs no hook itself: installing it must not change
 how Emacs behaves."
