@@ -515,7 +515,6 @@ the caller, which does the whole buffer at once."
     (overblock-set block :data record)
     (pycell--update block)))
 
-;;;###autoload
 (defun pycell--running-in-p (beg end)
   "Return non-nil where the cell the shell is running lies in BEG..END.
 Asked of this buffer alone: another notebook on the same shell may be
@@ -526,6 +525,7 @@ the one running, and its cells are not moving."
               ((eq (marker-buffer mark) (current-buffer))))
     (<= beg mark end)))
 
+;;;###autoload
 (defun pycell-move-cell-down (&optional arg)
   "Move the cell at point down ARG cells, with what it shows.
 A negative ARG moves it up, which is all `pycell-move-cell-up' does.
@@ -702,6 +702,7 @@ Only the table did, once, and the rest of the cell\='s output went
 missing — the six lines a cell printed before its DataFrame, and the
 lines a follower had already seen.  This buffer is the one that holds
 more than the block, so what is around a table goes in with it."
+  (goto-char (point-max))
   (let ((pos 0)
         (len (length text))
         (drawn nil))
@@ -716,6 +717,11 @@ more than the block, so what is around a table goes in with it."
          ;; one table can arrive in several pieces and is drawn once.
          ((and table (not (eq table drawn)))
           (vtable-insert (overblock-repl-table-copy table))
+          ;; `vtable--insert' ends with point back at the row after the
+          ;; header, so the next chunk went in between the header and
+          ;; the rows: the table's body was pushed to the end of the
+          ;; buffer and what followed the table was glued into it.
+          (goto-char (point-max))
           (setq drawn table))
          (table nil)
          (t
@@ -1644,11 +1650,20 @@ undo it."
       (user-error "The shell this result came from is gone"))
     (let* ((run (buffer-local-value 'pycell--run pycell--shell))
            (beg (plist-get run :beg)))
+      ;; Both have to point somewhere.  A killed notebook leaves the
+      ;; run's marker and this buffer's — the same object — pointing
+      ;; nowhere, and `eq' on two nil buffers passed the test while `='
+      ;; signalled "Marker does not point anywhere".
       (unless (and beg pycell--cell
+                   (marker-buffer beg)
                    (eq (marker-buffer beg) (marker-buffer pycell--cell))
                    (= beg pycell--cell))
         (user-error "The cell this buffer shows is not running"))
-      (interrupt-process (get-buffer-process pycell--shell)))))
+      (interrupt-process
+       (or (get-buffer-process pycell--shell)
+           ;; `interrupt-process' of nil takes the current buffer's
+           ;; process, which is not this buffer's business.
+           (user-error "The shell this result came from has no process"))))))
 
 (defun pycell--clear-results ()
   "Take the results of the buffer down, and sweep what lost its anchor.
