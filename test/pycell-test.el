@@ -1389,8 +1389,21 @@ buffer that is meant to hold more than the block."
                           (pycell--clean (pycell-test--vtable-text)))
                         "\nafter the table")))
       (pycell--insert-result text)
-      (should (string-search "before the table" (buffer-string)))
-      (should (string-search "after the table" (buffer-string)))
+      (let ((shown (buffer-string)))
+        ;; in the order the cell printed them, which is the point:
+        ;; `vtable-insert' leaves point between the header and the rows,
+        ;; so what followed a table was inserted into the middle of it
+        ;; and the table's body was pushed to the end of the buffer
+        (should (string-search "before the table" shown))
+        (should (string-search "after the table" shown))
+        (should (< (string-search "before the table" shown)
+                   (string-search "alpha" shown)))
+        (should (< (string-search "alpha" shown)
+                   (string-search "after the table" shown)))
+        ;; every row of the table is above the text that followed it
+        (dolist (cell '("22" "4444" "9999"))
+          (should (< (string-search cell shown)
+                     (string-search "after the table" shown)))))
       (goto-char (or (text-property-not-all (point-min) (point-max)
                                             'vtable nil)
                      (point-min)))
