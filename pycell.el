@@ -493,6 +493,15 @@ to.  Point travels with the cell, so a click on the button of a
 header keeps moving the same cell."
   (interactive "p")
   (setq arg (or arg 1))
+  ;; A buffer that does not end in a newline gets one first.
+  ;; `code-cells-move-cell-down\=' transposes the two cells as they
+  ;; stand, and a last cell without that newline comes back glued to
+  ;; the boundary line of the cell it passed — "# omega# %%", one
+  ;; markdown cell where there were two.  A move is an edit, so writing
+  ;; here is fair, where writing at render time was not.
+  (without-restriction
+    (when (/= (char-before (point-max)) ?\n)
+      (save-excursion (goto-char (point-max)) (insert "\n"))))
   (pcase-let* ((`(,beg ,end) (code-cells--bounds))
                (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
                (offset (- (point) beg))
@@ -1349,6 +1358,16 @@ and prompts again."
   (interactive)
   (interrupt-process (python-shell-get-process-or-error)))
 
+(defun pycell--clear-results ()
+  "Take the results of the buffer down, and sweep what lost its anchor.
+The renderings stay.  A clear that names a kind cannot sweep an orphan —
+an orphan says nothing about the kind it belonged to — so the sweep is
+asked for by name here: taking the results down with
+`overblock-clear\=' alone left a cloak of a lost block keeping lines of
+the buffer invisible, with nothing able to remove it."
+  (overblock-clear nil nil 'result)
+  (overblock-sweep-orphans))
+
 (defun pycell-restart ()
   "Restart the Python interpreter and remove every result.
 The rendered markdown cells stay.  They were taken down with the
@@ -1369,10 +1388,10 @@ that point plain.  A rendering has nothing to do with the interpreter."
         (with-current-buffer (process-buffer proc)
           (pycell--abort "The interpreter was restarted"))
         (pycell--queue-set nil)
-        (overblock-clear nil nil 'result)
+        (pycell--clear-results)
         (python-shell-restart))
     (pycell--queue-set nil)
-    (overblock-clear nil nil 'result)
+    (pycell--clear-results)
     (run-python nil (pycell--dedicated))))
 
 (defun pycell--run-next ()
@@ -1403,7 +1422,14 @@ never ran at all."
         (with-current-buffer (marker-buffer m)
           (goto-char m)
           (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-            (pycell-eval-region beg end)
+            ;; A markdown cell that already shows its rendering needs
+            ;; no second one: the restart leaves the renderings alone
+            ;; now, and rendering them again is a converter process a
+            ;; cell — measured over thirty cells, 198 milliseconds
+            ;; against the 32 the batch costs.
+            (unless (and (pycell--md-cell-start beg)
+                         (overblock-in beg end 'markdown))
+              (pycell-eval-region beg end))
             (unless (pycell--md-cell-start beg)
               (throw 'waiting nil))))))))
 

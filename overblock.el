@@ -201,11 +201,11 @@ optional:
   :attached  overlays of the caller\='s own, deleted with the block.
   :keymap and :help-echo go on every overlay the block draws; an
              overlay of the caller\='s own under `:attached\=' keeps
-             whatever the caller put on it.  Where the `:over\=' text
-             carries one of them itself, the overlays take neither: an
-             overlay shadows a text property, and a link in the
-             rendering could not be followed.  See
-             `overblock-fill-props\='.
+             whatever the caller put on it.  A click lands on the
+             string and is answered by whatever `overblock-fill-props\='
+             left there — shr\='s own keymap on a link, say — so the two
+             live side by side: the string answers the mouse, the
+             overlays answer point.
 
 The caller renders the text and hands it over; a block never calls a
 renderer itself.  Change a property with `overblock-set' and call
@@ -258,36 +258,21 @@ thing under the mouse, whichever overlay carries it.  A hidden block
 shows nothing, and answers nothing: `:hidden\=' is documented to take the
 decorations with it.
 
-Except where the block\='s own text answers already.  `get-char-property\='
-reads an overlay before a text property, so a keymap on an overlay
-shadows every keymap in the string it shows — and a link in a rendered
-markdown cell ran the block\='s own command instead of following its URL,
-because the anchor and the piece both carried that command.  A rendering
-that carries a keymap on all of its text therefore takes none from here;
-`overblock-fill-props\=' is how a caller puts the block\='s keymap on the
-text around the links, so the string answers everywhere.  The same for
-the help echo, which was shadowed the same way.
-
-All of its text, and not merely the start: a rendering that carries the
-property on some of its text and not the rest would leave that rest
-with nothing at all once the overlay stopped carrying it."
+The overlays and not the string: a click resolves its keymap from the
+string it landed on, but a key pressed at point does not — point never
+enters a display string, and `get-char-property\=' at point reads the
+buffer and the overlays alone.  Taking these off the overlays, so that a
+rendering carrying keymaps of its own could answer for its links, left
+RET in a rendered markdown cell running `newline\=': it split the source
+line and took the rendering with it.  A link is followed by clicking
+it, which works because the string answers the click."
   ;; Written either way: a block that no longer carries a keymap or a
   ;; help string has it taken off its overlays, where a `when' left the
   ;; old one on until the overlay was remade.
-  (let* ((hidden (overblock-get block :hidden))
-         (over (overblock-get block :over))
-         ;; `text-property-any' walks the runs of the property, not
-         ;; the characters of the string.
-         (own (lambda (prop)
-                (and (stringp over)
-                     (not (text-property-any 0 (length over) prop nil
-                                             over))))))
-    (overlay-put ov 'keymap
-                 (unless (or hidden (funcall own 'keymap))
-                   (overblock-get block :keymap)))
-    (overlay-put ov 'help-echo
-                 (unless (or hidden (funcall own 'help-echo))
-                   (overblock-get block :help-echo))))
+  (let ((hidden (overblock-get block :hidden)))
+    (overlay-put ov 'keymap (unless hidden (overblock-get block :keymap)))
+    (overlay-put ov 'help-echo (unless hidden
+                                 (overblock-get block :help-echo))))
   ov)
 
 (defun overblock--cloak (block beg end)

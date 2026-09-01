@@ -1155,6 +1155,44 @@ checkout, or any file the reader cannot write."
     (pycell-md-render-all)
     (should (overblock-in (point-min) (point-max) 'markdown))))
 
+(ert-deftest pycell-test-a-key-in-a-rendered-cell-reaches-the-cell ()
+  "RET in a rendered markdown cell opens it, and does not insert a newline.
+Point never enters a display string, so the keymap that answers a key
+is the one on the overlays.  With the rendering left to answer for
+itself, RET ran `newline\=': it split the source line under the
+rendering and took the rendering with it.  No test bound a key, which
+is how that got through."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# A [link](https://ctan.org/) in prose.\n\n"
+            "# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (should (overblock-in (point-min) (point-max) 'markdown))
+    ;; point on the rendered cell, where a reader would press RET
+    (goto-char (point-min))
+    (forward-line 1)
+    (should (eq (key-binding (kbd "RET")) #'pycell-md-edit))
+    (should (eq (key-binding [mouse-1]) #'pycell-md-raw))
+    (should (get-char-property (point) 'help-echo))))
+
+(ert-deftest pycell-test-a-restart-sweeps-what-lost-its-anchor ()
+  "A restart takes the results and whatever no live block owns.
+It swept orphans while it cleared every block; clearing the results
+alone left a cloak of a lost block keeping lines of the buffer
+invisible, with nothing able to remove it."
+  (cl-letf (((symbol-function 'run-python) #'ignore)
+            ((symbol-function 'python-shell-get-process) #'ignore)
+            ((symbol-function 'pycell--queue-set) #'ignore)
+            ((symbol-function 'pycell--dedicated) #'ignore))
+    (pycell-test--with-cells
+      (let ((orphan (make-overlay (point-min) (1+ (point-min)))))
+        (overlay-put orphan 'overblock-part t)
+        (overlay-put orphan 'invisible t)
+        (pycell-restart)
+        (should-not (overlay-buffer orphan))))))
+
 (ert-deftest pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.
 It took both, and `pycell-restart-and-run-all\=' puts a rendering back
