@@ -702,7 +702,6 @@ Only the table did, once, and the rest of the cell\='s output went
 missing — the six lines a cell printed before its DataFrame, and the
 lines a follower had already seen.  This buffer is the one that holds
 more than the block, so what is around a table goes in with it."
-  (goto-char (point-max))
   (let ((pos 0)
         (len (length text))
         (drawn nil))
@@ -1547,6 +1546,13 @@ Call this with the cell's buffer current."
       (let ((timer (run-with-timer 0.2 0.2 #'ignore)))
         (timer-set-function timer #'pycell--tick
                             (list (current-buffer) timer))
+        ;; The process mark, and not the end of the buffer.  A render
+        ;; comint-mime finishes after the closing prompt sits past the
+        ;; mark, and a cell that started from the end of the buffer
+        ;; would have had its own output — which comint inserts AT the
+        ;; mark, before that render — fall outside its own region.  So
+        ;; a late render is still swept into the next cell's result;
+        ;; that is a fault of its own and not one to cure here.
         (setq pycell--run (list :from (copy-marker (process-mark proc))
                                 :beg beg :end fin :tail ""
                                 :start (float-time) :timer timer

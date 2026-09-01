@@ -112,8 +112,12 @@ buffers holding one object is not a state worth having."
                :formatter (vtable-formatter table)
                :separator-width (vtable-separator-width table)
                ;; The rows show in the order the first table showed them,
-               ;; which is the order of its objects put through its sort.
-               :sort-by (vtable-sort-by table)
+               ;; which is the order of its objects put through its
+               ;; sort.  A copy of that order, not the list itself:
+               ;; `vtable-sort-by-current-column' calls `delq' on it, so
+               ;; sorting a second column in the copy took that column
+               ;; out of the table the shell is still showing.
+               :sort-by (copy-tree (vtable-sort-by table))
                ;; comint-mime draws the names of the columns into the
                ;; buffer, where `make-vtable' would put them on the
                ;; window's header line and shift every row up by one.
