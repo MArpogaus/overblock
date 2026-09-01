@@ -387,10 +387,8 @@ region has anyway.  Those lines go under a cloak."
           ;; hundred, which is the shape of a quadratic.
           (let ((wanted (- (/ (* (1+ filled) count) slots)
                            (/ (* filled count) slots))))
-            (while (> wanted 0)
-              (push (pop rest) chunk)
-              (setq wanted (1- wanted)))
-            (setq chunk (nreverse chunk)
+            (setq chunk (take wanted rest)
+                  rest (nthcdr wanted rest)
                   filled (1+ filled))))
         (if (null chunk)
             ;; No text on this line, or no rendered lines left for it.
@@ -718,8 +716,9 @@ shr gives a link its own keymap and help echo; a plain `propertize'
 would clobber both, and the link would then run this block's commands
 instead of following the URL.
 
-One walk for every property rather than one each: measured, a walk over
-a rendered cell of three hundred lines costs 3.4 milliseconds."
+A walk of the string for every property: measured, one walk over a
+rendered cell of three hundred lines costs 3.4 milliseconds.  What the
+plist saves is the call around each walk, not the walks."
   (let ((len (length string)))
     (while properties
       (let ((prop (pop properties))

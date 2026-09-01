@@ -165,13 +165,12 @@ machine."
         (condition-case error
             (progn
               (make-directory dir t)
-              (let ((url-request-method "GET"))
-                ;; Three seconds: the fetch happens while the cell
-                ;; renders, so this is time the reader waits.  A fetch
-                ;; that times out leaves the alt text, and the URL is
-                ;; not asked for again in this session.
-                (with-timeout (3 (error "Timed out"))
-                  (url-copy-file url file t)))
+              ;; Three seconds: the fetch happens while the cell
+              ;; renders, so this is time the reader waits.  A fetch
+              ;; that times out leaves the alt text, and the URL is not
+              ;; asked for again in this session.
+              (with-timeout (3 (error "Timed out"))
+                (url-copy-file url file t))
               (and (file-readable-p file)
                    (image-supported-file-p file)
                    file))
