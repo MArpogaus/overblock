@@ -69,10 +69,6 @@
 (require 'code-cells)
 (require 'outline)
 (require 'comint-mime)
-;; comint-mime renders a table with it, and a block lays that table
-;; out again.  Optional, as it is in comint-mime: an Emacs without
-;; vtable shows the text of the table as it came.
-(require 'vtable nil t)
 (require 'python)
 (require 'ansi-color)
 (require 'map)
@@ -228,13 +224,8 @@ holds, which is what a tick does five times a second, and a rendered
 markdown cell keeps its rendering and takes a new bar.  Only on a
 change of width, because the hook runs for every other kind of change
 as well."
-  (when-let* ((windows (get-buffer-window-list nil nil 'visible))
-              (width (apply #'min
-                            (mapcar (lambda (window)
-                                      (* (window-max-chars-per-line window)
-                                         (window-font-width window)))
-                                    windows))))
-    (unless (eq width pycell--width)
+  (when-let* ((width (overblock-window-width)))
+    (unless (eql width pycell--width)
       (setq pycell--width width)
       (dolist (block (overblock-in (point-min) (point-max) 'result))
         (pycell--update block))
@@ -1458,7 +1449,7 @@ no cell runs; the live mirroring is the ticker's job."
                         (ansi-color-filter-apply output))))
       (setq pycell--run
             (plist-put pycell--run :tail
-                       (substring tail (max 0 (- (length tail) 256)))))
+                       (string-limit tail 256 t)))
       (when (python-shell-comint-end-of-output-p tail)
         ;; Copy to the end of the buffer and let `pycell--clean' take
         ;; the prompt off.  `comint-last-prompt' cannot serve as the
@@ -1490,7 +1481,7 @@ be sent down it."
               (eol (min end (pos-eol))))
           ;; the line starts as code, not inside a string, a comment
           ;; or a bracket left open above
-          (when (and (not (nth 3 state)) (not (nth 4 state))
+          (when (and (not (python-syntax-comment-or-string-p state))
                      (zerop (nth 0 state)))
             (when (looking-at-p "[ \t]*[%!]")
               (throw 'found t))
@@ -1506,8 +1497,8 @@ be sent down it."
                           (skip-chars-backward " \t" (max (pos-bol) beg))
                           (point))))
               (when (and (eq (char-before last) ??)
-                         (let ((s (syntax-ppss (1- last))))
-                           (and (not (nth 3 s)) (not (nth 4 s)))))
+                         (not (python-syntax-comment-or-string-p
+                               (syntax-ppss (1- last)))))
                 (throw 'found t)))))
         (forward-line 1))
       nil)))
