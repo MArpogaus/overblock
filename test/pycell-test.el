@@ -1115,21 +1115,68 @@ cell is the same story from the other end."
   "A markdown cell at the end of a file survives the newline on save.
 Without a final newline the anchor ends at `point-max\=', so the newline
 `require-final-newline\=' adds is an insertion at the anchor's end — and
-the rendering came off as the reader saved.  The cell gets that newline
-when it is rendered, as a result's cell does."
+the rendering came off as the reader saved.  A newline there changes
+nothing the cell renders, so the block stays.
+
+The render itself writes nothing: appending the newline there signalled
+`buffer-read-only\=' on a read-only notebook, and marked a buffer
+modified by the act of visiting it."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# text")          ; no final newline
     (python-mode)
     (code-cells-mode)
+    (let ((size (buffer-size)))
+      (pycell-md-render-all)
+      (should (overblock-in (point-min) (point-max) 'markdown))
+      ;; the render left the text alone
+      (should (= (buffer-size) size))
+      (set-buffer-modified-p nil)
+      ;; the newline a save adds leaves the rendering standing
+      (goto-char (point-max))
+      (insert "\n")
+      (should (overblock-in (point-min) (point-max) 'markdown))
+      ;; a second character does not
+      (goto-char (point-max))
+      (insert "x")
+      (should-not (overblock-in (point-min) (point-max) 'markdown)))))
+
+(ert-deftest pycell-test-a-read-only-notebook-renders ()
+  "Rendering a markdown cell writes nothing, so a read-only buffer renders.
+Appending the final newline at render time signalled `buffer-read-only\='
+and the cell stayed plain — reachable through `view-file\=', a read-only
+checkout, or any file the reader cannot write."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# text")          ; no final newline
+    (python-mode)
+    (code-cells-mode)
+    (setq buffer-read-only t)
     (pycell-md-render-all)
-    (should (overblock-in (point-min) (point-max) 'markdown))
-    ;; the render gave the buffer its newline
-    (should (eq (char-before (point-max)) ?\n))
-    ;; and one more at the end, as a save would add, leaves it alone
-    (goto-char (point-max))
-    (insert "\n")
     (should (overblock-in (point-min) (point-max) 'markdown))))
+
+(ert-deftest pycell-test-a-restart-keeps-the-renderings ()
+  "A restart takes the results down and leaves the markdown standing.
+It took both, and `pycell-restart-and-run-all\=' puts a rendering back
+only when the pass reaches its cell — so a pass that stopped at an
+error, or on `pycell-stop\=', left every cell after that point plain.  A
+rendering has nothing to do with the interpreter."
+  (cl-letf (((symbol-function 'run-python) #'ignore)
+            ((symbol-function 'python-shell-get-process) #'ignore)
+            ((symbol-function 'pycell--queue-set) #'ignore)
+            ((symbol-function 'pycell--dedicated) #'ignore))
+    (pycell-test--with-cells
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end "output" 0.1))
+      (goto-char (point-max))
+      (let ((beg (point)))
+        (insert "# %% [markdown]\n# text\n")
+        (overblock-show (+ beg 16) (point-max) :kind 'markdown :over "text"))
+      (should (overblock-in (point-min) (point-max) 'result))
+      (should (overblock-in (point-min) (point-max) 'markdown))
+      (pycell-restart)
+      (should-not (overblock-in (point-min) (point-max) 'result))
+      (should (overblock-in (point-min) (point-max) 'markdown)))))
 
 (ert-deftest pycell-test-unrender-keeps-the-results ()
   "`pycell-md-unrender\=' takes the renderings and nothing else.

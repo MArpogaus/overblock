@@ -207,6 +207,44 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 0 'keymap s) 'block-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
+(ert-deftest overblock-test-a-rendering-answers-for-its-own-keymaps ()
+  "A rendering that carries keymaps answers for them; the overlays do not.
+`get-char-property\=' reads an overlay before a text property, so a
+keymap on the anchor or on a piece shadows every keymap in the string
+it shows — and a link in a rendered markdown cell ran the block's own
+command instead of following its URL."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((over (overblock-fill-props
+                  (concat "plain " (propertize "link" 'keymap 'shr-map))
+                  'keymap 'block-map 'help-echo "the block"))
+           (block (overblock-show (point-min) (point-max)
+                                  :over over
+                                  :keymap 'block-map
+                                  :help-echo "the block")))
+      ;; no overlay of the block carries either, or it would shadow
+      (dolist (ov (cons block (overblock-get block :parts)))
+        (should-not (overlay-get ov 'keymap))
+        (should-not (overlay-get ov 'help-echo)))
+      ;; and the string says both, each where it belongs
+      (should (eq (get-text-property 0 'keymap over) 'block-map))
+      (should (eq (get-text-property 6 'keymap over) 'shr-map)))))
+
+(ert-deftest overblock-test-a-plain-rendering-takes-the-overlay-keymap ()
+  "A rendering with no keymap of its own is answered for by the overlays.
+Only a caller that fills its own text can be left to it."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let ((block (overblock-show (point-min) (point-max)
+                                 :over "plain text"
+                                 :keymap 'block-map
+                                 :help-echo "the block")))
+      (should (eq (overlay-get block 'keymap) 'block-map))
+      (should (equal (overlay-get block 'help-echo) "the block"))
+      (should (seq-every-p (lambda (ov) (eq (overlay-get ov 'keymap)
+                                            'block-map))
+                           (overblock-get block :parts))))))
+
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
   "The stretch ends two columns short of the right edge on a terminal.
 A bar that runs into the last column makes the line a continuation, and

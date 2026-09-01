@@ -201,7 +201,11 @@ optional:
   :attached  overlays of the caller\='s own, deleted with the block.
   :keymap and :help-echo go on every overlay the block draws; an
              overlay of the caller\='s own under `:attached\=' keeps
-             whatever the caller put on it.
+             whatever the caller put on it.  Where the `:over\=' text
+             carries one of them itself, the overlays take neither: an
+             overlay shadows a text property, and a link in the
+             rendering could not be followed.  See
+             `overblock-fill-props\='.
 
 The caller renders the text and hands it over; a block never calls a
 renderer itself.  Change a property with `overblock-set' and call
@@ -252,14 +256,30 @@ every `overblock-refresh\='."
 Everything a block shows answers to the same click and says the same
 thing under the mouse, whichever overlay carries it.  A hidden block
 shows nothing, and answers nothing: `:hidden\=' is documented to take the
-decorations with it."
+decorations with it.
+
+Except where the block\='s own text answers already.  `get-char-property\='
+reads an overlay before a text property, so a keymap on an overlay
+shadows every keymap in the string it shows — and a link in a rendered
+markdown cell ran the block\='s own command instead of following its URL,
+because the anchor and the piece both carried that command.  A rendering
+that carries a keymap of its own therefore takes none from here;
+`overblock-fill-props\=' is how a caller puts the block\='s keymap on the
+text around the links, so the string answers everywhere.  The same for
+the help echo, which was shadowed the same way."
   ;; Written either way: a block that no longer carries a keymap or a
   ;; help string has it taken off its overlays, where a `when' left the
   ;; old one on until the overlay was remade.
-  (let ((hidden (overblock-get block :hidden)))
-    (overlay-put ov 'keymap (unless hidden (overblock-get block :keymap)))
-    (overlay-put ov 'help-echo (unless hidden
-                                 (overblock-get block :help-echo))))
+  (let* ((hidden (overblock-get block :hidden))
+         (over (overblock-get block :over))
+         (own (lambda (prop)
+                (and (stringp over) (get-text-property 0 prop over)))))
+    (overlay-put ov 'keymap
+                 (unless (or hidden (funcall own 'keymap))
+                   (overblock-get block :keymap)))
+    (overlay-put ov 'help-echo
+                 (unless (or hidden (funcall own 'help-echo))
+                   (overblock-get block :help-echo))))
   ov)
 
 (defun overblock--cloak (block beg end)
