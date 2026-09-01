@@ -488,7 +488,9 @@ the caller, which does the whole buffer at once."
 A negative ARG moves it up, which is all `pycell-move-cell-up\=' does.
 
 An outline move, because `code-cells-mode\=' makes every boundary line an
-outline heading and a cell is therefore a subtree.  Outline cuts the
+outline heading and a cell is therefore a subtree.  From the boundary
+line, since that mode takes the major mode\='s own headings into
+`outline-regexp\=' too.  Outline cuts the
 text and puts it back; `code-cells-move-cell-down\=' transposed the two
 regions, and `transpose-regions\=' leaves an overlay where the text used
 to be — the result of one cell ended up under the other.  It also glued
@@ -508,6 +510,13 @@ cell."
                (offset (- (point) beg))
                (mine (pycell--cell-state beg end))
                (theirs (pycell--cell-state nbeg nend)))
+    ;; From the cell's own boundary line: `code-cells-mode' takes the
+    ;; major mode's headings into `outline-regexp' as well, so
+    ;; `outline-back-to-heading' from inside a cell that holds a `def'
+    ;; finds the def and would move that instead — measured, it
+    ;; refused with "Cannot move past superior level" and the cell
+    ;; stayed where it was.
+    (goto-char beg)
     ;; This signals when there is nowhere to move, before anything is
     ;; taken off.
     (outline-move-subtree-down arg)
