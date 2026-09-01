@@ -172,6 +172,13 @@ buffer, where every binding of vtable works: =S= or a click on a
 column name sorts, ={= and =}= narrow and widen a column, and =M-left=
 and =M-right= move one.
 
+=pycell-pop-output= on a cell that is still running keeps writing there
+as the cell prints.  The block shows =pycell-max-lines= of the output;
+the buffer takes all of it, so a long run can be followed in a window
+of its own.  Point at the end of that buffer follows the output, and
+anywhere else it stays where you left it.  The buffer is written once
+more when the cell ends, with the shell's prompts off.
+
 With =outline-minor-mode= a fold of the cell hides the code and keeps
 the result below the heading.  The fold button of the result still
 works there.  Code and output fold apart from each other.
@@ -248,7 +255,7 @@ link where it lands on one.
 | =pycell-mode=                | turn the feature on or off for a buffer    |
 | =pycell-toggle-output=       | fold or unfold the result at point         |
 | =pycell-copy-output=         | copy the result at point                   |
-| =pycell-pop-output=          | show the result at point in its own buffer |
+| =pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
 | =pycell-save-image=          | write the image of the result to a file    |
 | =pycell-discard-output=      | remove the result at point                 |
 | =pycell-remove-overlays=     | remove each result in the buffer           |
@@ -311,6 +318,9 @@ click, so read =last-input-event= as the commands of this package do.
   therefore cross it in one step.  The mouse wheel moves through it,
   see [[#scrolling][Scrolling]].  A markdown cell has a height in lines and moves as
   normal text.
+- A result block shows =pycell-max-lines= of the output and no more.
+  =pycell-pop-output= shows the whole of it, and keeps up with a cell
+  that is still printing.
 - A result block with an image is harder to scroll through than a
   block of text.  The wheel does not cross it in a symmetric way, and
   =scroll-up-line= does not cross it at all.
