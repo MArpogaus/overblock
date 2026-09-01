@@ -162,6 +162,42 @@ the buffer is not touched."
   (interactive)
   (overblock-clear))
 
+(defun pycell--stale-hook (block after beg end &optional _length)
+  "Take BLOCK down when the text it covers changes, BEG..END.
+AFTER marks the call that follows the change; see
+`pycell--stale-when-edited\='.
+
+An insertion is judged on that call and no earlier: the call before the
+change has nothing to read, and acting on it took the block down before
+the text it was to be judged by existed.  A deletion is judged before,
+because the anchor evaporates with the text it covers and no call would
+follow.
+What it reads for is one insertion the block must survive: a single
+newline at the end of the buffer.  A block\'s anchor stops one character
+short of the last newline of its cell, so a cell at the end of a file
+that has none has an anchor ending at `point-max\=' — and then the
+newline `require-final-newline\=' adds is an insertion at that end.  The
+rendering came off as the reader saved the file.  A newline there
+changes nothing the cell renders, typed by hand or added by a save, so
+the block stays either way; a second character reaches the anchor\'s
+interior and takes it down.
+
+The whole buffer, not the accessible part: under a narrowing
+`point-max\=' is the end of that, and an insertion there is in the middle
+of the buffer like any other."
+  (if after
+      (unless (and (equal (buffer-substring-no-properties beg end) "\n")
+                   (= end (without-restriction (point-max))))
+        (overblock-delete block))
+    ;; Before the change, an insertion has nothing to read: BEG and END
+    ;; are the one position it will go to.  A deletion is judged here
+    ;; all the same, because the anchor evaporates with the text it
+    ;; covers and the call after the change would never come — and then
+    ;; the bar above a rendered cell, which the anchor does not cover,
+    ;; stayed behind.
+    (unless (= beg end)
+      (overblock-delete block))))
+
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
 Three hooks and not one: `modification-hooks\=' runs for a change inside
@@ -171,7 +207,7 @@ character short of the cell's last newline, so the blank line that ends
 a cell — where `C-e\=' on the last line puts point — is an insertion at
 the end: with `modification-hooks\=' alone the block stayed behind,
 showing the result of text that had changed under it."
-  (let ((drop (list (lambda (ov &rest _) (overblock-delete ov)))))
+  (let ((drop (list #'pycell--stale-hook)))
     (overlay-put block 'modification-hooks drop)
     (overlay-put block 'insert-in-front-hooks drop)
     (overlay-put block 'insert-behind-hooks drop)))
@@ -372,9 +408,13 @@ counted."
                (pycell--update old)
                old)
       ;; The newline that ends the cell carries the result; give the
-      ;; last cell of the buffer one.
-      (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
-        (save-excursion (goto-char end) (insert "\n")))
+      ;; last cell of the buffer one.  The whole buffer: under a
+      ;; narrowing `point-max\=' is the end of the accessible part, and
+      ;; the newline went into the middle of the buffer — measured, it
+      ;; cut a `print(2)\=' in two.
+      (without-restriction
+        (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
+          (save-excursion (goto-char end) (insert "\n"))))
       (let ((block (overblock-show beg end
                                    :kind 'result
                                    :data data
@@ -671,13 +711,6 @@ Only the word =markdown= of the boundary line carries the header, so
 (defun pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
 See `pycell--md-show', which renders and calls this."
-  ;; Give the last cell of a file with no final newline one, as
-  ;; `pycell--show' does.  Without it the anchor ends at `point-max',
-  ;; so the newline `require-final-newline' adds on save is an
-  ;; insertion at the anchor's end — and the rendering came off as the
-  ;; reader saved the file.
-  (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
-    (save-excursion (goto-char end) (insert "\n")))
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
@@ -1317,9 +1350,13 @@ and prompts again."
   (interrupt-process (python-shell-get-process-or-error)))
 
 (defun pycell-restart ()
-  "Restart the Python interpreter, and remove every result and rendering.
-A rendered markdown cell is a block like a result, so it goes too and
-shows its source again."
+  "Restart the Python interpreter and remove every result.
+The rendered markdown cells stay.  They were taken down with the
+results, on the grounds that a rendering is a block like any other, and
+that cost a whole notebook its renderings: `pycell-restart-and-run-all\='
+puts them back one cell at a time as the pass reaches them, so a pass
+that stops — at an error, or on `pycell-stop\=' — leaves every cell after
+that point plain.  A rendering has nothing to do with the interpreter."
   (interactive)
   (if-let* ((proc (python-shell-get-process)))
       (progn
@@ -1332,10 +1369,10 @@ shows its source again."
         (with-current-buffer (process-buffer proc)
           (pycell--abort "The interpreter was restarted"))
         (pycell--queue-set nil)
-        (pycell-remove-overlays)
+        (overblock-clear nil nil 'result)
         (python-shell-restart))
     (pycell--queue-set nil)
-    (pycell-remove-overlays)
+    (overblock-clear nil nil 'result)
     (run-python nil (pycell--dedicated))))
 
 (defun pycell--run-next ()
