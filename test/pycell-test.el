@@ -1417,9 +1417,15 @@ notebook has one of its own.  `i\=' is the key: the buffer is read-only,
 so a plain one is free and answers wherever the reader has bound the
 `C-c\=' prefix."
   (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
-  (let ((shell (generate-new-buffer " *pycell-test-shell*"))
-        (notebook (generate-new-buffer " *pycell-test-nb*"))
-        asked)
+  (let* ((shell (generate-new-buffer " *pycell-test-shell*"))
+         (notebook (generate-new-buffer " *pycell-test-nb*"))
+         ;; A marker whose buffer is gone, made before anything is
+         ;; stubbed: `kill-buffer' asks `get-buffer-process' itself.
+         (dead (let ((gone (generate-new-buffer " *pycell-test-gone*")))
+                 (with-current-buffer gone (insert "y = 2\n"))
+                 (prog1 (with-current-buffer gone (copy-marker 1))
+                   (kill-buffer gone))))
+         asked)
     (unwind-protect
         (cl-letf (((symbol-function 'interrupt-process)
                    (lambda (process) (setq asked process)))
@@ -1446,7 +1452,29 @@ so a plain one is free and answers wherever the reader has bound the
               (should-not asked)
               (with-current-buffer shell (setq pycell--run nil))
               (should-error (pycell-interrupt) :type 'user-error)
-              (should-not asked))))
+              (should-not asked))
+            ;; A killed notebook leaves the run's marker and this
+            ;; buffer's — the same object — pointing nowhere.  `eq' on
+            ;; two nil buffers passed the test that `=' then signalled
+            ;; "Marker does not point anywhere" on, and the cell was
+            ;; left running with the pop-out the only place to stop it.
+            (progn
+              (with-current-buffer shell (setq pycell--run (list :beg dead)))
+              (with-temp-buffer
+                (setq-local pycell--shell shell)
+                (setq-local pycell--cell dead)
+                (should-error (pycell-interrupt) :type 'user-error)
+                (should-not asked)))
+            ;; And a shell that has outlived its process says whose
+            ;; process is missing: `interrupt-process' of nil takes the
+            ;; current buffer's, which is not this buffer's business.
+            (with-current-buffer shell (setq pycell--run (list :beg cell)))
+            (cl-letf (((symbol-function 'get-buffer-process) #'ignore))
+              (with-temp-buffer
+                (setq-local pycell--shell shell)
+                (setq-local pycell--cell cell)
+                (should-error (pycell-interrupt) :type 'user-error)
+                (should-not asked)))))
       (kill-buffer shell)
       (kill-buffer notebook))))
 

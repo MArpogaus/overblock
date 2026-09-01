@@ -396,9 +396,10 @@ The output of a running cell, cleaned and shown five times a second:
 | find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
 | one tick over 100000 on one line  | 68.1 ms  | 1.1 ms  |
 
-- =overblock-repl-table-in= reads the table off a text property that
-  =overblock-repl-detach= left on the text, instead of searching the
-  output for it.
+- The table is read off a text property that =overblock-repl-detach=
+  left on the text, instead of being searched for in the output.  A
+  popped-out result walks those runs and draws each table live, with
+  what the cell printed around them in its place.
 - =pycell--clean= copies through a temporary buffer only where the text
   carries a display property, which is what a rendering leaves behind.
   Its =replace-regexp-in-string= pass asks a search first, as the three
