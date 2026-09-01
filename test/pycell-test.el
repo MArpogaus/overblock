@@ -1081,7 +1081,12 @@ refuses to insert one vtable into a second buffer."
         (goto-char (overlay-start ov))
         (save-window-excursion (pycell-pop-output))
         (with-current-buffer (pycell--cell-buffer-name nil (overlay-start ov))
-          (goto-char (point-min))
+          ;; The table is in there with whatever the cell printed around
+          ;; it, so it is looked for rather than assumed to start the
+          ;; buffer.
+          (goto-char (or (text-property-not-all (point-min) (point-max)
+                                                'vtable nil)
+                         (point-min)))
           (should (vtable-current-table))
           (should (equal (mapcar #'vtable-column-name
                                  (vtable-columns (vtable-current-table)))
@@ -1372,6 +1377,25 @@ header took two rows."
                  (lambda (&rest _) (error "drawn again for nothing"))))
         (pycell--rewidth)))))
 
+(ert-deftest pycell-test-a-pop-out-keeps-what-is-around-a-table ()
+  "A pop-out holds the whole result, table and all the rest.
+It held the table alone: the lines a cell printed before its DataFrame,
+and the lines a follower had already watched go by, were dropped by the
+buffer that is meant to hold more than the block."
+  (skip-unless (fboundp 'make-vtable))
+  (with-temp-buffer
+    (let ((text (concat "before the table\n"
+                        (let ((comint-prompt-regexp "^In \\[[0-9]+\\]: "))
+                          (pycell--clean (pycell-test--vtable-text)))
+                        "\nafter the table")))
+      (pycell--insert-result text)
+      (should (string-search "before the table" (buffer-string)))
+      (should (string-search "after the table" (buffer-string)))
+      (goto-char (or (text-property-not-all (point-min) (point-max)
+                                            'vtable nil)
+                     (point-min)))
+      (should (vtable-current-table)))))
+
 (ert-deftest pycell-test-a-pop-out-interrupts-its-own-shell ()
   "A popped-out result interrupts the shell it came from.
 It is not a Python buffer, so `python-shell-get-process\=' would answer
@@ -1380,17 +1404,38 @@ notebook has one of its own.  `i\=' is the key: the buffer is read-only,
 so a plain one is free and answers wherever the reader has bound the
 `C-c\=' prefix."
   (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
-  (let (asked)
-    (cl-letf (((symbol-function 'interrupt-process)
-               (lambda (process) (setq asked process)))
-              ((symbol-function 'get-buffer-process)
-               (lambda (buffer) (list 'process-of buffer)))
-              ((symbol-function 'python-shell-get-process-or-error)
-               (lambda (&rest _) (error "asked for a shell of its own"))))
-      (with-temp-buffer
-        (setq-local pycell--shell (current-buffer))
-        (pycell-interrupt)
-        (should (equal asked (list 'process-of (current-buffer))))))))
+  (let ((shell (generate-new-buffer " *pycell-test-shell*"))
+        (notebook (generate-new-buffer " *pycell-test-nb*"))
+        asked)
+    (unwind-protect
+        (cl-letf (((symbol-function 'interrupt-process)
+                   (lambda (process) (setq asked process)))
+                  ((symbol-function 'get-buffer-process)
+                   (lambda (buffer) (list 'process-of buffer)))
+                  ((symbol-function 'python-shell-get-process-or-error)
+                   (lambda (&rest _) (error "asked for a shell of its own"))))
+          (let ((cell (with-current-buffer notebook
+                        (insert "x = 1\n")
+                        (copy-marker (point-min)))))
+            (with-current-buffer shell
+              (setq-local pycell--run (list :beg cell)))
+            (with-temp-buffer
+              (setq-local pycell--shell shell)
+              (setq-local pycell--cell cell)
+              (pycell-interrupt)
+              (should (equal asked (list 'process-of shell)))
+              ;; and not another notebook's run, nor a result that ended
+              (setq asked nil)
+              (with-current-buffer shell
+                (setq pycell--run (list :beg (with-current-buffer notebook
+                                               (copy-marker (point-max))))))
+              (should-error (pycell-interrupt) :type 'user-error)
+              (should-not asked)
+              (with-current-buffer shell (setq pycell--run nil))
+              (should-error (pycell-interrupt) :type 'user-error)
+              (should-not asked))))
+      (kill-buffer shell)
+      (kill-buffer notebook))))
 
 (ert-deftest pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.

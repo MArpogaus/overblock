@@ -849,12 +849,18 @@ nothing rebuilds the header after the cell has ended."
                     ;; label cut to the room exactly still put the last
                     ;; icon on a row of its own.
                     (frame-char-width))))
-         (left (if (and room (> room 0)
-                        (> (overblock--pixel-width
-                            (propertize left 'face face))
-                           room))
-                   (overblock--cut left face room)
-                 left)))
+         (left (cond
+                ;; No window to wrap in, so nothing to cut for.
+                ((null room) left)
+                ;; Not even the icons fit.  The label was let through
+                ;; whole here, so a narrower window gave a longer bar:
+                ;; measured, 20 columns took three rows where 24 took
+                ;; one.  What can be shown is the ellipsis.
+                ((<= room 0) "…")
+                ((> (overblock--pixel-width (propertize left 'face face))
+                    room)
+                 (overblock--cut left face room))
+                (t left))))
     (overblock-faced
      (concat left
              (propertize " " 'display
