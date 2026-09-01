@@ -245,6 +245,20 @@ Only a caller that fills its own text can be left to it."
                                             'block-map))
                            (overblock-get block :parts))))))
 
+(ert-deftest overblock-test-a-half-filled-rendering-keeps-the-overlays ()
+  "A rendering that answers for only part of its text is not left to it.
+The overlays give up their keymap where the string carries one
+everywhere.  Where it carries one on some of its text and not the rest,
+that rest would be left with nothing at all."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((over (concat (propertize "link" 'keymap 'shr-map) " and prose"))
+           (block (overblock-show (point-min) (point-max)
+                                  :over over :keymap 'block-map)))
+      ;; the string answers for "link" and for nothing else, so the
+      ;; overlays keep answering
+      (should (eq (overlay-get block 'keymap) 'block-map)))))
+
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
   "The stretch ends two columns short of the right edge on a terminal.
 A bar that runs into the last column makes the line a continuation, and
