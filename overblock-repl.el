@@ -48,9 +48,11 @@
 
 (require 'overblock)
 ;; comint-mime renders a table with it, and a copy of that table is laid
-;; out again here.  Optional, as it is in comint-mime: an Emacs without
-;; vtable shows the text of the table as it came.
-(require 'vtable nil t)
+;; out again here.  Required outright, where comint-mime asks softly:
+;; that package still carries Emacs 27, and vtable ships in 29.1, which
+;; is this one's minimum.  Nothing here has a fallback anyway —
+;; `overblock-repl-table-copy' calls `make-vtable' unguarded.
+(require 'vtable)
 (require 'seq)
 (require 'subr-x)
 
@@ -70,20 +72,19 @@ one table.
 Run to run, not character to character: measured, a step of one cost 30
 milliseconds over a hundred thousand characters and 223 over eight
 hundred thousand, where a jump costs nothing."
-  (when (fboundp 'vtable-p)
-    (let ((len (length text))
-          (pos 0)
-          regions)
-      (while (and pos
-                  (setq pos (text-property-not-all pos len 'vtable nil text)))
-        (let ((here (get-text-property pos 'vtable text))
-              (next (or (next-single-property-change pos 'vtable text) len)))
-          (when (vtable-p here)
-            (if (eq here (car (car regions)))
-                (setf (nth 2 (car regions)) next)
-              (push (list here pos next) regions)))
-          (setq pos (and (< next len) next))))
-      (nreverse regions))))
+  (let ((len (length text))
+        (pos 0)
+        regions)
+    (while (and pos
+                (setq pos (text-property-not-all pos len 'vtable nil text)))
+      (let ((here (get-text-property pos 'vtable text))
+            (next (or (next-single-property-change pos 'vtable text) len)))
+        (when (vtable-p here)
+          (if (eq here (car (car regions)))
+              (setf (nth 2 (car regions)) next)
+            (push (list here pos next) regions)))
+        (setq pos (and (< next len) next))))
+    (nreverse regions)))
 
 (defun overblock-repl-table-in (text)
   "Return the table TEXT was laid out from, or nil.
@@ -135,15 +136,13 @@ nothing that a face can move."
          (rows (cons (mapcar #'vtable-column-name columns)
                      (mapcar
                       (lambda (object)
-                        (let ((index -1))
-                          (mapcar
-                           (lambda (_column)
-                             (setq index (1+ index))
-                             (format "%s"
-                                     (if getter
-                                         (funcall getter object index table)
-                                       (elt object index))))
-                           columns)))
+                        (seq-map-indexed
+                         (lambda (_column index)
+                           (format "%s"
+                                   (if getter
+                                       (funcall getter object index table)
+                                     (elt object index))))
+                         columns))
                       (vtable-objects table))))
          ;; Every row has a cell for every column, the header row
          ;; included, so a column is as wide as its widest cell.

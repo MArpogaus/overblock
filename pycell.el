@@ -715,25 +715,30 @@ find."
   "<mouse-1>" #'pycell-md-raw)
 
 (defun pycell--md-links (block)
-  "Return the links of BLOCK\='s rendering, newest last.
-Each is a cons of the text the reader sees and the URL under it."
-  (let (links)
-    (dolist (part (overblock-get block :parts))
-      (let ((shown (or (overlay-get part 'display)
-                       (overlay-get part 'before-string))))
-        (when (stringp shown)
-          (let ((pos 0) (len (length shown)))
-            (while (< pos len)
-              (let ((url (get-text-property pos 'shr-url shown))
-                    (next (or (next-single-property-change pos 'shr-url
-                                                           shown)
-                              len)))
-                (when (stringp url)
-                  (push (cons (string-trim (substring-no-properties
-                                            shown pos next))
-                              url)
-                        links))
-                (setq pos next)))))))
+  "Return the links of BLOCK\='s rendering, in the order they are shown.
+Each is a cons of the text the reader sees and the URL under it.
+
+The rendering itself, not the pieces it was dealt into: a piece that
+holds an image hides its line with a display string of nothing and
+shows its row on the before-string instead, and an empty string is not
+nil — reading the display property first took that empty string for the
+row.  Every link of a cell with an image in it was lost, the badge a
+notebook opens with included."
+  (let ((shown (overblock-get block :over))
+        (pos 0)
+        links)
+    (when (stringp shown)
+      (let ((len (length shown)))
+        (while (< pos len)
+          (let ((url (get-text-property pos 'shr-url shown))
+                (next (or (next-single-property-change pos 'shr-url shown)
+                          len)))
+            (when (stringp url)
+              (push (cons (string-trim (substring-no-properties
+                                        shown pos next))
+                          url)
+                    links))
+            (setq pos next)))))
     (nreverse links)))
 
 ;;;###autoload
@@ -958,24 +963,24 @@ and renders it; \\[pycell-md-abort] discards the edit."
       ;; times.  Keeping a stranger's pending edit committed one cell's
       ;; text into another; throwing it away without a word would lose an
       ;; hour of writing just as quietly, so the reader is asked.
-      (when (and pycell-md-edit-mode (buffer-modified-p)
-                 (not (equal pycell--md-source (list src beg end)))
-                 (not (yes-or-no-p
-                       "Discard the unsaved edit of another cell? ")))
-        (user-error "Kept the unsaved edit"))
-      (unless (and pycell-md-edit-mode (buffer-modified-p)
-                   (equal pycell--md-source (list src beg end)))
-        (erase-buffer)
-        (insert md)
-        (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
-        (pycell-md-edit-mode)
-        ;; The keys come from the keymap, so the hint stays true when
-        ;; the bindings or the prefix change.
-        (setq header-line-format
-              (substitute-command-keys
-               " Markdown cell — \\[pycell-md-commit] applies, \
+      (let ((pending (and pycell-md-edit-mode (buffer-modified-p)))
+            (mine (equal pycell--md-source (list src beg end))))
+        (when (and pending (not mine)
+                   (not (yes-or-no-p
+                         "Discard the unsaved edit of another cell? ")))
+          (user-error "Kept the unsaved edit"))
+        (unless (and pending mine)
+          (erase-buffer)
+          (insert md)
+          (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
+          (pycell-md-edit-mode)
+          ;; The keys come from the keymap, so the hint stays true when
+          ;; the bindings or the prefix change.
+          (setq header-line-format
+                (substitute-command-keys
+                 " Markdown cell — \\[pycell-md-commit] applies, \
   \\[pycell-md-abort] discards"))
-        (set-buffer-modified-p nil))
+          (set-buffer-modified-p nil)))
       (setq pycell--md-source (list src beg end)))
     (pop-to-buffer buf)))
 
