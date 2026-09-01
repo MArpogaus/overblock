@@ -1177,6 +1177,43 @@ is how that got through."
     (should (eq (key-binding [mouse-1]) #'pycell-md-raw))
     (should (get-char-property (point) 'help-echo))))
 
+(ert-deftest pycell-test-a-link-can-be-followed-from-the-keyboard ()
+  "The links of a rendered cell are reachable without the mouse.
+A click is answered by the string it lands on, and follows the link.
+Point cannot be put on one — it never enters a display string — so the
+cell is asked for its links instead."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n"
+            "# A [link](https://ctan.org/) and [another](https://gnu.org/).\n\n"
+            "# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-md-render-all)
+    (goto-char (point-min))
+    (forward-line 1)
+    (let* ((block (pycell--md-at nil))
+           (links (pycell--md-links block)))
+      (should (equal (mapcar #'cdr links)
+                     '("https://ctan.org/" "https://gnu.org/")))
+      (should (equal (mapcar #'car links) '("link" "another")))
+      ;; one is followed without asking, several are chosen from
+      (let (asked visited)
+        (cl-letf (((symbol-function 'browse-url)
+                   (lambda (url &rest _) (setq visited url)))
+                  ((symbol-function 'completing-read)
+                   (lambda (&rest _) (setq asked t) "another")))
+          (pycell-md-follow-link)
+          (should asked)
+          (should (equal visited "https://gnu.org/")))))
+    ;; and a cell with no link says so
+    (erase-buffer)
+    (insert "# %% [markdown]\n# No link here.\n\n# %%\nx = 1\n")
+    (pycell-md-render-all)
+    (goto-char (point-min))
+    (forward-line 1)
+    (should-error (pycell-md-follow-link) :type 'user-error)))
+
 (ert-deftest pycell-test-a-restart-sweeps-what-lost-its-anchor ()
   "A restart takes the results and whatever no live block owns.
 It swept orphans while it cleared every block; clearing the results

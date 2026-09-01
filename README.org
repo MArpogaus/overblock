@@ -225,14 +225,21 @@ either way.
 An =![alt](figure.png)= draws the file it names, beside the notebook or
 at an absolute path, capped by =overblock-image-height= like a result's
 figure.  A terminal draws no image and shows the alt text instead.  A
-link keeps its click: =RET= and =mouse-2= on a link, an image with a
-link around it included, follow the URL.
+link keeps its click: =mouse-1= and =mouse-2= on a link, an image with
+a link around it included, follow the URL.  A click is answered by the
+rendering itself, which carries shr's own keymap.
+
+Point cannot be put on a link — the rendering is shown over the source
+lines, and point stays in the source — so =C-c C-o= asks the cell for
+its links instead.  With one link it follows it; with several it asks
+which.
 
 =RET= or =mouse-2= opens the cell in a buffer of its own, as
 =org-edit-special= does for a source block.  =C-c C-c= puts the text
 back and renders it again.  =C-c C-k= discards the edit.  Each cell
 has an edit buffer of its own, so you can open several cells at the
-same time.  =mouse-1= shows the plain source of one cell.
+same time.  =mouse-1= shows the plain source of one cell, and follows a
+link where it lands on one.
 
 ** Commands
 
@@ -251,6 +258,7 @@ same time.  =mouse-1= shows the plain source of one cell.
 | =pycell-md-render-all=       | render each markdown cell                  |
 | =pycell-md-unrender=         | show each markdown cell as source          |
 | =pycell-md-edit=             | edit the markdown cell in its own buffer   |
+| =pycell-md-follow-link=      | follow a link of the rendered cell         |
 | =pycell-md-raw=              | show one markdown cell as source           |
 | =pycell-move-cell-up=        | move the cell at point up, with its result |
 | =pycell-move-cell-down=      | move the cell at point down, likewise      |
