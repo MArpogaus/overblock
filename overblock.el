@@ -263,17 +263,25 @@ reads an overlay before a text property, so a keymap on an overlay
 shadows every keymap in the string it shows — and a link in a rendered
 markdown cell ran the block\='s own command instead of following its URL,
 because the anchor and the piece both carried that command.  A rendering
-that carries a keymap of its own therefore takes none from here;
+that carries a keymap on all of its text therefore takes none from here;
 `overblock-fill-props\=' is how a caller puts the block\='s keymap on the
 text around the links, so the string answers everywhere.  The same for
-the help echo, which was shadowed the same way."
+the help echo, which was shadowed the same way.
+
+All of its text, and not merely the start: a rendering that carries the
+property on some of its text and not the rest would leave that rest
+with nothing at all once the overlay stopped carrying it."
   ;; Written either way: a block that no longer carries a keymap or a
   ;; help string has it taken off its overlays, where a `when' left the
   ;; old one on until the overlay was remade.
   (let* ((hidden (overblock-get block :hidden))
          (over (overblock-get block :over))
+         ;; `text-property-any' walks the runs of the property, not
+         ;; the characters of the string.
          (own (lambda (prop)
-                (and (stringp over) (get-text-property 0 prop over)))))
+                (and (stringp over)
+                     (not (text-property-any 0 (length over) prop nil
+                                             over))))))
     (overlay-put ov 'keymap
                  (unless (or hidden (funcall own 'keymap))
                    (overblock-get block :keymap)))
