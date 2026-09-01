@@ -646,6 +646,23 @@ holds what a result popped out after the fact would hold."
         (pycell--insert-result text)
         (goto-char (if at-end (point-max) (point-min)))))))
 
+(defvar-local pycell--shell nil
+  "The Python shell a popped-out result came from.
+A pop-out is not a Python buffer, so `python-shell-get-process\=' would
+answer with whatever shell the settings point at — the wrong one where
+the notebook has a shell of its own.  `pycell-interrupt\=' asks this
+first.")
+
+(defvar-keymap pycell-pop-map
+  :doc "Keymap in a buffer showing one result of its own.
+The buffer is read-only, so a plain key is free and is what answers
+wherever the reader has bound the `C-c\=' prefix: a minor mode that owns
+it shadows a major mode's map, and `C-c C-c\=' then reaches nothing at
+all.  Both are bound, and `i\=' is the one to rely on."
+  :parent special-mode-map
+  "i" #'pycell-interrupt
+  "C-c C-c" #'pycell-interrupt)
+
 (defun pycell--insert-result (text)
   "Insert TEXT as a popped-out result, in the current buffer."
   ;; A table goes in live: every binding of vtable works here, and
@@ -679,10 +696,14 @@ taken off and a table laid out live."
          (buffer (get-buffer-create name)))
     (with-current-buffer buffer
       (special-mode)
+      (use-local-map pycell-pop-map)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (pycell--insert-result text))
       (goto-char (point-max)))
+    (when-let* ((proc (python-shell-get-process)))
+      (with-current-buffer buffer
+        (setq pycell--shell (process-buffer proc))))
     (when runningp (pycell--follow buffer))
     (pop-to-buffer buffer)))
 
@@ -1546,9 +1567,18 @@ prompt.  A cell sent while another one runs is refused, with a
 (defun pycell-interrupt ()
   "Send a KeyboardInterrupt to the cell's Python process.
 The interrupted cell ends normally: IPython prints the traceback
-and prompts again."
+and prompts again.
+
+Works in a popped-out result as well as in the notebook, which is where
+a reader watching a long run has their point: such a buffer is not a
+Python buffer, so it remembers the shell it came from rather than
+letting `python-shell-get-process' answer with whatever the settings
+point at."
   (interactive)
-  (interrupt-process (python-shell-get-process-or-error)))
+  (interrupt-process
+   (or (and (buffer-live-p pycell--shell)
+            (get-buffer-process pycell--shell))
+       (python-shell-get-process-or-error))))
 
 (defun pycell--clear-results ()
   "Take the results of the buffer down, and sweep what lost its anchor.

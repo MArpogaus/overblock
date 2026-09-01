@@ -1372,6 +1372,26 @@ header took two rows."
                  (lambda (&rest _) (error "drawn again for nothing"))))
         (pycell--rewidth)))))
 
+(ert-deftest pycell-test-a-pop-out-interrupts-its-own-shell ()
+  "A popped-out result interrupts the shell it came from.
+It is not a Python buffer, so `python-shell-get-process\=' would answer
+with whatever the settings point at — the wrong shell where the
+notebook has one of its own.  `i\=' is the key: the buffer is read-only,
+so a plain one is free and answers wherever the reader has bound the
+`C-c\=' prefix."
+  (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
+  (let (asked)
+    (cl-letf (((symbol-function 'interrupt-process)
+               (lambda (process) (setq asked process)))
+              ((symbol-function 'get-buffer-process)
+               (lambda (buffer) (list 'process-of buffer)))
+              ((symbol-function 'python-shell-get-process-or-error)
+               (lambda (&rest _) (error "asked for a shell of its own"))))
+      (with-temp-buffer
+        (setq-local pycell--shell (current-buffer))
+        (pycell-interrupt)
+        (should (equal asked (list 'process-of (current-buffer))))))))
+
 (ert-deftest pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.
 It took both, and `pycell-restart-and-run-all' puts a rendering back

@@ -172,6 +172,11 @@ buffer, where every binding of vtable works: =S= or a click on a
 column name sorts, ={= and =}= narrow and widen a column, and =M-left=
 and =M-right= move one.
 
+In such a buffer =i= interrupts the cell, as =pycell-interrupt= does in
+the notebook, so a run being watched can be stopped where you are
+watching it.  =C-c C-c= is bound as well, and reaches nothing where
+your configuration owns the =C-c= prefix.
+
 =pycell-pop-output= on a cell that is still running keeps writing there
 as the cell prints.  The block shows =pycell-max-lines= of the output;
 the buffer takes all of it, so a long run can be followed in a window
