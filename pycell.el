@@ -602,30 +602,59 @@ it from the data's magic bytes."
       (write-region data nil file nil nil nil t))
     (message "pycell: image saved to %s" file)))
 
+(defun pycell--follow-done (follow text)
+  "Put TEXT, the whole of what the cell printed, into FOLLOW\='s buffer.
+The tail the run wrote there is raw: it carries the shell\='s prompts,
+and the last of it arrives after the closing one.  The finished buffer
+holds what a result popped out after the fact would hold."
+  (when-let* ((buffer (car-safe follow))
+              ((buffer-live-p buffer)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t)
+            (at-end (= (point) (point-max))))
+        (erase-buffer)
+        (pycell--insert-result text)
+        (goto-char (if at-end (point-max) (point-min)))))))
+
+(defun pycell--insert-result (text)
+  "Insert TEXT as a popped-out result, in the current buffer."
+  ;; A table goes in live: every binding of vtable works here, and
+  ;; vtable aligns the columns for this window itself.  It goes in as a
+  ;; copy, because the table of the result belongs to the shell buffer
+  ;; that drew it.
+  (if-let* ((table (overblock-repl-table-in text)))
+      (vtable-insert (overblock-repl-table-copy table))
+    ;; A figure here is one space carrying an image: on a display that
+    ;; draws none, this buffer held that space and nothing else.
+    (insert (if (display-images-p) text (overblock-image-label text)))))
+
 (defun pycell-pop-output (&optional event)
   "Show the result at point, or the one clicked in EVENT, in a buffer.
-Each cell gets one buffer, so results are comparable side by side."
+Each cell gets one buffer, so results are comparable side by side.
+
+A cell that is still running keeps writing there: the whole of what it
+prints, where the block itself shows `pycell-max-lines\=' of it, so a
+long run can be followed in a window of its own.  Point at the end of
+that buffer follows the output; anywhere else it stays where it is.
+The buffer is written once more when the cell ends, with the prompts
+taken off and a table laid out live."
   (interactive (list last-input-event))
   (let* ((ov (pycell--result-at event))
-         (text (pycell--text ov))
-         (name (pycell--cell-buffer-name nil (overlay-start ov))))
-    (with-current-buffer (get-buffer-create name)
+         (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
+         ;; Not `pycell--text\=': that answers with the head the tick
+         ;; reads and says so.  A buffer that is about to follow the
+         ;; cell wants everything printed so far instead.
+         (text (if runningp "" (pycell--text ov)))
+         (name (pycell--cell-buffer-name nil (overlay-start ov)))
+         (buffer (get-buffer-create name)))
+    (with-current-buffer buffer
       (special-mode)
       (let ((inhibit-read-only t))
         (erase-buffer)
-        ;; A table goes in live: every binding of vtable works here, and
-        ;; vtable aligns the columns for this window itself.  It goes in
-        ;; as a copy, because the table of the result belongs to the
-        ;; shell buffer that drew it.
-        (if-let* ((table (overblock-repl-table-in text)))
-            (vtable-insert (overblock-repl-table-copy table))
-          ;; A figure here is one space carrying an image: on a display
-          ;; that draws none, this buffer held that space and nothing
-          ;; else.
-          (insert (if (display-images-p) text
-                    (overblock-image-label text)))))
-      (goto-char (point-min))
-      (pop-to-buffer (current-buffer)))))
+        (pycell--insert-result text))
+      (goto-char (point-max)))
+    (when runningp (pycell--follow buffer))
+    (pop-to-buffer buffer)))
 
 ;;;; Markdown cells
 
@@ -1179,7 +1208,11 @@ cell through the filter and then signal, and the handler would call this
 a second time — `cancel-timer\=' of nil raised, which masked the error it
 was reporting.  `pycell--abort\=' asks the same question."
   (when pycell--run
-    (pcase-let (((map :beg (:end fin) :start :timer) pycell--run))
+    (pcase-let (((map :beg (:end fin) :start :timer :follow) pycell--run))
+      ;; The last of the output, and then the whole of it cleaned: the
+      ;; tail a follower wrote is raw, and its final lines arrive with
+      ;; the closing prompt.
+      (pycell--follow-tick)
       (setq pycell--run nil)
       (cancel-timer timer)
       (when died (setq pycell--queue nil))
@@ -1187,6 +1220,7 @@ was reporting.  `pycell--abort\=' asks the same question."
         (with-current-buffer (marker-buffer beg)
           (pycell--show beg fin text (- (float-time) start)
                         (and died 'died))))
+      (pycell--follow-done follow text)
       ;; Keep `pycell-restart-and-run-all' going, or stop on error.
       (when pycell--queue
         (if (string-match-p "Traceback (most recent call last)" text)
@@ -1218,6 +1252,54 @@ an unexpected death."
       (pycell--end (if (string-empty-p out) msg (concat out "\n" msg))
                    t))))
 
+(defun pycell--follow (buffer)
+  "Have the running cell copy what it prints into BUFFER as it prints it.
+Call this in the notebook.  Nothing happens where no cell is running.
+
+The shell is where the output lands, so the marker that says how much
+of it has been copied lives there, in the record of the run."
+  (when-let* ((proc (python-shell-get-process))
+              (shell (process-buffer proc)))
+    (with-current-buffer shell
+      (when pycell--run
+        (setq pycell--run
+              (plist-put pycell--run :follow
+                         (cons buffer
+                               (copy-marker (plist-get pycell--run :from)))))
+        ;; What the cell has printed already, rather than an empty
+        ;; buffer until the next tick.
+        (pycell--follow-tick)))))
+
+(defun pycell--follow-tick ()
+  "Copy what the cell has printed since the last look into its buffer.
+Call this in the Python shell buffer.
+
+Only what is new: the whole output is what the block\='s own head is
+bounded away from reading five times a second, and a cell that prints a
+hundred thousand characters would cost that on every tick here as well.
+
+Point at the end of the buffer follows the output, in the buffer and in
+every window showing it; point anywhere else stays where the reader put
+it."
+  (when-let* ((follow (plist-get pycell--run :follow))
+              (buffer (car follow))
+              ((buffer-live-p buffer))
+              (copied (cdr follow))
+              ((< (marker-position copied) (point-max)))
+              (new (buffer-substring copied (point-max))))
+    (set-marker copied (point-max))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t)
+            (end (point-max))
+            (windows (get-buffer-window-list buffer nil t)))
+        (save-excursion
+          (goto-char (point-max))
+          (insert new))
+        (when (= (point) end) (goto-char (point-max)))
+        (dolist (window windows)
+          (when (= (window-point window) end)
+            (set-window-point window (point-max))))))))
+
 (defun pycell--tick (buf timer)
   "Mirror the running cell's output and stopwatch into its overlay.
 TIMER runs this every 0.2s for the Python shell BUF.  It cancels
@@ -1231,6 +1313,7 @@ itself when nothing runs there anymore."
         (pcase-let (((map (:from from) :beg (:end fin) :start) pycell--run))
           (let* ((text (pycell--output-head from))
                  (total (if (string-empty-p text) 0 (pycell--total from))))
+            (pycell--follow-tick)
             (when (buffer-live-p (marker-buffer beg))
               (with-current-buffer (marker-buffer beg)
                 (pycell--show beg fin text (- (float-time) start)

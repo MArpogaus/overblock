@@ -1287,6 +1287,45 @@ cell is asked for its links instead."
     (forward-line 1)
     (should-error (pycell-md-follow-link) :type 'user-error)))
 
+(ert-deftest pycell-test-a-pop-out-follows-a-running-cell ()
+  "A popped-out result keeps filling while the cell runs.
+The block shows `pycell-max-lines\=' of the output and no more; the
+buffer takes the whole of it, so a long run can be followed in a window
+of its own.  Only what is new is copied each time, and the cell's end
+writes the whole of it again with the prompts off."
+  (let ((shell (generate-new-buffer " *pycell-test-shell*"))
+        (out (generate-new-buffer " *pycell-test-out*")))
+    (unwind-protect
+        (with-current-buffer shell
+          (insert "one\ntwo\n")
+          (setq-local pycell--run
+                      (list :from (copy-marker 1)
+                            :follow (cons out (copy-marker 1))))
+          ;; what has been printed already
+          (pycell--follow-tick)
+          (should (equal (with-current-buffer out (buffer-string))
+                         "one\ntwo\n"))
+          ;; and then only what is new
+          (goto-char (point-max))
+          (insert "three\n")
+          (pycell--follow-tick)
+          (should (equal (with-current-buffer out (buffer-string))
+                         "one\ntwo\nthree\n"))
+          ;; point at the end followed the output
+          (should (with-current-buffer out (= (point) (point-max))))
+          ;; a buffer the reader killed is not written to
+          (let ((gone (generate-new-buffer " *pycell-test-gone*")))
+            (kill-buffer gone)
+            (setq pycell--run (plist-put pycell--run :follow
+                                         (cons gone (copy-marker 1))))
+            (should-not (pycell--follow-tick)))
+          ;; and the end writes the whole of it, cleaned
+          (pycell--follow-done (cons out (copy-marker 1)) "one\ntwo\nthree")
+          (should (equal (with-current-buffer out (buffer-string))
+                         "one\ntwo\nthree")))
+      (kill-buffer shell)
+      (kill-buffer out))))
+
 (ert-deftest pycell-test-a-restart-sweeps-what-lost-its-anchor ()
   "A restart takes the results and whatever no live block owns.
 It swept orphans while it cleared every block; clearing the results
