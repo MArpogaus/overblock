@@ -1342,6 +1342,36 @@ invisible, with nothing able to remove it."
         (pycell-restart)
         (should-not (overlay-buffer orphan))))))
 
+(ert-deftest pycell-test-a-narrower-window-gets-a-new-bar ()
+  "A bar is drawn again when the window it was built for has changed width.
+`overblock-bar\=' cuts the label to the room the icons leave, and that
+cut is in the string: a window made narrower afterwards — a split, a
+side window, a frame resized — kept a label too long for it and the
+header took two rows."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (pycell--show beg end "one line of output" 1.6))
+    (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
+           (wide (overlay-get block 'after-string)))
+      (should wide)
+      ;; the same buffer in a window of twenty columns
+      (cl-letf (((symbol-function 'window-max-chars-per-line)
+                 (lambda (&rest _) 20))
+                ((symbol-function 'get-buffer-window-list)
+                 (lambda (&rest _) (list (selected-window)))))
+        (pycell--rewidth)
+        (let ((narrow (overlay-get block 'after-string)))
+          (should-not (equal wide narrow))
+          (should (string-search "…" narrow))))
+      ;; and nothing is redrawn while the width stands still
+      (cl-letf (((symbol-function 'window-max-chars-per-line)
+                 (lambda (&rest _) 20))
+                ((symbol-function 'get-buffer-window-list)
+                 (lambda (&rest _) (list (selected-window))))
+                ((symbol-function 'pycell--update)
+                 (lambda (&rest _) (error "drawn again for nothing"))))
+        (pycell--rewidth)))))
+
 (ert-deftest pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.
 It took both, and `pycell-restart-and-run-all' puts a rendering back
