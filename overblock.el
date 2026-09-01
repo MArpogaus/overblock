@@ -788,6 +788,22 @@ they are not drawn at."
          (when (> (cdr (func-arity #'string-pixel-width)) 1)
            (list (current-buffer)))))
 
+(defun overblock--cut (text face room)
+  "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
+Pixels and not columns: a header label begins with an icon glyph, and
+one the frame draws from a fallback font is wider than a character cell
+— measured 19 pixels against a cell of 8.  A budget counted in columns
+was then 11 pixels short at every width, and the bar took two rows.
+
+The columns are the first guess, which is close, and then a character
+comes off at a time."
+  (let ((cut (truncate-string-to-width
+              text (max 1 (/ room (frame-char-width))) nil nil t)))
+    (while (and (> (length cut) 1)
+                (> (overblock--pixel-width (propertize cut 'face face)) room))
+      (setq cut (concat (substring cut 0 (- (length cut) 2)) "…")))
+    cut))
+
 (defun overblock-bar (left icons face)
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
 The alignment is pixel-exact: icon glyphs render wider than
@@ -796,17 +812,19 @@ terminal gets two columns of slack there: a bar that runs into the last
 column makes the line a continuation, and the final icon wraps onto a
 line of its own.
 
-LEFT is cut where the icons leave no room for it.  The stretch between
-the two collapses to nothing once the label has passed its target, so a
-label of 48 columns in a window of 42 ran into the first icon and put
-the last two on a row of their own.
+LEFT is cut where the icons leave no room for it, in pixels, because
+that is how it is drawn.  The stretch between the two collapses to
+nothing once the label has passed its target, so a label of 48 columns
+in a window of 42 ran into the first icon and put the last two on a row
+of their own.
 
-The room is `window-max-chars-per-line', which counts the line-number
-area and the margins as `window-body-width' does not, of the narrowest
-window that shows the buffer on a visible frame.  The narrowest, because
-one string is drawn in all of them at once and a label cut to fit a wide
-window still wrapped in a narrow one beside it; the wide one then loses
-a few characters of a label it could have shown whole.
+The room is `window-max-chars-per-line' — which counts the line-number
+area and the margins, as `window-body-width' does not — taken in the
+window's own font, of the narrowest window that shows the buffer on a
+visible frame.  The narrowest, because one string is drawn in all of
+them at once and a label cut to fit a wide window still wrapped in a
+narrow one beside it; the wide one then loses a few characters of a
+label it could have shown whole.
 
 A buffer in no such window is not cut at all.  There is nothing to wrap
 in, and the cut is baked into the string: measured, a long cell running
@@ -820,17 +838,22 @@ nothing rebuilds the header after the cell has ended."
          ;; under t, and a notebook shown in the root window of a hidden
          ;; 20 column frame had its header cut to that.
          (windows (get-buffer-window-list nil nil 'visible))
-         (columns (when windows
-                    (- (apply #'min (mapcar #'window-max-chars-per-line
-                                            windows))
-                       (ceiling width (frame-char-width))
-                       ;; One column of slack, over and above the
-                       ;; stretch's: a label cut to the room exactly
-                       ;; still put the last icon on a row of its own.
-                       1)))
-         (left (if (and columns (> columns 0)
-                        (> (string-width left) columns))
-                   (truncate-string-to-width left columns nil nil t)
+         (room (when windows
+                 (- (apply #'min
+                           (mapcar (lambda (window)
+                                     (* (window-max-chars-per-line window)
+                                        (window-font-width window)))
+                                   windows))
+                    width
+                    ;; A column of slack over and above the stretch's: a
+                    ;; label cut to the room exactly still put the last
+                    ;; icon on a row of its own.
+                    (frame-char-width))))
+         (left (if (and room (> room 0)
+                        (> (overblock--pixel-width
+                            (propertize left 'face face))
+                           room))
+                   (overblock--cut left face room)
                  left)))
     (overblock-faced
      (concat left

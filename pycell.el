@@ -211,6 +211,36 @@ of the buffer like any other."
       (unless (= beg end)
         (overblock-delete block)))))
 
+(defvar-local pycell--width nil
+  "The width the bars of this buffer were built for, in pixels.
+`overblock-bar\=' cuts the label to the room the icons leave, and the cut
+is in the string: a window made narrower afterwards — a split, a side
+window, a frame resized — was left with a label too long for it, and
+the header took two rows.  A bar is remade when this changes.")
+
+(defun pycell--rewidth ()
+  "Draw the bars again where the window has changed width.
+On `window-configuration-change-hook\=', where it runs for the buffer of
+every window that changed.
+
+Only the bars: a result is drawn again from the record it already
+holds, which is what a tick does five times a second, and a rendered
+markdown cell keeps its rendering and takes a new bar.  Only on a
+change of width, because the hook runs for every other kind of change
+as well."
+  (when-let* ((windows (get-buffer-window-list nil nil 'visible))
+              (width (apply #'min
+                            (mapcar (lambda (window)
+                                      (* (window-max-chars-per-line window)
+                                         (window-font-width window)))
+                                    windows))))
+    (unless (eq width pycell--width)
+      (setq pycell--width width)
+      (dolist (block (overblock-in (point-min) (point-max) 'result))
+        (pycell--update block))
+      (dolist (block (overblock-in (point-min) (point-max) 'markdown))
+        (pycell--md-bar block)))))
+
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
 Three hooks and not one: `modification-hooks' runs for a change inside
@@ -814,6 +844,19 @@ Only the word =markdown= of the boundary line carries the header, so
                          html)))
     (pycell--md-block beg end rendered)))
 
+(defun pycell--md-bar (block)
+  "Draw the bar of the markdown BLOCK, or draw it again.
+The bar is the caller\='s own overlay on the boundary line above the
+cell, kept under `:bar\='.  It is remade rather than the cell rendered
+again when the window changes width: the rendering does not depend on
+the width, and the label of the bar does."
+  (when-let* ((hov (overblock-get block :bar))
+              ((overlay-buffer hov)))
+    (overlay-put hov 'before-string
+                 (overblock-bar "markdown"
+                                (overblock-buttons pycell-markdown-buttons)
+                                'pycell-header))))
+
 (defun pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
 See `pycell--md-show', which renders and calls this."
@@ -854,10 +897,8 @@ See `pycell--md-show', which renders and calls this."
     ;; string ignores `(space :align-to (- right ...))', and the icons
     ;; then sit next to the label instead of at the window edge.
     (overlay-put hov 'display "")
-    (overlay-put hov 'before-string
-                 (overblock-bar "markdown"
-                                (overblock-buttons pycell-markdown-buttons)
-                                'pycell-header))
+    (overblock-set block :bar hov)
+    (pycell--md-bar block)
     ;; An edit of the source takes the rendering with it, the bar
     ;; included.  The block itself evaporates with the text it covers,
     ;; and the bar sits on the boundary line above, where no edit of the
@@ -1627,7 +1668,12 @@ the code-cells maps."
   ;; positional INIT-VALUE argument.
   :lighter " pycell"
   (if pycell-mode
-      (pycell-md-render-all)
+      (progn
+        ;; A bar is cut to the width of the window it was built for, so
+        ;; a window made narrower afterwards wants it drawn again.
+        (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
+        (pycell-md-render-all))
+    (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
     ;; Every kind of block goes, rendered markdown cells included.
     (pycell-remove-overlays)))
 
