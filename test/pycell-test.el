@@ -973,6 +973,29 @@ Its pieces hang on its source lines, and the lines move under them."
                                  (forward-line 4)
                                  (point)))))))
 
+(ert-deftest pycell-test-move-cell-carries-a-cell-that-holds-a-def ()
+  "A cell moves whole, from anywhere inside it, defs and all.
+`code-cells-mode\=' takes the major mode's own headings into
+`outline-regexp\=', so a `def\=' in a cell is an outline heading too:
+`outline-back-to-heading\=' from inside one finds the def, and the move
+tried to move that — it refused with \"Cannot move past superior
+level\" and the cell stayed where it was."
+  (with-temp-buffer
+    (insert "# %%\ndef one():\n    return 1\n\n# %%\nprint(\"two\")\n")
+    (python-mode)
+    (code-cells-mode)
+    ;; point in the body of the def, where a reader would be
+    (goto-char (point-min))
+    (forward-line 2)
+    (pycell-move-cell-down 1)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "# %%\nprint(\"two\")\n# %%\ndef one():\n    return 1\n\n"))
+    ;; and point is still in the cell that moved
+    (pcase-let ((`(,beg ,end) (code-cells--bounds)))
+      (should (<= beg (point) end))
+      (should (string-match-p "def one"
+                              (buffer-substring-no-properties beg end))))))
+
 (ert-deftest pycell-test-move-cell-stops-at-the-ends ()
   "The first cell cannot move up and the last cannot move down.
 `code-cells-move-cell-down' says so, and nothing is taken off before
