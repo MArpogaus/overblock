@@ -207,32 +207,14 @@ The rendered markdown keeps the keymap that shr gave its links."
     (should (eq (get-text-property 0 'keymap s) 'block-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
-(ert-deftest overblock-test-a-rendering-answers-for-its-own-keymaps ()
-  "A rendering that carries keymaps answers for them; the overlays do not.
-`get-char-property\=' reads an overlay before a text property, so a
-keymap on the anchor or on a piece shadows every keymap in the string
-it shows — and a link in a rendered markdown cell ran the block's own
-command instead of following its URL."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((over (overblock-fill-props
-                  (concat "plain " (propertize "link" 'keymap 'shr-map))
-                  'keymap 'block-map 'help-echo "the block"))
-           (block (overblock-show (point-min) (point-max)
-                                  :over over
-                                  :keymap 'block-map
-                                  :help-echo "the block")))
-      ;; no overlay of the block carries either, or it would shadow
-      (dolist (ov (cons block (overblock-get block :parts)))
-        (should-not (overlay-get ov 'keymap))
-        (should-not (overlay-get ov 'help-echo)))
-      ;; and the string says both, each where it belongs
-      (should (eq (get-text-property 0 'keymap over) 'block-map))
-      (should (eq (get-text-property 6 'keymap over) 'shr-map)))))
-
-(ert-deftest overblock-test-a-plain-rendering-takes-the-overlay-keymap ()
-  "A rendering with no keymap of its own is answered for by the overlays.
-Only a caller that fills its own text can be left to it."
+(ert-deftest overblock-test-the-overlays-answer-for-point ()
+  "Every overlay a block draws carries its keymap and its help echo.
+A click resolves its keymap from the string it landed on, and a
+rendering may put shr\='s own map on a link there.  Point is the other
+half: it never enters a display string, so a key pressed in a block is
+answered by the overlays alone.  Taking these off them left RET in a
+rendered cell running `newline\=', which split the source line and took
+the rendering with it."
   (with-temp-buffer
     (insert "one\ntwo\n")
     (let ((block (overblock-show (point-min) (point-max)
@@ -244,20 +226,6 @@ Only a caller that fills its own text can be left to it."
       (should (seq-every-p (lambda (ov) (eq (overlay-get ov 'keymap)
                                             'block-map))
                            (overblock-get block :parts))))))
-
-(ert-deftest overblock-test-a-half-filled-rendering-keeps-the-overlays ()
-  "A rendering that answers for only part of its text is not left to it.
-The overlays give up their keymap where the string carries one
-everywhere.  Where it carries one on some of its text and not the rest,
-that rest would be left with nothing at all."
-  (with-temp-buffer
-    (insert "one\ntwo\n")
-    (let* ((over (concat (propertize "link" 'keymap 'shr-map) " and prose"))
-           (block (overblock-show (point-min) (point-max)
-                                  :over over :keymap 'block-map)))
-      ;; the string answers for "link" and for nothing else, so the
-      ;; overlays keep answering
-      (should (eq (overlay-get block 'keymap) 'block-map)))))
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
   "The stretch ends two columns short of the right edge on a terminal.
