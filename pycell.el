@@ -1430,8 +1430,12 @@ and a code boundary."
 On `after-change-functions\\=', and not on `jit-lock-register\\=': one error
 in any other jit-lock function skips the rest of them, and a
 `python-ts-mode\\=' buffer whose grammar does not match the mode signals
-from redisplay — not one bar was drawn in such a buffer."
-  (pycell--cell-bars beg end))
+from redisplay — not one bar was drawn in such a buffer.
+
+The match data is the caller's: a change hook runs between a search and
+what the searcher does with it, and `replace-match\\=' after a
+`search-forward\\=' signalled here."
+  (save-match-data (pycell--cell-bars beg end)))
 
 
 ;;;; Running cells
