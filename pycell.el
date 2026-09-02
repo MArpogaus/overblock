@@ -122,15 +122,19 @@ no output, so `lines' and `image' say nothing here."
   :type overblock-button-type)
 
 (defcustom pycell-cell-buttons
-  '((run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t)
+  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+               pycell-move-cell-down t)
     (run-above ("󱏦" "⏫" "a") "Run every cell above this one"
                pycell-run-above t)
-    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down"
-               pycell-move-cell-down t))
+    (run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t))
   "The buttons on the bar of a code cell, left to right.
 The entries read as in `pycell-result-buttons'.  A cell bar is drawn
-before the cell has run, so `lines' and `image' say nothing here."
+before the cell has run, so `lines' and `image' say nothing here.
+
+The two move buttons lead, as they lead on the other two bars: the
+three kinds of bar stand above one another in a notebook, and a button
+that means the same thing is easier to find in the same place."
   :type overblock-button-type)
 
 (defcustom pycell-max-lines 12

@@ -144,10 +144,10 @@ the cell and holds buttons at the right edge:
 
 | Button | Action                        |
 |--------+-------------------------------|
-| =▷=    | run this cell                 |
-| =⏫=    | run every cell above this one |
 | =⌃=    | move this cell up             |
 | =⌄=    | move this cell down           |
+| =⏫=    | run every cell above this one |
+| =▷=    | run this cell                 |
 
 The name is what you write after the marker, so =# %% Load the data=
 reads as /Load the data/.  A cell without a name is called /python/,
@@ -159,7 +159,8 @@ would in any other buffer.
 
 The buttons are =pycell-cell-buttons=, and they read as the buttons of
 a result do.  A button acts on the cell whose bar you press, wherever
-point is.
+point is.  The move buttons lead on every bar, so a button that means
+the same thing stands in the same place.
 
 *** Results
 
