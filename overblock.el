@@ -988,18 +988,27 @@ compared, because the label is usually written on it."
 
 (defun overblock--bar-wear (ov text)
   "Put TEXT on OV in place of the line, with room for the caret.
-The first glyph replaces the line's own text and carries `cursor\\=', so
+All of TEXT but its last character rides the `before-string\\=', whose own
+(space :align-to (- right ...)) is looked at — a display string's is
+not, and the icons would sit beside the label instead of at the window
+edge.  The last character is the display itself and carries `cursor\\=', so
 the caret has a glyph to draw on: over an empty display it had none, and
 point could stand on a boundary line with nothing to show it — a line
-that could not be folded from.  The rest rides the `after-string\\=',
-whose own (space :align-to (- right ...)) is looked at, as a display
-string's is not."
+that could not be folded from.
+
+The last character and not the first, and never the `after-string\\=': a
+string after the overlay draws at the overlay's end, and a rendering
+whose cloak covers that place swallows it.  Measured on a markdown cell
+at the top of a buffer — where the cloak begins at the boundary line's
+own newline — the bar drew as one glyph and nothing else.
+
+The stretch aligns to the window's right edge, so taking the last
+character out of the string moves nothing: it draws where it drew."
   (if (string-empty-p text)
-      (progn (overlay-put ov 'display "")
-             (overlay-put ov 'after-string nil))
-    (overlay-put ov 'display (propertize (substring text 0 1) 'cursor t))
-    (overlay-put ov 'after-string (substring text 1)))
-  (overlay-put ov 'before-string nil))
+      (overlay-put ov 'display "")
+    (overlay-put ov 'before-string (substring text 0 -1))
+    (overlay-put ov 'display (propertize (substring text -1) 'cursor t)))
+  (overlay-put ov 'after-string nil))
 
 (defun overblock-bar-stale (ov)
   "Make OV forget what it was drawn from, so the next draw rebuilds it.
