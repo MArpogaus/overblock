@@ -151,7 +151,11 @@ the cell and holds buttons at the right edge:
 
 The name is what you write after the marker, so =# %% Load the data=
 reads as /Load the data/.  A cell without a name is called /python/,
-and a rendered markdown cell /markdown/.
+and a markdown cell /markdown/.
+
+A markdown cell that is not rendered — one you just wrote, or one you
+took back to its source — carries a bar of its own, with the buttons of
+=pycell-source-buttons=.  The third of them renders the cell.
 
 The bar gives way to the line under it while point is on that line, so
 you can write a name, add a tag or make the cell a markdown cell as you
@@ -300,6 +304,7 @@ link where it lands on one.
 | =pycell-md-edit=             | edit the markdown cell in its own buffer   |
 | =pycell-md-follow-link=      | follow a link of the rendered cell         |
 | =pycell-md-raw=              | show one markdown cell as source           |
+| =pycell-md-render-cell=      | render the markdown cell at point          |
 | =pycell-move-cell-up=        | move the cell at point up, with its result |
 | =pycell-move-cell-down=      | move the cell at point down, likewise      |
 | =pycell-run-cell=            | run the cell at point                      |
@@ -321,6 +326,7 @@ example in =code-cells-mode-map=.
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-cell-buttons=     | the buttons on the bar of a code cell            |
+| =pycell-source-buttons=   | the buttons on an unrendered markdown cell       |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
 | =overblock-md-code=       | the face of inline code in a markdown cell       |
@@ -328,7 +334,7 @@ example in =code-cells-mode-map=.
 The options named =overblock-= belong to the block layer, and every
 caller of it shares them.
 
-Each entry of the three button options is =(KEY GLYPHS HELP COMMAND
+Each entry of the four button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
 frame can draw wins, and the last one always answers, so keep a plain
 character at the end.  WHEN is =t=, or =image= for a button that waits
@@ -339,17 +345,27 @@ a glyph your font draws better:
 
 #+begin_src emacs-lisp
   ;; no discard button, and a plain arrow for the move
-  (setq pycell-result-buttons
-        '((copy ("◫" "≡") "Copy this result" pycell-copy-output lines)
-          (move-up ("↑" "u") "Move this cell up" pycell-move-cell-up t)
-          (move-down ("↓" "d") "Move this cell down" pycell-move-cell-down t)))
+  (setopt pycell-result-buttons
+          '((copy ("◫" "≡") "Copy this result" pycell-copy-output lines)
+            (move-up ("↑" "u") "Move this cell up" pycell-move-cell-up t)
+            (move-down ("↓" "d") "Move this cell down"
+                       pycell-move-cell-down t)))
 #+end_src
+
+=setopt= and not =setq=: the buttons of every open notebook are drawn
+again when the option is set that way.
 
 A command of your own can sit there as well: it is called with the
 click, so read =last-input-event= as the commands of this package do.
 
 ** Known Limits
 
+- A bar is one overlay in the buffer, not one for each window.  Two
+  windows on the same notebook therefore show the same line raw: the
+  one point is on in the selected window.
+- A bar is cut to the narrowest window that shows the notebook, because
+  the string is shared.  A 20-column side window beside a wide one
+  leaves every label an ellipsis in both.
 - A result block is one buffer line.  =next-line= and =previous-line=
   therefore cross it in one step.  The mouse wheel moves through it,
   see [[#scrolling][Scrolling]].  A markdown cell has a height in lines and moves as

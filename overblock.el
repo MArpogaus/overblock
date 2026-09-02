@@ -801,10 +801,14 @@ is `image' or `lines' waits for those."
                  ('image imagep)
                  ('lines (> (or lines 0) 0))
                  (_ t))
-           (overblock-button (apply #'overblock-glyph glyphs) help command))))
+           ;; The space after the glyph belongs to the button, so the
+           ;; place a reader can press is two columns wide rather than
+           ;; one: measured in a window of 1554 pixels, the boxes were
+           ;; ten pixels wide with twenty pixels of nothing between them.
+           (overblock-button (concat (apply #'overblock-glyph glyphs) " ")
+                             help command))))
      descriptors)
-    "  ")
-   " "))
+    " ")))
 
 (defconst overblock--pixel-width-takes-a-buffer
   (> (cdr (func-arity #'string-pixel-width)) 1)
@@ -888,34 +892,33 @@ while the reader looked at another buffer had its header cut to the
 width of that buffer's window — down to \" ▾…\" — and the cut stayed
 there when the notebook came back into a window of 160 columns, because
 nothing rebuilds the header after the cell has ended."
-  (let* ((width (+ (overblock--pixel-width (propertize icons 'face face))
-                   ;; A column of slack, in a graphic frame as well as in
-                   ;; a terminal.  Without it the icons end at the right
-                   ;; edge exactly, and whether such a row wraps is
-                   ;; decided by redisplay: measured in one window at one
-                   ;; width, the same bar drew all its icons when the
-                   ;; notebook was opened and dropped the last one onto a
-                   ;; row of its own after the first command — same
-                   ;; string, same spec, same window.
-                   (if (display-graphic-p) (frame-char-width) 2)))
-         (room (when-let* ((available (overblock-window-width)))
-                 (- available width
-                    ;; A column of slack over and above the stretch's: a
-                    ;; label cut to the room exactly still put the last
-                    ;; icon on a row of its own.
-                    (frame-char-width))))
-         (left (cond
+  (let* (;; A column of slack, in a graphic frame as well as in a
+         ;; terminal.  Without it the icons end at the right edge
+         ;; exactly, and whether such a row wraps is decided by
+         ;; redisplay: measured in one window at one width, the same bar
+         ;; drew all its icons when the notebook was opened and dropped
+         ;; the last one onto a row of its own after the first command —
+         ;; same string, same spec, same window.
+         (slack (if (display-graphic-p) (frame-char-width) 2))
+         (width (+ (overblock--pixel-width (propertize icons 'face face))
+                   slack))
+         (available (overblock-window-width))
+         ;; A column of slack over and above the stretch's: a label cut
+         ;; to the room exactly still put the last icon on a row of its
+         ;; own.
+         (room (and available (- available width (frame-char-width)))))
+    ;; Not even the icons fit.  They go: such a window can show a bar or
+    ;; a wrapped bar, and a wrapped bar is two rows of almost nothing.
+    ;; Measured at 16 columns, two rows with the icons and one without.
+    (when (and room (<= room 0))
+      (setq icons "" width slack left "…"))
+    (setq left (cond
                 ;; No window to wrap in, so nothing to cut for.
                 ((null room) left)
-                ;; Not even the icons fit.  The label was let through
-                ;; whole here, so a narrower window gave a longer bar:
-                ;; measured, 20 columns took three rows where 24 took
-                ;; one.  What can be shown is the ellipsis.
-                ((<= room 0) "…")
                 ((> (overblock--pixel-width (propertize left 'face face))
                     room)
                  (overblock--cut left face room))
-                (t left))))
+                (t left)))
     (overblock-faced
      (concat left
              (propertize " " 'display
@@ -956,8 +959,10 @@ compared, because the label is usually written on it."
       (overblock-bar-show ov (not (eq ov overblock--revealed))))))
 
 (defun overblock-bar-kind (ov)
-  "Return what OV was drawn as, or nil where OV is no bar of this layer."
-  (overlay-get ov 'overblock-bar))
+  "Return what OV was drawn as, or nil where OV is no bar of this layer.
+Nil for nil as well: this answers a question about whatever a caller
+found, and `overblock-bar-at\\=' finds nothing often."
+  (and ov (overlay-get ov 'overblock-bar)))
 
 (defun overblock-bar-show (ov barp)
   "Show the bar of OV where BARP, and the text it covers where not.
@@ -968,10 +973,16 @@ moved under the reader as point crossed such a line."
   (overlay-put ov 'before-string
                (and barp (overlay-get ov 'overblock-bar-text))))
 
-(defun overblock-bar-at (pos)
-  "Return the bar overlay that begins at POS, or nil."
-  (seq-find #'overblock-bar-kind
-            (overlays-in pos (min (point-max) (1+ pos)))))
+(defun overblock-bar-in (beg end)
+  "Return a bar overlay that covers any of BEG..END, or nil.
+A region and not a position: a bar advances off the start of its line
+when text is inserted there, so a bar of the line BEG begins is not
+always a bar at BEG."
+  (seq-find #'overblock-bar-kind (overlays-in beg end)))
+
+(defun overblock-bar-on-line ()
+  "Return the bar overlay of the line point is on, or nil."
+  (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
 
 (defun overblock-bars ()
   "Return the bar overlays of this buffer.
@@ -988,7 +999,7 @@ otherwise leave the ones outside the accessible part as they were."
   "Show the line under point as it is written, and bar every other one.
 For `post-command-hook\\=', where a caller that hides text under a bar
 wants it: what a bar covers cannot be edited where it cannot be read."
-  (let ((bar (overblock-bar-at (pos-bol))))
+  (let ((bar (overblock-bar-on-line)))
     (unless (eq bar overblock--revealed)
       (when (and overblock--revealed (overlay-buffer overblock--revealed))
         (overblock-bar-show overblock--revealed t))
