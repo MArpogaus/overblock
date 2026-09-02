@@ -919,5 +919,59 @@ then sit beside the label instead of at the window edge."
     (overlay-put ov 'display "")
     ov))
 
+(defun overblock-bar-draw (ov kind label icons face)
+  "Draw the bar LABEL and ICONS on OV, of KIND, in FACE.
+OV comes from `overblock-bar-over\\='.  KIND is the caller\\='s own word for
+what this bar stands on, and `overblock-bar-kind\\=' answers with it.
+
+Where nothing has changed the bar is left as it is: a caller draws from
+a change hook, and a walk over a long buffer would otherwise measure and
+build every bar it passes.  The text of the line is part of what is
+compared, because the label is usually written on it."
+  (let ((state (list (buffer-substring-no-properties (overlay-start ov)
+                                                     (overlay-end ov))
+                     label icons face (overblock-window-width))))
+    (overlay-put ov 'overblock-bar kind)
+    (unless (equal state (overlay-get ov 'overblock-bar-state))
+      (overlay-put ov 'overblock-bar-state state)
+      (overlay-put ov 'overblock-bar-text (overblock-bar label icons face))
+      (overblock-bar-show ov (not (eq ov overblock--revealed))))))
+
+(defun overblock-bar-kind (ov)
+  "Return what OV was drawn as, or nil where OV is no bar of this layer."
+  (overlay-get ov 'overblock-bar))
+
+(defun overblock-bar-show (ov barp)
+  "Show the bar of OV where BARP, and the text it covers where not.
+One or the other, never both: a bar fills the width of the window, so a
+line drawing its own text as well took a second row, and the buffer
+moved under the reader as point crossed such a line."
+  (overlay-put ov 'display (and barp ""))
+  (overlay-put ov 'before-string
+               (and barp (overlay-get ov 'overblock-bar-text))))
+
+(defun overblock-bar-at (pos)
+  "Return the bar overlay that begins at POS, or nil."
+  (seq-find #'overblock-bar-kind
+            (overlays-in pos (min (point-max) (1+ pos)))))
+
+(defun overblock-bars ()
+  "Return the bar overlays of this buffer."
+  (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max))))
+
+(defvar-local overblock--revealed nil
+  "The bar overlay whose line is showing the text under it.")
+
+(defun overblock-bar-reveal ()
+  "Show the line under point as it is written, and bar every other one.
+For `post-command-hook\\=', where a caller that hides text under a bar
+wants it: what a bar covers cannot be edited where it cannot be read."
+  (let ((bar (overblock-bar-at (pos-bol))))
+    (unless (eq bar overblock--revealed)
+      (when (and overblock--revealed (overlay-buffer overblock--revealed))
+        (overblock-bar-show overblock--revealed t))
+      (setq overblock--revealed bar)
+      (when bar (overblock-bar-show bar nil)))))
+
 (provide 'overblock)
 ;;; overblock.el ends here

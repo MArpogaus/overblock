@@ -71,14 +71,14 @@ at all depends on a converter being installed.
 The label is what stands before the stretch that holds the icons out at
 the window edge, less the glyph that leads it."
   (mapcar (lambda (ov)
-            (let* ((text (or (overlay-get ov 'pycell-bar-text) ""))
+            (let* ((text (or (overlay-get ov 'overblock-bar-text) ""))
                    (stretch (text-property-not-all 0 (length text)
                                                    'display nil text))
                    (label (substring-no-properties text 0 stretch)))
               (string-trim (substring label (1+ (string-search " " label))))))
           (sort (seq-filter (lambda (ov)
-                              (eq (overlay-get ov 'pycell-bar) 'code))
-                            (pycell--bars))
+                              (eq (overlay-get ov 'overblock-bar) 'code))
+                            (overblock-bars))
                 :key #'overlay-start)))
 
 ;;;; Helpers
@@ -1687,14 +1687,14 @@ A markdown boundary line is left to the rendering, which brings its own."
     (should (equal (pycell-test--bar-labels) '("python" "Titled")))
     ;; and nothing of this kind on the markdown line
     (should-not (seq-find (lambda (ov)
-                            (eq (overlay-get ov 'pycell-bar) 'code))
+                            (eq (overlay-get ov 'overblock-bar) 'code))
                           (overlays-in (save-excursion
                                          (goto-char (point-min))
                                          (re-search-forward "\\[markdown\\]")
                                          (pos-bol))
                                        (point-max))))
-    (let ((bar (car (sort (pycell--bars) :key #'overlay-start))))
-      (should (equal (overlay-get bar 'pycell-bar) 'code))
+    (let ((bar (car (sort (overblock-bars) :key #'overlay-start))))
+      (should (equal (overlay-get bar 'overblock-bar) 'code))
       (should (equal (overlay-get bar 'display) ""))
       (should (equal (buffer-substring-no-properties (overlay-start bar)
                                                      (overlay-end bar))
@@ -1723,14 +1723,14 @@ And a line that becomes a markdown boundary loses the code bar it had."
 One or the other: the bar fills the window, so a line drawing both took
 a second row and the buffer moved under the reader."
   (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
-    (let ((bar (car (sort (pycell--bars) :key #'overlay-start))))
+    (let ((bar (car (sort (overblock-bars) :key #'overlay-start))))
       (goto-char (overlay-start bar))
-      (pycell--reveal)
+      (overblock-bar-reveal)
       (should-not (overlay-get bar 'display))
       (should-not (overlay-get bar 'before-string))
       ;; and it comes back when point leaves
       (goto-char (point-max))
-      (pycell--reveal)
+      (overblock-bar-reveal)
       (should (equal (overlay-get bar 'display) ""))
       (should (overlay-get bar 'before-string)))))
 
@@ -1741,10 +1741,10 @@ a second row and the buffer moved under the reader."
     (python-mode)
     (code-cells-mode)
     (pycell-mode)
-    (should (pycell--bars))
+    (should (overblock-bars))
     (pycell-mode -1)
-    (should-not (pycell--bars))
-    (should-not pycell--revealed)))
+    (should-not (overblock-bars))
+    (should-not overblock--revealed)))
 
 (ert-deftest pycell-test-run-above-refuses-the-first-cell ()
   "There is nothing above the first cell, and nothing is started for it.
