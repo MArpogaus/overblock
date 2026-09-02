@@ -305,14 +305,17 @@ link where it lands on one.
 | =pycell-md-follow-link=      | follow a link of the rendered cell         |
 | =pycell-md-raw=              | show one markdown cell as source           |
 | =pycell-md-render-cell=      | render the markdown cell at point          |
+| =pycell-md-commit=           | put an edited markdown cell back           |
+| =pycell-md-abort=            | discard a markdown edit                    |
 | =pycell-move-cell-up=        | move the cell at point up, with its result |
 | =pycell-move-cell-down=      | move the cell at point down, likewise      |
 | =pycell-run-cell=            | run the cell at point                      |
 | =pycell-run-above=           | run every cell above the one at point      |
 | =pycell-stop=                | stop the run of the cells after this one   |
 
-pycell binds none of these commands.  It binds the mouse actions and
-=TAB= on the blocks only.  Bind the commands that you use, for
+pycell binds none of these commands, apart from the two of the markdown
+edit buffer, which are =C-c C-c= and =C-c C-k= there.  It binds the
+mouse actions and =TAB= on the blocks only.  Bind the commands that you use, for
 example in =code-cells-mode-map=.
 
 ** Customization
