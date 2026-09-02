@@ -2009,5 +2009,17 @@ already taken off it."
             (should-not (pycell--queued)))
         (kill-buffer shell)))))
 
+(ert-deftest pycell-test-a-change-leaves-the-search-alone ()
+  "A caller's match survives the bars being drawn.
+`after-change-functions\=' runs between a search and what the searcher
+does with the match, and the walk that draws the bars searches too:
+`replace-match\=' after a `search-forward\=' signalled
+`args-out-of-range\=' while the walk had the match data."
+  (pycell-test--with-notebook "# %% code BEFORE\nx = 1\n"
+    (goto-char (point-min))
+    (should (search-forward "BEFORE" nil t))
+    (replace-match "AFTER")
+    (should (equal (buffer-string) "# %% code AFTER\nx = 1\n"))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
