@@ -1839,5 +1839,101 @@ second cell moved the first."
       (goto-char (point-min))
       (should (looking-at-p "# %% Two")))))
 
+(ert-deftest pycell-test-a-line-that-stops-being-a-boundary-loses-its-bar ()
+  "A bar belongs to a boundary line, and to a line that still is one.
+A space typed before the comment, or half of the marker deleted, left
+the bar where it was — and its buttons then acted on the cell that now
+encloses the line."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (should (equal (pycell-test--bar-labels) '("One" "Two")))
+    (goto-char (point-min))
+    (insert " ")                        ; " # %% One" is no boundary
+    (should (equal (pycell-test--bar-labels) '("Two")))
+    (goto-char (point-min))
+    (delete-char 1)
+    (should (equal (pycell-test--bar-labels) '("One" "Two")))
+    ;; and half a marker is no marker
+    (goto-char (point-min))
+    (re-search-forward "%%")
+    (delete-char -1)
+    (should (equal (pycell-test--bar-labels) '("Two")))))
+
+(ert-deftest pycell-test-a-markdown-cell-showing-its-source-has-a-bar ()
+  "A markdown cell that is not rendered is barred too, and can be rendered.
+It had no bar at all: writing `[markdown]\\=' on a line took the code bar
+off it and nothing put one back until the whole buffer was rendered
+again."
+  (pycell-test--with-notebook "# %% [markdown]\n# text\n\n# %% Two\ny = 2\n"
+    (let ((bar (overblock-bar-in (point-min) (pos-eol))))
+      ;; Rendered or not — a converter may be missing — the line has a
+      ;; bar, and it is not a code bar.
+      (should bar)
+      (should (memq (overblock-bar-kind bar) '(source markdown)))
+      (should (commandp 'pycell-md-render-cell)))))
+
+(ert-deftest pycell-test-a-boundary-line-keeps-one-bar-through-its-kinds ()
+  "Writing and unwriting `[markdown]\\=' leaves one bar, of the right kind.
+The bar of a cell showing its source stayed on a line that had stopped
+saying =[markdown]=, and the code bar was drawn beside it."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((line (lambda ()
+                  (save-excursion
+                    (goto-char (point-min))
+                    (list (overblock-bar-kind (overblock-bar-on-line))
+                          (length (seq-filter
+                                   #'overblock-bar-kind
+                                   (overlays-in (point-min) (pos-eol)))))))))
+      (should (equal (funcall line) '(code 1)))
+      ;; The tag follows the marker, as jupytext writes it: a
+      ;; `[markdown]' at the end of the title is not a markdown cell.
+      (goto-char (point-min))
+      (delete-region (pos-bol) (pos-eol))
+      (insert "# %% [markdown] One")
+      (should (equal (funcall line) '(source 1)))
+      (goto-char (point-min))
+      (delete-region (pos-bol) (pos-eol))
+      (insert "# %% One")
+      (should (equal (funcall line) '(code 1))))))
+
+(ert-deftest pycell-test-a-click-on-a-bar-leaves-the-bar-showing ()
+  "Point lands below the bar, not on it, so the button can be pressed again.
+The reveal gives a bar way to its line while point is on it, and a click
+that put point there took the button out from under the reader between
+one press and the next."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let* ((second (save-excursion
+                     (goto-char (point-min))
+                     (re-search-forward "^# %% Two")
+                     (pos-bol)))
+           (click (list 'mouse-1 (list (selected-window) second
+                                       (cons 0 0) 0))))
+      (goto-char (point-min))
+      (pycell--goto-event click)
+      (should (= (line-number-at-pos) (1+ (line-number-at-pos second))))
+      (overblock-bar-reveal)
+      (should (overlay-get (save-excursion (goto-char second)
+                                           (overblock-bar-on-line))
+                           'before-string)))))
+
+(ert-deftest pycell-test-a-refused-pass-leaves-nothing-queued ()
+  "A run-above that cannot start leaves no cells behind to run later.
+The queue was armed before the first cell was sent, so a refusal left
+the rest of the pass to run unasked, less the cell the refusal had
+already taken off it."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((shell (generate-new-buffer " *pycell-test-shell*")))
+      (unwind-protect
+          (cl-letf* (((symbol-function 'python-shell-get-process)
+                      (lambda (&rest _) 'a-process))
+                     ((symbol-function 'pycell--queue-buffer)
+                      (lambda () shell))
+                     ;; The shell refuses the cell, as a busy one does.
+                     ((symbol-function 'pycell-eval-region)
+                      (lambda (&rest _) (user-error "Still busy"))))
+            (goto-char (point-max))
+            (should-error (pycell-run-above) :type 'user-error)
+            (should-not (pycell--queued)))
+        (kill-buffer shell)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

@@ -721,5 +721,38 @@ because the fractions were worked out against the height it had."
         ;; The rows that followed it carry nothing.
         (should (equal later ""))))))
 
+(ert-deftest overblock-test-a-window-too-narrow-for-the-icons-loses-them ()
+  "Where not even the icons fit, they go and the label is an ellipsis.
+The label alone was cut there, so the icons wrapped onto a row of their
+own: measured in a terminal, a bar of four buttons took two rows at 16
+columns and one at 20.  A wrapped bar is two rows of almost nothing."
+  (cl-letf (((symbol-function 'overblock-window-width) (lambda () 12)))
+    (let ((bar (substring-no-properties
+                (overblock-bar "a long label indeed" "u  d  a  r " 'default))))
+      (should (string-prefix-p "…" (string-trim bar)))
+      (should-not (string-search "u" bar))
+      (should-not (string-search "r" bar))))
+  ;; and where they do fit, they are all there
+  (cl-letf (((symbol-function 'overblock-window-width) (lambda () 400)))
+    (let ((bar (substring-no-properties
+                (overblock-bar "label" "u  d  a  r " 'default))))
+      (should (string-search "u  d  a  r" bar))
+      (should (string-prefix-p "label" bar)))))
+
+(ert-deftest overblock-test-a-button-is-wider-than-its-glyph ()
+  "The space after a glyph belongs to its button.
+Measured in a window of 1554 pixels, the places a reader could press
+were ten pixels wide with twenty pixels of nothing between them."
+  (let* ((icons (overblock-buttons
+                 '((one ("A") "First" first-command t)
+                   (two ("B") "Second" second-command t))))
+         (at (lambda (pos) (get-text-property pos 'keymap icons))))
+    ;; the glyph and the space after it answer to the same command
+    (should (funcall at 0))
+    (should (eq (funcall at 0) (funcall at 1)))
+    ;; and the next button is a different one
+    (should (funcall at 3))
+    (should-not (eq (funcall at 0) (funcall at 3)))))
+
 (provide 'overblock-test)
 ;;; overblock-test.el ends here
