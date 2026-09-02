@@ -154,11 +154,24 @@ is the name written after the marker, and the buttons are
 was rendered; the two are now drawn by one function, and the code cell's
 is put there by =pycell--cell-bars=.
 
-The bar is an overlay over the whole line, with =display= of the empty
-string and the bar itself on the =before-string=.  It has to be a
-string on an overlay: a display property whose value is a string
-ignores =(space :align-to (- right ...))=, and the buttons would then
-sit beside the label instead of at the window edge.
+The bar is an overlay over the whole line.  All of the bar but its last
+character rides the =before-string=; the last character is the
+=display=, in place of the line's own text, and carries =cursor=.
+
+Both halves are forced.  The bar has to be a string on an overlay: a
+display property whose value is a string ignores =(space :align-to (-
+right ...))=, and the buttons would then sit beside the label instead of
+at the window edge.  And something has to be left for the caret to draw
+on: over a display of the empty string there is no glyph, so point could
+stand on a boundary line with nothing to show it, and the line could not
+be folded from.  The stretch aligns to the window's right edge, so
+moving one character out of the string moves nothing.
+
+Never the =after-string=: a string after the overlay draws at the
+overlay's *end*, and a rendered markdown cell's cloak covers that place.
+A markdown cell at the top of a buffer is the worst of it — its cloak
+begins at the boundary line's own newline — and the bar drew as one
+glyph and nothing else.
 
 *** What draws them, and when
 
@@ -202,7 +215,7 @@ it gets the bars for the price of a label:
 | =overblock-bar-in=      | the bar covering a region, if any                  |
 | =overblock-bar-on-line= | the bar of the line point is on                    |
 | =overblock-bars=        | every bar of the buffer                            |
-| =overblock-bar-reveal=  | for =post-command-hook=: show the line under point |
+| =overblock-bar-stale=   | make one forget what it was drawn from              |
 
 What pycell keeps is what only a notebook knows: which kind of cell a
 boundary line begins, what to call it, and which buttons belong on it.
@@ -235,24 +248,21 @@ enclosed it.
 
 *** Point on the line
 
-The bar and the line are never both shown.  A bar fills the width of
-the window, so a line drawing its text as well took a second row, and
-the buffer moved under the reader as point crossed a boundary line.
-While point is on the line the bar gives way to the text, so the
-marker, the tags and the name can be edited where they can be read.
-=overblock-bar-reveal= on =post-command-hook= is the whole of it: one
-overlay at a time, the one under point.
+A bar stays where it is, whatever point does.  It used to give way to
+its line while point was on it, and that cost more than it paid: the
+buffer moved under the reader as point crossed a boundary line, and a
+button went dead — a press moves point, the bar was gone before the
+release, and the release then landed on the text the bar had covered.
 
-Two places move point where no command ends, and both call it
-themselves: the mode when it starts, and the run of a queue of cells,
-which walks point down the notebook from a process filter.  Without
-that the cursor sat at the right-hand edge of a bar that had not been
-told point was there.
+The line is still there to be edited.  Point rests on it, the caret
+shows on the bar's last glyph, and the label follows what is written on
+the line.  Folding works from there: =outline-cycle= and
+=outline-hide-subtree= fold the cell and leave the bar standing.
 
-A click on a bar leaves point on the line below it, which belongs to
-the same cell.  On the line itself, the reveal would take the button out
-from under the reader between one press and the next: a cell could not
-be moved twice.
+The commands hang off =<down-mouse-1>= with =<mouse-1>= bound to
+=ignore=, which is what the header line buttons of a side window have
+always done: the press is answered before anything can redraw under the
+pointer.
 
 *** A column of slack
 
