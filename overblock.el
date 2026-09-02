@@ -306,6 +306,49 @@ would carry the same run and draw the same image again."
     (push (substring text from) lines)
     (nreverse lines)))
 
+(defun overblock--rows (beg end)
+  "Return the lines of BEG..END as a list of (FROM . TO), in order.
+TO is where the text of a line ends, so a line with nothing on it
+answers a pair with nothing between.
+
+The whole buffer, and a test on the move: an overlay\\='s positions know
+nothing of a narrowing, and under one that ends before END this walk
+would never reach it — `forward-line\\=' stops at the accessible end
+without moving, the test never goes false, and the list grows until the
+machine is out of memory.  A position past the end of the buffer — a
+stale overlay, or a narrowing the widening cannot undo — used to spin
+here for the same reason."
+  (without-restriction
+    (save-excursion
+      (goto-char beg)
+      (let (rows (moved 0))
+        (while (and (< (point) end) (zerop moved))
+          (push (cons (point) (min end (pos-eol))) rows)
+          (setq moved (forward-line 1)))
+        (nreverse rows)))))
+
+(defun overblock--piece (block from to text)
+  "Return an overlay of BLOCK that shows TEXT in place of FROM..TO.
+A piece with an image in it cannot ride a `display\\=' property, because
+display properties do not nest and the image would be swallowed.  Such
+a piece hides its line with a display string of nothing and rides the
+before-string instead, which draws images.  The line keeps its own row
+either way, which is what makes a region scroll a line at a time.
+
+The before-string and not the after-string: a cloak begins at the end
+of the piece before it, and Emacs leaves out an overlay string whose
+position is inside invisible text.  Measured on a frame, counting the
+pixels of the image itself: 0 for an after-string with a cloak at the
+piece\\='s end, 32 for the same image on a before-string."
+  (let ((ov (make-overlay from to nil t)))
+    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'overblock-part t)
+    (if (overblock-image-in text)
+        (progn (overlay-put ov 'display "")
+               (overlay-put ov 'before-string text))
+      (overlay-put ov 'display text))
+    (overblock--dress block ov)))
+
 (defun overblock--pieces (block text)
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
@@ -315,18 +358,8 @@ one line carries several of them, dealt out as evenly as the two counts
 allow; where it has fewer, the lines left over go under a cloak.
 
 A piece covers the text of its line and leaves the newline alone, so
-the buffer keeps its line structure and every line keeps its height.
-A piece with an image in it cannot ride a `display' property, because
-display properties do not nest and the image would be swallowed.  Such
-a piece hides its line with a display string of nothing and rides the
-before-string instead, which draws images.  The line keeps its own row
-either way, which is what makes the region scroll a line at a time.
-
-The before-string and not the after-string: a cloak begins at the end
-of the piece before it, and Emacs leaves out an overlay string whose
-position is inside invisible text.  Measured on a frame, counting the
-pixels of the image itself: 0 for an after-string with a cloak at the
-piece's end, 32 for the same image on a before-string.
+the buffer keeps its line structure and every line keeps its height;
+`overblock--piece' makes one.
 
 A line without text cannot carry a piece — there is nothing to put the
 display property on — and a rendering rarely fills as many lines as the
@@ -351,24 +384,7 @@ region has anyway.  Those lines go under a cloak."
                  (string-trim text "\\(?:[ \t]*\n\\)+"
                               "\\(?:\n[ \t]*\\)+")))
          (count (length lines))
-         ;; The whole buffer: an overlay's positions know nothing of a
-         ;; narrowing, and under one that ends before END this walk would
-         ;; never reach it — `forward-line' stops at the accessible end
-         ;; without moving, the test never goes false, and the list grows
-         ;; until the machine is out of memory.
-         (rows (without-restriction
-                 (save-excursion
-                   (goto-char beg)
-                   (let (rows (moved 0))
-                     ;; While the line can still be left: a position
-                     ;; past the end of the buffer — a stale overlay, a
-                     ;; narrowing the widening above cannot undo — used
-                     ;; to spin here, growing this list until the machine
-                     ;; was out of memory.
-                     (while (and (< (point) end) (zerop moved))
-                       (push (cons (point) (min end (pos-eol))) rows)
-                       (setq moved (forward-line 1)))
-                     (nreverse rows)))))
+         (rows (overblock--rows beg end))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
          (filled 0)
          (rest lines)                        ; what the deal has left
@@ -398,15 +414,8 @@ region has anyway.  Those lines go under a cloak."
           (when cloak-from
             (push (overblock--cloak block cloak-from (1- from)) parts)
             (setq cloak-from nil))
-          (let ((ov (make-overlay from to nil t))
-                (piece (string-join chunk "\n")))
-            (overlay-put ov 'evaporate t)
-            (overlay-put ov 'overblock-part t)
-            (if (overblock-image-in piece)
-                (progn (overlay-put ov 'display "")
-                       (overlay-put ov 'before-string piece))
-              (overlay-put ov 'display piece))
-            (push (overblock--dress block ov) parts)))))
+          (push (overblock--piece block from to (string-join chunk "\n"))
+                parts))))
     (when cloak-from
       (push (overblock--cloak block cloak-from (1- end)) parts))
     (nreverse parts)))
@@ -558,12 +567,28 @@ made it, and to a height they chose."
   (unless (plist-get (cdr image) :max-height)
     (cons 'image (plist-put (copy-sequence (cdr image)) :max-height limit))))
 
+(defun overblock--image-runs (string)
+  "Return a list of (BEG END IMAGE SLICED) for the images STRING draws.
+Each is one run of a `display\\=' property.  SLICED is non-nil where the
+run draws a slice of the image rather than the whole of it."
+  (let ((pos 0)
+        (len (length string))
+        runs)
+    (while (< pos len)
+      (let* ((next (or (next-single-property-change pos 'display string) len))
+             (spec (get-text-property pos 'display string))
+             (image (overblock--image-spec spec)))
+        (when image
+          (push (list pos next image (not (eq image spec))) runs))
+        (setq pos next)))
+    (nreverse runs)))
+
 (defun overblock-image-cap (string)
-  "Return STRING with every image in it capped to `overblock-image-height'.
+  "Return STRING with every image in it capped to `overblock-image-height\\='.
 STRING itself is not touched: this copies before it caps, so a caller
 keeps the original to save or to pop out.
 
-Emacs 31 slices an image taller than `shr-sliced-image-height' into a
+Emacs 31 slices an image taller than `shr-sliced-image-height\\=' into a
 row for each line of the window it was rendered in, and a slice reads
 as ((slice X Y W H) IMAGE).  Slicing does not make an image smaller — it
 cuts a full-height image into rows — so a figure sliced for a tall shell
@@ -578,25 +603,18 @@ out over the lines it has."
   (if-let* ((limit (overblock-image-limit))
             ((overblock-image-in string)))
       (let ((string (copy-sequence string))
-            (pos 0)
             (seen nil))
-        (while (< pos (length string))
-          (let* ((next (or (next-single-property-change pos 'display string)
-                           (length string)))
-                 (spec (get-text-property pos 'display string))
-                 (image (overblock--image-spec spec))
-                 (slicep (not (eq image spec))))
-            (cond
-             ((null image))
-             ;; A later row of a run of slices: the whole image is on the
-             ;; first of them now.
-             ((and slicep (memq image seen))
-              (put-text-property pos next 'display "" string))
-             (t
-              (when slicep (push image seen))
-              (when-let* ((capped (overblock--image-capped image limit)))
-                (put-text-property pos next 'display capped string))))
-            (setq pos next)))
+        (pcase-dolist (`(,beg ,end ,image ,sliced)
+                       (overblock--image-runs string))
+          (cond
+           ;; A later row of a run of slices: the whole image is on the
+           ;; first of them now.
+           ((and sliced (memq image seen))
+            (put-text-property beg end 'display "" string))
+           (t
+            (when sliced (push image seen))
+            (when-let* ((capped (overblock--image-capped image limit)))
+              (put-text-property beg end 'display capped string)))))
         string)
     string))
 
