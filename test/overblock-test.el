@@ -243,6 +243,22 @@ the final icon wraps onto a line of its own."
                                                         'shadow))
                                            2)))))))))
 
+(ert-deftest overblock-test-bar-slack-in-a-frame ()
+  "The stretch ends a column short of the right edge in a graphic frame.
+Icons that end at the right edge exactly leave redisplay to decide
+whether the row wraps: measured in one window at one width, the same bar
+drew all its icons when the notebook was opened and put the last one on
+a row of its own after the first command."
+  (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+    (let* ((bar (overblock-bar "label" "^  x " 'shadow))
+           (spec (get-text-property
+                  (next-single-property-change 0 'display bar)
+                  'display bar))
+           (icons (string-pixel-width (propertize "^  x " 'face 'shadow))))
+      (should (equal spec `(space :align-to
+                                  (- right (,(+ icons (frame-char-width)))))))
+      (should (> (car (nth 2 (nth 2 spec))) icons)))))
+
 (ert-deftest overblock-test-the-bar-label-is-cut-to-fit ()
   "A label wider than the room the icons leave is cut, not wrapped.
 The stretch between the two collapses to nothing once the label has
@@ -257,7 +273,9 @@ room exactly still put the last icon on a row of its own."
            (room (- (window-max-chars-per-line)
                     (ceiling (+ (string-pixel-width
                                  (propertize icons 'face 'default))
-                                (if (display-graphic-p) 0 2))
+                                (if (display-graphic-p)
+                                    (frame-char-width)
+                                  2))
                              (frame-char-width))
                     1))
            (bar (substring-no-properties
@@ -391,9 +409,9 @@ inside it, so a caller can still read its `:data' and cap its height."
          (sliced (propertize " " 'display (list '(slice 0.0 0.0 1.0 0.25)
                                                 image))))
     (should (equal (overblock-image-in sliced) image))
-    (should (equal (overblock-image--spec (list '(slice 0 0 1 1) image)) image))
-    (should-not (overblock-image--spec '(raise 0.5)))
-    (should-not (overblock-image--spec '((slice 0 0 1 1) "not an image")))))
+    (should (equal (overblock--image-spec (list '(slice 0 0 1 1) image)) image))
+    (should-not (overblock--image-spec '(raise 0.5)))
+    (should-not (overblock--image-spec '((slice 0 0 1 1) "not an image")))))
 
 (ert-deftest overblock-test-refresh-leaves-a-dead-block-alone ()
   "A block that is no longer in a buffer draws nothing and signals nothing.
@@ -485,9 +503,9 @@ swallowed the region's last newline and no newline overlay was made."
 (defun overblock-test--narrowed-shape (end)
   "Check the shape of a block over 1..END made under a narrowing."
   (let ((block (overblock-show 1 end :body "BODY")))
-      ;; The anchor stops before the region's last newline, and the
-      ;; newline has an overlay of its own — both read with `char-before'
-      ;; and `char-after', which answer nil past the accessible portion.
+    ;; The anchor stops before the region's last newline, and the
+    ;; newline has an overlay of its own — both read with `char-before'
+    ;; and `char-after', which answer nil past the accessible portion.
     (should (= (overlay-end block) (1- end)))
     (should (overlay-buffer (overblock-get block :newline)))
     (overblock-set block :header "HDR")
@@ -636,6 +654,72 @@ blank and said nothing at all."
                    "before [plot] after"))
     ;; nothing to name, nothing changed
     (should (equal (overblock-image-label "plain") "plain"))))
+
+(ert-deftest overblock-test-image-cap-caps-an-image ()
+  "An image drawn inline is capped to a share of the window.
+A block taller than the window bounces the wheel backwards off itself
+and cannot be scrolled past at all."
+  (let ((buffer (get-buffer-create "*pycell test fit*")))
+    (unwind-protect
+        (with-current-buffer buffer
+          (set-window-buffer (selected-window) buffer)
+          (let ((line (concat "x" overblock-test--image)))
+            (let* ((overblock-image-height 0.5)
+                   (fitted (overblock-image-cap line)))
+              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
+                         (round (* 0.5 (window-body-height
+                                        (selected-window) t)))))
+              ;; the line kept for the popup is not touched
+              (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
+            ;; zero draws it at its own size
+            (let* ((overblock-image-height 0)
+                   (fitted (overblock-image-cap line)))
+              (should-not (plist-get (cdr (overblock-image-in fitted))
+                                     :max-height)))))
+      (kill-buffer buffer))))
+
+(ert-deftest overblock-test-image-cap-caps-from-an-unshown-buffer ()
+  "A cell that finishes while its notebook is elsewhere is capped too.
+A run of all cells works down the notebook while the user reads
+something else, and no window at all would leave the figure at full
+size, which is the block the wheel cannot get past."
+  (let ((elsewhere (get-buffer-create "*pycell test elsewhere*"))
+        (notebook (get-buffer-create "*pycell test notebook*")))
+    (unwind-protect
+        (progn
+          (set-window-buffer (selected-window) elsewhere)
+          (with-current-buffer notebook
+            (let* ((overblock-image-height 0.5)
+                   (line (concat "x" overblock-test--image))
+                   (fitted (overblock-image-cap line)))
+              (should-not (get-buffer-window notebook t))
+              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
+                         (round (* 0.5 (window-body-height
+                                        (selected-window) t))))))))
+      (kill-buffer elsewhere)
+      (kill-buffer notebook))))
+
+(ert-deftest overblock-test-image-cap-unslices-a-tall-image ()
+  "A run of slices becomes the whole image, capped, on its first row.
+Emacs 31 slices an image taller than `shr-sliced-image-height' into a
+row for each line of the window it was rendered in.  Slicing does not
+make an image smaller, so leaving the slices alone left the cap with
+nothing to cap — and the image cannot be capped under the slice either,
+because the fractions were worked out against the height it had."
+  (let* ((image '(image :type png :data "x"))
+         (rows (list '(slice 0.0 0.0 1.0 0.5) '(slice 0.0 0.5 1.0 0.5)))
+         (line (concat (propertize " " 'display (list (nth 0 rows) image))
+                       "\n"
+                       (propertize " " 'display (list (nth 1 rows) image)))))
+    (cl-letf (((symbol-function 'overblock-image-limit) (lambda () 100)))
+      (let* ((fitted (overblock-image-cap line))
+             (first (get-text-property 0 'display fitted))
+             (later (get-text-property (1- (length fitted)) 'display fitted)))
+        ;; The first row carries the image, capped and no longer sliced.
+        (should (eq (car-safe first) 'image))
+        (should (= (plist-get (cdr first) :max-height) 100))
+        ;; The rows that followed it carry nothing.
+        (should (equal later ""))))))
 
 (provide 'overblock-test)
 ;;; overblock-test.el ends here

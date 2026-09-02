@@ -6,7 +6,6 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/pycell
 
@@ -85,15 +84,6 @@ hundred thousand, where a jump costs nothing."
             (push (list here pos next) regions)))
         (setq pos (and (< next len) next))))
     (nreverse regions)))
-
-(defun overblock-repl-table-in (text)
-  "Return the table TEXT was laid out from, or nil.
-`overblock-repl-detach' leaves the table object on the text it laid
-out, under `overblock-repl-table', so a caller can show it live
-elsewhere with `overblock-repl-table-copy'."
-  (when-let* ((pos (text-property-not-all 0 (length text)
-                                          'overblock-repl-table nil text)))
-    (get-text-property pos 'overblock-repl-table text)))
 
 (defun overblock-repl-table-copy (table)
   "Return a table of the rows and columns of TABLE, for another buffer.

@@ -256,7 +256,7 @@ ten thousand lines cost 12.9 milliseconds against 0.6."
     (let ((bov (overblock-get
                 (car (overblock-in (point-min) (point-max) 'result))
                 :newline)))
-      (pycell-remove-overlays)
+      (pycell-remove-blocks)
       (should-not (overblock-in (point-min) (point-max) 'result))
       (should-not (overlay-buffer bov)))))
 
@@ -1349,7 +1349,7 @@ invisible, with nothing able to remove it."
 
 (ert-deftest pycell-test-a-narrower-window-gets-a-new-bar ()
   "A bar is drawn again when the window it was built for has changed width.
-`overblock-bar\=' cuts the label to the room the icons leave, and that
+`overblock-bar\\=' cuts the label to the room the icons leave, and that
 cut is in the string: a window made narrower afterwards — a split, a
 side window, a frame resized — kept a label too long for it and the
 header took two rows."
@@ -1411,11 +1411,11 @@ buffer that is meant to hold more than the block."
 
 (ert-deftest pycell-test-a-pop-out-interrupts-its-own-shell ()
   "A popped-out result interrupts the shell it came from.
-It is not a Python buffer, so `python-shell-get-process\=' would answer
+It is not a Python buffer, so `python-shell-get-process\\=' would answer
 with whatever the settings point at — the wrong shell where the
-notebook has one of its own.  `i\=' is the key: the buffer is read-only,
+notebook has one of its own.  `i\\=' is the key: the buffer is read-only,
 so a plain one is free and answers wherever the reader has bound the
-`C-c\=' prefix."
+`C-c\\=' prefix."
   (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
   (let* ((shell (generate-new-buffer " *pycell-test-shell*"))
          (notebook (generate-new-buffer " *pycell-test-nb*"))
@@ -1574,12 +1574,157 @@ the process filter, and the cell, already off the queue, never ran."
             ;; waits for the prompt of the first.  The old shape sent
             ;; both, and the second was refused and lost.
             (should (= (length (overblock-in (point-min) (point-max)
-                                            'markdown))
+                                             'markdown))
                        2))
             (should (= (length sent) 1))
             (should (= deepest 1))
             (should (= (length (pycell--queued)) 1)))
         (kill-buffer shell)))))
+
+;;;; The bar over a boundary line
+
+(defmacro pycell-test--with-notebook (text &rest body)
+  "Evaluate BODY in a Python buffer holding TEXT, with the mode on.
+The buffer is shown in a window: a bar is cut to the width of the
+windows that show it, and a command that follows a click selects one."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (insert ,text)
+     (python-mode)
+     (set-window-buffer nil (current-buffer))
+     (code-cells-mode)
+     (pycell-mode)
+     (goto-char (point-min))
+     (unwind-protect (progn ,@body)
+       (pycell-mode -1))))
+
+(defun pycell-test--bar-labels ()
+  "Return the label of every code cell bar of the buffer, in order.
+The bars of rendered markdown cells are left out: whether a cell renders
+at all depends on a converter being installed.
+The label is what stands before the stretch that holds the icons out at
+the window edge, less the glyph that leads it."
+  (mapcar (lambda (ov)
+            (let* ((text (or (overlay-get ov 'pycell-bar-text) ""))
+                   (stretch (text-property-not-all 0 (length text)
+                                                   'display nil text))
+                   (label (substring-no-properties text 0 stretch)))
+              (string-trim (substring label (1+ (string-search " " label))))))
+          (sort (seq-filter (lambda (ov)
+                              (eq (overlay-get ov 'pycell-bar) 'code))
+                            (pycell--bars))
+                :key #'overlay-start)))
+
+(ert-deftest pycell-test-the-title-is-what-follows-the-marker ()
+  "The text after the marker names the cell, and a tag list is not text."
+  (with-temp-buffer
+    (insert "# %%\n# %% A title\n# %% [markdown]\n# %% [markdown] Notes\n")
+    (python-mode)
+    (code-cells-mode)
+    (should (equal (mapcar (lambda (line)
+                             (goto-char (point-min))
+                             (forward-line (1- line))
+                             (pycell--cell-title (pos-bol) (pos-eol)))
+                           '(1 2 3 4))
+                   '(nil "A title" nil "Notes")))))
+
+(ert-deftest pycell-test-a-bar-over-every-code-cell ()
+  "Every code cell boundary line carries a bar, and the line is hidden.
+A markdown boundary line is left to the rendering, which brings its own."
+  (pycell-test--with-notebook
+      "# %%\nx = 1\n\n# %% Titled\ny = 2\n\n# %% [markdown]\n# text\n"
+    (should (equal (pycell-test--bar-labels) '("python" "Titled")))
+    ;; and nothing of this kind on the markdown line
+    (should-not (seq-find (lambda (ov)
+                            (eq (overlay-get ov 'pycell-bar) 'code))
+                          (overlays-in (save-excursion
+                                         (goto-char (point-min))
+                                         (re-search-forward "\\[markdown\\]")
+                                         (pos-bol))
+                                       (point-max))))
+    (let ((bar (car (sort (pycell--bars) :key #'overlay-start))))
+      (should (equal (overlay-get bar 'pycell-bar) 'code))
+      (should (equal (overlay-get bar 'display) ""))
+      (should (equal (buffer-substring-no-properties (overlay-start bar)
+                                                     (overlay-end bar))
+                     "# %%")))))
+
+(ert-deftest pycell-test-a-cell-typed-in-gets-a-bar ()
+  "A boundary line written into the buffer is barred as it appears.
+And a line that becomes a markdown boundary loses the code bar it had."
+  (pycell-test--with-notebook "# %%\nx = 1\n"
+    (goto-char (point-max))
+    (insert "\n# %% Later\nz = 3\n")
+    (should (equal (pycell-test--bar-labels) '("python" "Later")))
+    ;; The title is read again when the line is edited.
+    (goto-char (point-min))
+    (end-of-line)
+    (insert " Named")
+    (should (equal (pycell-test--bar-labels) '("Named" "Later")))
+    ;; And a line rewritten as a markdown boundary loses its code bar.
+    (goto-char (point-min))
+    (delete-region (pos-bol) (pos-eol))
+    (insert "# %% [markdown]")
+    (should (equal (pycell-test--bar-labels) '("Later")))))
+
+(ert-deftest pycell-test-point-on-a-boundary-line-shows-the-line ()
+  "The bar gives way to the text of its line while point is on it.
+One or the other: the bar fills the window, so a line drawing both took
+a second row and the buffer moved under the reader."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((bar (car (sort (pycell--bars) :key #'overlay-start))))
+      (goto-char (overlay-start bar))
+      (pycell--reveal)
+      (should-not (overlay-get bar 'display))
+      (should-not (overlay-get bar 'before-string))
+      ;; and it comes back when point leaves
+      (goto-char (point-max))
+      (pycell--reveal)
+      (should (equal (overlay-get bar 'display) ""))
+      (should (overlay-get bar 'before-string)))))
+
+(ert-deftest pycell-test-the-mode-takes-its-bars-with-it ()
+  "Turning the mode off leaves the buffer as it was."
+  (with-temp-buffer
+    (insert "# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (pycell-mode)
+    (should (pycell--bars))
+    (pycell-mode -1)
+    (should-not (pycell--bars))
+    (should-not pycell--revealed)))
+
+(ert-deftest pycell-test-run-above-refuses-the-first-cell ()
+  "There is nothing above the first cell, and nothing is started for it.
+The cells above are the ones the walk finds before this one begins."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (goto-char (point-min))
+    (should-error (pycell-run-above) :type 'user-error)
+    (goto-char (point-max))
+    (should (equal (mapcar #'marker-position
+                           (seq-take-while
+                            (lambda (m) (< m (car (code-cells--bounds))))
+                            (pycell--cell-starts)))
+                   (list 1)))))
+
+(ert-deftest pycell-test-a-button-moves-the-cell-it-belongs-to ()
+  "A click on the arrow of one cell moves that cell, not the one at point.
+The commands read the click, so the cell that moves is the one whose
+button was pressed: with point left where it was, the arrow of the
+second cell moved the first."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let* ((second (save-excursion
+                     (goto-char (point-min))
+                     (re-search-forward "^# %% Two")
+                     (pos-bol)))
+           (click (list 'mouse-1 (list (selected-window) second
+                                       (cons 0 0) 0))))
+      ;; point in the first cell, the click on the second
+      (goto-char (point-min))
+      (pycell-move-cell-up 1 click)
+      (goto-char (point-min))
+      (should (looking-at-p "# %% Two")))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

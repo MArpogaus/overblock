@@ -17,6 +17,7 @@
     - [[#example-configuration][Example Configuration]]
     - [[#scrolling][Scrolling]]
   - [[#usage][Usage]]
+    - [[#cells][Cells]]
     - [[#results][Results]]
     - [[#markdown-cells][Markdown Cells]]
   - [[#commands][Commands]]
@@ -24,6 +25,7 @@
   - [[#known-limits][Known Limits]]
   - [[#comparison-with-other-packages][Comparison with Other Packages]]
   - [[#how-it-works][How It Works]]
+  - [[#development][Development]]
   - [[#contributions][Contributions]]
   - [[#license][License]]
   - [[#contact][Contact]]
@@ -135,6 +137,30 @@ Two settings are yours to make:
 
 ** Usage
 
+*** Cells
+
+Every cell carries a bar in place of its =# %%= line.  The bar names
+the cell and holds buttons at the right edge:
+
+| Button | Action                        |
+|--------+-------------------------------|
+| =▷=    | run this cell                 |
+| =⏫=    | run every cell above this one |
+| =⌃=    | move this cell up             |
+| =⌄=    | move this cell down           |
+
+The name is what you write after the marker, so =# %% Load the data=
+reads as /Load the data/.  A cell without a name is called /python/,
+and a rendered markdown cell /markdown/.
+
+The bar gives way to the line under it while point is on that line, so
+you can write a name, add a tag or make the cell a markdown cell as you
+would in any other buffer.
+
+The buttons are =pycell-cell-buttons=, and they read as the buttons of
+a result do.  A button acts on the cell whose bar you press, wherever
+point is.
+
 *** Results
 
 Evaluate a cell with =code-cells-eval= or =code-cells-eval-and-step=.
@@ -199,8 +225,8 @@ reports that it does not know =get_ipython=.
 
 A cell with the marker =# %% [markdown]= renders in place.  The
 rendering hangs on the commented source lines, one piece to a line.
-The header bar takes the place of the word =[markdown]=, and the
-=# %%= keeps the look of the other cell markers.
+The bar of the cell says /markdown/, or the name you wrote after the
+tag, and carries the buttons of =pycell-markdown-buttons=.
 
 The cell moves as normal text, and an outline fold takes the whole
 cell with it.  The cell keeps the height of its source.  It becomes
@@ -263,7 +289,7 @@ link where it lands on one.
 | =pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
 | =pycell-save-image=          | write the image of the result to a file    |
 | =pycell-discard-output=      | remove the result at point                 |
-| =pycell-remove-overlays=     | remove each result in the buffer           |
+| =pycell-remove-blocks=       | remove every result and rendering          |
 | =pycell-interrupt=           | send a KeyboardInterrupt to the cell       |
 | =pycell-restart=             | restart the interpreter, drop the results  |
 | =pycell-restart-and-run-all= | restart, then run each cell in order       |
@@ -274,6 +300,8 @@ link where it lands on one.
 | =pycell-md-raw=              | show one markdown cell as source           |
 | =pycell-move-cell-up=        | move the cell at point up, with its result |
 | =pycell-move-cell-down=      | move the cell at point down, likewise      |
+| =pycell-run-cell=            | run the cell at point                      |
+| =pycell-run-above=           | run every cell above the one at point      |
 | =pycell-stop=                | stop the run of the cells after this one   |
 
 pycell binds none of these commands.  It binds the mouse actions and
@@ -290,6 +318,7 @@ example in =code-cells-mode-map=.
 | =overblock-md-command=    | the shell command from Markdown to HTML          |
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
+| =pycell-cell-buttons=     | the buttons on the bar of a code cell            |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
 | =overblock-md-code=       | the face of inline code in a markdown cell       |
@@ -297,7 +326,7 @@ example in =code-cells-mode-map=.
 The options named =overblock-= belong to the block layer, and every
 caller of it shares them.
 
-Each entry of the two button options is =(KEY GLYPHS HELP COMMAND
+Each entry of the three button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
 frame can draw wins, and the last one always answers, so keep a plain
 character at the end.  WHEN is =t=, or =image= for a button that waits
@@ -379,10 +408,28 @@ renders, and what the scroll measurements say.
 ** Development
 
 =make= runs what the CI runs: byte-compilation with warnings as errors,
-checkdoc, package-lint and the batch tests.  =make scroll= needs a
-display and measures the scrolling.  =make format= indents every Lisp
-file, which is =tools/indent.el= and nothing more than the indentation
-=indent-region= gives Lisp: no form is rewritten and no line reflowed.
+checkdoc, package-lint, relint and the batch tests.  =make scroll=
+needs a display and measures the scrolling.  =make format= indents
+every Lisp file, which is =tools/indent.el= and nothing more than the
+indentation =indent-region= gives Lisp: no form is rewritten and no
+line reflowed.
+
+Two of those are worth a word:
+
+- package-lint runs twice, because two packages live here.  The block
+  layer — =overblock.el= and its two companions — knows nothing about
+  Python, and =pycell.el= is the notebook that uses it.  Each is linted
+  against its own main file.
+- =make test STRICT=1= refuses to run where no markdown converter is
+  installed, rather than skipping a fifth of the suite in silence.  The
+  CI sets it.
+
+=make complexity= is a report and not a check: it scores every function
+by how much of it a reader must hold at once, by the rules of the
+SonarSource paper read as Lisp, and names the ones worth looking at.
+Comments and doc strings count for nothing there, so a long explanation
+is free and a dense line is not.  See =tools/complexity.el=, whose
+rules are tested like anything else.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
 checks, the formatter and checkdoc before a commit, the commit message

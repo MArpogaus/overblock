@@ -2,7 +2,7 @@ name: test
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, overblock]
   pull_request:
   workflow_dispatch:
 
@@ -19,16 +19,24 @@ jobs:
     - uses: purcell/setup-emacs@bdc64dc730ae1fcba200bfd52cb1b4cf6159cbe5   # v8.0
       with:
         version: ${{ matrix.emacs-version }}
+    # A fifth of the suite renders markdown and skips itself where no
+    # converter is installed: 27 tests, without saying so.  STRICT=1
+    # below turns that silence into a failure.
+    - name: Install a markdown converter
+      run: sudo apt-get update -qq && sudo apt-get install -yqq pandoc
     - name: Show version
       run: emacs --version
-    - name: Byte-compile, checkdoc, package-lint and test
-      run: make
+    - name: Byte-compile, checkdoc, package-lint, relint and test
+      run: make STRICT=1
 
   # The scrolling tests measure pixels, so they need an Emacs with X
   # support in a virtual display.  The nix builds the matrix uses have
   # no X, which is why this is its own job on the distribution Emacs.
+  # The image is pinned: `ubuntu-latest' moves to the next LTS on its own
+  # and takes that Emacs with it, and this is the one job whose answers
+  # are pixels.
   scroll:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
     - name: Install Emacs, a virtual display and a markdown converter
@@ -38,4 +46,4 @@ jobs:
     - name: Show version
       run: emacs --version
     - name: Scrolling tests
-      run: make scroll
+      run: make STRICT=1 scroll

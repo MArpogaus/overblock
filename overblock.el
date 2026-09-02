@@ -348,8 +348,8 @@ region has anyway.  Those lines go under a cloak."
                   (overlay-end nl)
                 (overlay-end block)))
          (lines (overblock--lines
-                  (string-trim text "\\(?:[ \t]*\n\\)+"
-                               "\\(?:\n[ \t]*\\)+")))
+                 (string-trim text "\\(?:[ \t]*\n\\)+"
+                              "\\(?:\n[ \t]*\\)+")))
          (count (length lines))
          ;; The whole buffer: an overlay's positions know nothing of a
          ;; narrowing, and under one that ends before END this walk would
@@ -499,7 +499,7 @@ elsewhere would hang them over unrelated text, out of reach of
         (overblock--attach block shown)
         block))))
 
-(defun overblock-image--spec (display)
+(defun overblock--image-spec (display)
   "Return the image in the DISPLAY spec, or nil.
 Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line, and a slice reads ((slice X Y W H) IMAGE) rather
@@ -527,7 +527,7 @@ the image inside it is what answers."
     (while (and (not img)
                 (setq pos (text-property-not-all pos len 'display nil text)))
       (let ((disp (get-text-property pos 'display text)))
-        (if-let* ((image (overblock-image--spec disp)))
+        (if-let* ((image (overblock--image-spec disp)))
             (setq img image)
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
@@ -544,12 +544,19 @@ had nothing to tell an empty result from a picture.  LABEL defaults to
         pieces)
     (while (< pos len)
       (let ((next (or (next-single-property-change pos 'display text) len)))
-        (push (if (overblock-image--spec (get-text-property pos 'display text))
+        (push (if (overblock--image-spec (get-text-property pos 'display text))
                   label
                 (substring text pos next))
               pieces)
         (setq pos next)))
     (apply #'concat (nreverse pieces))))
+
+(defun overblock--image-capped (image limit)
+  "Return IMAGE with its height held to LIMIT, or nil where it has one.
+An image that already carries a `:max-height\\=' was capped by whoever
+made it, and to a height they chose."
+  (unless (plist-get (cdr image) :max-height)
+    (cons 'image (plist-put (copy-sequence (cdr image)) :max-height limit))))
 
 (defun overblock-image-cap (string)
   "Return STRING with every image in it capped to `overblock-image-height'.
@@ -577,7 +584,7 @@ out over the lines it has."
           (let* ((next (or (next-single-property-change pos 'display string)
                            (length string)))
                  (spec (get-text-property pos 'display string))
-                 (image (overblock-image--spec spec))
+                 (image (overblock--image-spec spec))
                  (slicep (not (eq image spec))))
             (cond
              ((null image))
@@ -585,14 +592,10 @@ out over the lines it has."
              ;; first of them now.
              ((and slicep (memq image seen))
               (put-text-property pos next 'display "" string))
-             (image
+             (t
               (when slicep (push image seen))
-              (unless (plist-get (cdr image) :max-height)
-                (put-text-property
-                 pos next 'display
-                 (cons 'image (plist-put (copy-sequence (cdr image))
-                                         :max-height limit))
-                 string))))
+              (when-let* ((capped (overblock--image-capped image limit)))
+                (put-text-property pos next 'display capped string))))
             (setq pos next)))
         string)
     string))
@@ -731,6 +734,14 @@ plist saves is the call around each walk, not the walks."
             (setq pos next))))))
   string)
 
+(defvar overblock--glyphs (make-hash-table :test #'equal)
+  "What `overblock-glyph\\=' answered, by frame font and candidates.
+The answer cannot change while a frame keeps its font, and the question
+is dear: `internal-char-font\\=' asks the font backend once a character,
+and one header of six icons asked it twenty times, five times a second.
+Measured over a running cell, the header cost 0.71 milliseconds a tick
+and 0.27 with this table.")
+
 (defun overblock-glyph (&rest candidates)
   "Return the first of CANDIDATES this frame has a glyph for.
 The last candidate is the answer when none of them has one.
@@ -739,12 +750,17 @@ font, so it says yes to characters that then draw as a hex box.
 
 Every character of a candidate has to be there, not just the first:
 several of them lead with a space, and a space is always available."
-  (or (and (display-graphic-p)
-           (seq-find (lambda (c)
-                       (seq-every-p (lambda (ch) (internal-char-font nil ch))
-                                    c))
-                     candidates))
-      (car (last candidates))))
+  (with-memoization (gethash (cons (and (display-graphic-p)
+                                        (frame-parameter nil 'font))
+                                   candidates)
+                             overblock--glyphs)
+    (or (and (display-graphic-p)
+             (seq-find (lambda (c)
+                         (seq-every-p (lambda (ch)
+                                        (internal-char-font nil ch))
+                                      c))
+                       candidates))
+        (car (last candidates)))))
 
 (defun overblock-button (label help command)
   "Return LABEL as a button.
@@ -772,6 +788,11 @@ is `image' or `lines' waits for those."
     "  ")
    " "))
 
+(defconst overblock--pixel-width-takes-a-buffer
+  (> (cdr (func-arity #'string-pixel-width)) 1)
+  "Whether `string-pixel-width\\=' takes the buffer to measure in.
+Emacs 31 does; an older one measures without any face remapping.")
+
 (defun overblock--pixel-width (string)
   "Return the width of STRING in pixels, as this buffer would draw it.
 Emacs 31 takes the buffer whose face remapping to measure with; an
@@ -780,9 +801,11 @@ older one measures without any, and the icons of a notebook under
 they are not drawn at."
   ;; Through `apply' with a computed list, so an Emacs whose
   ;; `string-pixel-width' takes one argument does not reject the
-  ;; two-argument call while compiling this file.
+  ;; two-argument call while compiling this file.  The arity is read
+  ;; once: asked on every call it is both a cost on the ticker and a
+  ;; question about whatever has advised the function since.
   (apply #'string-pixel-width string
-         (when (> (cdr (func-arity #'string-pixel-width)) 1)
+         (when overblock--pixel-width-takes-a-buffer
            (list (current-buffer)))))
 
 (defun overblock-window-width ()
@@ -838,7 +861,8 @@ in a window of 42 ran into the first icon and put the last two on a row
 of their own.
 
 The room is what `overblock-window-width' measures, less the icons and
-a column of slack.
+two columns of slack: one keeps the icons off the right edge, and one
+keeps the label off the icons.
 
 A buffer in no visible window is not cut at all.  There is nothing to wrap
 in, and the cut is baked into the string: measured, a long cell running
@@ -847,7 +871,15 @@ width of that buffer's window — down to \" ▾…\" — and the cut stayed
 there when the notebook came back into a window of 160 columns, because
 nothing rebuilds the header after the cell has ended."
   (let* ((width (+ (overblock--pixel-width (propertize icons 'face face))
-                   (if (display-graphic-p) 0 2)))
+                   ;; A column of slack, in a graphic frame as well as in
+                   ;; a terminal.  Without it the icons end at the right
+                   ;; edge exactly, and whether such a row wraps is
+                   ;; decided by redisplay: measured in one window at one
+                   ;; width, the same bar drew all its icons when the
+                   ;; notebook was opened and dropped the last one onto a
+                   ;; row of its own after the first command — same
+                   ;; string, same spec, same window.
+                   (if (display-graphic-p) (frame-char-width) 2)))
          (room (when-let* ((available (overblock-window-width)))
                  (- available width
                     ;; A column of slack over and above the stretch's: a
@@ -872,6 +904,20 @@ nothing rebuilds the header after the cell has ended."
                          `(space :align-to (- right (,width))))
              icons)
      face)))
+
+(defun overblock-bar-over (beg end)
+  "Return an overlay that shows a bar in place of the text BEG..END.
+The text stays in the buffer and draws as nothing; the caller puts the
+bar `overblock-bar\\=' built on the `before-string\\=' of this overlay, and
+puts it there again whenever the label or the window width changes.
+
+A string on an overlay and not a display property on the text: a
+display string ignores (space :align-to (- right ...)), and the icons
+then sit beside the label instead of at the window edge."
+  (let ((ov (make-overlay beg end nil t)))
+    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'display "")
+    ov))
 
 (provide 'overblock)
 ;;; overblock.el ends here
