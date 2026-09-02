@@ -159,8 +159,9 @@ would in any other buffer.
 
 The buttons are =pycell-cell-buttons=, and they read as the buttons of
 a result do.  A button acts on the cell whose bar you press, wherever
-point is.  The move buttons lead on every bar, so a button that means
-the same thing stands in the same place.
+point is.  The move buttons lead on every kind of bar, so the order is
+the same one everywhere.  The buttons themselves are held at the window
+edge, so a bar with more of them starts further left.
 
 *** Results
 

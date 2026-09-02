@@ -21,9 +21,16 @@ which is what the picture has always shown.
 * How to record
 
 #+begin_src shell
-  emacs -Q -l demo.el          # writes /tmp/demo/ready, then waits
-  touch /tmp/demo/go           # starts the demo and the capture
+  emacs -Q -g 101x29 -l demo.el   # writes /tmp/demo/ready, then waits
+  touch /tmp/demo/go              # starts the demo and the capture
 #+end_src
+
+The size on the command line is not decoration.  =set-frame-size= is a
+request, and a bare X server with no window manager can ignore it: six
+recordings in a row came out 904x828 instead of 1120x680, with the
+markdown wrapped and the animation half as large again, and nothing
+said so.  The script now waits for the size, writes what it got to the
+trace, and refuses to record a picture of the wrong shape.
 
 The script drives the whole session.  It captures one frame for each
 scroll step, and ten frames each second while a view stays.  Nothing
