@@ -956,7 +956,7 @@ compared, because the label is usually written on it."
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
       (overlay-put ov 'overblock-bar-text (overblock-bar label icons face))
-      (overblock-bar-show ov (not (eq ov overblock--revealed))))))
+      (overblock--bar-show ov (not (eq ov overblock--revealed))))))
 
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
@@ -964,7 +964,7 @@ Nil for nil as well: this answers a question about whatever a caller
 found, and `overblock-bar-at\\=' finds nothing often."
   (and ov (overlay-get ov 'overblock-bar)))
 
-(defun overblock-bar-show (ov barp)
+(defun overblock--bar-show (ov barp)
   "Show the bar of OV where BARP, and the text it covers where not.
 One or the other, never both: a bar fills the width of the window, so a
 line drawing its own text as well took a second row, and the buffer
@@ -1002,9 +1002,9 @@ wants it: what a bar covers cannot be edited where it cannot be read."
   (let ((bar (overblock-bar-on-line)))
     (unless (eq bar overblock--revealed)
       (when (and overblock--revealed (overlay-buffer overblock--revealed))
-        (overblock-bar-show overblock--revealed t))
+        (overblock--bar-show overblock--revealed t))
       (setq overblock--revealed bar)
-      (when bar (overblock-bar-show bar nil)))))
+      (when bar (overblock--bar-show bar nil)))))
 
 (provide 'overblock)
 ;;; overblock.el ends here

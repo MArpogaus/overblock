@@ -191,6 +191,22 @@ keystroke costs in that configuration is what it cost before the bars
 existed.  Two hundred cells hold two hundred bars and three other
 overlays at the end of that run, so nothing accumulates.
 
+*** What the layer offers
+
+Everything above the label belongs to the layer, so a second caller of
+it gets the bars for the price of a label:
+
+| =overblock-bar-over=    | an overlay showing a bar in place of a region      |
+| =overblock-bar-draw=    | draw a label and icons on it, in a face            |
+| =overblock-bar-kind=    | what the caller called it, or nil for no bar       |
+| =overblock-bar-in=      | the bar covering a region, if any                  |
+| =overblock-bar-on-line= | the bar of the line point is on                    |
+| =overblock-bars=        | every bar of the buffer                            |
+| =overblock-bar-reveal=  | for =post-command-hook=: show the line under point |
+
+What pycell keeps is what only a notebook knows: which kind of cell a
+boundary line begins, what to call it, and which buttons belong on it.
+
 *** One line, one bar
 
 Three things can want a bar on a boundary line: the pass over the
