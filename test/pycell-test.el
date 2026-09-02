@@ -1758,11 +1758,14 @@ A markdown boundary line is left to the rendering, which brings its own."
                           (lambda (a b)
                             (< (overlay-start a) (overlay-start b)))))))
       (should (equal (overlay-get bar 'overblock-bar) 'code))
-      ;; The line's own text draws as the bar's first glyph, which
-      ;; carries `cursor\=' so the caret has somewhere to be, and the
-      ;; rest of the bar follows it.
+      ;; The bar rides the before-string; the line's own text draws as
+      ;; the bar's last glyph, which carries `cursor\=' so the caret has
+      ;; somewhere to be.  Never the after-string: a rendering's cloak
+      ;; covers the place a string after the overlay would draw in.
+      (should (overlay-get bar 'before-string))
       (should (eq (get-text-property 0 'cursor (overlay-get bar 'display)) t))
-      (should (overlay-get bar 'after-string))
+      (should (= (length (overlay-get bar 'display)) 1))
+      (should-not (overlay-get bar 'after-string))
       (should (equal (buffer-substring-no-properties (overlay-start bar)
                                                      (overlay-end bar))
                      "# %%")))))
@@ -2005,7 +2008,7 @@ one press and the next."
       ;; the bar is where it was, whatever point does
       (should (overlay-get (save-excursion (goto-char second)
                                            (overblock-bar-on-line))
-                           'after-string)))))
+                           'before-string)))))
 
 (ert-deftest pycell-test-a-refused-pass-leaves-nothing-queued ()
   "A run-above that cannot start leaves no cells behind to run later.
