@@ -70,8 +70,13 @@ the image then belongs to shr, which says so with a box of its own."
 (ert-deftest overblock-md-test-names-an-image-without-a-display ()
   "Where no image can be drawn, the cell says which figure is there.
 shr's own placeholder is an image, and its display property swallows the
-text under it: a terminal would show a blank row where a figure belongs."
+text under it: a terminal would show a blank row where a figure belongs.
+
+The label is drawn for a file this Emacs knows how to read, and
+`overblock-md--image-file' answers nil for every path where it knows
+none -- so an Emacs built without image support has nothing to label."
   (skip-unless (overblock-md-program))
+  (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
     (let* ((default-directory (file-name-directory file))
            (shown (overblock-md-rendered "![a figure](figure.png)")))

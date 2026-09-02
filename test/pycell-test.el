@@ -1312,22 +1312,6 @@ cell is asked for its links instead."
           (pycell-md-follow-link)
           (should asked)
           (should (equal visited "https://gnu.org/")))))
-    ;; a link beside an image is found too: that piece hides its line
-    ;; with an empty display string and shows the row on the
-    ;; before-string, and reading the display first lost every link of
-    ;; the cell — the badge a notebook opens with included
-    (erase-buffer)
-    (insert "# %% [markdown]\n"
-            "# [![badge](f.png)](https://colab.google/) and "
-            "[plain](https://gnu.org/).\n\n# %%\nx = 1\n")
-    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-              ((symbol-function 'create-image)
-               (lambda (f &rest _) (list 'image :type 'png :file f))))
-      (pycell-md-render-all))
-    (goto-char (point-min))
-    (forward-line 1)
-    (should (equal (mapcar #'cdr (pycell--md-links (pycell--md-at nil)))
-                   '("https://colab.google/" "https://gnu.org/")))
     ;; and a cell with no link says so
     (erase-buffer)
     (insert "# %% [markdown]\n# No link here.\n\n# %%\nx = 1\n")
@@ -1335,6 +1319,32 @@ cell is asked for its links instead."
     (goto-char (point-min))
     (forward-line 1)
     (should-error (pycell-md-follow-link) :type 'user-error)))
+
+(ert-deftest pycell-test-a-link-on-an-image-is-found ()
+  "A link around an image is found with the rest.
+The piece that holds an image hides its line with an empty display
+string and shows the row on the before-string, and reading the display
+first lost every link of the cell — the badge a notebook opens with
+included.
+
+An Emacs that cannot read a PNG draws no image and keeps no link on
+one: `overblock-md--image-file\\=' answers nil for every path there."
+  (skip-unless (overblock-md-program))
+  (skip-unless (image-type-available-p 'png))
+  (with-temp-buffer
+    (insert "# %% [markdown]\n"
+            "# [![badge](f.png)](https://colab.google/) and "
+            "[plain](https://gnu.org/).\n\n# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+              ((symbol-function 'create-image)
+               (lambda (f &rest _) (list 'image :type 'png :file f))))
+      (pycell-md-render-all))
+    (goto-char (point-min))
+    (forward-line 1)
+    (should (equal (mapcar #'cdr (pycell--md-links (pycell--md-at nil)))
+                   '("https://colab.google/" "https://gnu.org/")))))
 
 (ert-deftest pycell-test-a-pop-out-follows-a-running-cell ()
   "A popped-out result keeps filling while the cell runs.
