@@ -785,23 +785,23 @@ several of them lead with a space, and a space is always available."
                        candidates))
         (car (last candidates)))))
 
+;; The press answers, not the release.  A block is in the text area,
+;; where a press reaches `mouse-drag-region', which follows the mouse
+;; and keeps the release to itself.  Measured with real clicks at the
+;; centre of every button of a cell bar, a keymap that bound the release
+;; alone ran `mouse-set-point' and nothing else — while `key-binding' at
+;; those same pixels answered with the command, which is how this
+;; survived every test that asked the keymap instead of clicking.  A
+;; header line has no drag to lose, which is why the buttons of one
+;; always worked.
+;;
+;; The release goes to `ignore' so that it neither sets point nor reaches
+;; whatever else would take it, and so does the drag: a command that
+;; moves the text under the pointer — the move buttons do — turns the
+;; release into a drag, and that drag left a region behind.
 (defun overblock-button (label help command)
   "Return LABEL as a button.
-A left click calls COMMAND, and HELP becomes the tooltip.
-
-The press and not the release: a block is in the text area, where
-`down-mouse-1\\=' reaches `mouse-drag-region\\=', which follows the mouse and
-keeps the release to itself.  Measured with real clicks at the centre of
-every button of a cell bar, a keymap that bound `mouse-1\\=' alone ran
-`mouse-set-point\\=' and nothing else — while `key-binding\\=' at those same
-pixels answered with the command, which is how this survived every test
-that asked the keymap instead of clicking.  A header line has no drag to
-lose, which is why the buttons of one always worked.
-
-The release is bound to `ignore\\=' so that it neither sets point nor
-reaches whatever else would take it, and so is the drag: a command that
-moves the text under the pointer — the move buttons do — made the
-release a drag, and that drag left a region behind."
+A left click calls COMMAND, and HELP becomes the tooltip."
   (propertize label 'mouse-face 'highlight 'help-echo help
               'keymap (define-keymap
                         "<down-mouse-1>" command
@@ -991,10 +991,10 @@ compared, because the label is usually written on it."
 
 (defun overblock--bar-wear (ov text)
   "Put TEXT on OV in place of the line, with room for the caret.
-All of TEXT but its last character rides the `before-string\\=', whose own
-(space :align-to (- right ...)) is looked at — a display string's is
-not, and the icons would sit beside the label instead of at the window
-edge.  The last character is the display itself and carries `cursor\\=', so
+All of TEXT but its last character rides the `before-string\\=', whose
+own \\(space :align-to \\(- right ...)) is looked at — a display string's
+is not, and the icons would sit beside the label instead of at the
+window edge.  The last character is the display itself and carries `cursor\\=', so
 the caret has a glyph to draw on: over an empty display it had none, and
 point could stand on a boundary line with nothing to show it — a line
 that could not be folded from.
