@@ -76,10 +76,12 @@ the window edge, less the glyph that leads it."
                                                    'display nil text))
                    (label (substring-no-properties text 0 stretch)))
               (string-trim (substring label (1+ (string-search " " label))))))
+          ;; Not `sort' with keywords: that calling convention is
+          ;; Emacs 30, and this package declares 29.1.
           (sort (seq-filter (lambda (ov)
                               (eq (overlay-get ov 'overblock-bar) 'code))
                             (overblock-bars))
-                :key #'overlay-start)))
+                (lambda (a b) (< (overlay-start a) (overlay-start b))))))
 
 ;;;; Helpers
 
@@ -1693,7 +1695,9 @@ A markdown boundary line is left to the rendering, which brings its own."
                                          (re-search-forward "\\[markdown\\]")
                                          (pos-bol))
                                        (point-max))))
-    (let ((bar (car (sort (overblock-bars) :key #'overlay-start))))
+    (let ((bar (car (sort (overblock-bars)
+                          (lambda (a b)
+                            (< (overlay-start a) (overlay-start b)))))))
       (should (equal (overlay-get bar 'overblock-bar) 'code))
       (should (equal (overlay-get bar 'display) ""))
       (should (equal (buffer-substring-no-properties (overlay-start bar)
@@ -1723,7 +1727,9 @@ And a line that becomes a markdown boundary loses the code bar it had."
 One or the other: the bar fills the window, so a line drawing both took
 a second row and the buffer moved under the reader."
   (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
-    (let ((bar (car (sort (overblock-bars) :key #'overlay-start))))
+    (let ((bar (car (sort (overblock-bars)
+                          (lambda (a b)
+                            (< (overlay-start a) (overlay-start b)))))))
       (goto-char (overlay-start bar))
       (overblock-bar-reveal)
       (should-not (overlay-get bar 'display))
