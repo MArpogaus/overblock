@@ -1905,6 +1905,32 @@ saying =[markdown]=, and the code bar was drawn beside it."
       (insert "# %% One")
       (should (equal (funcall line) '(code 1))))))
 
+(ert-deftest pycell-test-one-glyph-means-one-thing ()
+  "No two buttons draw the same glyph, in any row of candidates.
+A frame draws whichever row it can: the nerd glyphs, the symbols an
+ordinary font has, or the plain characters a terminal falls to.  Two
+rounds of this: `^\\=' meant both \"pop this result out\" and \"edit this
+cell\" in the last row, and `↗\\=' meant both in the middle one, which is
+the row a frame with a font and no nerd glyphs draws."
+  (let ((bars (list pycell-result-buttons pycell-markdown-buttons
+                    pycell-cell-buttons pycell-source-buttons)))
+    (dotimes (row 3)
+      ;; No glyph twice on one bar.
+      (dolist (buttons bars)
+        (let ((glyphs (mapcar (lambda (button) (nth row (nth 1 button)))
+                              buttons)))
+          (should (equal glyphs (delete-dups (copy-sequence glyphs))))))
+      ;; And one glyph, one command, across all of them.
+      (let (seen)
+        (dolist (buttons bars)
+          (dolist (button buttons)
+            (let* ((glyph (nth row (nth 1 button)))
+                   (command (nth 3 button))
+                   (before (assoc glyph seen)))
+              (when before
+                (should (eq (cdr before) command)))
+              (push (cons glyph command) seen))))))))
+
 (ert-deftest pycell-test-customizing-the-buttons-draws-the-bars-again ()
   "A button list set with `setopt\\=' shows on a notebook already open.
 It showed only when something else drew a bar again — a window changing

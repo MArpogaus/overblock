@@ -128,9 +128,9 @@ this list: they say what the result is doing."
 (defcustom pycell-markdown-buttons
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
-    (edit ("󱦴" "↗" "e") "Edit this markdown cell in its own buffer"
+    (edit ("󰲶" "✎" "e") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("󰅖" "✕" "s") "Show the plain source" pycell-md-raw t))
+    (source ("󰕍" "⟲" "s") "Show the plain source" pycell-md-raw t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
@@ -138,15 +138,20 @@ no output, so `lines' and `image' say nothing here."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-source-buttons
-  '((move-up ("\U000f0143" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("\U000f0140" "⌄" "d") "Move this cell down"
+  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down"
                pycell-move-cell-down t)
-    (render ("\U000f0f5b" "◇" "m") "Render this markdown cell"
+    (render ("󰑐" "⟳" "m") "Render this markdown cell"
             pycell-md-render-cell t))
   "The buttons on the bar of a markdown cell that shows its source.
 The entries read as in `pycell-result-buttons\\='.  Such a cell is one
 just written, or one taken back to its source with `pycell-md-raw\\=';
-the third button renders it."
+the third button renders it.
+
+No glyph of a bar is the glyph of another button of that bar, or of a
+button that means something else on another kind of bar — in any of the
+three rows of candidates.  A frame draws whichever row it can, and a
+frame with a font but no nerd glyphs draws the second one."
   :type overblock-button-type
   :set #'pycell--set-buttons)
 
@@ -1297,7 +1302,7 @@ all, and the line read as one the package had lost track of."
                (overblock-bar-over bol eol)))
     (move-overlay ov bol eol)
     (overblock-bar-draw ov 'source
-                        (concat (overblock-glyph "\U000f0f5b" "◇" "M") " "
+                        (concat (overblock-glyph "󰽛" "◇" "M") " "
                                 (or (pycell--cell-title bol eol) "markdown"))
                         (overblock-buttons pycell-source-buttons)
                         'pycell-header)))
