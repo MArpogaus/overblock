@@ -659,19 +659,29 @@ cell."
     ;; stayed where it was.
     (goto-char beg)
     ;; This signals when there is nowhere to move, before anything is
-    ;; taken off.
-    (let ((pycell--moving t))
-      (condition-case nil
+    ;; taken off.  Any error puts point back where the reader had it:
+    ;; outline walks point before it refuses, and an error of a kind
+    ;; not named here — one from a mode whose headings are in
+    ;; `outline-regexp' beside the cells — left the reader inside
+    ;; another cell with nothing said.
+    (let ((pycell--moving t)
+          (here (point-marker)))
+      (condition-case error
           (outline-move-subtree-down arg)
         ;; The text before the first boundary line is a cell to
         ;; code-cells and no subtree at all to outline.
         (outline-before-first-heading
+         (goto-char here)
          (user-error "Can't move the text above the first cell"))
         ;; Outline says "Cannot move past superior level", which is
         ;; about headings and levels: neither is a word this package
         ;; uses, and the reader pressed an arrow on a cell.
         (user-error
-         (user-error "No cell to swap this one with"))))
+         (goto-char here)
+         (user-error "No cell to swap this one with"))
+        (error
+         (goto-char here)
+         (signal (car error) (cdr error)))))
     ;; Point is where the cell that moved now begins, so the buffer is
     ;; asked for the two ranges rather than counting them out.
     (overblock-clear (min beg nbeg) (max end nend))
@@ -1033,6 +1043,14 @@ block keeps under `:bar\\='.  It is remade rather than the cell rendered
 again when the window changes width: the rendering does not depend on
 the width, and the label of the bar does."
   (when (overlay-buffer hov)
+    ;; The overlay does not grow at its end, so a title typed at the end
+    ;; of the boundary line fell outside it: the label was read from the
+    ;; stale region and the text beyond it drew after the bar, which
+    ;; made the row two rows.  The code and source bars move theirs to
+    ;; the line first; this one now does too.
+    (save-excursion
+      (goto-char (overlay-start hov))
+      (move-overlay hov (pos-bol) (pos-eol)))
     (overblock-bar-draw hov 'markdown
                         (concat (overblock-glyph "󰽛" "◇" "M") " "
                                 (or (pycell--cell-title (overlay-start hov)
@@ -1483,14 +1501,48 @@ gives point back instead: the reader pressed a button there.")
   (when-let* ((shell (pycell--queue-buffer)))
     (buffer-local-value 'pycell--queue shell)))
 
+(defconst pycell--error-tail
+  (concat "\\`"
+          "\\(?:[a-z][a-zA-Z0-9_]*\\.\\)*"       ; a module path, if any
+          "[A-Z][a-zA-Z0-9_]*"                   ; the exception's name
+          "\\(?:Error\\|Exception\\|Exit\\|Interrupt\\|Iteration\\)"
+          "\\(?::\\|\\'\\)")
+  "What the last line of failed output looks like.
+The name of an exception, and nothing before it.")
+
+(defun pycell--error-p (text)
+  "Whether TEXT is the output of a cell that failed.
+A traceback says so in its first line, but not every failure has one:
+`SyntaxError\\=' and `SystemExit\\=' print the name of the exception and
+nothing else, and a pass ran happily past a cell holding `x = = 1\\='.
+So the last line of the output answers as well — that is where the name
+of the exception stands, whether a traceback led to it or not."
+  (or (string-match-p "Traceback (most recent call last)" text)
+      (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
+                  (last (car (last lines))))
+        (string-match-p pycell--error-tail last))))
+
 (defun pycell--go-home ()
-  "Put point back where the pass that has just ended was asked for."
+  "Put point back where the pass that has just ended was asked for.
+The windows showing the notebook go there too: a window keeps a point
+of its own while its buffer is not the selected one, and a pass ended
+while the reader looked elsewhere left that window at whatever line it
+had been scrolled to."
   (when-let* ((shell (pycell--queue-buffer))
-              (home (buffer-local-value 'pycell--queue-home shell))
-              ((buffer-live-p (marker-buffer home))))
+              (home (buffer-local-value 'pycell--queue-home shell)))
+    ;; The marker goes whatever happens next, so a notebook that was
+    ;; killed while its pass ran leaves nothing behind to act on.
     (with-current-buffer shell (setq pycell--queue-home nil))
-    (with-current-buffer (marker-buffer home)
-      (goto-char home))))
+    (when (buffer-live-p (marker-buffer home))
+      (with-current-buffer (marker-buffer home)
+        (goto-char home)
+        (dolist (window (get-buffer-window-list nil nil t))
+          (set-window-point window home))))))
+
+(defun pycell--home-set (marker)
+  "Give the shell MARKER as the place its pass came from, or nil for none."
+  (when-let* ((shell (pycell--queue-buffer)))
+    (with-current-buffer shell (setq pycell--queue-home marker))))
 
 (defun pycell--queue-set (cells)
   "Give the shell CELLS to run, and answer them."
@@ -1634,7 +1686,10 @@ was reporting.  `pycell--abort' asks the same question."
       (pycell--follow-tick)
       (setq pycell--run nil)
       (cancel-timer timer)
-      (when died (setq pycell--queue nil))
+      ;; The pass is over, and so is the place it came from: a marker
+      ;; left behind would take point there at the end of the next
+      ;; single cell to run.
+      (when died (setq pycell--queue nil pycell--queue-home nil))
       (when (buffer-live-p (marker-buffer beg))
         (with-current-buffer (marker-buffer beg)
           (pycell--show beg fin text (- (float-time) start)
@@ -1646,7 +1701,7 @@ was reporting.  `pycell--abort' asks the same question."
       ;; `pycell--run-next' to find nothing left never happened and
       ;; point stayed on whatever cell ran last.
       (cond ((null pycell--queue) (pycell--go-home))
-            ((string-match-p "Traceback (most recent call last)" text)
+            ((pycell--error-p text)
              (setq pycell--queue nil)
              (message "pycell: stopped at error")
              (pycell--go-home))
@@ -2078,22 +2133,28 @@ Each cell goes on the prompt of the one before it, so the queue is left
 with the shell and `pycell--run-next\\=' takes the next one off it.  The
 interpreter starts where there is none, and the pass begins on its
 first prompt."
-  (let ((here (point-marker)))
-    (when-let* ((shell (pycell--queue-buffer)))
-      (with-current-buffer shell (setq pycell--queue-home here))))
   (if (python-shell-get-process)
       ;; A cell that will not start takes the whole pass with it: the
       ;; queue was left armed by a refusal, and the cells ran later
       ;; without being asked for, less the one the refusal had already
       ;; taken off it.
-      (progn (pycell--queue-set cells)
+      (progn (pycell--home-set (point-marker))
+             (pycell--queue-set cells)
              (condition-case err
                  (pycell--run-next)
+               ;; A cell that will not start takes the home with it, or
+               ;; the marker of a pass that never ran drags point when
+               ;; the cell that refused it ends.
                (error (pycell--queue-set nil)
+                      (pycell--home-set nil)
                       (signal (car err) (cdr err)))))
     (run-python nil (pycell--dedicated))
     (with-current-buffer (process-buffer (python-shell-get-process-or-error))
       (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
+    ;; After the interpreter, not before it: the home belongs to the
+    ;; shell's buffer, and the first pass of a session had none to put
+    ;; it in — so that pass never brought point back.
+    (pycell--home-set (point-marker))
     (pycell--queue-set cells)
     (message "pycell: starting the interpreter…"))
   (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
@@ -2127,6 +2188,7 @@ The pass stops at the first error, or on \
 \\<pycell-stop-map>\\[pycell-stop]."
   (interactive)
   (pycell-restart)
+  (pycell--home-set (point-marker))
   (pycell--queue-set (pycell--cell-starts))
   ;; Evaluation may only start once the fresh interpreter prompted —
   ;; and after comint-mime's setup, which runs off the same hook;

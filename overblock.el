@@ -877,10 +877,15 @@ has nothing to compare."
     ;; and drew for ever: measured at 99.5% of a core and 91 GB of
     ;; memory in a notebook edited while the reader looked elsewhere.
     (save-excursion
-      (apply #'min (mapcar (lambda (window)
-                             (* (window-max-chars-per-line window)
-                                (window-font-width window)))
-                           windows)))))
+      ;; Never below zero.  `window-max-chars-per-line' answers with a
+      ;; negative count where the font is far larger than the window —
+      ;; measured, a 32 column frame under `text-scale-set' 10 said -22,
+      ;; and a width of -1430 pixels put the bar through the branch for
+      ;; a window with no room at all and then wrapped it.
+      (max 0 (apply #'min (mapcar (lambda (window)
+                                    (* (window-max-chars-per-line window)
+                                       (window-font-width window)))
+                                  windows))))))
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
@@ -929,7 +934,13 @@ nothing rebuilds the header after the cell has ended."
          ;; drew all its icons when the notebook was opened and dropped
          ;; the last one onto a row of its own after the first command —
          ;; same string, same spec, same window.
-         (slack (if (display-graphic-p) (frame-char-width) 2))
+         ;; A terminal keeps three columns: two for the reason below,
+         ;; and one more for the ellipsis an outline fold hangs after
+         ;; the line — measured with `truncate-lines' off, which is
+         ;; Emacs's own default, every folded bar took two rows.  A
+         ;; graphic frame needs no third: the same fold there stays on
+         ;; one row.
+         (slack (if (display-graphic-p) (frame-char-width) 3))
          (width (+ (overblock--pixel-width (propertize icons 'face face))
                    slack))
          (available (overblock-window-width))
@@ -941,7 +952,12 @@ nothing rebuilds the header after the cell has ended."
     ;; a wrapped bar, and a wrapped bar is two rows of almost nothing.
     ;; Measured at 16 columns, two rows with the icons and one without.
     (when (and room (<= room 0))
-      (setq icons "" width slack left "…"))
+      (setq icons "" width slack left "…")
+      ;; And where the window is one character wide, the ellipsis is the
+      ;; whole bar: the stretch that would follow it costs a second
+      ;; character, which is a second row.
+      (when (< available (* 2 (frame-char-width)))
+        (setq width 0 slack 0)))
     (setq left (cond
                 ;; No window to wrap in, so nothing to cut for.
                 ((null room) left)
