@@ -48,6 +48,13 @@ repos:
     language: system
     files: \.el$
     pass_filenames: false
+  - id: relint
+    name: relint
+    description: The regexps and the doc string escapes of every Lisp file.
+    entry: make relint
+    language: system
+    files: \.el$
+    pass_filenames: false
   - id: lint
     name: package-lint
     description: The MELPA rules, before a push rather than a commit.
