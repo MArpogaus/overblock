@@ -27,10 +27,16 @@ which is what the picture has always shown.
 
 The size on the command line is not decoration.  =set-frame-size= is a
 request, and a bare X server with no window manager can ignore it: six
-recordings in a row came out 904x828 instead of 1120x680, with the
+recordings in a row came out 904x828 instead of 1135x667, with the
 markdown wrapped and the animation half as large again, and nothing
 said so.  The script now waits for the size, writes what it got to the
-trace, and refuses to record a picture of the wrong shape.
+trace, and refuses to record a picture of the wrong shape.  1135x667 is
+what Source Code Pro 13 gives at 101 by 29 characters, and 820x482 —
+the size of the animation — is exactly that scaled.
+
+The fallback glyphs the recording shows are the *second* row of
+candidates, not the plain one: Source Code Pro draws =◆=, =↗=, =✕= and
+their like.  A terminal is what draws the third row.
 
 The script drives the whole session.  It captures one frame for each
 scroll step, and ten frames each second while a view stays.  Nothing

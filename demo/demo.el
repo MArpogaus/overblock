@@ -19,7 +19,12 @@
                           '("Source Code Pro 13" "DejaVu Sans Mono 13"
                             "Liberation Mono 13" "Monospace 13"))
                 nil t)
-(set-frame-size (selected-frame) 1120 680 t)
+;; The size every recording has been made at.  Asked for in
+;; characters: with no window manager the frame snaps to whole
+;; characters anyway, and asking in pixels for anything else landed
+;; here regardless — 820x482, the size of the animation, is exactly
+;; this scaled.
+(set-frame-size (selected-frame) 101 29)
 (set-frame-position (selected-frame) 0 0)
 (setq-default cursor-type 'bar)
 (fringe-mode 12)
@@ -80,13 +85,15 @@ used to fail."
   "Say whether the frame is WIDTH by HEIGHT pixels, and stop where it is not.
 `set-frame-size' is a request.  Under a bare X server with no window
 manager it can be ignored, and the font arrives later still: six
-recordings in a row came out 904x828 rather than 1120x680, with the
+recordings in a row came out 904x828 rather than 1135x667, with the
 markdown wrapped and the animation half as large again.  Nothing said
 so.  Give the frame a moment to settle, then refuse to record a picture
 of the wrong shape.
 
 Where it will not settle, start Emacs with the size on the command line
-instead: `emacs -Q -g 101x29 -l demo.el'."
+instead: `emacs -Q -g 101x29 -l demo.el'.  The numbers are what Source
+Code Pro 13 gives at 101x29, and what every shipped animation was made
+from; another font needs another pair, and the trace says which."
   (let ((tries 0))
     (while (and (< (cl-incf tries) 40)
                 (not (and (= (frame-pixel-width) width)
@@ -143,7 +150,7 @@ instead: `emacs -Q -g 101x29 -l demo.el'."
   (code-cells-mode 1)          ; pycell-mode comes along and renders
   (pycell-mode -1)             ; ... but start plain, to show the change
   (redisplay t)
-  (demo--check-size 1120 680)
+  (demo--check-size 1135 667)
   (write-region "" nil "/tmp/demo/ready")
   (demo--wait "/tmp/demo/go")
   (message nil)
