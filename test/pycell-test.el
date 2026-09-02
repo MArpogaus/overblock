@@ -49,6 +49,38 @@
      (goto-char (point-min))
      ,@body))
 
+(defmacro pycell-test--with-notebook (text &rest body)
+  "Evaluate BODY in a Python buffer holding TEXT, with the mode on.
+The buffer is shown in a window: a bar is cut to the width of the
+windows that show it, and a command that follows a click selects one."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (insert ,text)
+     (python-mode)
+     (set-window-buffer nil (current-buffer))
+     (code-cells-mode)
+     (pycell-mode)
+     (goto-char (point-min))
+     (unwind-protect (progn ,@body)
+       (pycell-mode -1))))
+
+(defun pycell-test--bar-labels ()
+  "Return the label of every code cell bar of the buffer, in order.
+The bars of rendered markdown cells are left out: whether a cell renders
+at all depends on a converter being installed.
+The label is what stands before the stretch that holds the icons out at
+the window edge, less the glyph that leads it."
+  (mapcar (lambda (ov)
+            (let* ((text (or (overlay-get ov 'pycell-bar-text) ""))
+                   (stretch (text-property-not-all 0 (length text)
+                                                   'display nil text))
+                   (label (substring-no-properties text 0 stretch)))
+              (string-trim (substring label (1+ (string-search " " label))))))
+          (sort (seq-filter (lambda (ov)
+                              (eq (overlay-get ov 'pycell-bar) 'code))
+                            (pycell--bars))
+                :key #'overlay-start)))
+
 ;;;; Helpers
 
 (ert-deftest pycell-test-clean-prompts ()
@@ -1581,39 +1613,58 @@ the process filter, and the cell, already off the queue, never ran."
             (should (= (length (pycell--queued)) 1)))
         (kill-buffer shell)))))
 
+(ert-deftest pycell-test-copy-output-keeps-what-the-result-holds ()
+  "The copy carries the text properties, so an image survives a yank.
+It is the result the click landed on, not the one point is in.
+The buffer has to be in a window: a click carries the window it landed
+in, and the commands select it."
+  (pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (let ((kill-ring nil)
+          (in-the-first-cell nil))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (setq in-the-first-cell beg)
+        (pycell--show beg end (concat "a line\n" pycell-test--image) 0.1))
+      ;; point in the other cell: the click decides which result is copied
+      (goto-char (point-max))
+      (pycell-copy-output (list 'mouse-1 (list (selected-window)
+                                               in-the-first-cell
+                                               (cons 0 0) 0)))
+      (should (string-prefix-p "a line" (current-kill 0)))
+      (should (overblock-image-in (current-kill 0))))))
+
+(ert-deftest pycell-test-discard-output-takes-one-result ()
+  "The result of the cell that was clicked goes, and no other."
+  (pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (dolist (which '(1 -1))
+      (goto-char (if (> which 0) (point-min) (point-max)))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end "out" 0.1)))
+    (should (= 2 (length (overblock-in (point-min) (point-max) 'result))))
+    (goto-char (point-min))
+    (pycell-discard-output)
+    (should (= 1 (length (overblock-in (point-min) (point-max) 'result))))
+    ;; the one left is the second cell's
+    (should (> (overlay-start (car (overblock-in (point-min) (point-max)
+                                                 'result)))
+               (point-min)))
+    ;; and asking again where there is none says so rather than guessing
+    (should-error (pycell-discard-output) :type 'user-error)))
+
+(ert-deftest pycell-test-a-markdown-edit-can-be-abandoned ()
+  "`pycell-md-abort\\=' leaves the source as it was, and the window with it."
+  (let ((buffer (get-buffer-create " *pycell test md abort*")))
+    (unwind-protect
+        (with-current-buffer buffer
+          (setq-local pycell--md-source (list (current-buffer) 1 2))
+          (should (commandp 'pycell-md-abort))
+          (cl-letf (((symbol-function 'quit-window)
+                     (lambda (&optional kill _window)
+                       (should kill)
+                       (throw 'quit t))))
+            (should (catch 'quit (pycell-md-abort) nil))))
+      (kill-buffer buffer))))
+
 ;;;; The bar over a boundary line
-
-(defmacro pycell-test--with-notebook (text &rest body)
-  "Evaluate BODY in a Python buffer holding TEXT, with the mode on.
-The buffer is shown in a window: a bar is cut to the width of the
-windows that show it, and a command that follows a click selects one."
-  (declare (indent 1))
-  `(with-temp-buffer
-     (insert ,text)
-     (python-mode)
-     (set-window-buffer nil (current-buffer))
-     (code-cells-mode)
-     (pycell-mode)
-     (goto-char (point-min))
-     (unwind-protect (progn ,@body)
-       (pycell-mode -1))))
-
-(defun pycell-test--bar-labels ()
-  "Return the label of every code cell bar of the buffer, in order.
-The bars of rendered markdown cells are left out: whether a cell renders
-at all depends on a converter being installed.
-The label is what stands before the stretch that holds the icons out at
-the window edge, less the glyph that leads it."
-  (mapcar (lambda (ov)
-            (let* ((text (or (overlay-get ov 'pycell-bar-text) ""))
-                   (stretch (text-property-not-all 0 (length text)
-                                                   'display nil text))
-                   (label (substring-no-properties text 0 stretch)))
-              (string-trim (substring label (1+ (string-search " " label))))))
-          (sort (seq-filter (lambda (ov)
-                              (eq (overlay-get ov 'pycell-bar) 'code))
-                            (pycell--bars))
-                :key #'overlay-start)))
 
 (ert-deftest pycell-test-the-title-is-what-follows-the-marker ()
   "The text after the marker names the cell, and a tag list is not text."
