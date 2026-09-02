@@ -113,7 +113,13 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 - KEY names the button for you, and nothing else reads it.
 - GLYPHS are the candidates for its label.  The first one the frame
   can draw wins, and the last one always answers, so keep a plain
-  character at the end.
+  character at the end.  Three of them is the shape used here: a nerd
+  glyph, a character an ordinary monospace font has, and a plain one
+  for a terminal.  Ask the font about the middle one before choosing
+  it — measured, `⏫\\=' is in none of Source Code Pro, Liberation Mono
+  or FiraCode Nerd Font, so a frame without nerd glyphs fell all the
+  way to the plain character for that button and to a symbol for every
+  other.
 - HELP is the tooltip.
 - COMMAND runs on a click.
 - WHEN says when the button shows: t always, `image' only with an
@@ -159,7 +165,7 @@ frame with a font but no nerd glyphs draws the second one."
   '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down"
                pycell-move-cell-down t)
-    (run-above ("󱏦" "⏫" "a") "Run every cell above this one"
+    (run-above ("󱏦" "⇈" "a") "Run every cell above this one"
                pycell-run-above t)
     (run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t))
   "The buttons on the bar of a code cell, left to right.
