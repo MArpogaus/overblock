@@ -64,6 +64,16 @@ windows that show it, and a command that follows a click selects one."
      (unwind-protect (progn ,@body)
        (pycell-mode -1))))
 
+(defun pycell-test--bar-texts ()
+  "Return the whole text of every code cell bar of the buffer, in order."
+  (mapcar (lambda (ov)
+            (substring-no-properties (or (overlay-get ov 'overblock-bar-text)
+                                         "")))
+          (sort (seq-filter (lambda (ov)
+                              (eq (overlay-get ov 'overblock-bar) 'code))
+                            (overblock-bars))
+                (lambda (a b) (< (overlay-start a) (overlay-start b))))))
+
 (defun pycell-test--bar-labels ()
   "Return the label of every code cell bar of the buffer, in order.
 The bars of rendered markdown cells are left out: whether a cell renders
@@ -1894,6 +1904,21 @@ saying =[markdown]=, and the code bar was drawn beside it."
       (delete-region (pos-bol) (pos-eol))
       (insert "# %% One")
       (should (equal (funcall line) '(code 1))))))
+
+(ert-deftest pycell-test-customizing-the-buttons-draws-the-bars-again ()
+  "A button list set with `setopt\\=' shows on a notebook already open.
+It showed only when something else drew a bar again — a window changing
+width, or the file opened afresh — so customizing the buttons of an open
+notebook appeared to do nothing."
+  (let ((was pycell-cell-buttons))
+    (pycell-test--with-notebook "# %% One\nx = 1\n"
+      (unwind-protect
+          (progn
+            (should-not (string-search "ZZ" (car (pycell-test--bar-texts))))
+            (setopt pycell-cell-buttons
+                    '((only ("ZZ") "The only button" pycell-run-cell t)))
+            (should (string-search "ZZ" (car (pycell-test--bar-texts)))))
+        (setopt pycell-cell-buttons was)))))
 
 (ert-deftest pycell-test-a-click-on-a-bar-leaves-the-bar-showing ()
   "Point lands below the bar, not on it, so the button can be pressed again.
