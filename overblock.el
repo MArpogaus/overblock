@@ -861,10 +861,18 @@ Nil where no visible window shows the buffer.  A bar is then not cut at
 all — there is nothing to wrap in — and a caller that caches the width
 has nothing to compare."
   (when-let* ((windows (get-buffer-window-list nil nil 'visible)))
-    (apply #'min (mapcar (lambda (window)
-                           (* (window-max-chars-per-line window)
-                              (window-font-width window)))
-                         windows))))
+    ;; `save-excursion': both of these select the window they measure,
+    ;; which sets this buffer's point to that window's point, and
+    ;; nothing puts it back when the buffer is not the selected
+    ;; window's.  A caller that walks the buffer with point — the walk
+    ;; that draws the bars does — was sent back to a line it had passed
+    ;; and drew for ever: measured at 99.5% of a core and 91 GB of
+    ;; memory in a notebook edited while the reader looked elsewhere.
+    (save-excursion
+      (apply #'min (mapcar (lambda (window)
+                             (* (window-max-chars-per-line window)
+                                (window-font-width window)))
+                           windows)))))
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
@@ -942,13 +950,14 @@ nothing rebuilds the header after the cell has ended."
 
 (defun overblock-bar-over (beg end)
   "Return an overlay that shows a bar in place of the text BEG..END.
-The text stays in the buffer and draws as nothing; the caller puts the
-bar `overblock-bar\\=' built on the `before-string\\=' of this overlay, and
-puts it there again whenever the label or the window width changes.
+The text stays in the buffer and draws as nothing until
+`overblock-bar-draw\\=' puts the bar `overblock-bar\\=' built on this
+overlay, and puts it there again whenever the label or the window width
+changes.
 
-A string on an overlay and not a display property on the text: a
-display string ignores (space :align-to (- right ...)), and the icons
-then sit beside the label instead of at the window edge."
+Most of the bar rides an overlay string rather than a display property
+on the text: a display string ignores (space :align-to (- right ...)),
+and the icons then sit beside the label instead of at the window edge."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'display "")
@@ -970,11 +979,30 @@ compared, because the label is usually written on it."
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
       (overlay-put ov 'overblock-bar-text (overblock-bar label icons face))
-      ;; The text of the line draws as nothing and the bar draws in its
-      ;; place, and it stays there: a bar that gave way to its line under
-      ;; point left the cell being worked in as the one without a header.
-      (overlay-put ov 'display "")
-      (overlay-put ov 'before-string (overlay-get ov 'overblock-bar-text)))))
+      (overblock--bar-wear ov (overlay-get ov 'overblock-bar-text)))))
+
+(defun overblock--bar-wear (ov text)
+  "Put TEXT on OV in place of the line, with room for the caret.
+The first glyph replaces the line's own text and carries `cursor\\=', so
+the caret has a glyph to draw on: over an empty display it had none, and
+point could stand on a boundary line with nothing to show it — a line
+that could not be folded from.  The rest rides the `after-string\\=',
+whose own (space :align-to (- right ...)) is looked at, as a display
+string's is not."
+  (if (string-empty-p text)
+      (progn (overlay-put ov 'display "")
+             (overlay-put ov 'after-string nil))
+    (overlay-put ov 'display (propertize (substring text 0 1) 'cursor t))
+    (overlay-put ov 'after-string (substring text 1)))
+  (overlay-put ov 'before-string nil))
+
+(defun overblock-bar-stale (ov)
+  "Make OV forget what it was drawn from, so the next draw rebuilds it.
+`overblock-bar-draw\\=' leaves a bar as it is where nothing it compares
+has changed.  A change it cannot see is the caller's to declare: the
+buffer's font size is one, because the room a label has is the same
+number of pixels at any size and the label's own width is not."
+  (overlay-put ov 'overblock-bar-state nil))
 
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.

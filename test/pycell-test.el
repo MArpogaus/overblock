@@ -1758,7 +1758,11 @@ A markdown boundary line is left to the rendering, which brings its own."
                           (lambda (a b)
                             (< (overlay-start a) (overlay-start b)))))))
       (should (equal (overlay-get bar 'overblock-bar) 'code))
-      (should (equal (overlay-get bar 'display) ""))
+      ;; The line's own text draws as the bar's first glyph, which
+      ;; carries `cursor\=' so the caret has somewhere to be, and the
+      ;; rest of the bar follows it.
+      (should (eq (get-text-property 0 'cursor (overlay-get bar 'display)) t))
+      (should (overlay-get bar 'after-string))
       (should (equal (buffer-substring-no-properties (overlay-start bar)
                                                      (overlay-end bar))
                      "# %%")))))
@@ -1920,7 +1924,21 @@ the row a frame with a font and no nerd glyphs draws."
                    (before (assoc glyph seen)))
               (when before
                 (should (eq (cdr before) command)))
-              (push (cons glyph command) seen))))))))
+              (push (cons glyph command) seen))))))
+    ;; A frame draws no row whole: `overblock-glyph' answers for one
+    ;; button at a time, so a frame with a font that has some of the
+    ;; symbols draws those and falls to the plain characters for the
+    ;; rest.  Measured in a frame with the nerd font truly absent:
+    ;; `u d a ▷ / u d m / u d e s / u d ↓ ◫ ^ x' — two rows at once.  So
+    ;; a glyph stands for one command whichever row it comes from.
+    (let (seen)
+      (dolist (buttons bars)
+        (dolist (button buttons)
+          (dolist (glyph (nth 1 button))
+            (let ((before (assoc glyph seen)))
+              (when before
+                (should (eq (cdr before) (nth 3 button))))
+              (push (cons glyph (nth 3 button)) seen))))))))
 
 (ert-deftest pycell-test-customizing-the-buttons-draws-the-bars-again ()
   "A button list set with `setopt\\=' shows on a notebook already open.
@@ -1987,7 +2005,7 @@ one press and the next."
       ;; the bar is where it was, whatever point does
       (should (overlay-get (save-excursion (goto-char second)
                                            (overblock-bar-on-line))
-                           'before-string)))))
+                           'after-string)))))
 
 (ert-deftest pycell-test-a-refused-pass-leaves-nothing-queued ()
   "A run-above that cannot start leaves no cells behind to run later.
@@ -2011,10 +2029,10 @@ already taken off it."
 
 (ert-deftest pycell-test-a-change-leaves-the-search-alone ()
   "A caller's match survives the bars being drawn.
-`after-change-functions\=' runs between a search and what the searcher
+`after-change-functions\\=' runs between a search and what the searcher
 does with the match, and the walk that draws the bars searches too:
-`replace-match\=' after a `search-forward\=' signalled
-`args-out-of-range\=' while the walk had the match data."
+`replace-match\\=' after a `search-forward\\=' signalled
+`args-out-of-range\\=' while the walk had the match data."
   (pycell-test--with-notebook "# %% code BEFORE\nx = 1\n"
     (goto-char (point-min))
     (should (search-forward "BEFORE" nil t))
