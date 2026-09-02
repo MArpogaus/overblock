@@ -994,10 +994,10 @@ compared, because the label is usually written on it."
 All of TEXT but its last character rides the `before-string\\=', whose
 own \\(space :align-to \\(- right ...)) is looked at — a display string's
 is not, and the icons would sit beside the label instead of at the
-window edge.  The last character is the display itself and carries `cursor\\=', so
-the caret has a glyph to draw on: over an empty display it had none, and
-point could stand on a boundary line with nothing to show it — a line
-that could not be folded from.
+window edge.  The last character is the display itself and carries
+`cursor\\=', which is what gives the caret a glyph to draw on: over an
+empty display there is none, so point could stand on a boundary line
+with nothing to show it — a line that could not be folded from.
 
 The last character and not the first, and never the `after-string\\=': a
 string after the overlay draws at the overlay's end, and a rendering
