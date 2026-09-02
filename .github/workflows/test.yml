@@ -45,5 +45,8 @@ jobs:
         sudo apt-get install -yqq xvfb emacs-gtk pandoc
     - name: Show version
       run: emacs --version
-    - name: Scrolling tests
-      run: make STRICT=1 scroll
+    # Everything, not only the pixels: this is the one Emacs in CI with
+    # image support, so it is the only row where the tests that need a
+    # PNG run rather than skip.
+    - name: The whole suite, then the scrolling tests
+      run: make STRICT=1 all scroll
