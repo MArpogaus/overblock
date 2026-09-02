@@ -146,7 +146,7 @@ the cell and holds buttons at the right edge:
 |--------+-------------------------------|
 | =⌃=    | move this cell up             |
 | =⌄=    | move this cell down           |
-| =⏫=    | run every cell above this one |
+| =⇈=    | run every cell above this one |
 | =▷=    | run this cell                 |
 
 The name is what you write after the marker, so =# %% Load the data=
