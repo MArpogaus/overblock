@@ -287,6 +287,16 @@ is in the string: a window made narrower afterwards — a split, a side
 window, a frame resized — was left with a label too long for it, and
 the header took two rows.  A bar is remade when this changes.")
 
+(defun pycell--rescale ()
+  "Draw the bars again after the text scale changed.
+The room a label has did not change — the window is the same width — but
+the label is cut in pixels and the font is now a different size, so a
+bar cut for the old one took two rows.  Measured at scale +6: a bar of
+132 pixels on a line 64 pixels high."
+  (setq pycell--width nil)
+  (mapc #'overblock-bar-stale (overblock-bars))
+  (pycell--rewidth))
+
 (defun pycell--rewidth ()
   "Draw the bars again where the window has changed width.
 On `window-configuration-change-hook\\=', where it runs for the buffer of
@@ -1413,10 +1423,14 @@ and a code boundary."
      ;; brings its own bar; one showing its source is barred here, with
      ;; the button that renders it.
      ((looking-at-p pycell--md-boundary)
-      (unless (eq (overblock-bar-kind
-                   (pycell--sole-bar bol eol '(markdown source)))
-                  'markdown)
-        (pycell--source-bar bol eol)))
+      (let ((bar (pycell--sole-bar bol eol '(markdown source))))
+        ;; The rendering's own bar is drawn again, not merely left
+        ;; alone: its label is the cell's title, and a title edited on
+        ;; the line stayed on the bar until a width change or the next
+        ;; rendering.
+        (if (eq (overblock-bar-kind bar) 'markdown)
+            (pycell--md-bar bar)
+          (pycell--source-bar bol eol))))
      (t
       ;; A rendering whose line stopped saying =[markdown]= is a
       ;; rendering of nothing, and the bar of a source that is no longer
@@ -1627,11 +1641,16 @@ was reporting.  `pycell--abort' asks the same question."
                         (and died 'died))))
       (pycell--follow-done follow text)
       ;; Keep `pycell-restart-and-run-all' going, or stop on error.
-      (when pycell--queue
-        (if (string-match-p "Traceback (most recent call last)" text)
-            (progn (setq pycell--queue nil)
-                   (message "pycell: stopped at error"))
-          (pycell--run-next))))))
+      ;; Either way the end of a pass takes point home: the last cell of
+      ;; a pass is sent with the queue already empty, so waiting for
+      ;; `pycell--run-next' to find nothing left never happened and
+      ;; point stayed on whatever cell ran last.
+      (cond ((null pycell--queue) (pycell--go-home))
+            ((string-match-p "Traceback (most recent call last)" text)
+             (setq pycell--queue nil)
+             (message "pycell: stopped at error")
+             (pycell--go-home))
+            (t (pycell--run-next))))))
 
 (defun pycell--abort (&optional reason)
   "End the running cell abnormally — its prompt will never return.
@@ -2132,6 +2151,7 @@ the code-cells maps."
         ;; A bar is cut to the width of the window it was built for, so
         ;; a window made narrower afterwards wants it drawn again.
         (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
+        (add-hook 'text-scale-mode-hook #'pycell--rescale nil t)
         (add-hook 'after-change-functions #'pycell--bars-after-change nil t)
         ;; The whole buffer, narrowed or not: a mode turned on under a
         ;; narrowing would otherwise bar the visible cells alone, and
@@ -2140,6 +2160,7 @@ the code-cells maps."
           (pycell--cell-bars (point-min) (point-max)))
         (pycell-md-render-all))
     (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
+    (remove-hook 'text-scale-mode-hook #'pycell--rescale t)
     (remove-hook 'after-change-functions #'pycell--bars-after-change t)
     (mapc #'delete-overlay (overblock-bars))
     ;; Every kind of block goes, rendered markdown cells included.
