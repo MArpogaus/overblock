@@ -76,6 +76,30 @@ used to fail."
     (set-window-start nil target)
     (redisplay t)))
 
+(defun demo--check-size (width height)
+  "Say whether the frame is WIDTH by HEIGHT pixels, and stop where it is not.
+`set-frame-size' is a request.  Under a bare X server with no window
+manager it can be ignored, and the font arrives later still: six
+recordings in a row came out 904x828 rather than 1120x680, with the
+markdown wrapped and the animation half as large again.  Nothing said
+so.  Give the frame a moment to settle, then refuse to record a picture
+of the wrong shape.
+
+Where it will not settle, start Emacs with the size on the command line
+instead: `emacs -Q -g 101x29 -l demo.el'."
+  (let ((tries 0))
+    (while (and (< (cl-incf tries) 40)
+                (not (and (= (frame-pixel-width) width)
+                          (= (frame-pixel-height) height))))
+      (set-frame-size (selected-frame) width height t)
+      (sit-for 0.1))
+    (demo--log "frame %dx%d after %d tries, wanted %dx%d"
+               (frame-pixel-width) (frame-pixel-height) tries width height)
+    (unless (and (= (frame-pixel-width) width)
+                 (= (frame-pixel-height) height))
+      (demo--log "ERROR the frame is not the size the recording wants")
+      (kill-emacs 1))))
+
 (defun demo--log (fmt &rest args)
   (write-region (concat (apply #'format fmt args) "\n") nil "/tmp/demo/trace" t 'quiet))
 
@@ -119,6 +143,7 @@ used to fail."
   (code-cells-mode 1)          ; pycell-mode comes along and renders
   (pycell-mode -1)             ; ... but start plain, to show the change
   (redisplay t)
+  (demo--check-size 1120 680)
   (write-region "" nil "/tmp/demo/ready")
   (demo--wait "/tmp/demo/go")
   (message nil)

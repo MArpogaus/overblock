@@ -133,8 +133,10 @@ The entries read as in `pycell-result-buttons'.  A cell bar is drawn
 before the cell has run, so `lines' and `image' say nothing here.
 
 The two move buttons lead, as they lead on the other two bars: the
-three kinds of bar stand above one another in a notebook, and a button
-that means the same thing is easier to find in the same place."
+three kinds of bar stand above one another in a notebook, and one order
+for all of them is one order to learn.  Not one column: the buttons are
+held at the window edge, so a bar with five of them starts a slot
+further left than a bar with four."
   :type overblock-button-type)
 
 (defcustom pycell-max-lines 12
