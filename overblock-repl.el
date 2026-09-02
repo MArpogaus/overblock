@@ -5,7 +5,6 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; Version: 0.1.0
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/pycell
 
