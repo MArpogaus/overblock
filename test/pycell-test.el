@@ -1666,6 +1666,45 @@ in, and the commands select it."
             (should (catch 'quit (pycell-md-abort) nil))))
       (kill-buffer buffer))))
 
+(ert-deftest pycell-test-save-image-writes-the-bytes-it-was-given ()
+  "The file holds the data of the image, and its type names it.
+A result with no image says so rather than writing an empty file."
+  (pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (let* ((png (propertize " " 'display '(image :type png :data "\211PNG!")))
+           ;; A name with nothing at it: the command hands `write-region'
+           ;; a MUSTBENEW of t, which asks before it overwrites, and a
+           ;; batch Emacs has nobody to ask.
+           (file (expand-file-name (make-temp-name "pycell-image-")
+                                   temporary-file-directory)))
+      (unwind-protect
+          (progn
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (pycell--show beg end (concat "a figure\n" png) 0.1))
+            (cl-letf (((symbol-function 'read-file-name)
+                       (lambda (_prompt &rest _) file)))
+              (pycell-save-image))
+            (should (file-exists-p file))
+            (should (equal (with-temp-buffer
+                             (set-buffer-multibyte nil)
+                             (insert-file-contents-literally file)
+                             (buffer-string))
+                           "\211PNG!"))
+            ;; the default name follows the type of the image
+            (delete-file file)
+            (let (offered)
+              (cl-letf (((symbol-function 'read-file-name)
+                         (lambda (_prompt _dir _default _mustmatch initial)
+                           (setq offered initial)
+                           file)))
+                (pycell-save-image))
+              (should (equal offered "figure.png")))
+            ;; and a result without an image is not a file
+            (goto-char (point-max))
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (pycell--show beg end "no figure here" 0.1))
+            (should-error (pycell-save-image) :type 'user-error))
+        (when (file-exists-p file) (delete-file file))))))
+
 ;;;; The bar over a boundary line
 
 (ert-deftest pycell-test-the-title-is-what-follows-the-marker ()
