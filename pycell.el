@@ -240,7 +240,7 @@ as well."
       (setq pycell--width width)
       (dolist (block (overblock-in (point-min) (point-max) 'result))
         (pycell--update block))
-      (mapc #'pycell--bar-redraw (pycell--bars)))))
+      (mapc #'pycell--bar-redraw (overblock-bars)))))
 
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
@@ -953,12 +953,13 @@ block keeps under `:bar\\='.  It is remade rather than the cell rendered
 again when the window changes width: the rendering does not depend on
 the width, and the label of the bar does."
   (when (overlay-buffer hov)
-    (pycell--bar-draw hov 'markdown
-                      (concat (overblock-glyph "󰽛" "◇" "M") " "
-                              (or (pycell--cell-title (overlay-start hov)
-                                                      (overlay-end hov))
-                                  "markdown"))
-                      (overblock-buttons pycell-markdown-buttons))))
+    (overblock-bar-draw hov 'markdown
+                        (concat (overblock-glyph "󰽛" "◇" "M") " "
+                                (or (pycell--cell-title (overlay-start hov)
+                                                        (overlay-end hov))
+                                    "markdown"))
+                        (overblock-buttons pycell-markdown-buttons)
+                        'pycell-header)))
 
 (defun pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
@@ -1201,64 +1202,24 @@ after what it holds."
                       (buffer-substring-no-properties (match-end 0) eol))))))
         (unless (string-empty-p title) title)))))
 
-(defun pycell--bar-at (pos)
-  "Return the bar overlay that begins at POS, or nil."
-  (seq-find (lambda (ov) (and (overlay-get ov 'pycell-bar)
-                              (= (overlay-start ov) pos)))
-            (overlays-in pos (min (point-max) (1+ pos)))))
-
-(defun pycell--bars ()
-  "Return the bar overlays of the buffer."
-  (seq-filter (lambda (ov) (overlay-get ov 'pycell-bar))
-              (overlays-in (point-min) (point-max))))
-
-(defvar-local pycell--revealed nil
-  "The bar overlay whose boundary line shows the text under it.")
-
-(defun pycell--bar-draw (ov kind label icons)
-  "Draw the bar LABEL and ICONS on OV, of KIND, where anything changed.
-OV comes from `overblock-bar-over\\=', and KIND is `code\\=' or `markdown\\='.
-
-Where nothing changed the bar is left alone: this is called for every
-boundary line `jit-lock\\=' fontifies, so a scroll through a long notebook
-would otherwise measure and build every bar it passes.  The line is
-part of what is compared because the label is written on it."
-  (let ((state (list (buffer-substring-no-properties (overlay-start ov)
-                                                     (overlay-end ov))
-                     label icons (overblock-window-width))))
-    (overlay-put ov 'pycell-bar kind)
-    (unless (equal state (overlay-get ov 'pycell-bar-state))
-      (overlay-put ov 'pycell-bar-state state)
-      (overlay-put ov 'pycell-bar-text (overblock-bar label icons
-                                                      'pycell-header))
-      (pycell--bar-show ov (not (eq ov pycell--revealed))))))
-
-(defun pycell--bar-show (ov barp)
-  "Show the bar of OV where BARP, and the line it covers where not.
-One or the other, never both: the bar fills the width of the window, so
-a line showing its text as well took a second row and the buffer moved
-under the reader as point crossed a boundary line."
-  (overlay-put ov 'display (and barp ""))
-  (overlay-put ov 'before-string (and barp (overlay-get ov
-                                                        'pycell-bar-text))))
-
 (defun pycell--bar-redraw (ov)
   "Draw the bar OV again, of whichever kind of cell it belongs to."
-  (pcase (overlay-get ov 'pycell-bar)
+  (pcase (overblock-bar-kind ov)
     ('code (pycell--code-bar (overlay-start ov) (overlay-end ov)))
     ('markdown (pycell--md-bar ov))))
 
 (defun pycell--code-bar (bol eol)
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
-  (let ((ov (or (pycell--bar-at bol) (overblock-bar-over bol eol))))
+  (let ((ov (or (overblock-bar-at bol) (overblock-bar-over bol eol))))
     ;; Text typed at the end of the line is outside the overlay, and the
     ;; bar then covered a boundary line only as far as it reached when
     ;; the line was shorter.
     (move-overlay ov bol eol)
-    (pycell--bar-draw ov 'code
-                      (concat (overblock-glyph "󰌠" "◆" "#") " "
-                              (or (pycell--cell-title bol eol) "python"))
-                      (overblock-buttons pycell-cell-buttons))))
+    (overblock-bar-draw ov 'code
+                        (concat (overblock-glyph "󰌠" "◆" "#") " "
+                                (or (pycell--cell-title bol eol) "python"))
+                        (overblock-buttons pycell-cell-buttons)
+                        'pycell-header)))
 
 (defun pycell--cell-bars (start end)
   "Draw the bar of every code cell whose boundary line START..END touches.
@@ -1279,8 +1240,8 @@ bar left over from before the line said =[markdown]= goes."
                 (re-search-forward code-cells-boundary-regexp end t))
       (goto-char (match-beginning 0))
       (if (looking-at-p pycell--md-boundary)
-          (when-let* ((stale (pycell--bar-at (point)))
-                      ((eq (overlay-get stale 'pycell-bar) 'code)))
+          (when-let* ((stale (overblock-bar-at (point)))
+                      ((eq (overblock-bar-kind stale) 'code)))
             (delete-overlay stale))
         (pycell--code-bar (pos-bol) (pos-eol)))
       (forward-line 1))))
@@ -1293,17 +1254,6 @@ in any other jit-lock function skips the rest of them, and a
 from redisplay — not one bar was drawn in such a buffer."
   (pycell--cell-bars beg end))
 
-(defun pycell--reveal ()
-  "Show the boundary line under point as it is written, and bar the rest.
-On `post-command-hook\\='.  A bar is drawn in place of its line, and the
-marker, the tags and the title of a line cannot be edited where they
-cannot be read."
-  (let ((bar (pycell--bar-at (pos-bol))))
-    (unless (eq bar pycell--revealed)
-      (when (and pycell--revealed (overlay-buffer pycell--revealed))
-        (pycell--bar-show pycell--revealed t))
-      (setq pycell--revealed bar)
-      (when bar (pycell--bar-show bar nil)))))
 
 ;;;; Running cells
 
@@ -1974,15 +1924,15 @@ the code-cells maps."
         (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
         ;; A bar is drawn in place of its boundary line, so the line
         ;; under point shows what is written on it.
-        (add-hook 'post-command-hook #'pycell--reveal nil t)
+        (add-hook 'post-command-hook #'overblock-bar-reveal nil t)
         (add-hook 'after-change-functions #'pycell--bars-after-change nil t)
         (pycell--cell-bars (point-min) (point-max))
         (pycell-md-render-all))
     (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
-    (remove-hook 'post-command-hook #'pycell--reveal t)
+    (remove-hook 'post-command-hook #'overblock-bar-reveal t)
     (remove-hook 'after-change-functions #'pycell--bars-after-change t)
-    (setq pycell--revealed nil)
-    (mapc #'delete-overlay (pycell--bars))
+    (setq overblock--revealed nil)
+    (mapc #'delete-overlay (overblock-bars))
     ;; Every kind of block goes, rendered markdown cells included.
     (pycell-remove-blocks)))
 
