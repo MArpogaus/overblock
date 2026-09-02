@@ -172,9 +172,50 @@ touched.
 
 A bar is rebuilt only when the line it stands on or the width of the
 window has changed.  Both are in the key the overlay carries, so the
-change hook costs a comparison for a line that only moved.  One bar
-costs 0.220 ms to build, so a notebook of two hundred cells pays 44 ms
-when a window changes width — and nothing at all when it does not.
+change hook costs a comparison for a line that only moved.
+
+Measured on a notebook of two hundred cells, in a graphical frame:
+
+| what                                     | cost     |
+|------------------------------------------+----------|
+| the mode turning on, barring every cell  | 52.3 ms  |
+| the change hook, one line                | 0.003 ms |
+| a keystroke, with the hook               | 2.170 ms |
+| a keystroke, with the hook taken off     | 2.180 ms |
+| a change of width, every bar again       | 38.7 ms  |
+| a change of anything else                | 0.618 ms |
+| point over a boundary line and back      | 0.003 ms |
+
+The two keystroke rows are the ones worth reading together: what a
+keystroke costs in that configuration is what it cost before the bars
+existed.  Two hundred cells hold two hundred bars and three other
+overlays at the end of that run, so nothing accumulates.
+
+*** One line, one bar
+
+Three things can want a bar on a boundary line: the pass over the
+buffer, the rendering of a markdown cell, which brings its own, and the
+pass again after an edit.  =pycell--sole-bar= is the rule — the bar that
+belongs to the line stays, every other one goes — and each kind of line
+says which kind belongs:
+
+| the line                          | the bar                     |
+|-----------------------------------+-----------------------------|
+| no longer a boundary              | none                        |
+| =# %% [markdown]=, rendered       | the block's own, =markdown= |
+| =# %% [markdown]=, showing source | =source=, with a render button |
+| =# %%=                            | =code=                      |
+
+Without that rule three bars stood on the boundary line of one rendered
+cell: the first pass barred the cell before it was rendered, the
+rendering added its own, and a later walk added a third.
+
+A bar is looked for on its line and not at one position.  The overlay
+advances off the start of the line when text is inserted there — it must,
+or typing before the marker would be typing inside the bar — so a search
+at the start of the line found nothing, and a line that had stopped
+being a boundary kept a bar whose buttons then moved the cell that
+enclosed it.
 
 *** Point on the line
 
@@ -183,8 +224,19 @@ the window, so a line drawing its text as well took a second row, and
 the buffer moved under the reader as point crossed a boundary line.
 While point is on the line the bar gives way to the text, so the
 marker, the tags and the name can be edited where they can be read.
-=pycell--reveal= on =post-command-hook= is the whole of it: one overlay
-at a time, the one under point.
+=overblock-bar-reveal= on =post-command-hook= is the whole of it: one
+overlay at a time, the one under point.
+
+Two places move point where no command ends, and both call it
+themselves: the mode when it starts, and the run of a queue of cells,
+which walks point down the notebook from a process filter.  Without
+that the cursor sat at the right-hand edge of a bar that had not been
+told point was there.
+
+A click on a bar leaves point on the line below it, which belongs to
+the same cell.  On the line itself, the reveal would take the button out
+from under the reader between one press and the next: a cell could not
+be moved twice.
 
 *** A column of slack
 
