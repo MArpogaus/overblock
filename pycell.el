@@ -218,6 +218,20 @@ the buffer is not touched."
   (interactive)
   (overblock-clear))
 
+(defun pycell--drop-rendering (block)
+  "Take BLOCK down, and bar the boundary line a rendering leaves behind.
+The bar of a rendered markdown cell is the block\\='s own overlay, so it
+goes with the block — and no text on that line changed, so nothing else
+would put one back.  Measured in a graphical frame: the line was left
+with no bar at all, and the button that renders the cell again sits on
+that bar."
+  (let ((markdown (eq (overblock-get block :kind) 'markdown))
+        (start (overlay-start block)))
+    (overblock-delete block)
+    (when markdown
+      (when-let* ((from (pycell--md-cell-start start)))
+        (pycell--cell-bars from start)))))
+
 (defvar pycell--moving nil
   "Non-nil while `pycell-move-cell-down' is moving a cell.
 `pycell--stale-hook' stands down while it is: a move relocates whole
@@ -256,14 +270,14 @@ of the buffer like any other."
      (after
       (unless (and (equal (buffer-substring-no-properties beg end) "\n")
                    (= end (without-restriction (point-max))))
-        (overblock-delete block)))
+        (pycell--drop-rendering block)))
      ;; Before the change, an insertion has nothing to read: BEG and END
      ;; are the one position it will go to.  A deletion is judged here
      ;; all the same, because the anchor evaporates with the text it
      ;; covers and the call after the change would never come — and then
      ;; the bar above a rendered cell, which the anchor does not cover,
      ;; stayed behind.
-     ((/= beg end) (overblock-delete block)))))
+     ((/= beg end) (pycell--drop-rendering block)))))
 
 (defvar-local pycell--width nil
   "The width the bars of this buffer were built for, in pixels.
@@ -1168,16 +1182,7 @@ bar of a cell that is showing its source."
 The cell is then editable in place; press the button on its bar, or run
 `pycell-md-render-all', to render it again."
   (interactive (list last-input-event))
-  (let* ((block (pycell--md-at event))
-         ;; Where the cell is, asked while the block still knows:
-         ;; `overlay-start' of a deleted overlay is nil.
-         (start (overlay-start block))
-         (from (pycell--md-cell-start start)))
-    (overblock-delete block)
-    ;; The bar of the rendering went with it, and no text changed: the
-    ;; line would have been left with no bar at all, and the button that
-    ;; renders the cell again sits on that bar.
-    (when from (pycell--cell-bars from start))))
+  (pycell--drop-rendering (pycell--md-at event)))
 
 (defvar-local pycell--md-source nil
   "Markdown cell (BUFFER BEG END) that this edit buffer feeds.")
@@ -1322,7 +1327,13 @@ all, and the line read as one the package had lost track of."
     (move-overlay ov bol eol)
     (overblock-bar-draw ov 'source
                         (concat (overblock-glyph "󰽛" "◇" "M") " "
-                                (or (pycell--cell-title bol eol) "markdown"))
+                                ;; "source" and not "markdown": the glyph
+                                ;; says markdown, and a rendered cell and
+                                ;; one showing its source read alike
+                                ;; otherwise — captured in a terminal,
+                                ;; two bars saying `M markdown' that
+                                ;; differed only in their buttons.
+                                (or (pycell--cell-title bol eol) "source"))
                         (overblock-buttons pycell-source-buttons)
                         'pycell-header)))
 

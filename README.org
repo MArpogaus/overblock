@@ -154,8 +154,9 @@ reads as /Load the data/.  A cell without a name is called /python/,
 and a markdown cell /markdown/.
 
 A markdown cell that is not rendered — one you just wrote, or one you
-took back to its source — carries a bar of its own, with the buttons of
-=pycell-source-buttons=.  The third of them renders the cell.
+took back to its source — carries a bar of its own, which says /source/
+and holds the buttons of =pycell-source-buttons=.  The third of them
+renders the cell.
 
 The bar gives way to the line under it while point is on that line, so
 you can write a name, add a tag or make the cell a markdown cell as you
