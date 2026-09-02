@@ -1003,6 +1003,27 @@ See `pycell--md-show', which renders and calls this."
     (pycell--stale-when-edited block)
     block))
 
+(defun pycell--md-cells (beg end)
+  "Return the body of every markdown cell between BEG and END, in order.
+Each is a cons of where the body starts and where it ends, which is the
+next boundary line or the end of the buffer.  A cell with nothing in it
+is left out: there is nothing to render."
+  (save-excursion
+    (goto-char beg)
+    (let (cells)
+      (while (re-search-forward (concat "^" pycell--md-boundary) end t)
+        (forward-line 1)
+        (let ((from (point))
+              (to (if (re-search-forward code-cells-boundary-regexp nil t)
+                      (pos-bol)
+                    (point-max))))
+          (when (< from to) (push (cons from to) cells))
+          ;; Never past the bound: `re-search-forward\\=' signals on a
+          ;; bound behind point, whatever its NOERROR says, and a cell
+          ;; that reaches past END would leave point there.
+          (goto-char (min to end))))
+      (nreverse cells))))
+
 ;;;###autoload
 (defun pycell-md-render-all (&optional beg end)
   "Render the markdown cells between BEG and END, the whole buffer by default.
@@ -1011,24 +1032,11 @@ A caller that knows which cells changed says so: measured, one moved
 cell in a file of two hundred rendered every one of them, 436
 milliseconds against 17.7 for the two that moved."
   (interactive)
-  (let ((program (overblock-md-program))
-        (last (or end (point-max)))
-        cells missed)
-    (save-excursion
-      (goto-char (or beg (point-min)))
-      (while (re-search-forward (concat "^" pycell--md-boundary) last t)
-        (forward-line 1)
-        (let ((beg (point))
-              (end (if (re-search-forward code-cells-boundary-regexp nil t)
-                       (pos-bol)
-                     (point-max))))
-          (when (< beg end)
-            (if program (push (cons beg end) cells) (setq missed t)))
-          ;; Never past the bound: `re-search-forward' signals on a
-          ;; bound behind point, whatever its NOERROR says, and a cell
-          ;; that reaches past END would leave point there.
-          (goto-char (min end last)))))
-    (setq cells (nreverse cells))
+  (let* ((found (pycell--md-cells (or beg (point-min))
+                                  (or end (point-max))))
+         ;; Without a converter there is nothing to render, and the
+         ;; reader is told once rather than once a cell.
+         (cells (and (overblock-md-program) found)))
     ;; One converter process for the buffer rather than one per cell.
     ;; It answers nil where the marker between cells did not survive,
     ;; and then each cell goes on its own, as before.
@@ -1041,7 +1049,7 @@ milliseconds against 17.7 for the two that moved."
                                cells)))))
       (dolist (cell cells)
         (pycell--md-show (car cell) (cdr cell) (pop htmls))))
-    (when missed
+    (when (and found (not cells))
       (message "pycell: %s, cells stay plain"
                (if (fboundp 'libxml-parse-html-region)
                    (format "no markdown converter found (%s)"
