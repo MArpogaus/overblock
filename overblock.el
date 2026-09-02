@@ -782,9 +782,23 @@ several of them lead with a space, and a space is always available."
 
 (defun overblock-button (label help command)
   "Return LABEL as a button.
-A left click calls COMMAND, and HELP becomes the tooltip."
+A left click calls COMMAND, and HELP becomes the tooltip.
+
+The press and not the release: a block is in the text area, where
+`down-mouse-1\\=' reaches `mouse-drag-region\\=', which follows the mouse and
+keeps the release to itself.  Measured with real clicks at the centre of
+every button of a cell bar, a keymap that bound `mouse-1\\=' alone ran
+`mouse-set-point\\=' and nothing else — while `key-binding\\=' at those same
+pixels answered with the command, which is how this survived every test
+that asked the keymap instead of clicking.  A header line has no drag to
+lose, which is why the buttons of one always worked.
+
+The release is bound to `ignore\\=' so that it neither sets point nor
+reaches whatever else would take it."
   (propertize label 'mouse-face 'highlight 'help-echo help
-              'keymap (define-keymap "<mouse-1>" command)))
+              'keymap (define-keymap
+                        "<down-mouse-1>" command
+                        "<mouse-1>" #'ignore)))
 
 (defun overblock-buttons (descriptors &optional imagep lines)
   "Return the icon group that DESCRIPTORS ask for.
@@ -956,22 +970,17 @@ compared, because the label is usually written on it."
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
       (overlay-put ov 'overblock-bar-text (overblock-bar label icons face))
-      (overblock--bar-show ov (not (eq ov overblock--revealed))))))
+      ;; The text of the line draws as nothing and the bar draws in its
+      ;; place, and it stays there: a bar that gave way to its line under
+      ;; point left the cell being worked in as the one without a header.
+      (overlay-put ov 'display "")
+      (overlay-put ov 'before-string (overlay-get ov 'overblock-bar-text)))))
 
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
 Nil for nil as well: this answers a question about whatever a caller
 found, and `overblock-bar-at\\=' finds nothing often."
   (and ov (overlay-get ov 'overblock-bar)))
-
-(defun overblock--bar-show (ov barp)
-  "Show the bar of OV where BARP, and the text it covers where not.
-One or the other, never both: a bar fills the width of the window, so a
-line drawing its own text as well took a second row, and the buffer
-moved under the reader as point crossed such a line."
-  (overlay-put ov 'display (and barp ""))
-  (overlay-put ov 'before-string
-               (and barp (overlay-get ov 'overblock-bar-text))))
 
 (defun overblock-bar-in (beg end)
   "Return a bar overlay that covers any of BEG..END, or nil.
@@ -991,20 +1000,6 @@ that draws every bar again — after a change of width, say — would
 otherwise leave the ones outside the accessible part as they were."
   (without-restriction
     (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max)))))
-
-(defvar-local overblock--revealed nil
-  "The bar overlay whose line is showing the text under it.")
-
-(defun overblock-bar-reveal ()
-  "Show the line under point as it is written, and bar every other one.
-For `post-command-hook\\=', where a caller that hides text under a bar
-wants it: what a bar covers cannot be edited where it cannot be read."
-  (let ((bar (overblock-bar-on-line)))
-    (unless (eq bar overblock--revealed)
-      (when (and overblock--revealed (overlay-buffer overblock--revealed))
-        (overblock--bar-show overblock--revealed t))
-      (setq overblock--revealed bar)
-      (when bar (overblock--bar-show bar nil)))))
 
 (provide 'overblock)
 ;;; overblock.el ends here

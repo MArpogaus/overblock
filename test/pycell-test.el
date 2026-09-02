@@ -1781,24 +1781,6 @@ And a line that becomes a markdown boundary loses the code bar it had."
     (insert "# %% [markdown]")
     (should (equal (pycell-test--bar-labels) '("Later")))))
 
-(ert-deftest pycell-test-point-on-a-boundary-line-shows-the-line ()
-  "The bar gives way to the text of its line while point is on it.
-One or the other: the bar fills the window, so a line drawing both took
-a second row and the buffer moved under the reader."
-  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
-    (let ((bar (car (sort (overblock-bars)
-                          (lambda (a b)
-                            (< (overlay-start a) (overlay-start b)))))))
-      (goto-char (overlay-start bar))
-      (overblock-bar-reveal)
-      (should-not (overlay-get bar 'display))
-      (should-not (overlay-get bar 'before-string))
-      ;; and it comes back when point leaves
-      (goto-char (point-max))
-      (overblock-bar-reveal)
-      (should (equal (overlay-get bar 'display) ""))
-      (should (overlay-get bar 'before-string)))))
-
 (ert-deftest pycell-test-a-narrowing-hides-no-cell-from-the-bars ()
   "Every cell is barred, not only the ones the narrowing shows.
 A notebook narrowed when the mode goes on — `narrow-to-defun\\=', an
@@ -1825,8 +1807,7 @@ visible cells alone."
     (pycell-mode)
     (should (overblock-bars))
     (pycell-mode -1)
-    (should-not (overblock-bars))
-    (should-not overblock--revealed)))
+    (should-not (overblock-bars))))
 
 (ert-deftest pycell-test-run-above-refuses-the-first-cell ()
   "There is nothing above the first cell, and nothing is started for it.
@@ -2000,8 +1981,10 @@ one press and the next."
                                        (cons 0 0) 0))))
       (goto-char (point-min))
       (pycell--goto-event click)
-      (should (= (line-number-at-pos) (1+ (line-number-at-pos second))))
-      (overblock-bar-reveal)
+      (should (= (point) second))
+      ;; and the cell the commands will find is that one
+      (should (equal (car (code-cells--bounds)) second))
+      ;; the bar is where it was, whatever point does
       (should (overlay-get (save-excursion (goto-char second)
                                            (overblock-bar-on-line))
                            'before-string)))))

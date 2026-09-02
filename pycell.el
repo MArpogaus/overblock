@@ -132,11 +132,12 @@ this list: they say what the result is doing."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-markdown-buttons
-  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
-    (edit ("󰲶" "✎" "e") "Edit this markdown cell in its own buffer"
+  '((edit ("󰲶" "✎" "e") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("󰕍" "⟲" "s") "Show the plain source" pycell-md-raw t))
+    (source ("󰕍" "⟲" "s") "Show the plain source" pycell-md-raw t)
+    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+               pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here."
@@ -144,11 +145,11 @@ no output, so `lines' and `image' say nothing here."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-source-buttons
-  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+  '((render ("󰑐" "⟳" "m") "Render this markdown cell"
+            pycell-md-render-cell t)
+    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
     (move-down ("󰅀" "⌄" "d") "Move this cell down"
-               pycell-move-cell-down t)
-    (render ("󰑐" "⟳" "m") "Render this markdown cell"
-            pycell-md-render-cell t))
+               pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
 The entries read as in `pycell-result-buttons\\='.  Such a cell is one
 just written, or one taken back to its source with `pycell-md-raw\\=';
@@ -162,21 +163,21 @@ frame with a font but no nerd glyphs draws the second one."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-cell-buttons
-  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down"
-               pycell-move-cell-down t)
-    (run-above ("󱏦" "⇈" "a") "Run every cell above this one"
+  '((run-above ("󱏦" "⇈" "a") "Run every cell above this one"
                pycell-run-above t)
-    (run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t))
+    (run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t)
+    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+               pycell-move-cell-down t))
   "The buttons on the bar of a code cell, left to right.
 The entries read as in `pycell-result-buttons'.  A cell bar is drawn
 before the cell has run, so `lines' and `image' say nothing here.
 
-The two move buttons lead, as they lead on the other two bars: the
-three kinds of bar stand above one another in a notebook, and one order
-for all of them is one order to learn.  Not one column: the buttons are
-held at the window edge, so a bar with five of them starts a slot
-further left than a bar with four."
+The two move buttons come last, as they do on every other bar.  The
+buttons are held against the right edge, so the trailing slots are the
+ones that fall in the same place whatever else a bar carries: measured,
+the pair leading sat at x=996 on a bar of four buttons and x=959 on one
+of five, and trailing it stands in one column down the window."
   :type overblock-button-type
   :set #'pycell--set-buttons)
 
@@ -535,22 +536,14 @@ Anything that is not a click leaves point where it is: the commands read
 EVENT from `last-input-event', so it can be any event at all, and a
 `switch-frame' is a cons whose start is a frame rather than a place.
 
-A click on a bar leaves point on the line below it rather than on the
-line itself.  That line still belongs to the same cell, so every command
-finds what it is for, and the bar stays on the screen: point on a
-boundary line gives the bar way to the text under it, which took the
-button out from under the reader between one press and the next.  A
-move carries the offset within the cell, so the cell can be moved twice
-running."
+A click on a bar lands on the boundary line, which belongs to the cell
+the bar stands for, so every command finds what it is for."
   (when-let* (((consp event))
               (posn (event-start event))
               ((consp posn))
               (pos (posn-point posn)))
     (select-window (posn-window posn))
-    (goto-char pos)
-    (when (and (overblock-bar-on-line)
-               (< (pos-eol) (point-max)))
-      (forward-line 1))))
+    (goto-char pos)))
 
 (defun pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
@@ -1479,8 +1472,7 @@ gives point back instead: the reader pressed a button there.")
               ((buffer-live-p (marker-buffer home))))
     (with-current-buffer shell (setq pycell--queue-home nil))
     (with-current-buffer (marker-buffer home)
-      (goto-char home)
-      (when (bound-and-true-p pycell-mode) (overblock-bar-reveal)))))
+      (goto-char home))))
 
 (defun pycell--queue-set (cells)
   "Give the shell CELLS to run, and answer them."
@@ -2021,11 +2013,6 @@ never ran at all."
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
           (goto-char m)
-          ;; Point moved from a process filter, where no command ends and
-          ;; `post-command-hook' never runs: without this the line the
-          ;; pass left point on kept showing its text, and the line it
-          ;; had left kept showing none.
-          (when (bound-and-true-p pycell-mode) (overblock-bar-reveal))
           (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
             ;; A markdown cell that already shows its rendering needs
             ;; no second one: the restart leaves the renderings alone
@@ -2141,24 +2128,15 @@ the code-cells maps."
         ;; A bar is cut to the width of the window it was built for, so
         ;; a window made narrower afterwards wants it drawn again.
         (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
-        ;; A bar is drawn in place of its boundary line, so the line
-        ;; under point shows what is written on it.
-        (add-hook 'post-command-hook #'overblock-bar-reveal nil t)
         (add-hook 'after-change-functions #'pycell--bars-after-change nil t)
         ;; The whole buffer, narrowed or not: a mode turned on under a
         ;; narrowing would otherwise bar the visible cells alone, and
         ;; the rest only when something edited them.
         (without-restriction
           (pycell--cell-bars (point-min) (point-max)))
-        ;; The reveal is on `post-command-hook', and no command has run
-        ;; yet: the line point is on would otherwise draw its bar, with
-        ;; the cursor at the far right of it, until the first keystroke.
-        (overblock-bar-reveal)
         (pycell-md-render-all))
     (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
-    (remove-hook 'post-command-hook #'overblock-bar-reveal t)
     (remove-hook 'after-change-functions #'pycell--bars-after-change t)
-    (setq overblock--revealed nil)
     (mapc #'delete-overlay (overblock-bars))
     ;; Every kind of block goes, rendered markdown cells included.
     (pycell-remove-blocks)))
