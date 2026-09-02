@@ -99,14 +99,14 @@ was already open appeared to do nothing at all."
           (pycell--update block))))))
 
 (defcustom pycell-result-buttons
-  '((move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t)
-    (save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
+  '((save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
                 pycell-save-image image)
     (copy ("󰄷" "◫" "≡") "Copy this result" pycell-copy-output lines)
     (pop ("󱦴" "↗" "^") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("󰅖" "✕" "x") "Discard this result" pycell-discard-output t))
+    (discard ("󰅖" "✕" "x") "Discard this result" pycell-discard-output t)
+    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 

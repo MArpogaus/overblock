@@ -144,10 +144,10 @@ the cell and holds buttons at the right edge:
 
 | Button | Action                        |
 |--------+-------------------------------|
-| =⌃=    | move this cell up             |
-| =⌄=    | move this cell down           |
 | =⇈=    | run every cell above this one |
 | =▷=    | run this cell                 |
+| =⌃=    | move this cell up             |
+| =⌄=    | move this cell down           |
 
 The name is what you write after the marker, so =# %% Load the data=
 reads as /Load the data/.  A cell without a name is called /python/,
@@ -158,14 +158,15 @@ took back to its source — carries a bar of its own, which says /source/
 and holds the buttons of =pycell-source-buttons=.  The third of them
 renders the cell.
 
-The bar gives way to the line under it while point is on that line, so
-you can write a name, add a tag or make the cell a markdown cell as you
-would in any other buffer.
+The bar stays where it is, whatever point does.  The line under it is
+still there: point rests on it, you write a name, add a tag or make the
+cell a markdown cell as you would in any other buffer, and the bar
+follows what you write.  Folding works from that line too.
 
 The buttons are =pycell-cell-buttons=, and they read as the buttons of
 a result do.  A button acts on the cell whose bar you press, wherever
-point is.  The move buttons lead on every kind of bar, so the order is
-the same one everywhere.  The buttons themselves are held at the window
+point is.  The move pair closes every kind of bar, so the order is the
+same one everywhere.  The buttons themselves are held at the window
 edge, so a bar with more of them starts further left.
 
 *** Results
@@ -182,17 +183,17 @@ The header bar has buttons at its right:
 | Button | Action                                 |
 |--------+----------------------------------------|
 | =▾=    | fold or unfold the result              |
-| =⌃=    | move this cell up                      |
-| =⌄=    | move this cell down                    |
 | =↧=    | save the image of the result to a file |
 | =◫=    | copy the result, with the images       |
 | =↗=    | show the full result in its own buffer |
 | =✕=    | discard the result                     |
+| =⌃=    | move this cell up                      |
+| =⌄=    | move this cell down                    |
 
 The fold arrow stands at the left of the bar and the buttons at its
 right, in the order of =pycell-result-buttons=.  A rendered markdown
-cell carries the two move buttons, the edit button and the one that
-shows its source.
+cell carries the edit button, the one that shows its source, and the
+same move pair at its end.
 
 =TAB= at the end of a cell also folds the result.  The header shows
 =⚠= if the interpreter dies while the cell runs, and the result ends
