@@ -453,9 +453,9 @@ is free and a dense line is not.  See =tools/complexity.el=, whose
 rules are tested like anything else.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
-checks, the formatter and checkdoc before a commit, the commit message
-through commitizen, and package-lint, the compilation and the tests
-before a push:
+checks, the formatter, checkdoc and relint before a commit, the commit
+message through commitizen, and package-lint, the compilation and the
+tests before a push:
 
 #+begin_src shell
   pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
