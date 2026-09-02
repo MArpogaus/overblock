@@ -436,5 +436,23 @@ never looked at."
     (let ((text "\\[\na = b\n\\]"))
       (should (equal (overblock-md--mathify text) text)))))
 
+(ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
+  "With `overblock-md-remote-images\\=' off, nothing reaches the network.
+`shr-tag-img\\=' fetches with `url-queue-retrieve\\=' whatever this package
+decided, so the option that says to ask for nothing asked anyway, and
+the answer arrived long after the cell had been rendered."
+  (let ((overblock-md-remote-images nil)
+        (asked nil))
+    (cl-letf (((symbol-function 'url-queue-retrieve)
+               (lambda (&rest _) (setq asked t)))
+              ((symbol-function 'url-retrieve)
+               (lambda (&rest _) (setq asked t))))
+      (with-temp-buffer
+        (overblock-md--tag-img
+         (dom-node 'img '((src . "https://example.org/badge.svg")
+                          (alt . "the badge"))))
+        (should (equal (string-trim (buffer-string)) "the badge")))
+      (should-not asked))))
+
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

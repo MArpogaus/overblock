@@ -146,6 +146,56 @@ moves a cell up would be the same button to a reader.
 The fold arrow and the spinner are not in those lists.  They are not
 buttons of the reader's choosing: they say what the result is doing.
 
+** The bar over a boundary line
+
+A cell carries a bar of its own, in place of its =# %%= line: the label
+is the name written after the marker, and the buttons are
+=pycell-cell-buttons=.  A rendered markdown cell has had one since it
+was rendered; the two are now drawn by one function, and the code cell's
+is put there by =pycell--cell-bars=.
+
+The bar is an overlay over the whole line, with =display= of the empty
+string and the bar itself on the =before-string=.  It has to be a
+string on an overlay: a display property whose value is a string
+ignores =(space :align-to (- right ...))=, and the buttons would then
+sit beside the label instead of at the window edge.
+
+*** What draws them, and when
+
+Not =jit-lock=, which is where a decoration of this kind belongs.  One
+error in any other jit-lock function skips the rest of them, and a
+=python-ts-mode= buffer whose grammar does not match the mode signals
+from redisplay: measured in the author's own configuration, not one bar
+was ever drawn there.  So the bars are drawn once when the mode starts
+and again from =after-change-functions=, over the lines a change
+touched.
+
+A bar is rebuilt only when the line it stands on or the width of the
+window has changed.  Both are in the key the overlay carries, so the
+change hook costs a comparison for a line that only moved.  One bar
+costs 0.220 ms to build, so a notebook of two hundred cells pays 44 ms
+when a window changes width — and nothing at all when it does not.
+
+*** Point on the line
+
+The bar and the line are never both shown.  A bar fills the width of
+the window, so a line drawing its text as well took a second row, and
+the buffer moved under the reader as point crossed a boundary line.
+While point is on the line the bar gives way to the text, so the
+marker, the tags and the name can be edited where they can be read.
+=pycell--reveal= on =post-command-hook= is the whole of it: one overlay
+at a time, the one under point.
+
+*** A column of slack
+
+=overblock-bar= holds the buttons one column short of the right edge in
+a graphic frame, as it always did two columns short in a terminal.
+Ending at the edge exactly leaves redisplay to decide whether the row
+wraps, and it decides differently at different moments: measured in one
+window at one width, the same bar drew all of its buttons when the
+notebook was opened and put the last one on a row of its own after the
+first command — same string, same specification, same window.
+
 * Moving a cell
 
 =code-cells-mode= puts the cell boundaries into =outline-regexp=, so a
@@ -396,6 +446,21 @@ The output of a running cell, cleaned and shown five times a second:
 | find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
 | one tick over 100000 on one line  | 68.1 ms  | 1.1 ms  |
 
+A fourth audit measured the tick itself, in a graphic frame with the
+nerd font the bars are drawn in:
+
+| what                          | before   | after    |
+|-------------------------------+----------+----------|
+| =overblock-glyph=             | 0.010 ms | 0.001 ms |
+| =pycell--header=              | 0.338 ms | 0.231 ms |
+| =pycell--update=, whole tick  | 0.378 ms | 0.298 ms |
+
+=overblock-glyph= asks =internal-char-font= once for every character of
+every candidate, and a header of six buttons asked it twenty times,
+five times a second, for an answer that cannot change while the frame
+keeps its font.  The answers are now kept in a table keyed by that font
+and the candidates.
+
 - The table is read off a text property that =overblock-repl-detach=
   left on the text, instead of being searched for in the output.  A
   popped-out result walks those runs and draws each table live, with
@@ -431,8 +496,8 @@ And what a keypress does, which is where the rest of the cost was:
   rather than with =seq-subseq= from the front, which was quadratic in
   the lines of a cell: 2.7 milliseconds at a thousand against 0.3 at
   three hundred.
-- =overblock-fill-props= takes a plist and walks the rendering once, where
-  =pycell--fill-prop= walked it once for every property.
+- =overblock-fill-props= takes a plist and walks the rendering once,
+  where the code before it walked the rendering once for each property.
 
 The scrolling was measured with bursts of wheel events shaped like a
 flick of a trackpad, over forty cells with results, figures and rendered

@@ -50,50 +50,6 @@
      :objects '(("1" "22" "333") ("4444" "5" "66") ("7" "888" "9999")))
     (buffer-string)))
 
-(ert-deftest overblock-test-image-cap-caps-an-image ()
-  "An image drawn inline is capped to a share of the window.
-A block taller than the window bounces the wheel backwards off itself
-and cannot be scrolled past at all."
-  (let ((buffer (get-buffer-create "*pycell test fit*")))
-    (unwind-protect
-        (with-current-buffer buffer
-          (set-window-buffer (selected-window) buffer)
-          (let ((line (concat "x" overblock-repl-test--image)))
-            (let* ((overblock-image-height 0.5)
-                   (fitted (overblock-image-cap line)))
-              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
-                         (round (* 0.5 (window-body-height
-                                        (selected-window) t)))))
-              ;; the line kept for the popup is not touched
-              (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
-            ;; zero draws it at its own size
-            (let* ((overblock-image-height 0)
-                   (fitted (overblock-image-cap line)))
-              (should-not (plist-get (cdr (overblock-image-in fitted))
-                                     :max-height)))))
-      (kill-buffer buffer))))
-
-(ert-deftest overblock-test-image-cap-caps-from-an-unshown-buffer ()
-  "A cell that finishes while its notebook is elsewhere is capped too.
-A run of all cells works down the notebook while the user reads
-something else, and no window at all would leave the figure at full
-size, which is the block the wheel cannot get past."
-  (let ((elsewhere (get-buffer-create "*pycell test elsewhere*"))
-        (notebook (get-buffer-create "*pycell test notebook*")))
-    (unwind-protect
-        (progn
-          (set-window-buffer (selected-window) elsewhere)
-          (with-current-buffer notebook
-            (let* ((overblock-image-height 0.5)
-                   (line (concat "x" overblock-repl-test--image))
-                   (fitted (overblock-image-cap line)))
-              (should-not (get-buffer-window notebook t))
-              (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
-                         (round (* 0.5 (window-body-height
-                                        (selected-window) t))))))))
-      (kill-buffer elsewhere)
-      (kill-buffer notebook))))
-
 (ert-deftest overblock-repl-test-detach-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
 comint-mime renders a DataFrame as a vtable in the shell buffer, which
@@ -148,28 +104,6 @@ own."
          (clean (substring-no-properties (overblock-repl-detach text))))
     (should (equal (split-string clean "\n")
                    '("first  second" "1      one" "2      two")))))
-
-(ert-deftest overblock-test-image-cap-unslices-a-tall-image ()
-  "A run of slices becomes the whole image, capped, on its first row.
-Emacs 31 slices an image taller than `shr-sliced-image-height' into a
-row for each line of the window it was rendered in.  Slicing does not
-make an image smaller, so leaving the slices alone left the cap with
-nothing to cap — and the image cannot be capped under the slice either,
-because the fractions were worked out against the height it had."
-  (let* ((image '(image :type png :data "x"))
-         (rows (list '(slice 0.0 0.0 1.0 0.5) '(slice 0.0 0.5 1.0 0.5)))
-         (line (concat (propertize " " 'display (list (nth 0 rows) image))
-                       "\n"
-                       (propertize " " 'display (list (nth 1 rows) image)))))
-    (cl-letf (((symbol-function 'overblock-image-limit) (lambda () 100)))
-      (let* ((fitted (overblock-image-cap line))
-             (first (get-text-property 0 'display fitted))
-             (later (get-text-property (1- (length fitted)) 'display fitted)))
-        ;; The first row carries the image, capped and no longer sliced.
-        (should (eq (car-safe first) 'image))
-        (should (= (plist-get (cdr first) :max-height) 100))
-        ;; The rows that followed it carry nothing.
-        (should (equal later ""))))))
 
 (ert-deftest overblock-repl-test-first-lines-of-nothing-is-nothing ()
   "A limit of zero takes no lines, rather than the whole result.

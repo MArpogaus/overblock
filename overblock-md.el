@@ -6,7 +6,6 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/pycell
 
@@ -140,18 +139,23 @@ A URL that failed is not asked for again: the cell renders on every
 `pycell-md-render-all', and a notebook that opens with a badge would
 otherwise wait for the network every time.")
 
+(defun overblock-md--fetchable-p (url)
+  "Return non-nil where URL is an image this session may go and get."
+  (and overblock-md-remote-images
+       ;; Only where an image can be drawn: a terminal shows the alt
+       ;; text whatever is fetched, and a batch session — the tests
+       ;; among them — must not reach the network at all.
+       (display-images-p)
+       (string-match-p "\\`https?://" url)
+       ;; One that failed is not asked for twice in a session.
+       (not (gethash url overblock-md--remote-failed))))
+
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
 The file is kept in the cache beside the LaTeX previews, named after the
 URL, so a badge is fetched once for the session and once for the
-machine."
-  (when (and overblock-md-remote-images
-             ;; Only where an image can be drawn: a terminal shows the alt
-             ;; text whatever is fetched, and a batch session — the tests
-             ;; among them — must not reach the network at all.
-             (display-images-p)
-             (string-match-p "\\`https?://" url)
-             (not (gethash url overblock-md--remote-failed)))
+machine.  See `overblock-md--fetchable-p\\=' for what is fetched at all."
+  (when (overblock-md--fetchable-p url)
     (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
            (extension (file-name-extension url))
            (file (expand-file-name
@@ -192,6 +196,42 @@ and every render of the cell runs LaTeX again for the same fragment: a
 process per fragment per render, for an answer that is already known.
 `overblock-md-forget-failed-previews' empties this.")
 
+(defun overblock-md--latex-render (frag file fg)
+  "Render the LaTeX fragment FRAG into FILE, drawn in the colour FG.
+Nothing to do where the file is there already: the file is the cache.
+A run that failed is remembered, and a fragment that failed before
+signals at once rather than costing another process."
+  (unless (file-exists-p file)
+    ;; Asked only where the image is not there already, and keyed like
+    ;; the file — by content and colour — so a theme change asks again.
+    ;; A LaTeX run that failed is the one thing worth remembering: what
+    ;; caches a preview is the file, so without the memo a cell costs a
+    ;; process per fragment on every render.
+    (when (gethash file overblock-md--latex-failed)
+      (error "LaTeX failed for this fragment before"))
+    (let ((dir (file-name-directory file)))
+      (make-directory dir t)
+      (condition-case latex
+          ;; Org runs LaTeX in the directory it writes to: a LaTeX in a
+          ;; container reaches the home directory, but not the host\\='s
+          ;; /tmp.
+          (let ((temporary-file-directory dir))
+            (org-create-formula-image
+             frag file
+             (org-combine-plists
+              org-format-latex-options
+              (list :foreground fg :background "Transparent"))
+             (current-buffer)))
+        (error (puthash file t overblock-md--latex-failed)
+               (signal (car latex) (cdr latex)))))
+    ;; Org does not always signal when its process leaves nothing
+    ;; behind, and `create-image\\=' on a name reads the name: without
+    ;; this a spec pointing at no file went on the screen, and the memo
+    ;; never learnt anything.
+    (unless (file-exists-p file)
+      (puthash file t overblock-md--latex-failed)
+      (error "LaTeX produced no image"))))
+
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
 Org's formula machinery renders it.  The cache lives under ~/.cache,
@@ -214,33 +254,7 @@ the host's /tmp."
                   (concat (md5 (concat fg frag)) "." ext) dir)))
       (condition-case err
           (progn
-            (unless (file-exists-p file)
-              ;; Asked only where the image is not there already, and
-              ;; keyed like the file — by content and colour — so a theme
-              ;; change asks again.  A LaTeX run that failed is the one
-              ;; thing worth remembering: what caches a preview is the
-              ;; file, so without the memo a cell costs a process per
-              ;; fragment on every render.
-              (when (gethash file overblock-md--latex-failed)
-                (error "LaTeX failed for this fragment before"))
-              (make-directory dir t)
-              (condition-case latex
-                  (let ((temporary-file-directory dir))
-                    (org-create-formula-image
-                     frag file
-                     (org-combine-plists
-                      org-format-latex-options
-                      (list :foreground fg :background "Transparent"))
-                     (current-buffer)))
-                (error (puthash file t overblock-md--latex-failed)
-                       (signal (car latex) (cdr latex))))
-              ;; Org does not always signal when its process leaves
-              ;; nothing behind, and `create-image' on a name reads the
-              ;; name: without this a spec pointing at no file went on
-              ;; the screen, and the memo never learnt anything.
-              (unless (file-exists-p file)
-                (puthash file t overblock-md--latex-failed)
-                (error "LaTeX produced no image")))
+            (overblock-md--latex-render frag file fg)
             ;; Past the memo: a failure below is `create-image' or the
             ;; file system, not LaTeX, and remembering it would keep a
             ;; fragment as text with a good image sitting in the cache.
@@ -492,14 +506,16 @@ result's.  Where the alt text is empty the file's name stands in, so a
 display that draws no image still says which figure is there; a terminal
 gets that label with no display property at all, since shr's own
 placeholder is an image and would swallow it."
-  (if-let* ((src (or (dom-attr dom 'src) ""))
-            (file (or (overblock-md--image-file src)
-                      (overblock-md--remote-file src))))
-      (let* ((alt (dom-attr dom 'alt))
-             (label (if (and alt (not (string-empty-p alt)))
-                        alt
-                      (format "[%s]" (file-name-nondirectory file))))
-             (limit (overblock-image-limit)))
+  (let* ((src (or (dom-attr dom 'src) ""))
+         (alt (dom-attr dom 'alt))
+         (file (or (overblock-md--image-file src)
+                   (overblock-md--remote-file src))))
+    (cond
+     (file
+      (let ((label (if (and alt (not (string-empty-p alt)))
+                       alt
+                     (format "[%s]" (file-name-nondirectory file))))
+            (limit (overblock-image-limit)))
         (insert (if (display-images-p)
                     (propertize label 'display
                                 (apply #'create-image file nil nil
@@ -507,8 +523,16 @@ placeholder is an image and would swallow it."
                   ;; A terminal draws no image, and shr's placeholder is
                   ;; itself an image: its display property would swallow
                   ;; the label under it and leave a blank row.
-                  label)))
-    (shr-tag-img dom)))
+                  label))))
+     ;; A remote image this package did not fetch — the option is off,
+     ;; the display draws none, or the fetch failed before — stays its
+     ;; alt text.  Not handed to shr: `shr-tag-img' fetches it with
+     ;; `url-queue-retrieve' whatever this package decided, so the
+     ;; option that says to ask the network for nothing asked anyway,
+     ;; and the answer came long after the cell was rendered.
+     ((string-match-p "\\`https?://" src)
+      (insert (or alt "")))
+     (t (shr-tag-img dom)))))
 
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
