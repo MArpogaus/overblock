@@ -799,11 +799,14 @@ that asked the keymap instead of clicking.  A header line has no drag to
 lose, which is why the buttons of one always worked.
 
 The release is bound to `ignore\\=' so that it neither sets point nor
-reaches whatever else would take it."
+reaches whatever else would take it, and so is the drag: a command that
+moves the text under the pointer — the move buttons do — made the
+release a drag, and that drag left a region behind."
   (propertize label 'mouse-face 'highlight 'help-echo help
               'keymap (define-keymap
                         "<down-mouse-1>" command
-                        "<mouse-1>" #'ignore)))
+                        "<mouse-1>" #'ignore
+                        "<drag-mouse-1>" #'ignore)))
 
 (defun overblock-buttons (descriptors &optional imagep lines)
   "Return the icon group that DESCRIPTORS ask for.
