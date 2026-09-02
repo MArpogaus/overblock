@@ -228,9 +228,11 @@ the rendering with it."
                            (overblock-get block :parts))))))
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
-  "The stretch ends two columns short of the right edge on a terminal.
+  "The stretch ends three columns short of the right edge on a terminal.
 A bar that runs into the last column makes the line a continuation, and
-the final icon wraps onto a line of its own."
+the final icon wraps onto a line of its own.  The third column is for
+the ellipsis an outline fold hangs after the line: with `truncate-lines\\='
+off, which is Emacs\\='s own default, every folded bar took two rows."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
     (let* ((bar (overblock-bar "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -241,7 +243,7 @@ the final icon wraps onto a line of its own."
                              (- right (,(+ (string-pixel-width
                                             (propertize "^  x " 'face
                                                         'shadow))
-                                           2)))))))))
+                                           3)))))))))
 
 (ert-deftest overblock-test-bar-slack-in-a-frame ()
   "The stretch ends a column short of the right edge in a graphic frame.
@@ -275,7 +277,7 @@ room exactly still put the last icon on a row of its own."
                                  (propertize icons 'face 'default))
                                 (if (display-graphic-p)
                                     (frame-char-width)
-                                  2))
+                                  3))
                              (frame-char-width))
                     1))
            (bar (substring-no-properties

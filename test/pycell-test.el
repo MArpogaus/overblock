@@ -2042,5 +2042,61 @@ does with the match, and the walk that draws the bars searches too:
     (replace-match "AFTER")
     (should (equal (buffer-string) "# %% code AFTER\nx = 1\n"))))
 
+(ert-deftest pycell-test-a-failure-without-a-traceback-stops-a-pass ()
+  "Output that names an exception ends a pass, traceback or not.
+A `SyntaxError\\=' prints the name of the exception and nothing else, and
+a run-all walked happily past a cell holding `x = = 1\\='."
+  ;; What ipython prints for a syntax error, in full.
+  (should (pycell--error-p "  File <ipython-input-3>:1\n    x = = 1\n        ^\nSyntaxError: invalid syntax\n"))
+  (should (pycell--error-p "Traceback (most recent call last)\n  ...\nValueError: boom\n"))
+  (should (pycell--error-p "SystemExit: 2"))
+  (should (pycell--error-p "KeyboardInterrupt"))
+  (should (pycell--error-p "numpy.linalg.LinAlgError: singular matrix"))
+  ;; And what is not a failure.
+  (should-not (pycell--error-p "42\n"))
+  (should-not (pycell--error-p ""))
+  (should-not (pycell--error-p "the Error: was printed, not raised\n"))
+  (should-not (pycell--error-p "Done\n")))
+
+(ert-deftest pycell-test-a-rendered-bar-follows-its-line ()
+  "A title typed at the end of a boundary line reaches the bar above it.
+The bar's overlay does not grow at its end, so the title fell outside
+it: the label was read from the stale region, and the text beyond the
+overlay drew after the bar and took a second screen row."
+  (skip-unless (overblock-md-program))
+  (pycell-test--with-notebook "# %% [markdown] first\n# text\n"
+    (pycell-md-render-all)
+    (let ((bar (save-excursion (goto-char (point-min))
+                               (overblock-bar-on-line))))
+      (skip-unless (eq (overblock-bar-kind bar) 'markdown))
+      (goto-char (pos-eol))
+      (insert " and more")
+      ;; The bar covers the whole line again, and says so.
+      (should (= (overlay-end bar) (pos-eol)))
+      (should (string-match-p "first and more"
+                              (overlay-get bar 'overblock-bar-text))))))
+
+(ert-deftest pycell-test-a-pass-remembers-where-it-came-from ()
+  "The place a pass was asked for is kept with the shell, and given back.
+Three faults lived here: the first pass of a session had no shell to
+keep the marker in, `pycell-restart-and-run-all\\=' never set one, and a
+pass refused by a busy shell left its marker behind to drag point when
+an unrelated cell ended."
+  (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((shell (get-buffer-create " *pycell-test-shell*")))
+      (cl-letf (((symbol-function 'pycell--queue-buffer) (lambda () shell)))
+        (with-current-buffer shell (setq-local pycell--queue-home nil))
+        (goto-char (point-max))
+        (pycell--home-set (point-marker))
+        (should (= (marker-position
+                    (buffer-local-value 'pycell--queue-home shell))
+                   (point-max)))
+        ;; A refusal takes it away again, so nothing drags point later.
+        (pycell--home-set nil)
+        (should-not (buffer-local-value 'pycell--queue-home shell))
+        ;; And going home with none set is not an error.
+        (pycell--go-home))
+      (kill-buffer shell))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
