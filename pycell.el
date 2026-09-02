@@ -1125,6 +1125,10 @@ the converter's HTML with")))))
   "Show all markdown cells as their plain source again."
   (interactive)
   (overblock-clear (point-min) (point-max) 'markdown)
+  ;; The bar of a rendering goes with it, and no text changed, so
+  ;; nothing else would draw the bar those lines want now.
+  (without-restriction
+    (pycell--cell-bars (point-min) (point-max)))
   ;; And whatever lost its anchor: a block whose anchor evaporated with
   ;; the line it hung on leaves its parts behind, and a clear that names
   ;; a kind cannot sweep them — an orphan says nothing about the kind it
@@ -1161,10 +1165,19 @@ bar of a cell that is showing its source."
 
 (defun pycell-md-raw (&optional event)
   "Show the markdown cell at point, or the one in EVENT, as plain source.
-The cell is then editable in place; evaluate it, or run
+The cell is then editable in place; press the button on its bar, or run
 `pycell-md-render-all', to render it again."
   (interactive (list last-input-event))
-  (overblock-delete (pycell--md-at event)))
+  (let* ((block (pycell--md-at event))
+         ;; Where the cell is, asked while the block still knows:
+         ;; `overlay-start' of a deleted overlay is nil.
+         (start (overlay-start block))
+         (from (pycell--md-cell-start start)))
+    (overblock-delete block)
+    ;; The bar of the rendering went with it, and no text changed: the
+    ;; line would have been left with no bar at all, and the button that
+    ;; renders the cell again sits on that bar.
+    (when from (pycell--cell-bars from start))))
 
 (defvar-local pycell--md-source nil
   "Markdown cell (BUFFER BEG END) that this edit buffer feeds.")

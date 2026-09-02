@@ -1956,6 +1956,36 @@ notebook appeared to do nothing."
             (should (string-search "ZZ" (car (pycell-test--bar-texts)))))
         (setopt pycell-cell-buttons was)))))
 
+(ert-deftest pycell-test-a-cell-taken-back-to-its-source-keeps-a-bar ()
+  "`pycell-md-raw\\=' leaves the bar that carries the button to render again.
+Taking a rendering down deletes the bar that belonged to it and changes
+no text, so nothing else would draw one: measured in a graphical frame,
+the line was left bare, and the button that renders the cell sits on the
+bar that was not there."
+  (skip-unless (overblock-md-program))
+  (pycell-test--with-notebook "# %% [markdown]\n# text\n\n# %% Two\ny = 2\n"
+    (let ((kind (lambda ()
+                  (save-excursion
+                    (goto-char (point-min))
+                    (overblock-bar-kind (overblock-bar-on-line))))))
+      (skip-unless (eq (funcall kind) 'markdown))
+      (goto-char (point-min))
+      (forward-line 1)
+      (pycell-md-raw)
+      (should (eq (funcall kind) 'source))
+      ;; one bar, not two
+      (should (= 1 (length (seq-filter
+                            #'overblock-bar-kind
+                            (overlays-in (point-min)
+                                         (save-excursion
+                                           (goto-char (point-min))
+                                           (pos-eol)))))))
+      ;; and the button renders it again
+      (goto-char (point-min))
+      (forward-line 1)
+      (pycell-md-render-cell)
+      (should (eq (funcall kind) 'markdown)))))
+
 (ert-deftest pycell-test-a-click-on-a-bar-leaves-the-bar-showing ()
   "Point lands below the bar, not on it, so the button can be pressed again.
 The reveal gives a bar way to its line while point is on it, and a click
