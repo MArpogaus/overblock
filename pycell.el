@@ -1938,7 +1938,11 @@ the code-cells maps."
         ;; under point shows what is written on it.
         (add-hook 'post-command-hook #'overblock-bar-reveal nil t)
         (add-hook 'after-change-functions #'pycell--bars-after-change nil t)
-        (pycell--cell-bars (point-min) (point-max))
+        ;; The whole buffer, narrowed or not: a mode turned on under a
+        ;; narrowing would otherwise bar the visible cells alone, and
+        ;; the rest only when something edited them.
+        (without-restriction
+          (pycell--cell-bars (point-min) (point-max)))
         (pycell-md-render-all))
     (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
     (remove-hook 'post-command-hook #'overblock-bar-reveal t)

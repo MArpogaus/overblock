@@ -974,8 +974,12 @@ moved under the reader as point crossed such a line."
             (overlays-in pos (min (point-max) (1+ pos)))))
 
 (defun overblock-bars ()
-  "Return the bar overlays of this buffer."
-  (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max))))
+  "Return the bar overlays of this buffer.
+The whole of it: an overlay knows nothing of a narrowing, and a caller
+that draws every bar again — after a change of width, say — would
+otherwise leave the ones outside the accessible part as they were."
+  (without-restriction
+    (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max)))))
 
 (defvar-local overblock--revealed nil
   "The bar overlay whose line is showing the text under it.")

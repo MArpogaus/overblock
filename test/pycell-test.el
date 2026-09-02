@@ -1740,6 +1740,23 @@ a second row and the buffer moved under the reader."
       (should (equal (overlay-get bar 'display) ""))
       (should (overlay-get bar 'before-string)))))
 
+(ert-deftest pycell-test-a-narrowing-hides-no-cell-from-the-bars ()
+  "Every cell is barred, not only the ones the narrowing shows.
+A notebook narrowed when the mode goes on — `narrow-to-defun\\=', an
+indirect buffer, a source edit — would otherwise have had bars over the
+visible cells alone."
+  (with-temp-buffer
+    (insert "# %% One\nx = 1\n\n# %% Two\ny = 2\n")
+    (python-mode)
+    (set-window-buffer nil (current-buffer))
+    (code-cells-mode)
+    (narrow-to-region (point-min) 12)
+    (unwind-protect
+        (progn
+          (pycell-mode)
+          (should (= 2 (length (overblock-bars)))))
+      (pycell-mode -1))))
+
 (ert-deftest pycell-test-the-mode-takes-its-bars-with-it ()
   "Turning the mode off leaves the buffer as it was."
   (with-temp-buffer
