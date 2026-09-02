@@ -349,6 +349,24 @@ piece\\='s end, 32 for the same image on a before-string."
       (overlay-put ov 'display text))
     (overblock--dress block ov)))
 
+(defun overblock--deal (lines slots)
+  "Return LINES dealt into SLOTS chunks, as evenly as the two counts allow.
+Chunk I takes the lines from COUNT*I/SLOTS to COUNT*(I+1)/SLOTS, so a
+remainder is spread over the chunks rather than heaped on the last.
+The chunks follow one another, so they come off a walking list:
+measured, `seq-subseq\\=' from the front of a thousand lines cost 2.7
+milliseconds against 0.3 for three hundred, which is the shape of a
+quadratic."
+  (let ((count (length lines))
+        (rest lines)
+        chunks)
+    (dotimes (i slots)
+      (let ((wanted (- (/ (* (1+ i) count) slots)
+                       (/ (* i count) slots))))
+        (push (take wanted rest) chunks)
+        (setq rest (nthcdr wanted rest))))
+    (nreverse chunks)))
+
 (defun overblock--pieces (block text)
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
@@ -383,29 +401,16 @@ region has anyway.  Those lines go under a cloak."
          (lines (overblock--lines
                  (string-trim text "\\(?:[ \t]*\n\\)+"
                               "\\(?:\n[ \t]*\\)+")))
-         (count (length lines))
          (rows (overblock--rows beg end))
          (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
-         (filled 0)
-         (rest lines)                        ; what the deal has left
+         (chunks (overblock--deal lines slots))
          parts cloak-from)
     (dolist (row rows)
-      (let ((from (car row))
-            (to (cdr row))
-            chunk)
-        (when (> to from)                    ; a line with text to cover
-          ;; Line FILLED of SLOTS takes the rendered lines from
-          ;; COUNT*FILLED/SLOTS to COUNT*(FILLED+1)/SLOTS, so a remainder
-          ;; is spread over the lines rather than heaped on the last.
-          ;; The chunks follow one another, so they are taken off a
-          ;; walking list: measured, `seq-subseq' from the front of a
-          ;; thousand lines cost 2.7 milliseconds against 0.3 for three
-          ;; hundred, which is the shape of a quadratic.
-          (let ((wanted (- (/ (* (1+ filled) count) slots)
-                           (/ (* filled count) slots))))
-            (setq chunk (take wanted rest)
-                  rest (nthcdr wanted rest)
-                  filled (1+ filled))))
+      (let* ((from (car row))
+             (to (cdr row))
+             ;; A line with text to cover takes the next chunk of the
+             ;; rendering; one without carries nothing.
+             (chunk (and (> to from) (pop chunks))))
         (if (null chunk)
             ;; No text on this line, or no rendered lines left for it.
             ;; Open a cloak at the newline above, or leave the open one
