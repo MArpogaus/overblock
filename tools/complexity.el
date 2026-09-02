@@ -210,8 +210,10 @@ deal."
 (defun complexity-report (files)
   "Print what every function of FILES costs a reader, the dearest first."
   (let* ((all (sort (mapcan #'complexity-file files)
-                    :key (lambda (r) (plist-get r :score))
-                    :lessp #'>))
+                    ;; Not the keyword form, which is Emacs 30: this
+                    ;; repository declares 29.1 and its tools run there.
+                    (lambda (a b) (> (plist-get a :score)
+                                     (plist-get b :score)))))
          (scores (mapcar (lambda (r) (plist-get r :score)) all))
          (over (seq-filter (lambda (r) (> (plist-get r :score) 15)) all)))
     (princ (format "%-42s %-26s %4s %4s %6s %5s\n"
