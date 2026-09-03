@@ -1346,48 +1346,45 @@ after what it holds."
     ('source (pycell--source-bar (overlay-start ov) (overlay-end ov)))
     ('markdown (pycell--md-bar ov))))
 
+(defun pycell--bar-line (bol eol kind glyph plain buttons)
+  "Draw the bar of KIND over the boundary line BOL..EOL.
+GLYPH is what stands in front of the label, PLAIN the label of a cell
+with no title of its own, and BUTTONS the buttons of the bar.  A bar of
+another kind on that line is not taken over: the bar of a rendered
+markdown cell belongs to its block, and drawing a code bar on it left
+the block holding an overlay that was no longer its own."
+  (let* ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
+         (ov (if (eq (overblock-bar-kind there) kind)
+                 there
+               (overblock-bar-over bol eol))))
+    ;; Text typed at the end of the line is outside the overlay, and the
+    ;; bar then covered a boundary line only as far as it reached when
+    ;; the line was shorter.
+    (move-overlay ov bol eol)
+    (overblock-bar-draw ov kind
+                        (concat glyph " " (or (pycell--cell-title bol eol)
+                                              plain))
+                        (overblock-buttons buttons)
+                        'pycell-header)))
+
 (defun pycell--source-bar (bol eol)
   "Draw the bar of the markdown cell BOL..EOL that is showing its source.
 A rendered markdown cell is barred by its rendering; a cell that has
 none — one just written, or one taken back to its source — had no bar at
 all, and the line read as one the package had lost track of."
-  (let ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
-        ov)
-    (setq ov (if (eq (overblock-bar-kind there) 'source)
-                 there
-               (overblock-bar-over bol eol)))
-    (move-overlay ov bol eol)
-    (overblock-bar-draw ov 'source
-                        (concat (overblock-glyph "󰽛" "◇" "M") " "
-                                ;; "source" and not "markdown": the glyph
-                                ;; says markdown, and a rendered cell and
-                                ;; one showing its source read alike
-                                ;; otherwise — captured in a terminal,
-                                ;; two bars saying `M markdown' that
-                                ;; differed only in their buttons.
-                                (or (pycell--cell-title bol eol) "source"))
-                        (overblock-buttons pycell-source-buttons)
-                        'pycell-header)))
+  ;; "source" and not "markdown": the glyph says markdown, and a
+  ;; rendered cell and one showing its source read alike otherwise —
+  ;; captured in a terminal, two bars saying `M markdown' that differed
+  ;; only in their buttons.
+  (pycell--bar-line bol eol 'source
+                    (overblock-glyph "󰽛" "◇" "M") "source"
+                    pycell-source-buttons))
 
 (defun pycell--code-bar (bol eol)
-  "Draw the bar of the code cell whose boundary line is BOL..EOL.
-A bar of another kind on that line is not taken over: the bar of a
-rendered markdown cell belongs to its block, and drawing a code bar on
-it left the block holding an overlay that was no longer its own."
-  (let ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
-        ov)
-    (setq ov (if (eq (overblock-bar-kind there) 'code)
-                 there
-               (overblock-bar-over bol eol)))
-    ;; Text typed at the end of the line is outside the overlay, and the
-    ;; bar then covered a boundary line only as far as it reached when
-    ;; the line was shorter.
-    (move-overlay ov bol eol)
-    (overblock-bar-draw ov 'code
-                        (concat (overblock-glyph "󰌠" "◆" "%") " "
-                                (or (pycell--cell-title bol eol) "python"))
-                        (overblock-buttons pycell-cell-buttons)
-                        'pycell-header)))
+  "Draw the bar of the code cell whose boundary line is BOL..EOL."
+  (pycell--bar-line bol eol 'code
+                    (overblock-glyph "󰌠" "◆" "%") "python"
+                    pycell-cell-buttons))
 
 (defun pycell--drop-bar (bar)
   "Take BAR down, and the rendering it belongs to where it has one.
