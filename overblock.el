@@ -607,21 +607,23 @@ which is what the layer does with a rendering anyway: it deals the rows
 out over the lines it has."
   (if-let* ((limit (overblock-image-limit))
             ((overblock-image-in string)))
-      (let ((string (copy-sequence string))
-            (seen nil))
-        (pcase-dolist (`(,beg ,end ,image ,sliced)
-                       (overblock--image-runs string))
-          (cond
-           ;; A later row of a run of slices: the whole image is on the
-           ;; first of them now.
-           ((and sliced (memq image seen))
-            (put-text-property beg end 'display "" string))
-           (t
-            (when sliced (push image seen))
-            (when-let* ((capped (overblock--image-capped image limit)))
-              (put-text-property beg end 'display capped string)))))
-        string)
+      (overblock--image-cap-runs (copy-sequence string) limit)
     string))
+
+(defun overblock--image-cap-runs (string limit)
+  "Cap every image of STRING to LIMIT pixels, in place, and return STRING.
+STRING is the caller\'s copy to write on."
+  (let ((seen nil))
+    (pcase-dolist (`(,beg ,end ,image ,sliced)
+                   (overblock--image-runs string))
+      (if (and sliced (memq image seen))
+          ;; A later row of a run of slices: the whole image is on the
+          ;; first of them now.
+          (put-text-property beg end 'display "" string)
+        (when sliced (push image seen))
+        (when-let* ((capped (overblock--image-capped image limit)))
+          (put-text-property beg end 'display capped string)))))
+  string)
 
 (defun overblock-image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
