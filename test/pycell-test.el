@@ -1970,7 +1970,10 @@ bar that was not there."
                   (save-excursion
                     (goto-char (point-min))
                     (overblock-bar-kind (overblock-bar-on-line))))))
-      (skip-unless (eq (funcall kind) 'markdown))
+      ;; `should' and not `skip-unless': the kind of that bar is what
+      ;; this test measures, and a skip would hide the regression it
+      ;; guards.  The converter is asked for above.
+      (should (eq (funcall kind) 'markdown))
       (goto-char (point-min))
       (forward-line 1)
       (pycell-md-raw)
@@ -2073,7 +2076,9 @@ overlay drew after the bar and took a second screen row."
     (pycell-md-render-all)
     (let ((bar (save-excursion (goto-char (point-min))
                                (overblock-bar-on-line))))
-      (skip-unless (eq (overblock-bar-kind bar) 'markdown))
+      ;; The product under test, so `should': see the same question in
+      ;; `pycell-test-md-an-edit-takes-the-bar-with-it'.
+      (should (eq (overblock-bar-kind bar) 'markdown))
       (goto-char (pos-eol))
       (insert " and more")
       ;; The bar covers the whole line again, and says so.
