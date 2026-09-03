@@ -221,7 +221,7 @@ the buffer is not touched."
 
 (defun pycell--drop-rendering (block)
   "Take BLOCK down, and bar the boundary line a rendering leaves behind.
-The bar of a rendered markdown cell is the block\\='s own overlay, so it
+The bar of a rendered markdown cell is the block's own overlay, so it
 goes with the block — and no text on that line changed, so nothing else
 would put one back.  Measured in a graphical frame: the line was left
 with no bar at all, and the button that renders the cell again sits on
@@ -781,7 +781,7 @@ holds what a result popped out after the fact would hold."
   "Where the cell a popped-out result shows begins, as a marker.
 `pycell-interrupt' asks whether that is still the cell the shell is
 running: a buffer showing a result that has ended, or one whose cell is
-long finished, must not stop somebody else\\='s run.")
+long finished, must not stop somebody else's run.")
 
 (defvar-local pycell--shell nil
   "The Python shell a popped-out result came from.
@@ -794,7 +794,7 @@ first.")
   :doc "Keymap in a buffer showing one result of its own.
 The buffer is read-only, so a plain key is free and is what answers
 wherever the reader has bound the `C-c' prefix: a minor mode that owns
-it shadows a major mode's map, and `C-c C-c\\=' then reaches nothing at
+it shadows a major mode's map, and `C-c C-c' then reaches nothing at
 all.  Both are bound, and `i' is the one to rely on."
   :parent special-mode-map
   "i" #'pycell-interrupt
@@ -807,7 +807,7 @@ aligns the columns for this window itself.  It goes in as a copy,
 because the table of the result belongs to the shell buffer that drew
 it.
 
-Only the table did, once, and the rest of the cell\\='s output went
+Only the table did, once, and the rest of the cell's output went
 missing — the six lines a cell printed before its DataFrame, and the
 lines a follower had already seen.  This buffer is the one that holds
 more than the block, so what is around a table goes in with it."
@@ -1388,7 +1388,7 @@ all, and the line read as one the package had lost track of."
 
 (defun pycell--drop-bar (bar)
   "Take BAR down, and the rendering it belongs to where it has one.
-A markdown bar is a block\\='s own overlay: the block goes with it, and
+A markdown bar is a block's own overlay: the block goes with it, and
 the source of the cell comes back.  Its boundary line no longer says
 =[markdown]=, so the rendering below it is a rendering of nothing."
   (if-let* ((block (overlay-get bar 'pycell-main)))
@@ -1518,7 +1518,7 @@ is nothing queued either."
       (process-buffer proc))))
 
 (defvar-local pycell--queue-home nil
-  "Where point goes in the notebook when this shell\\='s queue runs out.
+  "Where point goes in the notebook when this shell's queue runs out.
 `pycell--run-next' walks point down the notebook, which is what makes a
 pass over the whole buffer visible.  A pass asked for from one cell
 gives point back instead: the reader pressed a button there.")
@@ -1553,7 +1553,7 @@ colon and a message.")
   "Whether TEXT is the output of a cell that failed.
 A traceback says so in its first line, but not every failure has one:
 `SyntaxError' and `SystemExit' print the name of the exception and
-nothing else, and a pass ran happily past a cell holding `x = = 1\\='.
+nothing else, and a pass ran happily past a cell holding `x = = 1'.
 So the last line of the output answers as well — that is where the name
 of the exception stands, whether a traceback led to it or not."
   (or (string-match-p "Traceback (most recent call last)" text)
@@ -1711,12 +1711,12 @@ finished cell shows."
 
 (defun pycell--show-in-notebook (beg fin text seconds state &optional total)
   "Show TEXT as the result of the cell BEG..FIN, where it can be shown.
-SECONDS, STATE and TOTAL are what `pycell--show\\=' takes.
+SECONDS, STATE and TOTAL are what `pycell--show' takes.
 
-Nothing where the notebook is gone, and nothing where `pycell-mode\\=' is
-off in it: the mode\\='s own body takes the blocks and the bars away, and
+Nothing where the notebook is gone, and nothing where `pycell-mode' is
+off in it: the mode's own body takes the blocks and the bars away, and
 a block put back after that would sit in a buffer with no bars and none
-of the mode\\='s hooks, where no key of the mode could fold it again."
+of the mode's hooks, where no key of the mode could fold it again."
   (when (buffer-live-p (marker-buffer beg))
     (with-current-buffer (marker-buffer beg)
       (when (bound-and-true-p pycell-mode)
@@ -2065,7 +2065,7 @@ point at.
 In such a buffer it interrupts the cell that buffer shows, and nothing
 else.  It asked the shell for whatever was running: a pop-out of a
 result that had finished, or one whose own shell was gone, then killed
-another notebook\\='s run at a keystroke, with no message and nothing to
+another notebook's run at a keystroke, with no message and nothing to
 undo it."
   (interactive)
   ;; Whether this buffer is a pop-out, not whether its shell is there:
@@ -2194,14 +2194,14 @@ marker where there is any."
       (nreverse cells))))
 
 (defun pycell--run-on-prompt (cells message)
-  "Arm CELLS to run on the shell\\='s first prompt, and say MESSAGE.
+  "Arm CELLS to run on the shell's first prompt, and say MESSAGE.
 For a shell that has not prompted yet: one just started, or one just
 restarted.  Evaluation may only start once the fresh interpreter
-prompted — and after comint-mime\\='s setup, which runs off the same
-hook, hence the depth.  `pycell--end\\=' chains the rest of the queue.
+prompted — and after comint-mime's setup, which runs off the same
+hook, hence the depth.  `pycell--end' chains the rest of the queue.
 
 The queue is armed after the hook and the shell, not before: the home
-belongs to the shell\\='s buffer, and the first pass of a session had
+belongs to the shell's buffer, and the first pass of a session had
 none to put it in, so that pass never brought point back.  A shell that
 answers with an error here leaves nothing armed."
   (with-current-buffer (process-buffer (python-shell-get-process-or-error))

@@ -91,11 +91,11 @@ A docstring here is what lies between two lines of three quotes."
 
 (defmacro docmath-test--with-docstring (&rest body)
   "Run BODY in a buffer with a Python docstring in it.
-No LaTeX runs: `overblock-md--latex-image\\=' answers nil, so the client
+No LaTeX runs: `overblock-md--latex-image' answers nil, so the client
 falls back to the face it names for a formula and these tests measure
 the same thing wherever they run.  Without the stub they passed only
 because LaTeX fails in a batch session; they wrote real images into the
-cache under `xdg-cache-home\\=', and they left the two variables that
+cache under `xdg-cache-home', and they left the two variables that
 remember a failed preview set for the rest of the session.  A test that
 wants an image stubs one of its own, and the inner binding wins."
   `(let ((overblock-md--latex-warned nil)

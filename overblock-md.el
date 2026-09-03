@@ -220,7 +220,7 @@ signals at once rather than costing another process."
       (make-directory dir t)
       (condition-case latex
           ;; Org runs LaTeX in the directory it writes to: a LaTeX in a
-          ;; container reaches the home directory, but not the host\\='s
+          ;; container reaches the home directory, but not the host's
           ;; /tmp.
           (let ((temporary-file-directory dir))
             (org-create-formula-image

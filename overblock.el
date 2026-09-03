@@ -321,7 +321,7 @@ would carry the same run and draw the same image again."
 TO is where the text of a line ends, so a line with nothing on it
 answers a pair with nothing between.
 
-The whole buffer, and a test on the move: an overlay\\='s positions know
+The whole buffer, and a test on the move: an overlay's positions know
 nothing of a narrowing, and under one that ends before END this walk
 would never reach it — `forward-line' stops at the accessible end
 without moving, the test never goes false, and the list grows until the
@@ -349,7 +349,7 @@ The before-string and not the after-string: a cloak begins at the end
 of the piece before it, and Emacs leaves out an overlay string whose
 position is inside invisible text.  Measured on a frame, counting the
 pixels of the image itself: 0 for an after-string with a cloak at the
-piece\\='s end, 32 for the same image on a before-string."
+piece's end, 32 for the same image on a before-string."
   (let ((ov (make-overlay from to nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'overblock-part t)
@@ -381,7 +381,7 @@ quadratic."
   "Return where the cloak covering the row at FROM starts.
 OPEN is where a cloak already stands open, or nil.  An open one is left
 to grow; a new one starts at the newline above FROM, which is the end
-of the visible line before it — `scroll-down\\=' answers a run that
+of the visible line before it — `scroll-down' answers a run that
 begins a line with a beginning-of-buffer error, in the middle of the
 region.
 
@@ -1020,7 +1020,7 @@ and the icons then sit beside the label instead of at the window edge."
 
 (defun overblock-bar-draw (ov kind label icons face)
   "Draw the bar LABEL and ICONS on OV, of KIND, in FACE.
-OV comes from `overblock-bar-over'.  KIND is the caller\\='s own word for
+OV comes from `overblock-bar-over'.  KIND is the caller's own word for
 what this bar stands on, and `overblock-bar-kind' answers with it.
 
 Where nothing has changed the bar is left as it is: a caller draws from
