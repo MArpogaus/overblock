@@ -633,7 +633,7 @@ out over the lines it has."
 
 (defun overblock--image-cap-runs (string limit)
   "Cap every image of STRING to LIMIT pixels, in place, and return STRING.
-STRING is the caller\'s copy to write on."
+STRING is the caller's copy to write on."
   (let ((seen nil))
     (pcase-dolist (`(,beg ,end ,image ,sliced)
                    (overblock--image-runs string))
