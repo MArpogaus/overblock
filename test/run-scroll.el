@@ -61,7 +61,15 @@
 
 ;; The tests measure pixels, so they wait until redisplay has brought
 ;; the frame up rather than running while the file loads.
-(run-with-timer 0.5 nil #'run-scroll--all)
+;;
+;; Only in the session `make scroll' starts, which is a graphical one.
+;; `make test' loads every file of test/, this runner among them, and a
+;; batch session runs its timers whenever it waits for a process —
+;; which every run against a real interpreter does.  The suite then died
+;; part way through, with the exit status of a scrolling run that had
+;; never happened.
+(unless noninteractive
+  (run-with-timer 0.5 nil #'run-scroll--all))
 
 (provide 'run-scroll)
 ;;; run-scroll.el ends here
