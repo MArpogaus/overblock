@@ -180,9 +180,13 @@ machine.  See `overblock-md--fetchable-p' for what is fetched at all."
               ;; asked for again in this session.
               (with-timeout (3 (error "Timed out"))
                 (url-copy-file url file t))
-              (and (file-readable-p file)
-                   (image-supported-file-p file)
-                   file))
+              ;; Not `image-supported-file-p': it answers from the
+              ;; name, and a URL with a query string caches as
+              ;; `<md5>.img'.  It said no on the fetch and the
+              ;; cache-hit path above never asked, so the same badge
+              ;; showed alt text once and a picture every time after.
+              ;; `create-image' identifies the file from its header.
+              (and (file-readable-p file) file))
           (error (puthash url t overblock-md--remote-failed)
                  (ignore-errors (delete-file file))
                  (message "overblock-md: no image from %s (%s)"
