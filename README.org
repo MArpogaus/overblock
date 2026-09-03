@@ -449,12 +449,11 @@ Two of those are worth a word:
   installed, rather than skipping a fifth of the suite in silence.  The
   CI sets it.
 
-=make complexity= is a report and not a check: it scores every function
-by how much of it a reader must hold at once, by the rules of the
-SonarSource paper read as Lisp, and names the ones worth looking at.
-Comments and doc strings count for nothing there, so a long explanation
-is free and a dense line is not.  See =tools/complexity.el=, whose
-rules are tested like anything else.
+The complexity check is a pre-commit hook rather than a target here:
+[[https://github.com/MArpogaus/elisp-complexity][elisp-complexity]] scores every function by how much of it a reader
+must hold at once, by the rules of the SonarSource paper read as Lisp,
+and stops a commit at fifteen.  Comments and doc strings count for
+nothing there, so a long explanation is free and a dense line is not.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
 checks, the formatter, checkdoc and relint before a commit, the commit
