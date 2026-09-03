@@ -2217,5 +2217,32 @@ could fold it, and no edit of the cell took it down."
         (pycell--show-in-notebook from to "out" 0.3 nil)
         (should-not (overblock-in (point-min) (point-max) 'result))))))
 
+(ert-deftest pycell-test-a-result-of-one-line-is-not-a-prompt ()
+  "The colour comint paints a prompt with does not reach a result.
+comint calls a chunk of output that ends without a newline a prompt,
+and a cell that prints a single line arrives as one such chunk: against
+a real IPython, a cell that printed one line came back in the prompt
+face, where the same cell printing three lines came back plain.  Only
+that face goes: ansi-color and comint-mime write the colours of the
+output on the same property."
+  (let ((comint-prompt-regexp "^In \\[[0-9]+\\]: "))
+    (let ((text (pycell--clean
+                 (propertize "one" 'font-lock-face
+                             'comint-highlight-prompt))))
+      (should (equal (substring-no-properties text) "one"))
+      ;; No property at all, not one set to nil: a nil is a face run of
+      ;; its own, and a face run is what a block costs redisplay.
+      (should-not (memq 'font-lock-face (text-properties-at 0 text))))
+    ;; A run that carries the prompt face beside a colour of its own
+    ;; keeps the colour, and a run without the prompt face is untouched.
+    (let ((text (pycell--clean
+                 (concat (propertize "red" 'font-lock-face
+                                     '(bold comint-highlight-prompt))
+                         "\n"
+                         (propertize "plain" 'font-lock-face 'shadow)))))
+      (should (equal (substring-no-properties text) "red\nplain"))
+      (should (eq (get-text-property 0 'font-lock-face text) 'bold))
+      (should (eq (get-text-property 4 'font-lock-face text) 'shadow)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
