@@ -2169,17 +2169,47 @@ never ran at all."
             (unless (pycell--md-cell-start beg)
               (throw 'waiting nil))))))))
 
+(defvar pycell--stop-shell nil
+  "The shell whose pass the stop key stops.
+Captured when the map is armed: the map is global and the reader's
+point can be anywhere by the time the key is pressed, so neither the
+predicate nor the command may resolve the shell from whatever buffer
+that happens to be.")
+
+(defun pycell--pass-live-p ()
+  "Whether the armed pass still has anything to stop.
+The queue, or the cell that is running now: the last cell of a pass is
+sent with the queue already empty, and a predicate that asked only the
+queue let the stop key die while that cell — often the longest one —
+was still going."
+  (and (buffer-live-p pycell--stop-shell)
+       (or (buffer-local-value 'pycell--queue pycell--stop-shell)
+           (buffer-local-value 'pycell--run pycell--stop-shell))
+       t))
+
+(defvar-keymap pycell-stop-map
+  :doc "Transient keymap, active while a pass over the cells runs.
+A text terminal has no <escape> event — ESC is its meta prefix — so
+there the key does nothing.  Bind a key of your own here for a
+terminal session."
+  "<escape>" #'pycell-stop)
+
+(defun pycell--arm-stop (message)
+  "Arm `pycell-stop-map' for as long as the pass lives, and say MESSAGE."
+  (setq pycell--stop-shell (pycell--queue-buffer))
+  (set-transient-map pycell-stop-map #'pycell--pass-live-p nil message))
+
+;;;###autoload
 (defun pycell-stop ()
   "Stop the run of the cells after the current one.
 Both passes go through the same queue: `pycell-restart-and-run-all' and
-`pycell-run-above'."
+`pycell-run-above'.  The cell that is already running runs to its end;
+`pycell-interrupt' is the harder stop."
   (interactive)
-  (pycell--queue-set nil)
+  (if (buffer-live-p pycell--stop-shell)
+      (with-current-buffer pycell--stop-shell (setq pycell--queue nil))
+    (pycell--queue-set nil))
   (message "pycell: run all stopped"))
-
-(defvar-keymap pycell-stop-map
-  :doc "Transient keymap, active while all cells run."
-  "<escape>" #'pycell-stop)
 
 (defun pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
@@ -2208,8 +2238,7 @@ answers with an error here leaves nothing armed."
     (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
   (pycell--home-set (point-marker))
   (pycell--queue-set cells)
-  (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
-                     message))
+  (pycell--arm-stop message))
 
 (defun pycell--run-cells (cells message)
   "Run CELLS in order, and say MESSAGE while they run.
@@ -2232,8 +2261,7 @@ first prompt."
                (error (pycell--queue-set nil)
                       (pycell--home-set nil)
                       (signal (car err) (cdr err))))
-             (set-transient-map pycell-stop-map (lambda () (pycell--queued))
-                                nil message))
+             (pycell--arm-stop message))
     (run-python nil (pycell--dedicated))
     (message "pycell: starting the interpreter…")
     (pycell--run-on-prompt cells message)))
