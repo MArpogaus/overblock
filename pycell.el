@@ -378,13 +378,50 @@ variable has its value."
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
+(defun pycell--drop-prompt-face (text)
+  "Return TEXT with the face comint paints a prompt with taken off.
+comint calls a chunk of output that ends without a newline a prompt,
+and paints it `comint-highlight-prompt'.  A cell that prints a single
+line arrives as one such chunk, so the commonest result of all showed
+in the colour of a prompt: measured against a real IPython, a cell that
+printed one line came back in that face, where the same cell printing
+three lines came back plain.
+
+Only that face.  Every other one rides the same property and says
+something about the output: ansi-color writes the colours of a terminal
+there, and comint-mime the faces of whatever it renders.
+
+A run left with no face at all loses the property rather than carrying
+a nil: what a block costs redisplay follows the number of face runs its
+text has, and a property set to nil is a run of its own.
+
+TEXT is written on in place.  It is the copy `pycell--clean' was
+handed, which comes from `buffer-substring'."
+  (let ((pos 0)
+        (len (length text)))
+    (while (< pos len)
+      (let* ((next (or (next-single-property-change pos 'font-lock-face text)
+                       len))
+             (face (ensure-list (get-text-property pos 'font-lock-face text)))
+             (kept (remq 'comint-highlight-prompt face)))
+        (unless (= (length kept) (length face))
+          (if kept
+              (put-text-property pos next 'font-lock-face
+                                 (if (cdr kept) kept (car kept))
+                                 text)
+            (remove-text-properties pos next '(font-lock-face nil) text)))
+        (setq pos next))))
+  text)
+
 (defun pycell--clean (text)
   "Return TEXT as a result block can show it.
-The prompts and the Out[N] labels go, and the copy is cut loose from
-the shell; see `pycell--strip-prompts' and `overblock-repl-detach' for what
-each of those means.  Call this in the shell buffer, where
-`comint-prompt-regexp' has its value."
-  (overblock-repl-detach (pycell--strip-prompts text)))
+The prompts and the Out[N] labels go, the face of a prompt goes with
+them, and the copy is cut loose from the shell; see
+`pycell--strip-prompts', `pycell--drop-prompt-face' and
+`overblock-repl-detach' for what each of those means.  Call this in the
+shell buffer, where `comint-prompt-regexp' has its value."
+  (overblock-repl-detach
+   (pycell--drop-prompt-face (pycell--strip-prompts text))))
 
 (defun pycell--shorten (line)
   "Return LINE cut to `pycell-max-line-length' characters.
