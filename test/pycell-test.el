@@ -2056,7 +2056,12 @@ a run-all walked happily past a cell holding `x = = 1\\='."
   (should-not (pycell--error-p "42\n"))
   (should-not (pycell--error-p ""))
   (should-not (pycell--error-p "the Error: was printed, not raised\n"))
-  (should-not (pycell--error-p "Done\n")))
+  (should-not (pycell--error-p "Done\n"))
+  ;; A cell that prints the name of an exception it caught: the colon
+  ;; is what tells a report from a print, and the two names IPython
+  ;; does print alone are the exception to that.
+  (should-not (pycell--error-p "ValueError\n"))
+  (should-not (pycell--error-p "caught: ZeroDivisionError\n")))
 
 (ert-deftest pycell-test-a-rendered-bar-follows-its-line ()
   "A title typed at the end of a boundary line reaches the bar above it.
