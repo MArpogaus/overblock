@@ -32,6 +32,10 @@ repos:
   - id: commitizen
   - id: commitizen-branch
     stages: [pre-push]
+- repo: https://github.com/MArpogaus/elisp-complexity
+  rev: v0.1.0
+  hooks:
+  - id: elisp-complexity
 - repo: local
   hooks:
   - id: indent

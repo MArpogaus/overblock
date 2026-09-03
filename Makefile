@@ -5,7 +5,6 @@
 #   make lint      package-lint, the MELPA rules
 #   make relint    regexp and docstring escapes
 #   make test      ERT test suite, STRICT=1 to refuse to skip
-#   make complexity  what each function costs a reader
 #   make format    indent every Lisp file in place
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
@@ -40,7 +39,7 @@ checkdoc = (progn (require (quote checkdoc)) \
 
 BATCH = $(EMACS) -Q --batch -L . -L test -L tools --eval '$(init)'
 
-.PHONY: all compile checkdoc lint relint test complexity format scroll clean
+.PHONY: all compile checkdoc lint relint test format scroll clean
 
 all: compile checkdoc lint relint test
 
@@ -94,13 +93,6 @@ scroll: $(SANDBOX)
 	@$(XVFB) $(EMACS) -Q -L . -L test --eval '$(init)' \
 	  -l test/run-scroll.el; status=$$?; \
 	  cat scroll-report.txt 2>/dev/null; exit $$status
-
-# A report and not a gate: there is no complexity rule to fail, only
-# functions worth looking at.  See tools/complexity.el.
-complexity:
-	@$(BATCH) -l complexity \
-	  --eval '(complexity-report command-line-args-left)' $(SRC)
-
 # The formatter loads each file before indenting it, so a macro of this
 # package indents its body the way its `declare' says; that needs the
 # load path and the dependencies, which is why it wants the sandbox.
