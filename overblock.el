@@ -313,7 +313,7 @@ answers a pair with nothing between.
 
 The whole buffer, and a test on the move: an overlay\\='s positions know
 nothing of a narrowing, and under one that ends before END this walk
-would never reach it — `forward-line\\=' stops at the accessible end
+would never reach it — `forward-line' stops at the accessible end
 without moving, the test never goes false, and the list grows until the
 machine is out of memory.  A position past the end of the buffer — a
 stale overlay, or a narrowing the widening cannot undo — used to spin
@@ -329,7 +329,7 @@ here for the same reason."
 
 (defun overblock--piece (block from to text)
   "Return an overlay of BLOCK that shows TEXT in place of FROM..TO.
-A piece with an image in it cannot ride a `display\\=' property, because
+A piece with an image in it cannot ride a `display' property, because
 display properties do not nest and the image would be swallowed.  Such
 a piece hides its line with a display string of nothing and rides the
 before-string instead, which draws images.  The line keeps its own row
@@ -354,7 +354,7 @@ piece\\='s end, 32 for the same image on a before-string."
 Chunk I takes the lines from COUNT*I/SLOTS to COUNT*(I+1)/SLOTS, so a
 remainder is spread over the chunks rather than heaped on the last.
 The chunks follow one another, so they come off a walking list:
-measured, `seq-subseq\\=' from the front of a thousand lines cost 2.7
+measured, `seq-subseq' from the front of a thousand lines cost 2.7
 milliseconds against 0.3 for three hundred, which is the shape of a
 quadratic."
   (let ((count (length lines))
@@ -567,14 +567,14 @@ had nothing to tell an empty result from a picture.  LABEL defaults to
 
 (defun overblock--image-capped (image limit)
   "Return IMAGE with its height held to LIMIT, or nil where it has one.
-An image that already carries a `:max-height\\=' was capped by whoever
+An image that already carries a `:max-height' was capped by whoever
 made it, and to a height they chose."
   (unless (plist-get (cdr image) :max-height)
     (cons 'image (plist-put (copy-sequence (cdr image)) :max-height limit))))
 
 (defun overblock--image-runs (string)
   "Return a list of (BEG END IMAGE SLICED) for the images STRING draws.
-Each is one run of a `display\\=' property.  SLICED is non-nil where the
+Each is one run of a `display' property.  SLICED is non-nil where the
 run draws a slice of the image rather than the whole of it."
   (let ((pos 0)
         (len (length string))
@@ -589,11 +589,11 @@ run draws a slice of the image rather than the whole of it."
     (nreverse runs)))
 
 (defun overblock-image-cap (string)
-  "Return STRING with every image in it capped to `overblock-image-height\\='.
+  "Return STRING with every image in it capped to `overblock-image-height'.
 STRING itself is not touched: this copies before it caps, so a caller
 keeps the original to save or to pop out.
 
-Emacs 31 slices an image taller than `shr-sliced-image-height\\=' into a
+Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line of the window it was rendered in, and a slice reads
 as ((slice X Y W H) IMAGE).  Slicing does not make an image smaller — it
 cuts a full-height image into rows — so a figure sliced for a tall shell
@@ -758,9 +758,9 @@ plist saves is the call around each walk, not the walks."
   string)
 
 (defvar overblock--glyphs (make-hash-table :test #'equal)
-  "What `overblock-glyph\\=' answered, by frame font and candidates.
+  "What `overblock-glyph' answered, by frame font and candidates.
 The answer cannot change while a frame keeps its font, and the question
-is dear: `internal-char-font\\=' asks the font backend once a character,
+is dear: `internal-char-font' asks the font backend once a character,
 and one header of six icons asked it twenty times, five times a second.
 Measured over a running cell, the header cost 0.71 milliseconds a tick
 and 0.27 with this table.")
@@ -834,7 +834,7 @@ is `image' or `lines' waits for those."
 
 (defconst overblock--pixel-width-takes-a-buffer
   (> (cdr (func-arity #'string-pixel-width)) 1)
-  "Whether `string-pixel-width\\=' takes the buffer to measure in.
+  "Whether `string-pixel-width' takes the buffer to measure in.
 Emacs 31 does; an older one measures without any face remapping.")
 
 (defun overblock--pixel-width (string)
@@ -975,7 +975,7 @@ nothing rebuilds the header after the cell has ended."
 (defun overblock-bar-over (beg end)
   "Return an overlay that shows a bar in place of the text BEG..END.
 The text stays in the buffer and draws as nothing until
-`overblock-bar-draw\\=' puts the bar `overblock-bar\\=' built on this
+`overblock-bar-draw' puts the bar `overblock-bar' built on this
 overlay, and puts it there again whenever the label or the window width
 changes.
 
@@ -989,8 +989,8 @@ and the icons then sit beside the label instead of at the window edge."
 
 (defun overblock-bar-draw (ov kind label icons face)
   "Draw the bar LABEL and ICONS on OV, of KIND, in FACE.
-OV comes from `overblock-bar-over\\='.  KIND is the caller\\='s own word for
-what this bar stands on, and `overblock-bar-kind\\=' answers with it.
+OV comes from `overblock-bar-over'.  KIND is the caller\\='s own word for
+what this bar stands on, and `overblock-bar-kind' answers with it.
 
 Where nothing has changed the bar is left as it is: a caller draws from
 a change hook, and a walk over a long buffer would otherwise measure and
@@ -1007,15 +1007,15 @@ compared, because the label is usually written on it."
 
 (defun overblock--bar-wear (ov text)
   "Put TEXT on OV in place of the line, with room for the caret.
-All of TEXT but its last character rides the `before-string\\=', whose
+All of TEXT but its last character rides the `before-string', whose
 own \\(space :align-to \\(- right ...)) is looked at — a display string's
 is not, and the icons would sit beside the label instead of at the
 window edge.  The last character is the display itself and carries
-`cursor\\=', which is what gives the caret a glyph to draw on: over an
+`cursor', which is what gives the caret a glyph to draw on: over an
 empty display there is none, so point could stand on a boundary line
 with nothing to show it — a line that could not be folded from.
 
-The last character and not the first, and never the `after-string\\=': a
+The last character and not the first, and never the `after-string': a
 string after the overlay draws at the overlay's end, and a rendering
 whose cloak covers that place swallows it.  Measured on a markdown cell
 at the top of a buffer — where the cloak begins at the boundary line's
@@ -1031,7 +1031,7 @@ character out of the string moves nothing: it draws where it drew."
 
 (defun overblock-bar-stale (ov)
   "Make OV forget what it was drawn from, so the next draw rebuilds it.
-`overblock-bar-draw\\=' leaves a bar as it is where nothing it compares
+`overblock-bar-draw' leaves a bar as it is where nothing it compares
 has changed.  A change it cannot see is the caller's to declare: the
 buffer's font size is one, because the room a label has is the same
 number of pixels at any size and the label's own width is not."
@@ -1040,7 +1040,7 @@ number of pixels at any size and the label's own width is not."
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
 Nil for nil as well: this answers a question about whatever a caller
-found, and `overblock-bar-at\\=' finds nothing often."
+found, and `overblock-bar-at' finds nothing often."
   (and ov (overlay-get ov 'overblock-bar)))
 
 (defun overblock-bar-in (beg end)

@@ -1328,7 +1328,7 @@ first lost every link of the cell — the badge a notebook opens with
 included.
 
 An Emacs that cannot read a PNG draws no image and keeps no link on
-one: `overblock-md--image-file\\=' answers nil for every path there."
+one: `overblock-md--image-file' answers nil for every path there."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (with-temp-buffer
@@ -1403,7 +1403,7 @@ invisible, with nothing able to remove it."
 
 (ert-deftest pycell-test-a-narrower-window-gets-a-new-bar ()
   "A bar is drawn again when the window it was built for has changed width.
-`overblock-bar\\=' cuts the label to the room the icons leave, and that
+`overblock-bar' cuts the label to the room the icons leave, and that
 cut is in the string: a window made narrower afterwards — a split, a
 side window, a frame resized — kept a label too long for it and the
 header took two rows."
@@ -1465,11 +1465,11 @@ buffer that is meant to hold more than the block."
 
 (ert-deftest pycell-test-a-pop-out-interrupts-its-own-shell ()
   "A popped-out result interrupts the shell it came from.
-It is not a Python buffer, so `python-shell-get-process\\=' would answer
+It is not a Python buffer, so `python-shell-get-process' would answer
 with whatever the settings point at — the wrong shell where the
-notebook has one of its own.  `i\\=' is the key: the buffer is read-only,
+notebook has one of its own.  `i' is the key: the buffer is read-only,
 so a plain one is free and answers wherever the reader has bound the
-`C-c\\=' prefix."
+`C-c' prefix."
   (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
   (let* ((shell (generate-new-buffer " *pycell-test-shell*"))
          (notebook (generate-new-buffer " *pycell-test-nb*"))
@@ -1673,7 +1673,7 @@ in, and the commands select it."
     (should-error (pycell-discard-output) :type 'user-error)))
 
 (ert-deftest pycell-test-a-markdown-edit-can-be-abandoned ()
-  "`pycell-md-abort\\=' leaves the source as it was, and the window with it."
+  "`pycell-md-abort' leaves the source as it was, and the window with it."
   (let ((buffer (get-buffer-create " *pycell test md abort*")))
     (unwind-protect
         (with-current-buffer buffer
@@ -1759,7 +1759,7 @@ A markdown boundary line is left to the rendering, which brings its own."
                             (< (overlay-start a) (overlay-start b)))))))
       (should (equal (overlay-get bar 'overblock-bar) 'code))
       ;; The bar rides the before-string; the line's own text draws as
-      ;; the bar's last glyph, which carries `cursor\=' so the caret has
+      ;; the bar's last glyph, which carries `cursor' so the caret has
       ;; somewhere to be.  Never the after-string: a rendering's cloak
       ;; covers the place a string after the overlay would draw in.
       (should (overlay-get bar 'before-string))
@@ -1790,7 +1790,7 @@ And a line that becomes a markdown boundary loses the code bar it had."
 
 (ert-deftest pycell-test-a-narrowing-hides-no-cell-from-the-bars ()
   "Every cell is barred, not only the ones the narrowing shows.
-A notebook narrowed when the mode goes on — `narrow-to-defun\\=', an
+A notebook narrowed when the mode goes on — `narrow-to-defun', an
 indirect buffer, a source edit — would otherwise have had bars over the
 visible cells alone."
   (with-temp-buffer
@@ -1868,7 +1868,7 @@ encloses the line."
 
 (ert-deftest pycell-test-a-markdown-cell-showing-its-source-has-a-bar ()
   "A markdown cell that is not rendered is barred too, and can be rendered.
-It had no bar at all: writing `[markdown]\\=' on a line took the code bar
+It had no bar at all: writing `[markdown]' on a line took the code bar
 off it and nothing put one back until the whole buffer was rendered
 again."
   (pycell-test--with-notebook "# %% [markdown]\n# text\n\n# %% Two\ny = 2\n"
@@ -1880,7 +1880,7 @@ again."
       (should (commandp 'pycell-md-render-cell)))))
 
 (ert-deftest pycell-test-a-boundary-line-keeps-one-bar-through-its-kinds ()
-  "Writing and unwriting `[markdown]\\=' leaves one bar, of the right kind.
+  "Writing and unwriting `[markdown]' leaves one bar, of the right kind.
 The bar of a cell showing its source stayed on a line that had stopped
 saying =[markdown]=, and the code bar was drawn beside it."
   (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
@@ -1907,8 +1907,8 @@ saying =[markdown]=, and the code bar was drawn beside it."
   "No two buttons draw the same glyph, in any row of candidates.
 A frame draws whichever row it can: the nerd glyphs, the symbols an
 ordinary font has, or the plain characters a terminal falls to.  Two
-rounds of this: `^\\=' meant both \"pop this result out\" and \"edit this
-cell\" in the last row, and `↗\\=' meant both in the middle one, which is
+rounds of this: `^' meant both \"pop this result out\" and \"edit this
+cell\" in the last row, and `↗' meant both in the middle one, which is
 the row a frame with a font and no nerd glyphs draws."
   (let ((bars (list pycell-result-buttons pycell-markdown-buttons
                     pycell-cell-buttons pycell-source-buttons)))
@@ -1944,7 +1944,7 @@ the row a frame with a font and no nerd glyphs draws."
               (push (cons glyph (nth 3 button)) seen))))))))
 
 (ert-deftest pycell-test-customizing-the-buttons-draws-the-bars-again ()
-  "A button list set with `setopt\\=' shows on a notebook already open.
+  "A button list set with `setopt' shows on a notebook already open.
 It showed only when something else drew a bar again — a window changing
 width, or the file opened afresh — so customizing the buttons of an open
 notebook appeared to do nothing."
@@ -1959,7 +1959,7 @@ notebook appeared to do nothing."
         (setopt pycell-cell-buttons was)))))
 
 (ert-deftest pycell-test-a-cell-taken-back-to-its-source-keeps-a-bar ()
-  "`pycell-md-raw\\=' leaves the bar that carries the button to render again.
+  "`pycell-md-raw' leaves the bar that carries the button to render again.
 Taking a rendering down deletes the bar that belonged to it and changes
 no text, so nothing else would draw one: measured in a graphical frame,
 the line was left bare, and the button that renders the cell sits on the
@@ -2032,10 +2032,10 @@ already taken off it."
 
 (ert-deftest pycell-test-a-change-leaves-the-search-alone ()
   "A caller's match survives the bars being drawn.
-`after-change-functions\\=' runs between a search and what the searcher
+`after-change-functions' runs between a search and what the searcher
 does with the match, and the walk that draws the bars searches too:
-`replace-match\\=' after a `search-forward\\=' signalled
-`args-out-of-range\\=' while the walk had the match data."
+`replace-match' after a `search-forward' signalled
+`args-out-of-range' while the walk had the match data."
   (pycell-test--with-notebook "# %% code BEFORE\nx = 1\n"
     (goto-char (point-min))
     (should (search-forward "BEFORE" nil t))
@@ -2044,7 +2044,7 @@ does with the match, and the walk that draws the bars searches too:
 
 (ert-deftest pycell-test-a-failure-without-a-traceback-stops-a-pass ()
   "Output that names an exception ends a pass, traceback or not.
-A `SyntaxError\\=' prints the name of the exception and nothing else, and
+A `SyntaxError' prints the name of the exception and nothing else, and
 a run-all walked happily past a cell holding `x = = 1\\='."
   ;; What ipython prints for a syntax error, in full.
   (should (pycell--error-p "  File <ipython-input-3>:1\n    x = = 1\n        ^\nSyntaxError: invalid syntax\n"))
@@ -2079,7 +2079,7 @@ overlay drew after the bar and took a second screen row."
 (ert-deftest pycell-test-a-pass-remembers-where-it-came-from ()
   "The place a pass was asked for is kept with the shell, and given back.
 Three faults lived here: the first pass of a session had no shell to
-keep the marker in, `pycell-restart-and-run-all\\=' never set one, and a
+keep the marker in, `pycell-restart-and-run-all' never set one, and a
 pass refused by a busy shell left its marker behind to drag point when
 an unrelated cell ended."
   (pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"

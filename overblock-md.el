@@ -153,7 +153,7 @@ otherwise wait for the network every time.")
   "Return the local file the image URL was fetched into, or nil.
 The file is kept in the cache beside the LaTeX previews, named after the
 URL, so a badge is fetched once for the session and once for the
-machine.  See `overblock-md--fetchable-p\\=' for what is fetched at all."
+machine.  See `overblock-md--fetchable-p' for what is fetched at all."
   (when (overblock-md--fetchable-p url)
     (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
            (extension (file-name-extension url))
@@ -224,7 +224,7 @@ signals at once rather than costing another process."
         (error (puthash file t overblock-md--latex-failed)
                (signal (car latex) (cdr latex)))))
     ;; Org does not always signal when its process leaves nothing
-    ;; behind, and `create-image\\=' on a name reads the name: without
+    ;; behind, and `create-image' on a name reads the name: without
     ;; this a spec pointing at no file went on the screen, and the memo
     ;; never learnt anything.
     (unless (file-exists-p file)

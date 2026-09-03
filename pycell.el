@@ -86,7 +86,7 @@ It inherits the cell boundary face, so results match the cells.")
 
 (defun pycell--set-buttons (symbol value)
   "Set SYMBOL to VALUE, and draw the headers of every notebook again.
-The `:set\\=' of the button options.  A change to one of them showed up
+The `:set' of the button options.  A change to one of them showed up
 only when something else drew a bar again — a window changing width, or
 the file opened afresh — so customizing the buttons of a notebook that
 was already open appeared to do nothing at all."
@@ -116,7 +116,7 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
   character at the end.  Three of them is the shape used here: a nerd
   glyph, a character an ordinary monospace font has, and a plain one
   for a terminal.  Ask the font about the middle one before choosing
-  it — measured, `⏫\\=' is in none of Source Code Pro, Liberation Mono
+  it — measured, `⏫' is in none of Source Code Pro, Liberation Mono
   or FiraCode Nerd Font, so a frame without nerd glyphs fell all the
   way to the plain character for that button and to a symbol for every
   other.
@@ -151,8 +151,8 @@ no output, so `lines' and `image' say nothing here."
     (move-down ("󰅀" "⌄" "d") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
-The entries read as in `pycell-result-buttons\\='.  Such a cell is one
-just written, or one taken back to its source with `pycell-md-raw\\=';
+The entries read as in `pycell-result-buttons'.  Such a cell is one
+just written, or one taken back to its source with `pycell-md-raw';
 the third button renders it.
 
 No glyph of a bar is the glyph of another button of that bar, or of a
@@ -282,7 +282,7 @@ of the buffer like any other."
 
 (defvar-local pycell--width nil
   "The width the bars of this buffer were built for, in pixels.
-`overblock-bar\\=' cuts the label to the room the icons leave, and the cut
+`overblock-bar' cuts the label to the room the icons leave, and the cut
 is in the string: a window made narrower afterwards — a split, a side
 window, a frame resized — was left with a label too long for it, and
 the header took two rows.  A bar is remade when this changes.")
@@ -299,7 +299,7 @@ bar cut for the old one took two rows.  Measured at scale +6: a bar of
 
 (defun pycell--rewidth ()
   "Draw the bars again where the window has changed width.
-On `window-configuration-change-hook\\=', where it runs for the buffer of
+On `window-configuration-change-hook', where it runs for the buffer of
 every window that changed.
 
 Only the bars: a result is drawn again from the record it already
@@ -779,23 +779,23 @@ holds what a result popped out after the fact would hold."
 
 (defvar-local pycell--cell nil
   "Where the cell a popped-out result shows begins, as a marker.
-`pycell-interrupt\\=' asks whether that is still the cell the shell is
+`pycell-interrupt' asks whether that is still the cell the shell is
 running: a buffer showing a result that has ended, or one whose cell is
 long finished, must not stop somebody else\\='s run.")
 
 (defvar-local pycell--shell nil
   "The Python shell a popped-out result came from.
-A pop-out is not a Python buffer, so `python-shell-get-process\\=' would
+A pop-out is not a Python buffer, so `python-shell-get-process' would
 answer with whatever shell the settings point at — the wrong one where
-the notebook has a shell of its own.  `pycell-interrupt\\=' asks this
+the notebook has a shell of its own.  `pycell-interrupt' asks this
 first.")
 
 (defvar-keymap pycell-pop-map
   :doc "Keymap in a buffer showing one result of its own.
 The buffer is read-only, so a plain key is free and is what answers
-wherever the reader has bound the `C-c\\=' prefix: a minor mode that owns
+wherever the reader has bound the `C-c' prefix: a minor mode that owns
 it shadows a major mode's map, and `C-c C-c\\=' then reaches nothing at
-all.  Both are bound, and `i\\=' is the one to rely on."
+all.  Both are bound, and `i' is the one to rely on."
   :parent special-mode-map
   "i" #'pycell-interrupt
   "C-c C-c" #'pycell-interrupt)
@@ -1039,7 +1039,7 @@ Only the word =markdown= of the boundary line carries the header, so
 (defun pycell--md-bar (hov)
   "Draw the bar HOV of a rendered markdown cell, or draw it again.
 The bar is an overlay on the boundary line above the cell, which the
-block keeps under `:bar\\='.  It is remade rather than the cell rendered
+block keeps under `:bar'.  It is remade rather than the cell rendered
 again when the window changes width: the rendering does not depend on
 the width, and the label of the bar does."
   (when (overlay-buffer hov)
@@ -1116,7 +1116,7 @@ is left out: there is nothing to render."
                       (pos-bol)
                     (point-max))))
           (when (< from to) (push (cons from to) cells))
-          ;; Never past the bound: `re-search-forward\\=' signals on a
+          ;; Never past the bound: `re-search-forward' signals on a
           ;; bound behind point, whatever its NOERROR says, and a cell
           ;; that reaches past END would leave point there.
           (goto-char (min to end))))
@@ -1189,7 +1189,7 @@ rendered cell, which is the answer the commands that call it give."
 ;;;###autoload
 (defun pycell-md-render-cell (&optional event)
   "Render the markdown cell at point, or the one whose button EVENT clicked.
-`pycell-md-render-all\\=' does the whole buffer; this is the button on the
+`pycell-md-render-all' does the whole buffer; this is the button on the
 bar of a cell that is showing its source."
   (interactive (list last-input-event))
   (pycell--goto-event event)
@@ -1459,14 +1459,14 @@ and a code boundary."
 
 (defun pycell--bars-after-change (beg end _length)
   "Draw the bars of the lines the change BEG..END touched.
-On `after-change-functions\\=', and not on `jit-lock-register\\=': one error
+On `after-change-functions', and not on `jit-lock-register': one error
 in any other jit-lock function skips the rest of them, and a
-`python-ts-mode\\=' buffer whose grammar does not match the mode signals
+`python-ts-mode' buffer whose grammar does not match the mode signals
 from redisplay — not one bar was drawn in such a buffer.
 
 The match data is the caller's: a change hook runs between a search and
-what the searcher does with it, and `replace-match\\=' after a
-`search-forward\\=' signalled here."
+what the searcher does with it, and `replace-match' after a
+`search-forward' signalled here."
   (save-match-data (pycell--cell-bars beg end)))
 
 
@@ -1492,7 +1492,7 @@ is nothing queued either."
 
 (defvar-local pycell--queue-home nil
   "Where point goes in the notebook when this shell\\='s queue runs out.
-`pycell--run-next\\=' walks point down the notebook, which is what makes a
+`pycell--run-next' walks point down the notebook, which is what makes a
 pass over the whole buffer visible.  A pass asked for from one cell
 gives point back instead: the reader pressed a button there.")
 
@@ -1513,7 +1513,7 @@ The name of an exception, and nothing before it.")
 (defun pycell--error-p (text)
   "Whether TEXT is the output of a cell that failed.
 A traceback says so in its first line, but not every failure has one:
-`SyntaxError\\=' and `SystemExit\\=' print the name of the exception and
+`SyntaxError' and `SystemExit' print the name of the exception and
 nothing else, and a pass ran happily past a cell holding `x = = 1\\='.
 So the last line of the output answers as well — that is where the name
 of the exception stands, whether a traceback led to it or not."
@@ -2105,8 +2105,8 @@ never ran at all."
 
 (defun pycell-stop ()
   "Stop the run of the cells after the current one.
-Both passes go through the same queue: `pycell-restart-and-run-all\\=' and
-`pycell-run-above\\='."
+Both passes go through the same queue: `pycell-restart-and-run-all' and
+`pycell-run-above'."
   (interactive)
   (pycell--queue-set nil)
   (message "pycell: run all stopped"))
@@ -2130,7 +2130,7 @@ marker where there is any."
 (defun pycell--run-cells (cells message)
   "Run CELLS in order, and say MESSAGE while they run.
 Each cell goes on the prompt of the one before it, so the queue is left
-with the shell and `pycell--run-next\\=' takes the next one off it.  The
+with the shell and `pycell--run-next' takes the next one off it.  The
 interpreter starts where there is none, and the pass begins on its
 first prompt."
   (if (python-shell-get-process)
@@ -2163,7 +2163,7 @@ first prompt."
 ;;;###autoload
 (defun pycell-run-cell (&optional event)
   "Run the cell at point, or the one whose button EVENT clicked.
-The same as `code-cells-eval\\=' on that cell, which is what the reader
+The same as `code-cells-eval' on that cell, which is what the reader
 presses \\[code-cells-eval] for."
   (interactive (list last-input-event))
   (pycell--goto-event event)
@@ -2173,7 +2173,7 @@ presses \\[code-cells-eval] for."
 (defun pycell-run-above (&optional event)
   "Run every cell above the one at point, or above the one EVENT clicked.
 The cells run in order and the pass stops at the first error, or on \\<pycell-stop-map>\\[pycell-stop].
-The interpreter keeps what it has: `pycell-restart-and-run-all\\=' is the
+The interpreter keeps what it has: `pycell-restart-and-run-all' is the
 one that starts from nothing."
   (interactive (list last-input-event))
   (pycell--goto-event event)
