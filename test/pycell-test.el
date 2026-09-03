@@ -2197,5 +2197,25 @@ name of one command loads the file."
         (mapc #'kill-buffer (list one two))
         (advice-remove 'outline-flag-region #'pycell--outline-flag-blocks)))))
 
+(ert-deftest pycell-test-a-result-does-not-come-back-with-the-mode-off ()
+  "The end of a run shows nothing in a notebook whose mode is off.
+Turning the mode off takes the blocks and the bars away.  A cell that
+was still running put its result back afterwards, and that block sat in
+a buffer with no bars and none of the mode's hooks: no key of the mode
+could fold it, and no edit of the cell took it down."
+  (pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (let ((from (copy-marker beg))
+            (to (copy-marker end t)))
+        (pycell-mode 1)
+        (pycell--show-in-notebook from to "out" 0.1 nil)
+        (should (overblock-in (point-min) (point-max) 'result))
+        (pycell-mode -1)
+        (should-not (overblock-in (point-min) (point-max) 'result))
+        ;; Both the ticker and the end of the cell come this way.
+        (pycell--show-in-notebook from to "more" 0.2 'running 2)
+        (pycell--show-in-notebook from to "out" 0.3 nil)
+        (should-not (overblock-in (point-min) (point-max) 'result))))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
