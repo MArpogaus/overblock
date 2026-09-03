@@ -255,13 +255,13 @@ the text it was to be judged by existed.  A deletion is judged before,
 because the anchor evaporates with the text it covers and no call would
 follow.
 What it reads for is one insertion the block must survive: a single
-newline at the end of the buffer.  A block\'s anchor stops one character
+newline at the end of the buffer.  A block's anchor stops one character
 short of the last newline of its cell, so a cell at the end of a file
 that has none has an anchor ending at `point-max' — and then the
 newline `require-final-newline' adds is an insertion at that end.  The
 rendering came off as the reader saved the file.  A newline there
 changes nothing the cell renders, typed by hand or added by a save, so
-the block stays either way; a second character reaches the anchor\'s
+the block stays either way; a second character reaches the anchor's
 interior and takes it down.
 
 The whole buffer, not the accessible part: under a narrowing
@@ -332,7 +332,7 @@ showing the result of text that had changed under it."
 ;;;; Result blocks
 
 (defun pycell--strip-prompts (text)
-  "Return TEXT without the shell\'s prompts and its Out[N] labels.
+  "Return TEXT without the shell's prompts and its Out[N] labels.
 The prompt before the output goes, the prompt after it goes, and so does
 the one that ends up on the same line as output which stopped without a
 newline — `comint-prompt-regexp' anchors to a line start and cannot see
@@ -1552,12 +1552,12 @@ what the searcher does with it, and `replace-match' after a
 ;;;; Running cells
 
 (defvar-local pycell--queue nil
-  "Start markers of the cells that `pycell-restart-and-run-all\' still runs.
-Kept in the Python shell\'s buffer, beside `pycell--run\': a notebook with
-a shell of its own — which `python-shell-dedicated\' gives it — has a
+  "Start markers of the cells that `pycell-restart-and-run-all' still runs.
+Kept in the Python shell's buffer, beside `pycell--run': a notebook with
+a shell of its own — which `python-shell-dedicated' gives it — has a
 queue of its own.  One global list let a run-all in one notebook discard
-another\'s cells and then feed its own down that notebook\'s interpreter.
-`pycell--queue-buffer\' is how to reach it.")
+another's cells and then feed its own down that notebook's interpreter.
+`pycell--queue-buffer' is how to reach it.")
 
 (defun pycell--queue-buffer ()
   "Return the buffer that holds the run-all queue for this one.
@@ -1602,7 +1602,7 @@ An interrupted cell ends with a bare `KeyboardInterrupt', and
 colon and a message.")
 
 (defun pycell--error-p (text)
-  "Whether TEXT is the output of a cell that failed.
+  "Return non-nil when TEXT is the output of a cell that failed.
 A traceback says so in its first line, but not every failure has one:
 `SyntaxError' and `SystemExit' print the name of the exception and
 nothing else, and a pass ran happily past a cell holding `x = = 1'.
@@ -2183,18 +2183,18 @@ that point plain.  A rendering has nothing to do with the interpreter."
     (run-python nil (pycell--dedicated))))
 
 (defun pycell--run-next ()
-  "Evaluate the cells of the shell\'s queue until one has to wait.
+  "Evaluate the cells of the shell's queue until one has to wait.
 Point follows, so the run-all pass is visible.  Called from the shell on
-its first prompt and from `pycell--end\' when a cell finishes, so the
-queue is reached through `pycell--queue-buffer\' either way.
+its first prompt and from `pycell--end' when a cell finishes, so the
+queue is reached through `pycell--queue-buffer' either way.
 
 A markdown cell needs no prompt, so the walk goes on to the cell after
 it here; a code cell is sent and the walk stops, to be taken up again
 when its prompt comes back.  A loop and not a call back into
-`pycell-eval-region\': that built a frame for every markdown cell in a
-row, a hundred of them reached `max-lisp-eval-depth\', and — worse —
+`pycell-eval-region': that built a frame for every markdown cell in a
+row, a hundred of them reached `max-lisp-eval-depth', and — worse —
 every frame ran its own tail on the way out, so the second one sent a
-code cell while the first was still running.  `pycell--send\' refused it
+code cell while the first was still running.  `pycell--send' refused it
 from inside the process filter and that cell, already off the queue,
 never ran at all."
   (remove-hook 'python-shell-first-prompt-hook #'pycell--run-next t)
@@ -2231,7 +2231,7 @@ predicate nor the command may resolve the shell from whatever buffer
 that happens to be.")
 
 (defun pycell--pass-live-p ()
-  "Whether the armed pass still has anything to stop.
+  "Return non-nil while the armed pass still has something to stop.
 The queue, or the cell that is running now: the last cell of a pass is
 sent with the queue already empty, and a predicate that asked only the
 queue let the stop key die while that cell — often the longest one —
