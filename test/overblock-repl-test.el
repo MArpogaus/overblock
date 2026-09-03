@@ -154,5 +154,32 @@ swallowed."
     ;; The tail stands on a line of its own.
     (should-not (string-match-p "[^\n]tail" detached))))
 
+(ert-deftest overblock-repl-test-detach-drops-the-shell-s-bookkeeping ()
+  "A detached copy keeps no property that belongs to the shell buffer.
+comint marks its output as a field, makes the field boundaries sticky,
+hangs change hooks on the text, and under `comint-prompt-read-only'
+marks the prompts read-only.  A copy that kept those put read-only text
+on the kill ring and into a popped-out buffer.  What says how the text
+looks stays."
+  (let* ((text (propertize "42" 'read-only t 'field 'output
+                           'front-sticky t 'rear-nonsticky t
+                           'inhibit-line-move-field-capture t
+                           'insert-in-front-hooks '(ignore)
+                           'insert-behind-hooks '(ignore)
+                           'modification-hooks '(ignore)
+                           'keymap (make-sparse-keymap)
+                           'mouse-face 'highlight
+                           'help-echo "shell"
+                           'face 'bold))
+         (copy (overblock-repl-detach text)))
+    (should (equal (substring-no-properties copy) "42"))
+    (dolist (property '(read-only field front-sticky rear-nonsticky
+                        inhibit-line-move-field-capture insert-in-front-hooks
+                        insert-behind-hooks modification-hooks
+                        keymap mouse-face help-echo))
+      (should-not (get-text-property 0 property copy)))
+    ;; and the look of it survives
+    (should (eq (get-text-property 0 'face copy) 'bold))))
+
 (provide 'overblock-repl-test)
 ;;; overblock-repl-test.el ends here

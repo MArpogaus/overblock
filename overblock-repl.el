@@ -173,7 +173,16 @@ targets measured in that window and carries the keymap of a live table.
 In a result block the targets land elsewhere, and no binding of that
 keymap can find a table.  So the columns become literal spaces, the
 keymap, the mouse face and the help echo go, and a table keeps its
-object under `overblock-repl-table', which a caller can show live."
+object under `overblock-repl-table', which a caller can show live.
+
+comint's own bookkeeping goes with them: it marks its output as a
+field, makes the field boundaries sticky, hangs change hooks on the
+text, and under `comint-prompt-read-only' marks the prompts read-only.
+A copy that kept those put read-only text on the kill ring and into a
+popped-out buffer, and its hook properties would run comint's functions
+on an edit of whatever buffer it was yanked into.  What says how the
+text looks stays: the faces, the display properties that carry the
+images, and the table object."
   (let* ((beg 0)
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
@@ -190,7 +199,11 @@ object under `overblock-repl-table', which a caller can show live."
                       (overblock-flattened cut)
                     cut))))
       (remove-list-of-text-properties
-       0 (length copy) '(keymap local-map mouse-face help-echo) copy)
+       0 (length copy)
+       '(keymap local-map mouse-face help-echo read-only field
+         front-sticky rear-nonsticky inhibit-line-move-field-capture
+         insert-in-front-hooks insert-behind-hooks modification-hooks)
+       copy)
       ;; Back to front, so the places of the regions before each one
       ;; still hold.  The newline a run swallowed is put back: without it
       ;; the output that follows the table is glued to its last row.
