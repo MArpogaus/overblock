@@ -1030,7 +1030,14 @@ is why the =# %%= line stays visible.
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= keeps the look of every other cell boundary and
 `outline-minor-mode' still finds a heading line where it expects one."
-  (when-let* ((rendered (overblock-md-rendered
+  (when-let* (;; Still a markdown cell: the line above BEG is the
+              ;; boundary that says so, and an edit of that line drops
+              ;; the cell's block.  `pycell-md-commit' rewrites the
+              ;; body and renders it again, and a reader who changed
+              ;; the boundary in the notebook meanwhile reached
+              ;; `pycell--md-block' with no start for its bar.
+              ((pycell--md-cell-start beg))
+              (rendered (overblock-md-rendered
                          (pycell--md-uncomment
                           (buffer-substring-no-properties beg end))
                          html)))
