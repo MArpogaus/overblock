@@ -432,7 +432,9 @@ renders, and what the scroll measurements say.
 
 =make= runs what the CI runs: byte-compilation with warnings as errors,
 checkdoc, package-lint, relint and the batch tests.  =make scroll=
-needs a display and measures the scrolling.  =make format= indents
+needs a display and measures the scrolling.  =make test-live= runs a
+small suite against a real IPython, and skips with a word where none is
+installed.  =make format= indents
 every Lisp file, which is =tools/indent.el= and nothing more than the
 indentation =indent-region= gives Lisp: no form is rewritten and no
 line reflowed.

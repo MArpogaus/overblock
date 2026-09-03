@@ -5,6 +5,7 @@
 #   make lint      package-lint, the MELPA rules
 #   make relint    regexp and docstring escapes
 #   make test      ERT test suite, STRICT=1 to refuse to skip
+#   make test-live the suite against a real ipython; skips without one
 #   make format    indent every Lisp file in place
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
@@ -22,6 +23,10 @@ DEPS    ?= package-lint relint code-cells comint-mime
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
 TEST := $(wildcard test/*.el)
+# The live suite drives a real IPython, so the batch suite does not load
+# it; `test-live' below is its target.  It is still in TEST, so it is
+# byte-compiled and relinted with the rest.
+SUITE := $(filter-out test/pycell-live-test.el,$(TEST))
 # Everything written in Lisp, the parts that are no package included.
 LISP := $(SRC) $(TEST) $(wildcard demo/*.el) $(wildcard tools/*.el)
 
@@ -43,7 +48,7 @@ checkdoc = (progn (require (quote checkdoc)) \
 
 BATCH = $(EMACS) -Q --batch -L . -L test -L tools --eval '$(init)'
 
-.PHONY: all compile checkdoc lint relint test format scroll clean
+.PHONY: all compile checkdoc lint relint test test-live format scroll clean
 
 all: compile checkdoc lint relint test
 
@@ -83,8 +88,18 @@ relint: $(STAMP)
 # converter is installed.  On a machine that is meant to have one that
 # silence is a lie, so STRICT=1 makes it a failure instead.
 test: $(STAMP)
-	@$(BATCH) $(addprefix -l ,$(TEST)) \
+	@$(BATCH) $(addprefix -l ,$(SUITE)) \
 	  $(if $(STRICT),--eval '$(strict)') -f ert-run-tests-batch-and-exit
+
+# What only a live interpreter can prove: two faults — a read-only
+# notebook wedging the pass, and a result painted as a prompt — survived
+# every batch check, because no batch test starts a process.  Not part
+# of `all': the CI has no ipython, and a suite that always skipped
+# there would only say so in silence.
+test-live: $(STAMP)
+	@if command -v ipython >/dev/null 2>&1; then \
+	  $(BATCH) -l test/pycell-live-test.el -f ert-run-tests-batch-and-exit; \
+	else echo "test-live: no ipython installed, skipping"; fi
 
 # A block is one buffer line and can be taller than the window, and only
 # a graphical frame gives a line a pixel height.  These tests therefore
