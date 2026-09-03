@@ -1404,12 +1404,31 @@ A markdown cell has a bar of its own where it is rendered, and none
 where it shows its source: its boundary line is left out here, and a
 bar left over from before the line said =[markdown]= goes."
   (save-excursion
-    (goto-char (min start end))
-    (forward-line 0)
-    (setq end (save-excursion (goto-char (max start end)) (pos-eol)))
-    (while (< (point) (min end (point-max)))
-      (pycell--bar-this-line)
-      (forward-line 1))))
+    (let ((from (progn (goto-char (min start end)) (pos-bol)))
+          (to (progn (goto-char (max start end)) (pos-eol))))
+      ;; The lines that carry a bar already: one of them may have
+      ;; stopped being a boundary line, and its bar has to come down.
+      ;; A question about the few lines with bars, not about every line
+      ;; of the range.
+      (dolist (bar (seq-filter #'overblock-bar-kind
+                               (overlays-in from (min (point-max) (1+ to)))))
+        (when-let* ((pos (overlay-start bar)))
+          (goto-char pos)
+          (forward-line 0)
+          (pycell--bar-this-line)))
+      ;; And the boundary lines themselves, searched for rather than
+      ;; walked to: a `revert-buffer' or a jupytext round trip reports
+      ;; one change over the whole buffer, and a line-by-line walk then
+      ;; asked `looking-at-p' and `overlays-in' of every line of it.
+      (goto-char from)
+      ;; Point first, then the search: `forward-line' below can carry
+      ;; point past TO, and a bound behind point is an error rather
+      ;; than an empty answer.
+      (while (and (< (point) to)
+                  (re-search-forward code-cells-boundary-regexp to t))
+        (forward-line 0)
+        (pycell--bar-this-line)
+        (forward-line 1)))))
 
 (defun pycell--sole-bar (bol eol kinds)
   "Return the one bar to keep on the line BOL..EOL, and drop the others.
