@@ -1709,6 +1709,27 @@ finished cell shows."
         (1+ count)
       count)))
 
+(defun pycell--show-in-notebook (beg fin text seconds state &optional total)
+  "Show TEXT as the result of the cell BEG..FIN, where it can be shown.
+SECONDS, STATE and TOTAL are what `pycell--show\\=' takes.
+
+Nothing where the notebook is gone, and nothing where `pycell-mode\\=' is
+off in it: the mode\\='s own body takes the blocks and the bars away, and
+a block put back after that would sit in a buffer with no bars and none
+of the mode\\='s hooks, where no key of the mode could fold it again."
+  (when (buffer-live-p (marker-buffer beg))
+    (with-current-buffer (marker-buffer beg)
+      (when (bound-and-true-p pycell-mode)
+        (pycell--show beg fin text seconds state total)))))
+
+(defun pycell--release (&rest markers)
+  "Point every marker of MARKERS nowhere, and ignore what is not one.
+A marker of a buffer stays in its chain until a garbage collection, and
+comint adjusts the whole chain on every insertion: measured over 60000
+inserted lines, 0.144 seconds against 0.036."
+  (dolist (marker markers)
+    (when (markerp marker) (set-marker marker nil))))
+
 (defun pycell--end (text &optional died)
   "End the running cell and show TEXT as its final result.
 The one exit for every way a cell ends; DIED marks abnormal ends.
@@ -1732,22 +1753,13 @@ was reporting.  `pycell--abort' asks the same question."
       ;; left behind would take point there at the end of the next
       ;; single cell to run.
       (when died (setq pycell--queue nil pycell--queue-home nil))
-      (when (buffer-live-p (marker-buffer beg))
-        (with-current-buffer (marker-buffer beg)
-          ;; The mode may have gone off while the cell ran; see the
-          ;; same question in `pycell--tick'.
-          (when (bound-and-true-p pycell-mode)
-            (pycell--show beg fin text (- (float-time) start)
-                          (and died 'died)))))
+      (pycell--show-in-notebook beg fin text (- (float-time) start)
+                                (and died 'died))
       (pycell--follow-done follow text)
       ;; The markers of the run go: three of them live in the Python
-      ;; shell, which is the one buffer comint inserts into constantly,
-      ;; and every marker of a buffer is walked on every insertion.
-      ;; Measured over 60000 inserted lines: 0.144s against 0.036s, and
-      ;; a pass over a notebook of 200 cells left hundreds behind.
-      (dolist (marker (list from beg fin (car-safe count)
-                            (cdr-safe follow)))
-        (when (markerp marker) (set-marker marker nil)))
+      ;; shell, and a pass over a notebook of 200 cells left hundreds
+      ;; of them there.
+      (pycell--release from beg fin (car-safe count) (cdr-safe follow))
       ;; Keep `pycell-restart-and-run-all' going, or stop on error.
       ;; Either way the end of a pass takes point home: the last cell of
       ;; a pass is sent with the queue already empty, so waiting for
@@ -1846,16 +1858,8 @@ itself when nothing runs there anymore."
           (let* ((text (pycell--output-head from))
                  (total (if (string-empty-p text) 0 (pycell--total from))))
             (pycell--follow-tick)
-            (when (buffer-live-p (marker-buffer beg))
-              (with-current-buffer (marker-buffer beg)
-                ;; The mode may have gone off while the cell ran, and
-                ;; its own body took the blocks and the bars away: a
-                ;; block put back here would sit in a buffer with no
-                ;; bars and no hooks of the mode, and none of its keys
-                ;; could fold the block again.
-                (when (bound-and-true-p pycell-mode)
-                  (pycell--show beg fin text (- (float-time) start)
-                                'running total))))))))))
+            (pycell--show-in-notebook beg fin text (- (float-time) start)
+                                      'running total)))))))
 
 (defun pycell--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running cell.
