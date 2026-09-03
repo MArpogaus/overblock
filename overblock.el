@@ -995,6 +995,14 @@ and the icons then sit beside the label instead of at the window edge."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'display "")
+    ;; Marked as a bar of this layer from the start, with `t' — no
+    ;; caller's kind, so `overblock-bar-kind' answers and a caller
+    ;; asking for its own kind does not.  A `C-g' between this and
+    ;; `overblock-bar-draw' used to leave an overlay that drew its line
+    ;; as nothing and that no registry could see: not
+    ;; `overblock-bars', not `overblock-sweep-orphans', not a mode's
+    ;; own teardown.
+    (overlay-put ov 'overblock-bar t)
     ov))
 
 (defun overblock-bar-draw (ov kind label icons face)
