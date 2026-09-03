@@ -211,6 +211,7 @@ list or a base64 blob is one such line."
 
 ;;;; Blocks of every kind
 
+;;;###autoload
 (defun pycell-remove-blocks ()
   "Remove the blocks of the buffer.
 This is the command a reader binds, and `overblock-clear' is the same
@@ -574,6 +575,7 @@ commands that call it give their reader."
       (car (apply #'overblock-in (append (code-cells--bounds) '(result))))
       (user-error "No result here")))
 
+;;;###autoload
 (defun pycell-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
@@ -583,6 +585,7 @@ commands that call it give their reader."
                    (plist-put data :folded (not (plist-get data :folded))))
     (pycell--update block)))
 
+;;;###autoload
 (defun pycell-discard-output (&optional event)
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
@@ -735,6 +738,7 @@ its own and the buffers of two cells cannot collide."
           (buffer-name)
           (line-number-at-pos position)))
 
+;;;###autoload
 (defun pycell-copy-output (&optional event)
   "Copy the result at point, or the one clicked in EVENT.
 The copy keeps its text properties, so images survive a yank."
@@ -742,6 +746,7 @@ The copy keeps its text properties, so images survive a yank."
   (kill-new (pycell--text (pycell--result-at event)))
   (message "pycell: result copied"))
 
+;;;###autoload
 (defun pycell-save-image (&optional event)
   "Save the first image of the result at point, or of the one in EVENT.
 The file type comes from the image descriptor; `create-image' read
@@ -850,6 +855,7 @@ more than the block, so what is around a table goes in with it."
                       (overblock-image-label part))))))
         (setq pos next)))))
 
+;;;###autoload
 (defun pycell-pop-output (&optional event)
   "Show the result at point, or the one clicked in EVENT, in a buffer.
 Each cell gets one buffer, so results are comparable side by side.
@@ -1176,6 +1182,7 @@ milliseconds against 17.7 for the two that moved."
                  "this Emacs was built without libxml, which shr reads \
 the converter's HTML with")))))
 
+;;;###autoload
 (defun pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
   (interactive)
@@ -1218,6 +1225,7 @@ bar of a cell that is showing its source."
       (user-error "This is not a markdown cell"))
     (pycell--md-show beg end)))
 
+;;;###autoload
 (defun pycell-md-raw (&optional event)
   "Show the markdown cell at point, or the one in EVENT, as plain source.
 The cell is then editable in place; press the button on its bar, or run
@@ -1237,6 +1245,7 @@ The cell is then editable in place; press the button on its bar, or run
             "C-c C-c" #'pycell-md-commit
             "C-c C-k" #'pycell-md-abort))
 
+;;;###autoload
 (defun pycell-md-edit (&optional event)
   "Edit the markdown cell at point, or the one clicked in EVENT.
 The body opens in its own buffer, without the comment prefixes, in
@@ -1292,6 +1301,7 @@ and renders it; \\[pycell-md-abort] discards the edit."
       (setq pycell--md-source (list src beg end)))
     (pop-to-buffer buf)))
 
+;;;###autoload
 (defun pycell-md-commit ()
   "Put the edited markdown back into its cell and render it."
   (interactive)
@@ -1322,6 +1332,7 @@ and renders it; \\[pycell-md-abort] discards the edit."
       (pycell--md-show beg end))
     (quit-window t)))
 
+;;;###autoload
 (defun pycell-md-abort ()
   "Discard the markdown edit."
   (interactive)
@@ -2060,6 +2071,7 @@ prompt.  A cell sent while another one runs is refused, with a
                     #'pycell--run-cold 90 t)))
       (message "pycell: starting the interpreter…"))))
 
+;;;###autoload
 (defun pycell-interrupt ()
   "Send a KeyboardInterrupt to the cell's Python process.
 The interrupted cell ends normally: IPython prints the traceback
@@ -2111,6 +2123,7 @@ the buffer invisible, with nothing able to remove it."
   (overblock-clear nil nil 'result)
   (overblock-sweep-orphans))
 
+;;;###autoload
 (defun pycell-restart ()
   "Restart the Python interpreter and remove every result.
 The rendered markdown cells stay.  They were taken down with the
@@ -2297,6 +2310,7 @@ one that starts from nothing."
     (unless cells (user-error "No cell above this one"))
     (pycell--run-cells cells "Evaluating the cells above, %k to stop")))
 
+;;;###autoload
 (defun pycell-restart-and-run-all ()
   "Restart the Python interpreter, then evaluate every cell in order.
 The pass stops at the first error, or on \
