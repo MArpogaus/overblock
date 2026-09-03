@@ -2138,5 +2138,17 @@ its queue still armed."
       (should (= (buffer-size) size))
       (should (overblock-in (point-min) (point-max) 'result)))))
 
+(ert-deftest pycell-test-the-scroll-runner-arms-no-timer-in-batch ()
+  "Loading the scrolling runner in a batch session arms nothing.
+`make test' loads every file of test/, the runner among them, and the
+runner armed a timer that calls `kill-emacs'.  A batch session runs its
+timers whenever it waits for a process — which every run against a real
+interpreter does — so the suite died part way through and left the exit
+status of a scrolling run that had never happened."
+  (require 'run-scroll)
+  (should-not (seq-find (lambda (timer)
+                          (eq (timer--function timer) 'run-scroll--all))
+                        timer-list)))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
