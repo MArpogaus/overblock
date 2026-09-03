@@ -952,21 +952,16 @@ A result block stays.  The fold hides the code and the block keeps its
 own fold button, so the two fold apart; `pycell--keep-result-newline'
 is what leaves it room.
 
-The advice is global, so this runs on every fold in every outline buffer
-of the session.  It filters on the block properties rather than on the
-mode: a buffer can carry blocks with the mode off — the tests do it, and
-so does a mode turned off while a result is on the screen — and the two
-scans below cost two interval-tree queries where there is nothing to
-find."
+The advice is global, so this runs on every fold in every outline
+buffer while any notebook has the mode on.  It filters on the block
+properties rather than on the mode: a buffer can carry blocks with the
+mode off — the tests do it, and so does a mode turned off while a
+result is on the screen — and the two scans below cost two
+interval-tree queries where there is nothing to find."
   (when flag (pycell--keep-result-newline from to))
   (dolist (block (overblock-in from to 'markdown))
     (overblock-set block :hidden flag)
     (overblock-refresh block)))
-
-;; At load, not at activation: by the time this file loads, the user
-;; has turned the mode on.  The advice is inert in buffers without
-;; blocks, because it filters on the block properties.
-(advice-add 'outline-flag-region :after #'pycell--outline-flag-blocks)
 
 (defun pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
@@ -2335,6 +2330,13 @@ the code-cells maps."
   :lighter " pycell"
   (if pycell-mode
       (progn
+        ;; One piece of advice for the session, put on by the first
+        ;; notebook and taken off by the last.  Added while this file
+        ;; loaded, it changed how `outline-flag-region' behaves in every
+        ;; outline buffer of a session that had never turned the mode on
+        ;; — and completing the name of one command loads the file.
+        (advice-add 'outline-flag-region :after
+                    #'pycell--outline-flag-blocks)
         ;; A bar is cut to the width of the window it was built for, so
         ;; a window made narrower afterwards wants it drawn again.
         (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
@@ -2351,7 +2353,13 @@ the code-cells maps."
     (remove-hook 'after-change-functions #'pycell--bars-after-change t)
     (mapc #'delete-overlay (overblock-bars))
     ;; Every kind of block goes, rendered markdown cells included.
-    (pycell-remove-blocks)))
+    (pycell-remove-blocks)
+    ;; The last notebook takes the advice with it.  This buffer does not
+    ;; count itself: the mode's own variable is already nil here.
+    (unless (seq-some (lambda (buffer)
+                        (buffer-local-value 'pycell-mode buffer))
+                      (buffer-list))
+      (advice-remove 'outline-flag-region #'pycell--outline-flag-blocks))))
 
 ;;;###autoload
 (defun pycell-mode-maybe ()
