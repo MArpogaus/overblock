@@ -227,29 +227,37 @@ every `overblock-refresh'."
                               (> (1- end) beg))
                          (1- end)
                        end))
-         (block (make-overlay beg anchor-end nil t t)))
-    (overlay-put block 'evaporate t)
-    (overlay-put block 'overblock-part t)
-    ;; `modification-hooks' is left to the caller.  What an edit of the
-    ;; region means is the caller's business — a stale result goes, a
-    ;; rendering goes with its source — and a hook of the layer's own was
-    ;; both unreachable and overwritten: every route that empties the
-    ;; anchor takes it down through `evaporate' first, so it is never
-    ;; live and empty at once, and each caller writes the property
-    ;; wholesale.  What the layer carries is the mark above, so
-    ;; `overblock-clear' can sweep an overlay whose anchor is gone.
-    ;; The two slots the layer writes itself are there from the start, so
-    ;; every `plist-put' after this mutates the list in place and no
-    ;; reader can be left holding a head that is no longer the block's.
-    (overlay-put block 'overblock (append props (list :newline nil
-                                                      :parts nil)))
-    (when (eq (without-restriction (char-after anchor-end)) ?\n)
-      (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
-        (overlay-put ov 'evaporate t)
-        (overlay-put ov 'overblock-part t)
-        (overblock-set block :newline ov)))
-    (overblock-refresh block)
-    block))
+         ;; Nothing to hang a block on answers nothing.  `evaporate'
+         ;; deletes a zero-length overlay the moment it goes on, so the
+         ;; caller was handed an anchor that was already dead and that
+         ;; `overblock-in' and `overblock-clear' could never find
+         ;; again: a markdown cell emptied by its reader left the bar
+         ;; of a block that did not exist.
+         (block (and (> anchor-end beg)
+                     (make-overlay beg anchor-end nil t t))))
+    (when block
+      (overlay-put block 'evaporate t)
+      (overlay-put block 'overblock-part t)
+      ;; `modification-hooks' is left to the caller.  What an edit of the
+      ;; region means is the caller's business — a stale result goes, a
+      ;; rendering goes with its source — and a hook of the layer's own was
+      ;; both unreachable and overwritten: every route that empties the
+      ;; anchor takes it down through `evaporate' first, so it is never
+      ;; live and empty at once, and each caller writes the property
+      ;; wholesale.  What the layer carries is the mark above, so
+      ;; `overblock-clear' can sweep an overlay whose anchor is gone.
+      ;; The two slots the layer writes itself are there from the start, so
+      ;; every `plist-put' after this mutates the list in place and no
+      ;; reader can be left holding a head that is no longer the block's.
+      (overlay-put block 'overblock (append props (list :newline nil
+                                                        :parts nil)))
+      (when (eq (without-restriction (char-after anchor-end)) ?\n)
+        (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
+          (overlay-put ov 'evaporate t)
+          (overlay-put ov 'overblock-part t)
+          (overblock-set block :newline ov)))
+      (overblock-refresh block)
+      block)))
 
 (defun overblock--dress (block ov)
   "Give OV the keymap and the help echo of BLOCK, and return OV.
