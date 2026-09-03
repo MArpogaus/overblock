@@ -2170,6 +2170,24 @@ marker where there is any."
         (push (copy-marker (pos-bol)) cells))
       (nreverse cells))))
 
+(defun pycell--run-on-prompt (cells message)
+  "Arm CELLS to run on the shell\\='s first prompt, and say MESSAGE.
+For a shell that has not prompted yet: one just started, or one just
+restarted.  Evaluation may only start once the fresh interpreter
+prompted — and after comint-mime\\='s setup, which runs off the same
+hook, hence the depth.  `pycell--end\\=' chains the rest of the queue.
+
+The queue is armed after the hook and the shell, not before: the home
+belongs to the shell\\='s buffer, and the first pass of a session had
+none to put it in, so that pass never brought point back.  A shell that
+answers with an error here leaves nothing armed."
+  (with-current-buffer (process-buffer (python-shell-get-process-or-error))
+    (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
+  (pycell--home-set (point-marker))
+  (pycell--queue-set cells)
+  (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
+                     message))
+
 (defun pycell--run-cells (cells message)
   "Run CELLS in order, and say MESSAGE while they run.
 Each cell goes on the prompt of the one before it, so the queue is left
@@ -2190,18 +2208,12 @@ first prompt."
                ;; the cell that refused it ends.
                (error (pycell--queue-set nil)
                       (pycell--home-set nil)
-                      (signal (car err) (cdr err)))))
+                      (signal (car err) (cdr err))))
+             (set-transient-map pycell-stop-map (lambda () (pycell--queued))
+                                nil message))
     (run-python nil (pycell--dedicated))
-    (with-current-buffer (process-buffer (python-shell-get-process-or-error))
-      (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
-    ;; After the interpreter, not before it: the home belongs to the
-    ;; shell's buffer, and the first pass of a session had none to put
-    ;; it in — so that pass never brought point back.
-    (pycell--home-set (point-marker))
-    (pycell--queue-set cells)
-    (message "pycell: starting the interpreter…"))
-  (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
-                     message))
+    (message "pycell: starting the interpreter…")
+    (pycell--run-on-prompt cells message)))
 
 ;;;###autoload
 (defun pycell-run-cell (&optional event)
@@ -2231,15 +2243,11 @@ The pass stops at the first error, or on \
 \\<pycell-stop-map>\\[pycell-stop]."
   (interactive)
   (pycell-restart)
-  (pycell--home-set (point-marker))
-  (pycell--queue-set (pycell--cell-starts))
-  ;; Evaluation may only start once the fresh interpreter prompted —
-  ;; and after comint-mime's setup, which runs off the same hook;
-  ;; hence the depth.  `pycell--end' chains the remaining cells.
-  (with-current-buffer (process-buffer (python-shell-get-process-or-error))
-    (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
-  (set-transient-map pycell-stop-map (lambda () (pycell--queued)) nil
-                     "Evaluating all cells, %k to stop"))
+  ;; The same arming `pycell--run-cells' does for a shell that is
+  ;; starting: a restarted shell has a live process that has not
+  ;; prompted, so the queue waits for that prompt here too.
+  (pycell--run-on-prompt (pycell--cell-starts)
+                         "Evaluating all cells, %k to stop"))
 
 ;;;###autoload
 (define-minor-mode pycell-mode
