@@ -618,6 +618,12 @@ docstring over the lines of the docstring, with no process behind it and
 no cell.  It answers one question — does a caller of another shape need
 anything the layer does not have — and so far it needs nothing.
 
+=make test-live= sends real cells down a real IPython and reads back
+what the blocks show.  It exists because two faults — a read-only
+notebook wedging the pass, and a one-line result painted in comint's
+prompt face — survived every batch check: no batch test starts a
+process.  Where no ipython is installed the target says so and passes.
+
 =make scroll= needs a graphic display.  It builds a buffer with
 markdown cells and scrolls through it with
 =pixel-scroll-precision-scroll-up= and
