@@ -14,6 +14,10 @@
 
 EMACS   ?= emacs
 SANDBOX ?= .sandbox
+# The sandbox is done when the stamp is there: a run that dies half
+# way leaves the directory behind, and a directory target would then
+# count as made and the tools stay missing.
+STAMP   := $(SANDBOX)/.installed
 DEPS    ?= package-lint relint code-cells comint-mime
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
@@ -43,10 +47,11 @@ BATCH = $(EMACS) -Q --batch -L . -L test -L tools --eval '$(init)'
 
 all: compile checkdoc lint relint test
 
-$(SANDBOX):
+$(STAMP):
 	@$(EMACS) -Q --batch --eval '$(init)' --eval '$(bootstrap)'
+	@touch $@
 
-compile: $(SANDBOX)
+compile: $(STAMP)
 	@$(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
 	  -f batch-byte-compile $(SRC) $(TEST)
 	@rm -f ./*.elc test/*.elc
@@ -61,7 +66,7 @@ checkdoc:
 # Python, and the notebook that uses it.  package-lint reads one main
 # file and calls every symbol outside its prefix an error, so it is run
 # once for each of them.
-lint: $(SANDBOX)
+lint: $(STAMP)
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock.el")' \
 	  -f package-lint-batch-and-exit overblock.el overblock-md.el \
 	  overblock-repl.el
@@ -71,13 +76,13 @@ lint: $(SANDBOX)
 # What checkdoc and package-lint both let through: a docstring escape
 # written \= rather than \\=, which the reader eats, so `describe-function'
 # shows the reader the = as text.
-relint: $(SANDBOX)
+relint: $(STAMP)
 	@$(BATCH) -l relint -f relint-batch $(SRC) $(TEST)
 
 # A fifth of the suite renders markdown and skips itself where no
 # converter is installed.  On a machine that is meant to have one that
 # silence is a lie, so STRICT=1 makes it a failure instead.
-test: $(SANDBOX)
+test: $(STAMP)
 	@$(BATCH) $(addprefix -l ,$(TEST)) \
 	  $(if $(STRICT),--eval '$(strict)') -f ert-run-tests-batch-and-exit
 
@@ -88,7 +93,7 @@ test: $(SANDBOX)
 # stale lock file, which reads like a test failure.
 XVFB := $(shell command -v xvfb-run >/dev/null 2>&1 && echo xvfb-run -a)
 
-scroll: $(SANDBOX)
+scroll: $(STAMP)
 	@rm -f scroll-report.txt
 	@$(XVFB) $(EMACS) -Q -L . -L test --eval '$(init)' \
 	  -l test/run-scroll.el; status=$$?; \
@@ -98,7 +103,7 @@ scroll: $(SANDBOX)
 # load path and the dependencies, which is why it wants the sandbox.
 # It answers 1 when it had to change something, which is how the hook
 # stops a commit; from make that is a job done, not a failure.
-format: $(SANDBOX)
+format: $(STAMP)
 	@$(BATCH) -l tools/indent.el $(LISP) || true
 
 clean:
