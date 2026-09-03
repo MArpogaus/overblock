@@ -64,6 +64,18 @@ windows that show it, and a command that follows a click selects one."
      (unwind-protect (progn ,@body)
        (pycell-mode -1))))
 
+(defmacro pycell-test--with-mode (&rest body)
+  "Evaluate BODY with `pycell-mode' on, and turn it off afterwards.
+What folds a block along with the code above it is advice on
+`outline-flag-region' that the mode puts on and takes off again, so a
+test of a fold needs the mode.  Off again afterwards, because
+`with-temp-buffer' kills its buffer without running the body that would
+take the advice down."
+  (declare (indent 0))
+  `(progn (pycell-mode 1)
+          (unwind-protect (progn ,@body)
+            (pycell-mode -1))))
+
 (defun pycell-test--bar-texts ()
   "Return the whole text of every code cell bar of the buffer, in order."
   (mapcar (lambda (ov)
@@ -316,17 +328,18 @@ ten thousand lines cost 12.9 milliseconds against 0.6."
 The block below the fold keeps its own fold button, so the two fold
 separately."
   (pycell-test--with-cells
-    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (pycell--show beg end "a\nb" 0.1)
-      (let* ((ov (car (overblock-in (point-min) (point-max) 'result)))
-             (bov (overblock-get ov :newline))
-             (head (overlay-get ov 'after-string))
-             (body (overlay-get bov 'display)))
-        (outline-flag-region beg (1- end) t)
-        (should (equal (overlay-get ov 'after-string) head))
-        (should (equal (overlay-get bov 'display) body))
-        (outline-flag-region beg (1- end) nil)
-        (should (equal (overlay-get bov 'display) body))))))
+    (pycell-test--with-mode
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end "a\nb" 0.1)
+        (let* ((ov (car (overblock-in (point-min) (point-max) 'result)))
+               (bov (overblock-get ov :newline))
+               (head (overlay-get ov 'after-string))
+               (body (overlay-get bov 'display)))
+          (outline-flag-region beg (1- end) t)
+          (should (equal (overlay-get ov 'after-string) head))
+          (should (equal (overlay-get bov 'display) body))
+          (outline-flag-region beg (1- end) nil)
+          (should (equal (overlay-get bov 'display) body)))))))
 
 (ert-deftest pycell-test-fold-shrinks-at-buffer-end ()
   "A fold to the end of the buffer stops before the block's newline.
@@ -336,17 +349,19 @@ one character short on its own."
     (insert "# %%\nx = 1\ny = x + 1\n")
     (python-mode)
     (code-cells-mode)
-    (pcase-let ((`(,beg ,end) (progn (goto-char (point-min))
-                                     (code-cells--bounds nil nil t))))
-      (pycell--show beg end "42" 0.1)
-      (let ((bov (overblock-get
-                  (car (overblock-in (point-min) (point-max) 'result))
-                  :newline)))
-        (outline-flag-region beg (point-max) t)
-        (should-not
-         (seq-some (lambda (o) (and (eq (overlay-get o 'invisible) 'outline)
-                                    (> (overlay-end o) (overlay-start bov))))
-                   (overlays-in (overlay-start bov) (overlay-end bov))))))))
+    (pycell-test--with-mode
+      (pcase-let ((`(,beg ,end) (progn (goto-char (point-min))
+                                       (code-cells--bounds nil nil t))))
+        (pycell--show beg end "42" 0.1)
+        (let ((bov (overblock-get
+                    (car (overblock-in (point-min) (point-max) 'result))
+                    :newline)))
+          (outline-flag-region beg (point-max) t)
+          (should-not
+           (seq-some (lambda (o) (and (eq (overlay-get o 'invisible) 'outline)
+                                      (> (overlay-end o) (overlay-start bov))))
+                     (overlays-in (overlay-start bov)
+                                  (overlay-end bov)))))))))
 
 (ert-deftest pycell-test-fold-md-round-trip ()
   "An outline fold takes a markdown block along, and gives it back."
@@ -355,20 +370,20 @@ one character short on its own."
     (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (pycell-md-render-all)
-    (goto-char (point-min))
-    (let* ((block (car (overblock-in (point-min) (point-max) 'markdown)))
-           ;; A fold makes the pieces anew, so they are read again each
-           ;; time rather than held on to.
-           (shown (lambda ()
-                    (seq-some (lambda (p) (not (overlay-get p 'invisible)))
-                              (overblock-get block :parts)))))
-      (should (overblock-get block :parts))
-      (should (funcall shown))
-      (outline-flag-region (pos-eol) (overlay-end block) t)
-      (should-not (funcall shown))
-      (outline-flag-region (pos-eol) (overlay-end block) nil)
-      (should (funcall shown)))))
+    (pycell-test--with-mode
+      (goto-char (point-min))
+      (let* ((block (car (overblock-in (point-min) (point-max) 'markdown)))
+             ;; A fold makes the pieces anew, so they are read again each
+             ;; time rather than held on to.
+             (shown (lambda ()
+                      (seq-some (lambda (p) (not (overlay-get p 'invisible)))
+                                (overblock-get block :parts)))))
+        (should (overblock-get block :parts))
+        (should (funcall shown))
+        (outline-flag-region (pos-eol) (overlay-end block) t)
+        (should-not (funcall shown))
+        (outline-flag-region (pos-eol) (overlay-end block) nil)
+        (should (funcall shown))))))
 
 (ert-deftest pycell-test-md-keeps-its-lines ()
   "A rendered markdown cell stays as many lines as its source.
@@ -707,26 +722,27 @@ figure on screen below the fold."
               "# %% [markdown]\n# ## A figure\n#\n# ![pic](pic.png)" trailing)
       (python-mode)
       (code-cells-mode)
-      (pycell-md-render-all)
-      ;; the blocks in order; the last one holds the figure
-      ;; `sort' takes its key as a keyword from Emacs 30, and this
-      ;; package answers for 29 as well.
-      (let* ((blocks (sort (overblock-in (point-min) (point-max) 'markdown)
-                           (lambda (a b)
-                             (< (overlay-start a) (overlay-start b)))))
-             (last (car (last blocks)))
-             ;; what the cell shows: the pieces that are not cloaks
-             (shown (lambda ()
-                      (seq-count (lambda (p)
-                                   (and (not (overlay-get p 'overblock-cloak))
-                                        (not (overlay-get p 'invisible))))
-                                 (overblock-get last :parts)))))
-        (should last)
-        (should (> (funcall shown) 0))
-        (outline-flag-region (point-min) (point-max) t)
-        (should (= (funcall shown) 0))
-        (outline-flag-region (point-min) (point-max) nil)
-        (should (> (funcall shown) 0))))))
+      (pycell-test--with-mode
+        ;; the blocks in order; the last one holds the figure
+        ;; `sort' takes its key as a keyword from Emacs 30, and this
+        ;; package answers for 29 as well.
+        (let* ((blocks (sort (overblock-in (point-min) (point-max) 'markdown)
+                             (lambda (a b)
+                               (< (overlay-start a) (overlay-start b)))))
+               (last (car (last blocks)))
+               ;; what the cell shows: the pieces that are not cloaks
+               (shown (lambda ()
+                        (seq-count
+                         (lambda (p)
+                           (and (not (overlay-get p 'overblock-cloak))
+                                (not (overlay-get p 'invisible))))
+                         (overblock-get last :parts)))))
+          (should last)
+          (should (> (funcall shown) 0))
+          (outline-flag-region (point-min) (point-max) t)
+          (should (= (funcall shown) 0))
+          (outline-flag-region (point-min) (point-max) nil)
+          (should (> (funcall shown) 0)))))))
 
 (ert-deftest pycell-test-show-gives-the-last-cell-a-newline ()
   "The block needs a newline to hang on, and the last cell may lack one.
@@ -2149,6 +2165,37 @@ status of a scrolling run that had never happened."
   (should-not (seq-find (lambda (timer)
                           (eq (timer--function timer) 'run-scroll--all))
                         timer-list)))
+
+(ert-deftest pycell-test-the-mode-owns-the-outline-advice ()
+  "The advice on `outline-flag-region' comes with a notebook and goes with it.
+Added while this file loaded, it changed how every outline buffer folds
+in a session that had never turned the mode on — and completing the
+name of one command loads the file."
+  (let ((advised (lambda ()
+                   (and (advice-member-p #'pycell--outline-flag-blocks
+                                         'outline-flag-region)
+                        t))))
+    ;; No notebook is open, so no advice: every test that turns the mode
+    ;; on turns it off again.
+    (should-not (funcall advised))
+    (let ((one (generate-new-buffer "one.py"))
+          (two (generate-new-buffer "two.py")))
+      (unwind-protect
+          (progn
+            (dolist (buffer (list one two))
+              (with-current-buffer buffer
+                (insert "# %%\nx = 1\n")
+                (python-mode)
+                (code-cells-mode)
+                (pycell-mode 1)))
+            (should (funcall advised))
+            ;; The second notebook still wants it.
+            (with-current-buffer one (pycell-mode -1))
+            (should (funcall advised))
+            (with-current-buffer two (pycell-mode -1))
+            (should-not (funcall advised)))
+        (mapc #'kill-buffer (list one two))
+        (advice-remove 'outline-flag-region #'pycell--outline-flag-blocks)))))
 
 (provide 'pycell-test)
 ;;; pycell-test.el ends here
