@@ -2055,7 +2055,7 @@ does with the match, and the walk that draws the bars searches too:
 (ert-deftest pycell-test-a-failure-without-a-traceback-stops-a-pass ()
   "Output that names an exception ends a pass, traceback or not.
 A `SyntaxError' prints the name of the exception and nothing else, and
-a run-all walked happily past a cell holding `x = = 1\\='."
+a run-all walked happily past a cell holding `x = = 1'."
   ;; What ipython prints for a syntax error, in full.
   (should (pycell--error-p "  File <ipython-input-3>:1\n    x = = 1\n        ^\nSyntaxError: invalid syntax\n"))
   (should (pycell--error-p "Traceback (most recent call last)\n  ...\nValueError: boom\n"))
