@@ -95,6 +95,13 @@ the window edge, less the glyph that leads it."
 
 ;;;; Helpers
 
+(defun overblock-bar-on-line ()
+  "Return the bar overlay of the line point is on, or nil.
+A helper of these tests: the package itself asks `overblock-bar-in'
+for a region, and shipping this as public API gave it a name nothing
+outside the suite ever called."
+  (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
+
 (ert-deftest pycell-test-clean-prompts ()
   "Prompts at both ends and Out[n] markers go, whitespace is trimmed."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
