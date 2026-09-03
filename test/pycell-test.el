@@ -2115,5 +2115,28 @@ an unrelated cell ended."
         (pycell--go-home))
       (kill-buffer shell))))
 
+(ert-deftest pycell-test-a-read-only-notebook-shows-a-result ()
+  "A result shows in a notebook that refuses to be written to.
+The last cell of a file without a final newline has no newline for the
+result to hang on, so one is written there.  A read-only notebook —
+`view-file', a read-only checkout — answered `buffer-read-only' to that
+write, and the write is inside the process filter: the signal took the
+rest of the filter with it, so the cell was never ended, the shell
+stayed busy for the session, and a run-all stopped where it was with
+its queue still armed."
+  (with-temp-buffer
+    (insert "# %%\nx = 1")                     ; no final newline
+    (python-mode)
+    (code-cells-mode)
+    (setq buffer-read-only t)
+    (goto-char (point-min))
+    (let ((size (buffer-size)))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (pycell--show beg end "out" 0.1))
+      ;; The text is untouched, and the result is there all the same:
+      ;; with no newline the block hangs on its anchor.
+      (should (= (buffer-size) size))
+      (should (overblock-in (point-min) (point-max) 'result)))))
+
 (provide 'pycell-test)
 ;;; pycell-test.el ends here

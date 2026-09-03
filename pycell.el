@@ -528,9 +528,18 @@ counted."
       ;; narrowing `point-max' is the end of the accessible part, and
       ;; the newline went into the middle of the buffer — measured, it
       ;; cut a `print(2)' in two.
+      ;;
+      ;; A buffer that refuses the write keeps its text, and the block
+      ;; hangs on its anchor instead: a notebook opened through
+      ;; `view-file' or from a read-only checkout answered
+      ;; `buffer-read-only' here, inside the process filter, and that
+      ;; signal took the rest of the filter with it — the cell was never
+      ;; ended, the shell stayed busy for the session, and a run-all
+      ;; stopped where it was with its queue still armed.
       (without-restriction
         (when (and (= end (point-max)) (not (eq (char-before end) ?\n)))
-          (save-excursion (goto-char end) (insert "\n"))))
+          (ignore-error buffer-read-only
+            (save-excursion (goto-char end) (insert "\n")))))
       (let ((block (overblock-show beg end
                                    :kind 'result
                                    :data data
