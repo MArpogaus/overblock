@@ -1517,9 +1517,21 @@ gives point back instead: the reader pressed a button there.")
           "\\(?:[a-z][a-zA-Z0-9_]*\\.\\)*"       ; a module path, if any
           "[A-Z][a-zA-Z0-9_]*"                   ; the exception's name
           "\\(?:Error\\|Exception\\|Exit\\|Interrupt\\|Iteration\\)"
-          "\\(?::\\|\\'\\)")
+          ":")
   "What the last line of failed output looks like.
-The name of an exception, and nothing before it.")
+The name of an exception, and nothing before it.
+
+The colon is required: a cell whose own output ends with the name of an
+exception — `print(type(err).__name__)' after catching one — stopped a
+whole pass.  The two names IPython does print alone are
+`pycell--error-alone'.")
+
+(defconst pycell--error-alone
+  "\\`\\(?:KeyboardInterrupt\\|SystemExit\\)\\'"
+  "The exceptions IPython reports with nothing after the name.
+An interrupted cell ends with a bare `KeyboardInterrupt', and
+`sys.exit()' with a bare `SystemExit'; every other report carries a
+colon and a message.")
 
 (defun pycell--error-p (text)
   "Whether TEXT is the output of a cell that failed.
@@ -1531,7 +1543,8 @@ of the exception stands, whether a traceback led to it or not."
   (or (string-match-p "Traceback (most recent call last)" text)
       (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
                   (last (car (last lines))))
-        (string-match-p pycell--error-tail last))))
+        (or (string-match-p pycell--error-tail last)
+            (string-match-p pycell--error-alone last)))))
 
 (defun pycell--go-home ()
   "Put point back where the pass that has just ended was asked for.
