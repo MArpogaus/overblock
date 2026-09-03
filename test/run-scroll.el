@@ -24,7 +24,7 @@
 
 (defun run-scroll--all ()
   "Run every scrolling test, report to a file, and exit."
-  (let ((failed 0))
+  (let ((failed 0) (passed 0) (skipped 0))
     ;; A fixed frame size, so the test sees the same geometry on every
     ;; machine: the reversal depends on how the blocks fill the window.
     (set-frame-size (selected-frame) 1000 700 t)
@@ -37,19 +37,27 @@
              (result (ert-run-test test))
              (seconds (- (float-time) start)))
         (cond ((ert-test-passed-p result)
+               (setq passed (1+ passed))
                (run-scroll--say "  PASS %-40s %.1fs" name seconds))
               ((ert-test-result-type-p result :skipped)
+               (setq skipped (1+ skipped))
                (run-scroll--say "  SKIP %s" name))
               (t
                (setq failed (1+ failed))
                (run-scroll--say "  FAIL %-40s %.1fs" name seconds)
                (run-scroll--say
                 "%S" (ert-test-result-with-condition-condition result))))))
-    (run-scroll--say (if (zerop failed)
-                         "scrolling tests passed"
-                       "%d scrolling test(s) failed")
-                     failed)
-    (kill-emacs (if (zerop failed) 0 1))))
+    ;; A skipped test is not a passed one.  Both tests open with
+    ;; `skip-unless (display-graphic-p)', so a run without xvfb-run
+    ;; skipped them both, printed "scrolling tests passed" and exited
+    ;; 0: the one promise this suite guards was never exercised and the
+    ;; CI was green.
+    (cond ((not (zerop failed))
+           (run-scroll--say "%d scrolling test(s) failed" failed))
+          ((zerop passed)
+           (run-scroll--say "no scrolling test ran: %d skipped" skipped))
+          (t (run-scroll--say "scrolling tests passed")))
+    (kill-emacs (if (and (zerop failed) (> passed 0)) 0 1))))
 
 ;; The tests measure pixels, so they wait until redisplay has brought
 ;; the frame up rather than running while the file loads.
