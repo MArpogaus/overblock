@@ -867,11 +867,15 @@ taken off and a table laid out live."
         (erase-buffer)
         (pycell--insert-result text))
       (goto-char (point-max)))
-    (when-let* ((proc (python-shell-get-process))
-                (shell (process-buffer proc)))
+    ;; Set whether or not a shell answers: a pop-out whose shell is
+    ;; gone is still not a notebook, and `pycell-interrupt' there must
+    ;; not fall through to whatever shell the settings point at — that
+    ;; killed another notebook's running cell at a keystroke.
+    (let* ((proc (python-shell-get-process))
+           (shell (and proc (process-buffer proc))))
       (with-current-buffer buffer
         (setq pycell--shell shell
-              pycell--cell (and runningp
+              pycell--cell (and runningp shell
                                 (plist-get (buffer-local-value 'pycell--run
                                                                shell)
                                            :beg)))))
@@ -2031,7 +2035,10 @@ result that had finished, or one whose own shell was gone, then killed
 another notebook\\='s run at a keystroke, with no message and nothing to
 undo it."
   (interactive)
-  (if (not pycell--shell)
+  ;; Whether this buffer is a pop-out, not whether its shell is there:
+  ;; a pop-out that came from a shell since gone has the variable set
+  ;; to nil, and it must say so rather than interrupt a stranger.
+  (if (not (local-variable-p 'pycell--shell))
       (interrupt-process (python-shell-get-process-or-error))
     (unless (buffer-live-p pycell--shell)
       (user-error "The shell this result came from is gone"))
