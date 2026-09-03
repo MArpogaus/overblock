@@ -182,6 +182,8 @@ named a kind could not sweep it."
 
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
+Nil where BEG..END holds nothing to hang a block on: an anchor of no
+length is deleted the moment it is made.
 It replaces the blocks of its own kind in that region — every kind,
 where no `:kind' is given.  PROPS is a plist, and every entry is
 optional:
