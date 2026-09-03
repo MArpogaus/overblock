@@ -1073,10 +1073,6 @@ when text is inserted there, so a bar of the line BEG begins is not
 always a bar at BEG."
   (seq-find #'overblock-bar-kind (overlays-in beg end)))
 
-(defun overblock-bar-on-line ()
-  "Return the bar overlay of the line point is on, or nil."
-  (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
-
 (defun overblock-bars ()
   "Return the bar overlays of this buffer.
 The whole of it: an overlay knows nothing of a narrowing, and a caller

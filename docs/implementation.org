@@ -213,7 +213,6 @@ it gets the bars for the price of a label:
 | =overblock-bar-draw=    | draw a label and icons on it, in a face            |
 | =overblock-bar-kind=    | what the caller called it, or nil for no bar       |
 | =overblock-bar-in=      | the bar covering a region, if any                  |
-| =overblock-bar-on-line= | the bar of the line point is on                    |
 | =overblock-bars=        | every bar of the buffer                            |
 | =overblock-bar-stale=   | make one forget what it was drawn from              |
 
