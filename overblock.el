@@ -377,6 +377,20 @@ quadratic."
         (setq rest (nthcdr wanted rest))))
     (nreverse chunks)))
 
+(defun overblock--cloak-from (open from)
+  "Return where the cloak covering the row at FROM starts.
+OPEN is where a cloak already stands open, or nil.  An open one is left
+to grow; a new one starts at the newline above FROM, which is the end
+of the visible line before it — `scroll-down\\=' answers a run that
+begins a line with a beginning-of-buffer error, in the middle of the
+region.
+
+Nil for a row that begins the buffer: it has no newline above it, and
+an overlay opened at position zero comes back dead or clamped to a line
+start, which is that same error.  Such a row keeps its text."
+  (cond (open open)
+        ((> from (point-min)) (1- from))))
+
 (defun overblock--pieces (block text)
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
@@ -422,15 +436,7 @@ region has anyway.  Those lines go under a cloak."
              ;; rendering; one without carries nothing.
              (chunk (and (> to from) (pop chunks))))
         (if (null chunk)
-            ;; No text on this line, or no rendered lines left for it.
-            ;; Open a cloak at the newline above, or leave the open one
-            ;; to grow.  A row that begins the buffer has no newline
-            ;; above it, and a cloak opened at position zero comes back
-            ;; dead or clamps to a line start — which is where
-            ;; `scroll-down' answers with a beginning-of-buffer error.
-            ;; That row keeps its text instead.
-            (unless (or cloak-from (<= from (point-min)))
-              (setq cloak-from (1- from)))
+            (setq cloak-from (overblock--cloak-from cloak-from from))
           (when cloak-from
             (push (overblock--cloak block cloak-from (1- from)) parts)
             (setq cloak-from nil))
