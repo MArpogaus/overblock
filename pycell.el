@@ -1686,7 +1686,9 @@ cell through the filter and then signal, and the handler would call this
 a second time — `cancel-timer' of nil raised, which masked the error it
 was reporting.  `pycell--abort' asks the same question."
   (when pycell--run
-    (pcase-let (((map :beg (:end fin) :start :timer :follow) pycell--run))
+    (pcase-let (((map (:from from) :beg (:end fin) :start :timer :follow
+                      (:count count))
+                 pycell--run))
       ;; The last of the output, and then the whole of it cleaned: the
       ;; tail a follower wrote is raw, and its final lines arrive with
       ;; the closing prompt.
@@ -1699,9 +1701,20 @@ was reporting.  `pycell--abort' asks the same question."
       (when died (setq pycell--queue nil pycell--queue-home nil))
       (when (buffer-live-p (marker-buffer beg))
         (with-current-buffer (marker-buffer beg)
-          (pycell--show beg fin text (- (float-time) start)
-                        (and died 'died))))
+          ;; The mode may have gone off while the cell ran; see the
+          ;; same question in `pycell--tick'.
+          (when (bound-and-true-p pycell-mode)
+            (pycell--show beg fin text (- (float-time) start)
+                          (and died 'died)))))
       (pycell--follow-done follow text)
+      ;; The markers of the run go: three of them live in the Python
+      ;; shell, which is the one buffer comint inserts into constantly,
+      ;; and every marker of a buffer is walked on every insertion.
+      ;; Measured over 60000 inserted lines: 0.144s against 0.036s, and
+      ;; a pass over a notebook of 200 cells left hundreds behind.
+      (dolist (marker (list from beg fin (car-safe count)
+                            (cdr-safe follow)))
+        (when (markerp marker) (set-marker marker nil)))
       ;; Keep `pycell-restart-and-run-all' going, or stop on error.
       ;; Either way the end of a pass takes point home: the last cell of
       ;; a pass is sent with the queue already empty, so waiting for
@@ -1802,8 +1815,14 @@ itself when nothing runs there anymore."
             (pycell--follow-tick)
             (when (buffer-live-p (marker-buffer beg))
               (with-current-buffer (marker-buffer beg)
-                (pycell--show beg fin text (- (float-time) start)
-                              'running total)))))))))
+                ;; The mode may have gone off while the cell ran, and
+                ;; its own body took the blocks and the bars away: a
+                ;; block put back here would sit in a buffer with no
+                ;; bars and no hooks of the mode, and none of its keys
+                ;; could fold the block again.
+                (when (bound-and-true-p pycell-mode)
+                  (pycell--show beg fin text (- (float-time) start)
+                                'running total))))))))))
 
 (defun pycell--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running cell.
