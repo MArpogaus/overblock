@@ -422,8 +422,13 @@ region has anyway.  Those lines go under a cloak."
         (if (null chunk)
             ;; No text on this line, or no rendered lines left for it.
             ;; Open a cloak at the newline above, or leave the open one
-            ;; to grow.
-            (unless cloak-from (setq cloak-from (1- from)))
+            ;; to grow.  A row that begins the buffer has no newline
+            ;; above it, and a cloak opened at position zero comes back
+            ;; dead or clamps to a line start — which is where
+            ;; `scroll-down' answers with a beginning-of-buffer error.
+            ;; That row keeps its text instead.
+            (unless (or cloak-from (<= from (point-min)))
+              (setq cloak-from (1- from)))
           (when cloak-from
             (push (overblock--cloak block cloak-from (1- from)) parts)
             (setq cloak-from nil))
