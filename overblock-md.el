@@ -149,6 +149,18 @@ otherwise wait for the network every time.")
        ;; One that failed is not asked for twice in a session.
        (not (gethash url overblock-md--remote-failed))))
 
+(defun overblock-md--cache-name (url)
+  "Return the name the image at URL is cached under.
+The digest of the URL, and its own extension where it has a plain one:
+a name taken from the URL itself could be anything at all, and the
+extension is what tells Emacs which kind of image it holds."
+  (let ((extension (file-name-extension url)))
+    (concat (md5 url)
+            (if (and extension
+                     (string-match-p "\\`[a-zA-Z0-9]+\\'" extension))
+                (concat "." (downcase extension))
+              ".img"))))
+
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
 The file is kept in the cache beside the LaTeX previews, named after the
@@ -156,15 +168,7 @@ URL, so a badge is fetched once for the session and once for the
 machine.  See `overblock-md--fetchable-p' for what is fetched at all."
   (when (overblock-md--fetchable-p url)
     (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
-           (extension (file-name-extension url))
-           (file (expand-file-name
-                  (concat (md5 url)
-                          (if (and extension
-                                   (string-match-p "\\`[a-zA-Z0-9]+\\'"
-                                                   extension))
-                              (concat "." (downcase extension))
-                            ".img"))
-                  dir)))
+           (file (expand-file-name (overblock-md--cache-name url) dir)))
       (if (file-readable-p file)
           file
         (condition-case error
