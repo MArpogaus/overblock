@@ -227,6 +227,23 @@ Pixel filling needs font metrics, which a batch session has none of."
   ;; a cell that holds the marker sends everyone the ordinary way
   (should-not (overblock-md-html-batch (list "text" overblock-md--marker))))
 
+(ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
+  "What the converter writes on standard error is not part of the HTML.
+`:stderr nil' mixes standard error into the output rather than
+throwing it away, and pandoc writes there: it warns about the math it
+leaves alone and about the arguments it means to retire, and one such
+line came back as the first paragraph of every rendering."
+  (skip-unless (executable-find "sh"))
+  (let ((overblock-md-command "sh -c 'echo [WARNING] noise >&2; cat'")
+        (answered 'not-yet))
+    (overblock-md-html-batch-async
+     '("<p>the whole answer</p>")
+     (lambda (htmls) (setq answered htmls)))
+    (let ((deadline (+ (float-time) 10)))
+      (while (and (eq answered 'not-yet) (< (float-time) deadline))
+        (accept-process-output nil 0.05)))
+    (should (equal answered '("<p>the whole answer</p>")))))
+
 (ert-deftest overblock-md-test-the-converter-paints-no-code ()
   "Every pandoc the defaults name is told to leave the code alone.
 shr reads no CSS class, so the colours pandoc encodes in them are
