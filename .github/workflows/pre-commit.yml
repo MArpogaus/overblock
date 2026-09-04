@@ -44,7 +44,14 @@ jobs:
     # and not to redden the run.  Take this line out once overblock is
     # published — the layer's own recipe passes today and this is the
     # one thing waiting on the split.
-    continue-on-error: ${{ startsWith(matrix.recipe, '(overblock-pycell') }}
+    # Only the layer depends on nothing here.  The other three name a
+    # package of this repository, none of which is on an archive yet,
+    # and melpazoid installs what a package requires before it reads
+    # it: `Package overblock is not installable' is the whole of the
+    # failure.  That is a true statement about the world rather than a
+    # fault in the package, so those legs may fail without reddening
+    # the run.  Take this out once they are published.
+    continue-on-error: ${{ !startsWith(matrix.recipe, '(overblock :') }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,8 +61,10 @@ jobs:
         # strings are unquoted because the YAML formatter writes a plain
         # scalar, and a quoted one fails that hook.
         recipe:
-        - (overblock-pycell :fetcher github :repo "MArpogaus/overblock-pycell" :files ("overblock-pycell.el"))
-        - (overblock :fetcher github :repo "MArpogaus/overblock-pycell" :files ("overblock.el" "overblock-md.el" "overblock-repl.el" "overblock-md-preview.el" "overblock-pydoc.el"))
+        - (overblock :fetcher github :repo "MArpogaus/overblock" :files ("overblock.el" "overblock-repl.el"))
+        - (overblock-md :fetcher github :repo "MArpogaus/overblock" :files ("overblock-md.el" "overblock-md-preview.el"))
+        - (overblock-pydoc :fetcher github :repo "MArpogaus/overblock" :files ("overblock-pydoc.el"))
+        - (overblock-pycell :fetcher github :repo "MArpogaus/overblock" :files ("overblock-pycell.el"))
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
     - run: |
