@@ -67,7 +67,7 @@ compile: $(STAMP)
 # version and its dependencies.  These lists are the whole of each one,
 # and `lint' reads every file against the main file of its own package —
 # as MELPA does, one recipe per list.
-LAYER  := overblock.el overblock-repl.el
+LAYER  := overblock.el overblock-repl.el overblock-run.el
 MD     := overblock-md.el overblock-md-preview.el
 PYDOC  := overblock-pydoc.el
 PYCELL := overblock-pycell.el
