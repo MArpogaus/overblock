@@ -8,7 +8,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -69,8 +69,9 @@
 
 (defcustom overblock-image-height 0.8
   "How tall an image may be drawn inline, as a share of the window.
-Zero draws it at whatever size it came in.  `pycell-pop-output' and
-`pycell-save-image' always work from the original.
+Zero draws it at whatever size it came in.  The cap is on the drawing
+only: a caller that pops an image out, or writes it to a file, works
+from the original.
 
 A block taller than the window cannot be scrolled past: the wheel
 bounces backwards off it and starts over, and the buffer below it
@@ -81,7 +82,7 @@ backwards.  The difference is the two lines of text a block carries
 besides the figure.
 
 The share is taken when the block is drawn, from the window showing
-the buffer then, or from the selected window when the notebook is not
+the buffer then, or from the selected window when the buffer is not
 on screen; a window resized afterwards keeps the size the figure
 had."
   :type 'number
@@ -887,11 +888,11 @@ STRING is the caller's copy to write on."
 (defun overblock-image-limit ()
   "Return how many pixels tall an image may be drawn, or nil for no cap.
 The share is `overblock-image-height' of the window that shows the
-notebook.  A cell can finish while its notebook is elsewhere — sent and
-switched away from, or one of a whole run — and no window at all would
-mean no cap and a block the wheel cannot get past.  The selected window
-is a guess at the size the notebook will have, and a guess that comes
-out small only draws a smaller figure."
+buffer.  A block can be drawn while its buffer is off screen — a caller
+that renders on a timer or works through a whole buffer does that — and
+no window at all would mean no cap and a block the wheel cannot get
+past.  The selected window is a guess at the size the buffer will have,
+and a guess that comes out small only draws a smaller figure."
   (when-let* (((numberp overblock-image-height))
               ((> overblock-image-height 0))
               (window (or (get-buffer-window nil t) (selected-window)))

@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -141,8 +141,8 @@ nothing."
 
 (defvar overblock-md--remote-failed (make-hash-table :test #'equal)
   "The image URLs that could not be fetched in this session.
-A URL that failed is not asked for again: the cell renders on every
-`pycell-md-render-all', and a notebook that opens with a badge would
+A URL that failed is not asked for again: a caller renders the same
+text again and again, and a document that opens with a badge would
 otherwise wait for the network every time.")
 
 (defun overblock-md--fetchable-p (url)
@@ -329,7 +329,7 @@ or, when told to use MathJax, in parentheses and brackets.")
   "Return FRAG with its MathJax delimiters taken off.
 A fragment that stays text is read as text, and pandoc with MathJax
 wrote \\(x_1\\): the parentheses say nothing to a reader.  Dollars are
-how a notebook writes a formula and read as themselves, so those stay.
+how a document writes a formula and read as themselves, so those stay.
 
 The text and not a display property: a piece hangs a whole row on one
 display property, and display properties do not nest — a property
@@ -405,9 +405,10 @@ reshaped into something else.")
 Nil where no converter is installed and nil where the one that is
 exits non-zero: this is the one caller-visible answer that keeps a cell
 plain text rather than raising.  The check belongs here, where the
-program is called, and not in each caller — `pycell-md-render-all' is
-the body of `pycell-mode', and a signal from here left the mode on with
-nothing rendered and took the rest of `code-cells-mode-hook' with it.
+program is called, and not in each caller: a caller renders from the
+body of a minor mode, and a signal from here left the mode on with
+nothing rendered and took the rest of the hook that turned it on with
+it.
 One wrong argument in `overblock-md-command' was enough."
   (when-let* ((program (overblock-md-program)))
     (let ((errors (make-temp-file "overblock-md-stderr")))
@@ -438,7 +439,7 @@ One wrong argument in `overblock-md-command' was enough."
 
 (defun overblock-md-html-batch (texts)
   "Return the HTML of each of TEXTS, converted in one go.
-Opening a notebook renders every markdown cell, and a converter
+A caller often renders many pieces at once, and a converter
 process costs more than the markdown: 44 milliseconds a cell with
 `markdown_py', which is two seconds for fifty cells and nine for two
 hundred.  One process for the buffer costs that once.
@@ -559,8 +560,8 @@ row out of line."
 
 (defun overblock-md--image-file (src)
   "Return the readable local image file that SRC names, or nil.
-A markdown cell writes `![a figure](figure.png)', and a path like that
-belongs to the directory of the notebook.  An absolute path and a
+Markdown writes `![a figure](figure.png)', and a path like that
+belongs to the directory of the buffer's own file.  An absolute path and a
 `file://' URL name the file directly; anything with another scheme is
 not ours to open."
   (when-let* ((path (cond ((string-prefix-p "file://" src)

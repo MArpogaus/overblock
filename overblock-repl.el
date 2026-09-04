@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -224,8 +224,8 @@ Only that much is looked at and only that much is copied: a result of
 ten thousand lines costs what a result of twelve costs, which is what a
 tick five times a second needs."
   (if (<= limit 0)
-      ;; `pycell-max-lines' is a natnum, so zero is a legal value for it,
-      ;; and the scan below counts from one: it never met a limit of zero
+      ;; A caller's own limit is a natnum, so zero is a legal value, and
+      ;; the scan below counts from one: it never met a limit of zero
       ;; and read and copied the whole result instead — measured, 18.6
       ;; milliseconds and a full copy over twenty thousand lines, five
       ;; times a second while the cell runs.
