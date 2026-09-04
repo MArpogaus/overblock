@@ -362,18 +362,30 @@ piece's end, 32 for the same image on a before-string."
 
 (defun overblock--deal (lines slots)
   "Return LINES dealt into SLOTS chunks, as evenly as the two counts allow.
-Chunk I takes the lines from COUNT*I/SLOTS to COUNT*(I+1)/SLOTS, so a
-remainder is spread over the chunks rather than heaped on the last.
+Chunk I takes the lines up to COUNT*(I+1)/SLOTS, so a remainder is
+spread over the chunks rather than heaped on the last.
+
+Rounded up, so the first chunk is never empty while there is a line to
+put in it: the first row of a region is the only one that begins where
+the block does — every row after it begins at a line start — and a
+rendering whose first line is written for that column lands `indent'
+columns to the left of the rest when an empty first chunk cloaks that
+row.  Measured with a doc string of eleven lines rendered to six: the
+bar of `overblock-pydoc--bar' stood at column 0 under prose indented
+to four.  Rounding down dealt (0 1 0 1 1) for three lines over five
+rows; rounding up deals (1 1 0 1 0).
+
 The chunks follow one another, so they come off a walking list:
 measured, `seq-subseq' from the front of a thousand lines cost 2.7
 milliseconds against 0.3 for three hundred, which is the shape of a
 quadratic."
-  (let ((count (length lines))
-        (rest lines)
-        chunks)
+  (let* ((count (length lines))
+         (rest lines)
+         ;; Ceiling division: how many lines the first I chunks hold.
+         (upto (lambda (i) (/ (+ (* i count) slots -1) slots)))
+         chunks)
     (dotimes (i slots)
-      (let ((wanted (- (/ (* (1+ i) count) slots)
-                       (/ (* i count) slots))))
+      (let ((wanted (- (funcall upto (1+ i)) (funcall upto i))))
         (push (take wanted rest) chunks)
         (setq rest (nthcdr wanted rest))))
     (nreverse chunks)))
