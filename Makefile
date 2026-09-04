@@ -1,14 +1,15 @@
 # Development tasks.  Run `make' to check everything, as the CI does.
 #
 #   make compile   byte-compile, warnings are errors
-#   make checkdoc  documentation style
 #   make lint      package-lint, the MELPA rules
 #   make relint    regexp and docstring escapes
 #   make test      ERT test suite, STRICT=1 to refuse to skip
 #   make test-live the suite against a real ipython; skips without one
-#   make format    indent every Lisp file in place
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
+#
+# The indent, checkdoc and complexity checks are pre-commit hooks of
+# https://github.com/MArpogaus/elisp-complexity, not targets here.
 #
 # The checks install their tools and this package's dependencies into
 # $(SANDBOX), so a fresh checkout needs nothing but Emacs and make.
@@ -27,8 +28,6 @@ TEST := $(wildcard test/*.el)
 # it; `test-live' below is its target.  It is still in TEST, so it is
 # byte-compiled and relinted with the rest.
 SUITE := $(filter-out test/pycell-live-test.el,$(TEST))
-# Everything written in Lisp, the parts that are no package included.
-LISP := $(SRC) $(TEST) $(wildcard demo/*.el) $(wildcard tools/*.el)
 
 # Elisp programs live in variables: make joins their continuation lines,
 # while a backslash inside a quoted recipe line would reach Emacs as is.
@@ -42,15 +41,12 @@ bootstrap = (progn (package-refresh-contents) \
                      (unless (package-installed-p p) (package-install p))))
 strict = (unless (overblock-md-program) \
            (error "No markdown converter: the markdown tests would skip"))
-checkdoc = (progn (require (quote checkdoc)) \
-                  (setq checkdoc-verb-check-experimental-flag nil) \
-                  (dolist (f command-line-args-left) (checkdoc-file f)))
 
-BATCH = $(EMACS) -Q --batch -L . -L test -L tools --eval '$(init)'
+BATCH = $(EMACS) -Q --batch -L . -L test --eval '$(init)'
 
-.PHONY: all compile checkdoc lint relint test test-live format scroll clean
+.PHONY: all compile lint relint test test-live scroll clean
 
-all: compile checkdoc lint relint test
+all: compile lint relint test
 
 $(STAMP):
 	@$(EMACS) -Q --batch --eval '$(init)' --eval '$(bootstrap)'
@@ -60,12 +56,6 @@ compile: $(STAMP)
 	@$(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
 	  -f batch-byte-compile $(SRC) $(TEST)
 	@rm -f ./*.elc test/*.elc
-
-# checkdoc reports on stderr and always exits zero, so treat any output
-# as a failure.
-checkdoc:
-	@out=$$($(BATCH) --eval '$(checkdoc)' $(SRC) 2>&1); \
-	  if [ -n "$$out" ]; then printf '%s\n' "$$out"; exit 1; fi
 
 # Two packages live here: the block layer, which knows nothing about
 # Python, and the notebook that uses it.  package-lint reads one main
@@ -113,13 +103,6 @@ scroll: $(STAMP)
 	@$(XVFB) $(EMACS) -Q -L . -L test --eval '$(init)' \
 	  -l test/run-scroll.el; status=$$?; \
 	  cat scroll-report.txt 2>/dev/null; exit $$status
-# The formatter loads each file before indenting it, so a macro of this
-# package indents its body the way its `declare' says; that needs the
-# load path and the dependencies, which is why it wants the sandbox.
-# It answers 1 when it had to change something, which is how the hook
-# stops a commit; from make that is a job done, not a failure.
-format: $(STAMP)
-	@$(BATCH) -l tools/indent.el $(LISP) || true
 
 clean:
 	@rm -rf $(SANDBOX) ./*.elc test/*.elc scroll-report.txt

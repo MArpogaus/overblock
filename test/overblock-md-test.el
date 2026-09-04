@@ -252,7 +252,7 @@ scrolling, and a terminal cannot even show it — so where
   (cl-letf (((symbol-function 'display-images-p) #'ignore)
             ;; A LaTeX that would succeed, to prove it is never asked.
             ((symbol-function 'overblock-md--latex-image)
-             (lambda (&rest _) (error "the terminal asked for an image"))))
+             (lambda (&rest _) (error "The terminal asked for an image"))))
     (let ((text "before $x^2$ after"))
       (should (equal (overblock-md--mathify text) text)))
     ;; and the MathJax delimiters still come off, or the terminal reads

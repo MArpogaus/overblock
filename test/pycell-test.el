@@ -1502,7 +1502,7 @@ header took two rows."
                 ((symbol-function 'get-buffer-window-list)
                  (lambda (&rest _) (list (selected-window))))
                 ((symbol-function 'pycell--update)
-                 (lambda (&rest _) (error "drawn again for nothing"))))
+                 (lambda (&rest _) (error "Drawn again for nothing"))))
         (pycell--rewidth)))))
 
 (ert-deftest pycell-test-a-pop-out-keeps-what-is-around-a-table ()
@@ -1558,7 +1558,7 @@ so `pycell-interrupt' works there wherever the reader binds it."
                   ((symbol-function 'get-buffer-process)
                    (lambda (buffer) (list 'process-of buffer)))
                   ((symbol-function 'python-shell-get-process-or-error)
-                   (lambda (&rest _) (error "asked for a shell of its own"))))
+                   (lambda (&rest _) (error "Asked for a shell of its own"))))
           (let ((cell (with-current-buffer notebook
                         (insert "x = 1\n")
                         (copy-marker (point-min)))))
