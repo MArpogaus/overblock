@@ -55,10 +55,11 @@ render in place, and this includes the LaTeX fragments.
 - IPython for rich output.  A plain =python3= shell gives text only,
   because comint-mime installs its renderers through IPython.
 - A converter from Markdown to HTML for the markdown cells.  pycell
-  looks for =pandoc --mathjax=, =markdown_py -x tables -x fenced_code=,
-  =cmark-gfm -e table=, =markdown= and =cmark=, in this order — the ones
-  that can carry a table and a code fence first, each told to leave the
-  math alone.  See =overblock-md-command=.
+  looks for =pandoc --mathjax --no-highlight=, =markdown_py -x tables -x
+  fenced_code=, =cmark-gfm -e table=, =markdown= and =cmark=, in this
+  order — the ones that can carry a table and a code fence first, each
+  told to leave the math alone and to paint no code.  See
+  =overblock-md-command=.
 - An Emacs with libxml2, because shr reads the HTML of the converter
   with it.  Without a converter or without libxml2 the markdown cells
   stay plain text.  The mode then reports which part is missing.

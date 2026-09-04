@@ -389,12 +389,19 @@ therefore scrolled markdown worse than one without.
 ** The converter
 
 =overblock-md-command= names the command that turns Markdown into
-HTML.  pycell looks for =pandoc --mathjax=, =markdown_py -x tables -x
-fenced_code=, =cmark-gfm -e table=, =markdown= and =cmark=, in this
-order: the ones that can carry a table and a code fence first, and each
-one told to leave the math for the preview machinery.  Plain =pandoc=
-renders a formula itself, which left a notebook with no inline math at
-all.
+HTML.  pycell looks for =pandoc --mathjax --no-highlight=, =markdown_py
+-x tables -x fenced_code=, =cmark-gfm -e table=, =markdown= and
+=cmark=, in this order: the ones that can carry a table and a code
+fence first, and each one told to leave the math for the preview
+machinery.  Plain =pandoc= renders a formula itself, which left a
+notebook with no inline math at all.
+
+=--no-highlight= because shr reads no CSS class, so the colours pandoc
+encodes in one are dropped and the only thing that survives its
+highlighting is the line anchor it hangs on each row of a code block.
+Measured on a document of 216 lines with three fenced blocks, pandoc
+spent 785 milliseconds of which 720 were the syntax definitions it
+loaded to paint them.
 
 shr reads the HTML with libxml2.  Without libxml2 the markdown cells
 stay plain text, and the mode reports which part is missing.
