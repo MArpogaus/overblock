@@ -57,16 +57,35 @@ compile: $(STAMP)
 	  -f batch-byte-compile $(SRC) $(TEST)
 	@rm -f ./*.elc test/*.elc
 
-# Two packages live here: the block layer, which knows nothing about
-# Python, and the notebook that uses it.  package-lint reads one main
-# file and calls every symbol outside its prefix an error, so it is run
-# once for each of them.
+# Two packages live here, and these are their files.  overblock is the
+# block layer and the two modes built on it, and it knows nothing about
+# Python; pycell is the notebook that uses the layer.  package-lint
+# reads one main file and calls every symbol outside its prefix an
+# error, so it is run once for each package.  The lists below are the
+# whole of each package: what moves when the two get a repository each.
+OVERBLOCK := overblock.el overblock-md.el overblock-repl.el \
+             overblock-md-preview.el overblock-pydoc.el
+PYCELL    := pycell.el
+
+# pycell requires overblock, which has no MELPA recipe yet, so
+# package-lint calls the dependency uninstallable.  The layer is in this
+# checkout, so it is registered from here: a descriptor alone, no copy of
+# the sources, or the copy would shadow the working tree on the load
+# path.  This goes when overblock is published and the sandbox can
+# install it like any other dependency.
+OBVER := $(shell sed -n 's/^;; Version: //p' overblock.el)
+OBDIR := $(SANDBOX)/overblock-$(OBVER)
+OBPKG := (define-package "overblock" "$(OBVER)" \
+          "Text blocks over a buffer" (quote ((emacs "29.1"))))
+
 lint: $(STAMP)
+	@mkdir -p $(OBDIR)
+	@echo '$(OBPKG)' > $(OBDIR)/overblock-pkg.el
+	@: > $(OBDIR)/overblock-autoloads.el
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock.el")' \
-	  -f package-lint-batch-and-exit overblock.el overblock-md.el \
-	  overblock-repl.el
+	  -f package-lint-batch-and-exit $(OVERBLOCK)
 	@$(BATCH) --eval '(setq package-lint-main-file "pycell.el")' \
-	  -f package-lint-batch-and-exit pycell.el
+	  -f package-lint-batch-and-exit $(PYCELL)
 
 # What checkdoc and package-lint both let through: a docstring escape
 # written \= rather than \\=, which the reader eats, so `describe-function'
