@@ -198,6 +198,11 @@ same move pair at its end.
 The header shows =⚠= if the interpreter dies while the cell runs, and
 the result ends with a note.
 
+A pass over several cells — =pycell-restart-and-run-all= or
+=pycell-run-above= — scrolls each cell it starts to the top of the
+window, so the code that runs is visible.  Point comes back to where
+you asked for the pass when it ends.
+
 A table, a DataFrame among them, gets its columns laid out again for
 the block: literal columns that stand where they are whatever face the
 block wears.  =pycell-pop-output= gives you that table live, in its own

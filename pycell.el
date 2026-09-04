@@ -2224,6 +2224,13 @@ never ran at all."
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
           (goto-char m)
+          ;; The cell goes to the top of every window showing the
+          ;; notebook, so the whole of the code that is about to run
+          ;; is visible.  `pycell--go-home' gives point back when the
+          ;; pass ends.
+          (dolist (window (get-buffer-window-list nil nil t))
+            (set-window-point window m)
+            (set-window-start window m))
           (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
             ;; A markdown cell that already shows its rendering needs
             ;; no second one: the restart leaves the renderings alone

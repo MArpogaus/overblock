@@ -1207,6 +1207,33 @@ another's cells and then fed its own down that notebook's interpreter."
             (should-not (with-current-buffer two (pycell--queued)))))
       (mapc #'kill-buffer (list one two shell-one shell-two)))))
 
+(ert-deftest pycell-test-a-pass-aligns-the-cell-with-the-window-top ()
+  "A queued pass puts the cell it starts at the top of the window.
+The pass walks point down the notebook, but point alone leaves the
+window wherever redisplay finds room: the cell's first line could sit
+at the bottom edge with the code about to run out of sight."
+  (pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (let ((shell (generate-new-buffer " *pycell-test-shell*"))
+          sent)
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell))
+                    ((symbol-function 'pycell--send)
+                     (lambda (_proc beg _end) (setq sent beg))))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode))
+            (let ((second (cadr (pycell--cell-starts)))
+                  (window (get-buffer-window)))
+              (set-window-start window (point-max))
+              (pycell--queue-set (list second))
+              (pycell--run-next)
+              (should (>= sent second))
+              (should (= (window-start window) second))
+              (should (= (window-point window) second))))
+        (kill-buffer shell)))))
+
 (ert-deftest pycell-test-out-label-goes-where-it-begins-a-line ()
   "An Out[N] label goes where it begins a line, and nowhere else.
 That is where the shell writes one.  A label that stands in the middle
