@@ -555,6 +555,89 @@ behind, showing a rendering of text that had changed under it."
     (overlay-put block 'insert-in-front-hooks hooks)
     (overlay-put block 'insert-behind-hooks hooks)))
 
+(defvar-local overblock-live--spec nil
+  "How this buffer renders itself, as (KIND REGIONS SHOW IDLE).
+`overblock-live-start' puts it there and `overblock-live-stop' takes it
+away; the hook below is the only reader.")
+
+(defvar-local overblock-live--timer nil
+  "The timer that renders what the reader has left behind.")
+
+(defun overblock-live--reveal-here ()
+  "Take the rendering off the line point is on."
+  (when-let* ((kind (car overblock-live--spec))
+              (block (car (overblock-in (pos-bol) (pos-eol) kind))))
+    (overblock-delete block)))
+
+(defun overblock-live-render-buffer ()
+  "Render every region of this buffer that is not rendered already.
+The region point is on is rendered too; `overblock-live--follow' is
+what leaves it alone."
+  (interactive)
+  (pcase-let ((`(,kind ,regions ,show ,_idle) overblock-live--spec))
+    (when kind
+      (dolist (region (funcall regions (point-min) (point-max)))
+        (unless (overblock-in (car region) (cdr region) kind)
+          (funcall show (car region) (cdr region)))))))
+
+(defun overblock-live--render-elsewhere ()
+  "Render every region the reader is no longer in."
+  (pcase-let ((`(,kind ,regions ,show ,_idle) overblock-live--spec))
+    (when kind
+      (dolist (region (funcall regions (point-min) (point-max)))
+        ;; The region point is in is the one being edited, and it stays
+        ;; as it is.  Its own bounds answer that.
+        (unless (or (<= (car region) (point) (cdr region))
+                    (overblock-in (car region) (cdr region) kind))
+          (funcall show (car region) (cdr region)))))))
+
+(defun overblock-live--follow ()
+  "Show the source where point is, and render what it left behind.
+The revealing is immediate, because the reader is about to type there.
+The rendering waits, because a line rendered on every command turned a
+held down `C-n' into one conversion a keypress."
+  (overblock-live--reveal-here)
+  (when (timerp overblock-live--timer)
+    (cancel-timer overblock-live--timer))
+  (setq overblock-live--timer
+        (run-with-idle-timer
+         (or (nth 3 overblock-live--spec) 0.2) nil
+         (let ((buffer (current-buffer)))
+           (lambda ()
+             (when (buffer-live-p buffer)
+               (with-current-buffer buffer
+                 (when overblock-live--spec
+                   (overblock-live--render-elsewhere)))))))))
+
+(defun overblock-live-start (kind regions show &optional idle)
+  "Render this buffer region by region, and follow point through it.
+KIND names the blocks, as `overblock-show' takes it.  REGIONS is
+called with two positions and answers with a list of (BEG . END) worth
+rendering.  SHOW is called with one such pair and puts the rendering
+on; it is the caller\'s business what to render and with what, and
+`overblock-stale-when-edited' is worth its call there.  IDLE is the
+quiet a region waits for before it is rendered again, 0.2 seconds by
+default.
+
+The region point is in shows its source, so the reader edits where they
+read; leaving it renders it again.  `overblock-live-stop' undoes all of
+it.  A mode of two lines is the intent: what to render is the caller\'s
+whole part."
+  (setq overblock-live--spec (list kind regions show idle))
+  (add-hook 'post-command-hook #'overblock-live--follow nil t)
+  (overblock-live-render-buffer)
+  (overblock-live--reveal-here))
+
+(defun overblock-live-stop ()
+  "Stop rendering this buffer, and take every rendering off it."
+  (remove-hook 'post-command-hook #'overblock-live--follow t)
+  (when (timerp overblock-live--timer)
+    (cancel-timer overblock-live--timer)
+    (setq overblock-live--timer nil))
+  (when-let* ((kind (car overblock-live--spec)))
+    (overblock-clear (point-min) (point-max) kind))
+  (setq overblock-live--spec nil))
+
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
 Call it after `overblock-set'.  Everything the block shows is made

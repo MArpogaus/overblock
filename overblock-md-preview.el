@@ -58,14 +58,6 @@ every command: a held down `C-n' would otherwise render a line for
 every keypress it repeats."
   :type 'number)
 
-(defvar-local overblock-md-preview--timer nil
-  "The timer that renders what the reader has left behind.")
-
-;; The mode is defined at the end of the file and the hooks below ask
-;; whether it is still on: a timer can fire after the reader turned it
-;; off, and in a buffer that is not the one it was set in.
-(defvar overblock-md-preview-mode)
-
 (defvar-keymap overblock-md-preview-map
   :doc "Keymap on a rendered line.
 A click puts point on the line, which shows its source: the reader
@@ -128,13 +120,15 @@ caller rendered the whole buffer in one process."
       (overblock-stale-when-edited block)
       block)))
 
+
 ;;;; When to render them
 
 (defun overblock-md-preview-render-buffer ()
   "Render every line of the buffer that is not already rendered.
 One converter process for the whole buffer: the lines go through
 `overblock-md-html-batch' together, and each falls back to its own
-conversion where that answers nothing."
+conversion where that answers nothing.  `overblock-live-render-buffer'
+would render them one process at a time, which is what this is for."
   (interactive)
   (when (overblock-md-program)
     (let* ((lines (seq-remove (lambda (line)
@@ -162,38 +156,6 @@ it anew."
   (when-let* ((block (overblock-at 'md-preview)))
     (overblock-delete block)))
 
-(defun overblock-md-preview--reveal-here ()
-  "Take the rendering off the line point is on."
-  (when-let* ((block (car (overblock-in (pos-bol) (pos-eol) 'md-preview))))
-    (overblock-delete block)))
-
-(defun overblock-md-preview--render-elsewhere ()
-  "Render every line the reader is no longer on."
-  (when (and overblock-md-preview-mode (overblock-md-program))
-    (dolist (line (overblock-md-preview--lines (point-min) (point-max)))
-      ;; The line point is on is the one being edited, and it stays as
-      ;; it is.  Its bounds answer that, without counting lines.
-      (unless (or (<= (car line) (point) (cdr line))
-                  (overblock-in (car line) (cdr line) 'md-preview))
-        (overblock-md-preview--show (car line) (cdr line))))))
-
-(defun overblock-md-preview--follow-point ()
-  "Show the source where point is, and render what it left behind.
-The revealing is immediate, because the reader is about to type there.
-The rendering waits for `overblock-md-preview-idle': a line rendered on
-every command turned a held down `C-n' into one conversion a keypress."
-  (overblock-md-preview--reveal-here)
-  (when (timerp overblock-md-preview--timer)
-    (cancel-timer overblock-md-preview--timer))
-  (setq overblock-md-preview--timer
-        (run-with-idle-timer
-         overblock-md-preview-idle nil
-         (let ((buffer (current-buffer)))
-           (lambda ()
-             (when (buffer-live-p buffer)
-               (with-current-buffer buffer
-                 (overblock-md-preview--render-elsewhere))))))))
-
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode
   "Render every line of this buffer over its own markdown source.
@@ -206,16 +168,14 @@ nothing where none of its candidates is installed."
   :lighter " MdPrev"
   (if overblock-md-preview-mode
       (progn
-        (add-hook 'post-command-hook
-                  #'overblock-md-preview--follow-point nil t)
+        ;; The whole buffer first, in one converter process, and then
+        ;; the cycle: the layer would start it a process at a time.
         (overblock-md-preview-render-buffer)
-        (overblock-md-preview--reveal-here))
-    (remove-hook 'post-command-hook
-                 #'overblock-md-preview--follow-point t)
-    (when (timerp overblock-md-preview--timer)
-      (cancel-timer overblock-md-preview--timer)
-      (setq overblock-md-preview--timer nil))
-    (overblock-clear (point-min) (point-max) 'md-preview)))
+        (overblock-live-start 'md-preview
+                              #'overblock-md-preview--lines
+                              #'overblock-md-preview--show
+                              overblock-md-preview-idle))
+    (overblock-live-stop)))
 
 (provide 'overblock-md-preview)
 ;;; overblock-md-preview.el ends here
