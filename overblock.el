@@ -782,31 +782,67 @@ plist saves is the call around each walk, not the walks."
   string)
 
 (defvar overblock--glyphs (make-hash-table :test #'equal)
-  "What `overblock-glyph' answered, by frame font and candidates.
+  "What `overblock-glyph' answered, by display, font and candidates.
 The answer cannot change while a frame keeps its font, and the question
 is dear: `internal-char-font' asks the font backend once a character,
 and one header of six icons asked it twenty times, five times a second.
 Measured over a running cell, the header cost 0.71 milliseconds a tick
 and 0.27 with this table.")
 
-(defun overblock-glyph (&rest candidates)
-  "Return the first of CANDIDATES this frame has a glyph for.
-The last candidate is the answer when none of them has one.
-`char-displayable-p' answers for the character set and not for the
-font, so it says yes to characters that then draw as a hex box.
+(defun overblock-forget-glyphs (&rest _)
+  "Forget the glyphs answered so far, and draw the bars again.
+A `:set' function for an option the answer depends on."
+  (clrhash overblock--glyphs)
+  (mapc #'overblock-bar-stale (overblock-bars)))
 
-Every character of a candidate has to be there, not just the first:
-several of them lead with a space, and a space is always available."
-  (with-memoization (gethash (cons (and (display-graphic-p)
-                                        (frame-parameter nil 'font))
+(defcustom overblock-terminal-glyphs nil
+  "Whether this terminal draws the glyphs a graphic frame draws.
+Emacs can ask a font what it holds and a terminal nothing: a terminal
+draws with a font of its own choosing, and `char-displayable-p' answers
+for the coding system rather than for that font, so a character it
+lacks arrives as an empty box instead of being refused.  A terminal is
+therefore given the plain last candidate of every list, and a reader
+whose terminal does carry the icon font says so here.
+
+The coding system is still asked, so a terminal that cannot encode a
+candidate never gets it."
+  :type 'boolean
+  ;; `custom-initialize-reset', which a `defcustom' takes by default,
+  ;; calls the `:set' function as the option is defined — before the
+  ;; bars this one asks about are defined at all.  There is nothing to
+  ;; forget at that moment, so the value is simply set.
+  :initialize #'custom-initialize-default
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock-forget-glyphs))
+  :group 'overblock)
+
+(defun overblock--glyph-drawn-p (candidate)
+  "Return non-nil where this frame draws every character of CANDIDATE.
+A graphic frame answers from its font, one character at a time.  A
+terminal answers only where `overblock-terminal-glyphs' says its font
+carries the icons, and then from the coding system, which is all a
+terminal can be asked."
+  (seq-every-p (if (display-graphic-p)
+                   (lambda (ch) (internal-char-font nil ch))
+                 #'char-displayable-p)
+               candidate))
+
+(defun overblock-glyph (&rest candidates)
+  "Return the first of CANDIDATES this frame can draw.
+The last candidate is the answer when none of them can be drawn, and
+in a terminal that was not trusted with the icons — see
+`overblock-terminal-glyphs'.
+
+Every character of a candidate has to be drawable, not just the first:
+several of them lead with a space, and a space always is."
+  (with-memoization (gethash (list (display-graphic-p)
+                                   (frame-parameter nil 'font)
+                                   overblock-terminal-glyphs
                                    candidates)
                              overblock--glyphs)
-    (or (and (display-graphic-p)
-             (seq-find (lambda (c)
-                         (seq-every-p (lambda (ch)
-                                        (internal-char-font nil ch))
-                                      c))
-                       candidates))
+    (or (and (or (display-graphic-p) overblock-terminal-glyphs)
+             (seq-find #'overblock--glyph-drawn-p candidates))
         (car (last candidates)))))
 
 ;; The press answers, not the release.  A block is in the text area,

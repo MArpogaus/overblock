@@ -53,6 +53,33 @@
   (should (equal (overblock-glyph "⤓" "↧" "↓") "↓"))
   (should (equal (overblock-glyph "x") "x")))
 
+(ert-deftest overblock-test-a-trusted-terminal-gets-the-icons ()
+  "A terminal draws the best candidate where the reader says it can.
+Emacs cannot ask a terminal what its font holds, so the icons are kept
+from it until `overblock-terminal-glyphs' says otherwise.  Then the
+coding system decides, which is the one thing a terminal can be asked."
+  (let ((overblock-terminal-glyphs nil))
+    (overblock-forget-glyphs)
+    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "copy")))
+  (let ((overblock-terminal-glyphs t))
+    (overblock-forget-glyphs)
+    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "\U000F0137"))
+    ;; and what this terminal cannot encode it still does not get
+    (cl-letf (((symbol-function 'char-displayable-p)
+               (lambda (ch) (not (eq ch ?\U000F0137)))))
+      (overblock-forget-glyphs)
+      (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "◫"))))
+  (overblock-forget-glyphs))
+
+(ert-deftest overblock-test-the-glyph-answer-is-forgotten-on-a-change ()
+  "An answer kept from before the option changed is not reused.
+The answers are memoized per display, font and option, and the option
+is what a reader turns on once the bars are already drawn."
+  (let ((overblock-terminal-glyphs nil))
+    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "copy")))
+  (let ((overblock-terminal-glyphs t))
+    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "\U000F0137"))))
+
 (ert-deftest overblock-test-glyph-weighs-every-character ()
   "A leading space must not answer for the glyph behind it.
 Several candidates lead with one, and a space is always there, so
