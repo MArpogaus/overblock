@@ -62,7 +62,7 @@ render in place, and this includes the LaTeX fragments.
   Markdown to HTML, an Emacs with libxml2, and =latex= with =dvipng= or
   =dvisvgm= for the formulas the converter leaves alone.  Without a
   converter or without libxml2 the markdown cells stay plain text, and
-  the mode reports which part is missing.  See [[file:README-overblock.org][README-overblock.org]].
+  the mode reports which part is missing.  See [[https://github.com/MArpogaus/overblock][the overblock README]].
 
 *** Installation
 
@@ -253,7 +253,7 @@ cloak.
 What a cell can hold and what it costs is overblock's to answer: the
 formulas that become preview images, the figures a cell names by path
 or by URL, the caches under =~/.cache/=, and the converter that leaves
-the math alone.  See [[file:README-overblock.org][README-overblock.org]].
+the math alone.  See [[https://github.com/MArpogaus/overblock][the overblock README]].
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
 at an absolute path.  A terminal draws no image and shows the alt text
@@ -350,7 +350,7 @@ pycell renders through overblock, and the layer's own options shape
 what a block looks like: =overblock-image-height= caps an inline
 figure, =overblock-md-command= names the converter, and
 =overblock-md-code= is the face of inline code.  Every caller of the
-layer shares them; [[file:README-overblock.org][README-overblock.org]] has the tables.
+layer shares them; [[https://github.com/MArpogaus/overblock][the overblock README]] has the tables.
 
 Each entry of the four button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
@@ -396,7 +396,7 @@ click, so read =last-input-event= as the commands of this package do.
   =scroll-up-line= does not cross it at all.
   =overblock-image-height= keeps such a block small enough for the
   wheel.  Use =pycell-pop-output= for the full figure.  The
-  measurements are in [[file:docs/overblock.org][docs/overblock.org]].
+  measurements are in [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 - One cell runs at a time for each inferior process.  pycell refuses
   a cell while another cell runs.
 - A block shows a copy of what the shell rendered, with the columns of
@@ -439,7 +439,7 @@ renderer, and the copy of the shell output a block can show.
 [[file:docs/implementation.org][docs/implementation.org]] describes the implementation: how a result
 comes into the buffer, how the live mirror works, how a markdown cell
 renders, and what the scroll measurements say.  The layer's own is in
-[[file:docs/overblock.org][docs/overblock.org]].
+[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 ** Development
 
