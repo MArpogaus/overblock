@@ -603,6 +603,18 @@ edited and left carries no rendering, and this is what puts it back."
                  (when-let* ((render (nth 1 overblock-live--spec)))
                    (funcall render)))))))))
 
+(defun overblock-live-wanted-p (beg end kind)
+  "Return non-nil where the region BEG..END still wants a rendering of KIND.
+Two regions do not: one that carries a rendering already, and the one
+point is in — the reader is editing that one, and rendering it would
+take the text out from under them.
+
+Asked twice where the rendering is converted by a process: once to
+decide what to ask for, and again when the answer comes back, because
+the reader has clicked, typed and moved on in between."
+  (not (or (<= beg (point) end)
+           (overblock-in beg end kind))))
+
 (defun overblock-live-edit (&optional event)
   "Show the source of the region at point, or of the one EVENT clicked.
 The rendering comes down and the text is the reader\'s again; it is

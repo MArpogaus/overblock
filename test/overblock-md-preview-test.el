@@ -43,6 +43,16 @@
      (unwind-protect (progn ,@body)
        (overblock-md-preview-mode -1))))
 
+(defun overblock-md-preview-test--wait (count)
+  "Wait until COUNT blocks carry a rendering, and return how many do.
+The conversion is asked of a process and not waited for, which is the
+point of it: a test has to wait where a reader does not."
+  (let ((deadline (+ (float-time) 10)))
+    (while (and (< (length (overblock-md-preview-test--blocks)) count)
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05)))
+  (length (overblock-md-preview-test--blocks)))
+
 (defun overblock-md-preview-test--blocks ()
   "Return the preview blocks of this buffer."
   (overblock-in (point-min) (point-max) 'md-preview))
@@ -109,6 +119,7 @@ because nothing else can tell whether the region opened in a fence."
   (overblock-md-preview-test--with "# A heading\n\nsome *emphasis*\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 2) 2))
     (should (equal (overblock-md-preview-test--sources)
                    '("# A heading" "some *emphasis*")))
     ;; the markup is gone from what the reader sees
@@ -124,6 +135,7 @@ Leaving it renders it again, which is the whole of the cycle."
   (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 3) 3))
     (should (equal (overblock-md-preview-test--sources)
                    '("# One" "two" "three")))
     (goto-char (point-min))
@@ -131,6 +143,7 @@ Leaving it renders it again, which is the whole of the cycle."
     (should (equal (overblock-md-preview-test--sources) '("two" "three")))
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 3) 3))
     (should (equal (overblock-md-preview-test--sources)
                    '("# One" "two" "three")))))
 
@@ -142,10 +155,26 @@ typing never reaches this; a replacement over the buffer does."
   (overblock-md-preview-test--with "# One\n\ntwo\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 2) 2))
     (should (equal (overblock-md-preview-test--sources) '("# One" "two")))
     (goto-char (point-min))
     (while (search-forward "One" nil t) (replace-match "Three"))
     (should (equal (overblock-md-preview-test--sources) '("two")))))
+
+(ert-deftest overblock-md-preview-test-the-answer-lands-nowhere-near-point ()
+  "A block the reader walked into is left alone when its HTML lands.
+The pass asks for every block but the one point is in, and the answer
+comes back a moment later — by which time the reader may have clicked
+one, or walked point into it.  Rendering it then takes the text out
+from under them."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    ;; the reader walks into the first block while the converter runs
+    (goto-char (point-min))
+    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (should (equal (overblock-md-preview-test--sources) '("two" "three")))))
 
 (ert-deftest overblock-md-preview-test-the-mode-leaves-nothing-behind ()
   "Turning the mode off gives the buffer back as it was."
@@ -156,7 +185,7 @@ typing never reaches this; a replacement over the buffer does."
       (overblock-md-preview-mode 1)
       (goto-char (point-max))
       (overblock-md-preview-render-buffer)
-      (should (overblock-md-preview-test--blocks))
+      (should (equal (overblock-md-preview-test--wait 2) 2))
       (overblock-md-preview-mode -1)
       (should-not (overblock-md-preview-test--blocks))
       ;; and the cycle the layer runs is stopped with it
