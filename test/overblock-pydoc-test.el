@@ -199,6 +199,36 @@ syntax scan says where the string ends."
                                (buffer-substring-no-properties
                                 (car (car bounds)) (cdr (car bounds))))))))
 
+(ert-deftest overblock-pydoc-test-a-raw-doc-string-hangs-at-its-quotes ()
+  "A raw doc string is rendered, and every row of it lines up.
+Its region begins at the quotes and the letter that prefixes them
+stands to their left, so the block hangs one column in from the code:
+the rendering is padded to the column the block begins at, measured,
+and not to the indentation of the line."
+  (with-temp-buffer
+    (insert "class A:\n    r\"\"\"Raw doc, with a \\alpha in it.\n\n    More.\n    \"\"\"\n")
+    (python-mode)
+    (let ((overblock-pydoc-renderer 'fontify)
+          (overblock-pydoc-fontify-mode #'rst-mode))
+      (goto-char (point-max))
+      (overblock-pydoc-render-buffer))
+    (let* ((block (car (overblock-in (point-min) (point-max) 'pydoc)))
+           (lines (split-string (substring-no-properties
+                                 (overblock-get block :over))
+                                "\n")))
+      (should block)
+      ;; the block begins at the quotes, past the prefix
+      (goto-char (overlay-start block))
+      (should (= (current-column) 5))
+      ;; the first row hangs there and carries no padding; every row
+      ;; below it is padded to the same column
+      ;; the label glyph of the bar falls back to a word in batch, so
+      ;; the row opens with the space that follows it; what it must not
+      ;; carry is the padding of the rows below
+      (should-not (string-prefix-p "     " (car lines)))
+      (dolist (line (cdr lines))
+        (should (string-prefix-p "     " line))))))
+
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
   "The quotes go, and the indentation the lines share with the code.
 A doc string is written where the code stands and reads as prose one
