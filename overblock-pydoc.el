@@ -73,9 +73,9 @@ its doc strings puts a Markdown command first, or names one alone."
 
 (defvar-keymap overblock-pydoc-map
   :doc "Keymap on a rendered doc string.
-A click puts point in the doc string, which shows its source: the
-reader clicks what they mean to edit."
-  "<mouse-1>" #'overblock-pydoc-edit)
+A click shows the source of the doc string, which is what a reader
+wants of a rendering they mean to edit."
+  "<mouse-1>" #'overblock-live-edit)
 
 ;;;; Which regions
 
@@ -189,13 +189,6 @@ and reads as prose one column from the left."
     block))
 
 ;;;; The mode
-
-(defun overblock-pydoc-edit (&optional event)
-  "Show the source of the doc string at point, or the one EVENT clicked."
-  (interactive (list last-input-event))
-  (overblock-goto-event event)
-  (when-let* ((block (overblock-at 'pydoc)))
-    (overblock-delete block)))
 
 ;;;###autoload
 (define-minor-mode overblock-pydoc-mode

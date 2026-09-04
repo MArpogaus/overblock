@@ -60,9 +60,9 @@ every keypress it repeats."
 
 (defvar-keymap overblock-md-preview-map
   :doc "Keymap on a rendered line.
-A click puts point on the line, which shows its source: the reader
-clicks what they mean to edit and the mode does the rest."
-  "<mouse-1>" #'overblock-md-preview-edit-line)
+A click shows the source of the line, which is what a reader wants of
+a rendering they mean to edit."
+  "<mouse-1>" #'overblock-live-edit)
 
 ;;;; Which regions
 
@@ -144,15 +144,6 @@ would render them one process at a time, which is what this is for."
                                 lines)))))
       (dolist (line lines)
         (overblock-md-preview--show (car line) (cdr line) (pop htmls))))))
-
-(defun overblock-md-preview-edit-line (&optional event)
-  "Show the source of the line at point, or of the one EVENT clicked.
-The rendering comes down and the line is text again; leaving it renders
-it anew."
-  (interactive (list last-input-event))
-  (overblock-goto-event event)
-  (when-let* ((block (overblock-at 'md-preview)))
-    (overblock-delete block)))
 
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode

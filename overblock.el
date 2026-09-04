@@ -574,21 +574,13 @@ mouse calls before it asks `overblock-at\' what it was pointed at."
 (defvar-local overblock-live--spec nil
   "How this buffer renders itself, as (KIND REGIONS SHOW IDLE).
 `overblock-live-start' puts it there and `overblock-live-stop' takes it
-away; the hook below is the only reader.")
+away.")
 
 (defvar-local overblock-live--timer nil
-  "The timer that renders what the reader has left behind.")
-
-(defun overblock-live--reveal-here ()
-  "Take the rendering off the line point is on."
-  (when-let* ((kind (car overblock-live--spec))
-              (block (car (overblock-in (pos-bol) (pos-eol) kind))))
-    (overblock-delete block)))
+  "The timer that renders what the reader has finished with.")
 
 (defun overblock-live-render-buffer ()
-  "Render every region of this buffer that is not rendered already.
-The region point is on is rendered too; `overblock-live--follow' is
-what leaves it alone."
+  "Render every region of this buffer that is not rendered already."
   (interactive)
   (pcase-let ((`(,kind ,regions ,show ,_idle) overblock-live--spec))
     (when kind
@@ -597,22 +589,28 @@ what leaves it alone."
           (funcall show (car region) (cdr region)))))))
 
 (defun overblock-live--render-elsewhere ()
-  "Render every region the reader is no longer in."
+  "Render every region the reader is not in.
+The region point is in is the one being edited, and it is left as it
+is: rendering it would take the text out from under the reader."
   (pcase-let ((`(,kind ,regions ,show ,_idle) overblock-live--spec))
     (when kind
       (dolist (region (funcall regions (point-min) (point-max)))
-        ;; The region point is in is the one being edited, and it stays
-        ;; as it is.  Its own bounds answer that.
         (unless (or (<= (car region) (point) (cdr region))
                     (overblock-in (car region) (cdr region) kind))
           (funcall show (car region) (cdr region)))))))
 
-(defun overblock-live--follow ()
-  "Show the source where point is, and render what it left behind.
-The revealing is immediate, because the reader is about to type there.
-The rendering waits, because a line rendered on every command turned a
-held down `C-n' into one conversion a keypress."
-  (overblock-live--reveal-here)
+(defun overblock-live--settle (&rest _)
+  "Render again once the reader has stopped.
+Point is never read here to *take* a rendering off — that is what
+`overblock-live-edit' is for, and what an edit of the region does by
+itself.  A reader who scrolls past a rendering moves point through it,
+and revealing it there took the text out from under a scroll: measured,
+every `C-v' through a file of doc strings cost 350 milliseconds and the
+buffer grew and shrank under the window as the renderings came and
+went.
+
+What is left on the timer is the other half: a region the reader has
+edited and left carries no rendering, and this is what puts it back."
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
@@ -625,28 +623,41 @@ held down `C-n' into one conversion a keypress."
                  (when overblock-live--spec
                    (overblock-live--render-elsewhere)))))))))
 
+(defun overblock-live-edit (&optional event)
+  "Show the source of the region at point, or of the one EVENT clicked.
+The rendering comes down and the text is the reader\'s again; it is
+rendered anew once they have moved on and stopped.  This is what a
+mode binds to the mouse."
+  (interactive (list last-input-event))
+  (overblock-goto-event event)
+  (when-let* ((kind (car overblock-live--spec))
+              (block (or (overblock-at kind)
+                         (car (overblock-in (pos-bol) (pos-eol) kind)))))
+    (overblock-delete block)))
+
 (defun overblock-live-start (kind regions show &optional idle)
-  "Render this buffer region by region, and follow point through it.
-KIND names the blocks, as `overblock-show' takes it.  REGIONS is
+  "Render this buffer region by region, and keep it that way.
+KIND names the blocks, as `overblock-show\' takes it.  REGIONS is
 called with two positions and answers with a list of (BEG . END) worth
 rendering.  SHOW is called with one such pair and puts the rendering
-on; it is the caller\'s business what to render and with what, and
-`overblock-stale-when-edited' is worth its call there.  IDLE is the
+on; what to render and with what is the caller\'s business, and
+`overblock-stale-when-edited\' is worth its call there.  IDLE is the
 quiet a region waits for before it is rendered again, 0.2 seconds by
 default.
 
-The region point is in shows its source, so the reader edits where they
-read; leaving it renders it again.  `overblock-live-stop' undoes all of
-it.  A mode of two lines is the intent: what to render is the caller\'s
-whole part."
+A rendering comes off when the reader asks — `overblock-live-edit\',
+which a mode binds to a click — and when the region under it is
+edited.  It goes back on once the reader has stopped moving, all but
+the region point is in.  Point arriving somewhere reveals nothing: a
+reader scrolls through a buffer, and a rendering that came off under
+the window made the text grow and shrink as they went."
   (setq overblock-live--spec (list kind regions show idle))
-  (add-hook 'post-command-hook #'overblock-live--follow nil t)
-  (overblock-live-render-buffer)
-  (overblock-live--reveal-here))
+  (add-hook 'post-command-hook #'overblock-live--settle nil t)
+  (overblock-live-render-buffer))
 
 (defun overblock-live-stop ()
   "Stop rendering this buffer, and take every rendering off it."
-  (remove-hook 'post-command-hook #'overblock-live--follow t)
+  (remove-hook 'post-command-hook #'overblock-live--settle t)
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer)
     (setq overblock-live--timer nil))
