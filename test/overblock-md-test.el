@@ -614,4 +614,19 @@ on the part before the break, and the rest is drawn as nothing."
     ;; the fragment that goes to LaTeX is the whole formula
     (should (equal (overblock-md--one-line "\\(x +\n  y\\)") "\\(x + y\\)"))))
 
+(ert-deftest overblock-md-test-a-terminal-reads-inline-math-on-one-line ()
+  "A display without images gets inline math joined and undelimited.
+The converter wraps its own output, so a fragment carries whatever line
+breaks pandoc put in it; read as text, a formula broken at a backslash
+reads worse than the same formula on one line.  Display math keeps its
+rows, which is what it was written for."
+  (cl-letf (((symbol-function 'display-images-p) #'ignore))
+    (let* ((inline (overblock-md--stow-math "before \\(a +\nb\\) after"))
+           (shown (overblock-md--unstow-math (car inline) (cdr inline))))
+      (should (equal (substring-no-properties shown) "before a + b after")))
+    (let* ((display (overblock-md--stow-math "$$\na = b\n$$"))
+           (shown (overblock-md--unstow-math (car display) (cdr display))))
+      ;; the rows are the rows it was written with
+      (should (= (length (split-string shown "\n")) 3)))))
+
 ;;; overblock-md-test.el ends here

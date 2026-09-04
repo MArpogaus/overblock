@@ -419,13 +419,26 @@ pull the columns of its row out of line."
                (overblock-md--place-image
                 (if (string-search "\n" marks) marks frag) image)
              (overblock-md--fit
-              (overblock-md--bare-math frag) marks
+              (overblock-md--bare-math (overblock-md--as-text frag)) marks
               ;; Padded inside a table and nowhere else: a table is laid
               ;; out in columns of characters, and text shorter than the
               ;; marks it replaces would pull the row out of line.  In
               ;; prose the shorter text simply takes less room.
               (get-text-property 0 'overblock-md--table marks))))))
      text t t)))
+
+(defun overblock-md--as-text (frag)
+  "Return FRAG as the text a display without images shows.
+Inline math is joined: the converter wraps its own output, so a
+fragment carries whatever line breaks pandoc put in it, and a formula
+read as text reads better on one line than broken at a backslash.
+
+Display math keeps its rows — one equation to a line is what it was
+written for, and `overblock-md--verbatim-math\' went to some trouble to
+keep them."
+  (if (string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag)
+      frag
+    (overblock-md--one-line frag)))
 
 (defun overblock-md--fit (text marks &optional pad)
   "Return TEXT laid out where MARKS stood, in the same number of rows.
