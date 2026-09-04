@@ -2,7 +2,11 @@
 #+OPTIONS: toc:2
 
 This document describes the implementation.  The
-[[https://github.com/MArpogaus/overblock][README]] tells you how to use the package.
+[[file:../README.org][README]] tells you how to use the package.  The three
+packages built on this layer have notes of their own:
+[[file:overblock-md.org][overblock-md]],
+[[file:overblock-pydoc.org][overblock-pydoc]] and
+[[file:overblock-pycell.org][overblock-pycell]].
 
 The text uses these terms:
 
@@ -104,6 +108,27 @@ behind, showing a rendering of text that had changed under it.
 
 =overblock-sweep-orphans= removes what is left when text is cut out
 from under a block: the pieces outlive the anchor that owned them.
+
+** The image cap
+
+=overblock-image-height= caps an inline figure at a share of the
+window, because a block taller than the window cannot be scrolled past.
+Measured in a 437 pixel text area, 25 pixels a step: a figure at 0.9 of
+the area bounced 40 times in 399 steps and never got past, one at 0.8
+went by in 94 steps without a single step backwards.
+
+The share is taken from the window that shows the buffer, or from the
+selected window where none does: a block can be drawn while its buffer
+is off screen, and no window at all would mean no cap.
+
+Emacs 31 slices an image taller than =shr-sliced-image-height= into a
+row for each line of the window it was rendered in, and a slice reads
+as =((slice X Y W H) IMAGE)=.  Slicing does not make an image smaller,
+so a figure sliced for a tall window and shown in a shorter one is
+exactly the block the wheel cannot get past.  Nor can the image be
+capped under the slice: the fractions were worked out against the height
+it had.  So a run of slices of one image becomes the whole image again,
+capped.
 
 * The header bars
 
@@ -240,150 +265,6 @@ line at different times.  Keeping a stranger's pending edit committed
 one region's text into another, and throwing it away without a word
 would lose an hour of writing just as quietly, so the reader is asked.
 
-* Markup rendered
-
-=overblock-md-rendered= is markup in, one propertized string out.
-Nothing in it shows anything.
-
-** The converter
-
-=overblock-md-command= names the command that turns Markdown into
-HTML.  The candidates are =pandoc --mathjax --no-highlight=,
-=markdown_py -x tables -x fenced_code=, =cmark-gfm -e table=,
-=markdown= and =cmark=, in this order: the ones that can carry a table
-and a code fence first, and each one told to leave the math for the
-preview machinery.  Plain =pandoc= renders a formula itself, which left
-a document with no inline math at all.
-
-=--no-highlight= because shr reads no CSS class, so the colours pandoc
-encodes in one are dropped and the only thing that survives its
-highlighting is the line anchor it hangs on each row of a code block.
-Measured on a document of 216 lines with three fenced blocks, pandoc
-spent 785 milliseconds of which 720 were the syntax definitions it
-loaded to paint them.  =overblock-pydoc-command= asks for the same for
-the same reason, with reStructuredText first, because that is what
-Python's own tools read.
-
-shr reads the HTML with libxml2.  Without libxml2 the markup stays
-plain text, and the mode reports which part is missing.
-
-=overblock-md-html-batch= sends many texts to the converter in one
-call.  It puts a marker between them and splits the HTML at that
-marker.  One process for a buffer is much faster than one for each
-region: 44 milliseconds a region with =markdown_py=, which is two
-seconds for fifty and nine for two hundred.  A caller falls back to one
-call apiece if the number of pieces does not match the number of texts.
-=overblock-md-html-batch-async= does not wait for the answer.
-
-A converter is a process that can fail, and the answer is nil where
-none is installed and nil where the one that is exits non-zero.  That
-check belongs where the program is called and not in each caller: a
-caller renders from the body of a minor mode, and a signal from here
-left the mode on with nothing rendered and took the rest of the hook
-that turned it on with it.
-
-** Font lock as the renderer
-
-=overblock-md-fontified= runs a major mode's own font lock over the
-text and keeps what it painted, which is how eldoc shows what a
-language server sends it.  =rst-mode= knows a reStructuredText section
-and =gfm-view-mode= the markup of Markdown, and each leaves the text
-where the writer put it, so the rendering is exactly as tall as the
-source and no line below it moves.
-
-What a converter does better: it knows the markup it is given, lays a
-table out in columns and fills a paragraph to the window.  What the
-font lock does better: it costs no process and keeps the lines as
-written.
-
-** Images
-
-shr fetches an image with =url-queue-retrieve=, which answers long after
-a rendering is done: a rendering made in a temporary buffer keeps the
-grey placeholder shr leaves in the meantime.  Measured with a relative
-path, an absolute one and a =file://= URL alike, every local image
-stayed a placeholder.
-
-=overblock-md--tag-img= therefore draws a file itself, through
-=shr-external-rendering-functions=.  The alt text carries the image, so
-a terminal still says what is there, and the figure is capped from the
-window.  An image named by URL — the Colab badge a notebook opens with
-— is fetched once into =~/.cache/overblock-images= and drawn from there
-like a local one; a URL that failed is not asked for again in the
-session.  Set =overblock-md-remote-images= to nil to leave such an
-image to shr.
-
-An image inside a link keeps the link: shr wraps whatever the renderer
-inserted, and =overblock-fill-props= writes the block's keymap only
-where the rendering has none of its own.
-
-A terminal draws no image, and shr's placeholder is itself an image:
-its display property swallows the text under it and leaves a blank row
-where a figure belongs.  So where images cannot be drawn the label goes
-in plainly — the alt text, or the file's name in brackets where there is
-none.
-
-** The image cap
-
-=overblock-image-height= caps an inline figure at a share of the
-window, because a block taller than the window cannot be scrolled past.
-Measured in a 437 pixel text area, 25 pixels a step: a figure at 0.9 of
-the area bounced 40 times in 399 steps and never got past, one at 0.8
-went by in 94 steps without a single step backwards.
-
-The share is taken from the window that shows the buffer, or from the
-selected window where none does: a block can be drawn while its buffer
-is off screen, and no window at all would mean no cap.
-
-Emacs 31 slices an image taller than =shr-sliced-image-height= into a
-row for each line of the window it was rendered in, and a slice reads
-as =((slice X Y W H) IMAGE)=.  Slicing does not make an image smaller,
-so a figure sliced for a tall window and shown in a shorter one is
-exactly the block the wheel cannot get past.  Nor can the image be
-capped under the slice: the fractions were worked out against the height
-it had.  So a run of slices of one image becomes the whole image again,
-capped.
-
-** Formulas
-
-A =$...$= or =$$...$$= fragment becomes a preview image.  The images
-live in =~/.cache/overblock-math=.
-
-The formulas take the shortest road.  What the converter renders stays
-text.  Only the rest becomes an image.  pandoc renders simple math as
-text by itself.
-
-A fragment that stays text is read as text, and pandoc with MathJax
-wrote =\(x_1\)=: the parentheses say nothing to a reader, so the
-delimiters come off and the dollars stay.
-
-A formula inside a table stays text as well.  A table is padded to the
-width of its text, and an image is never as wide as the text it
-replaces, so a row with a preview in it would stand out of line.  The
-table rendering marks the text it covers and the formula pass leaves
-marked text alone.
-
-A fragment whose preview fails stays text and the failure is remembered
-for the session: what caches a preview is the image file, so without
-that a rendering costs one LaTeX run per fragment every time.
-=overblock-md-forget-failed-previews= asks again.
-
-** Tables
-
-shr renders a table without rules, and it gives a header cell and
-inline code no face of its own: its answer for code is a fixed pitch,
-which says nothing in a buffer that is fixed pitch throughout.  The
-renderer draws =th= in bold and =code= in =overblock-md-code= through
-=shr-external-rendering-functions=.
-
-The rules are shr's to draw and it draws them badly here: a frame
-around a frame, one per cell, and a ragged end to every row.  The
-columns and the bold header carry the table instead.
-
-A rendered table is laid out in characters rather than pixels, so its
-columns line up over the fixed-pitch lines of a buffer.  Nothing in
-that layout can be moved by a face, which shr's own stretches could.
-
 * The output of a shell
 
 =overblock-repl-detach= cuts a copy of shell output loose from the
@@ -456,9 +337,9 @@ lines with many face changes cost three times as much.
 Measured before and after, on the same inputs, in a graphic frame with
 the nerd font the bars are drawn in:
 
-| what                  | before   | after    |
-|-----------------------+----------+----------|
-| =overblock-glyph=     | 0.010 ms | 0.001 ms |
+| what              | before   | after    |
+|-------------------+----------+----------|
+| =overblock-glyph= | 0.010 ms | 0.001 ms |
 
 =overblock-glyph= asks =internal-char-font= once for every character of
 every candidate, and a header of six buttons asked it twenty times,
@@ -480,7 +361,7 @@ and the candidates.
 * The tests
 
 =make test= runs the batch suites, one to a file, and a test sits with
-the code it checks:
+the code it checks.  These two are this package's:
 
 - =test/overblock-test.el= — which slot each row lands in, the line
   break the first row takes and the one it does not, a hidden block and
@@ -488,28 +369,21 @@ the code it checks:
   with it, the cloak that reaches the last line, the sweep of what lost
   its anchor, the images capped and unsliced, and the bars, buttons and
   glyphs.
-- =test/overblock-md-test.el= — the converter, the batch of texts, the
-  math previews, the tables laid out in characters, and the images:
-  which paths name a file, that the file is drawn rather than shr's
-  placeholder, that a link on an image keeps the click, and that a
-  remote image stays shr's business.
 - =test/overblock-repl-test.el= — a copied table laid out again, its
   getter, and the images capped.
-- =test/overblock-md-preview-test.el= — what counts as one Markdown
-  block, the fence inside a paragraph, the line at point showing its
-  source, the edit that drops a rendering, the answer of an
-  asynchronous conversion landing nowhere near point, and the mode
-  leaving nothing behind.
-- =test/overblock-pydoc-test.el= — which strings are documentation and
-  which are data, the indentation taken off, both renderers, the bar
-  and the rule, and the mode leaving nothing behind.
 
-=test/overblock-client-test.el= is a caller of a shape the package
-never wrote: it renders the math in a Python doc string over the lines
+=test/overblock-client-test.el= is a caller of a shape no package here
+ever wrote: it renders the math in a Python doc string over the lines
 of that doc string, with no process behind it and no mode.  It answers
 one question — does a caller of another shape need anything the layer
-does not have — and so far it needs nothing.
+does not have — and so far it needs nothing.  It borrows the renderer
+of overblock-md to have something to show.
 
-A fifth of the suite renders markup and skips itself where no converter
-is installed.  =make test STRICT=1= makes that a failure instead, and
-the CI sets it.
+The suites of the other three packages are listed in their own notes:
+[[file:overblock-md.org][overblock-md]],
+[[file:overblock-pydoc.org][overblock-pydoc]] and
+[[file:overblock-pycell.org][overblock-pycell]].
+
+A fifth of the whole suite renders markup and skips itself where no
+converter is installed.  =make test STRICT=1= makes that a failure
+instead, and the CI sets it.
