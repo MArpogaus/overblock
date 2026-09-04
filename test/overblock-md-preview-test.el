@@ -54,34 +54,53 @@
                           (overlay-start block) (overlay-end block))))
           (overblock-md-preview-test--blocks)))
 
-(ert-deftest overblock-md-preview-test-a-fence-is-not-markdown ()
-  "The lines of a fenced code block are left alone, the fences too.
-A fence line renders as itself, and the code between two of them is
-code: neither is a line of markdown, and the line after the closing
-fence is one again."
-  (with-temp-buffer
-    (insert "prose\n\n```\ncode\n```\ntail\n\n~~~\nmore code\n~~~\n")
-    (should (equal (mapcar (lambda (line)
-                             (buffer-substring-no-properties
-                              (car line) (cdr line)))
-                           (overblock-md-preview--lines (point-min)
-                                                        (point-max)))
-                   '("prose" "tail")))))
+(defun overblock-md-preview-test--texts (beg end)
+  "Return the text of every markdown block between BEG and END."
+  (mapcar (lambda (region)
+            (buffer-substring-no-properties (car region) (cdr region)))
+          (overblock-md-preview--regions beg end)))
 
-(ert-deftest overblock-md-preview-test-a-line-is-asked-from-the-top ()
+(ert-deftest overblock-md-preview-test-a-block-is-what-markdown-calls-one ()
+  "The run of lines between two blank ones, and a fence whole.
+A line of markdown is often not markdown alone: a row of a table needs
+the rows around it, and a fenced piece of code keeps the blank lines it
+holds."
+  (with-temp-buffer
+    (insert "# Heading\n\npara one\ncontinues\n\n| a | b |\n|---|---|\n"
+            "| 1 | 2 |\n\n```\ncode\n\nwith a blank\n```\n\n- one\n- two\n")
+    (should (equal (overblock-md-preview-test--texts (point-min) (point-max))
+                   '("# Heading"
+                     "para one\ncontinues"
+                     "| a | b |\n|---|---|\n| 1 | 2 |"
+                     "```\ncode\n\nwith a blank\n```"
+                     "- one\n- two")))))
+
+(ert-deftest overblock-md-preview-test-a-table-renders-as-a-table ()
+  "A table reaches the converter whole, and comes back with its columns.
+Rendered a row at a time, the rule between the head and the body came
+back as a row of empty cells and every row as a paragraph of its own."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "| a | b |\n|---|---|\n| 1 | 2 |\n")
+    (let* ((region (car (overblock-md-preview--regions (point-min)
+                                                       (point-max))))
+           (block (overblock-md-preview--show (car region) (cdr region)))
+           (shown (substring-no-properties (overblock-get block :over))))
+      ;; the rule is gone and the cells stand in their columns
+      (should-not (string-match-p "---" shown))
+      (should (string-match-p "a +b" shown))
+      (should (string-match-p "1 +2" shown)))))
+
+(ert-deftest overblock-md-preview-test-a-region-is-read-from-the-top ()
   "A region inside a fence is known to be inside it.
 The walk starts at the top of the buffer whatever the region says,
 because nothing else can tell whether the region opened in a fence."
   (with-temp-buffer
-    (insert "```\none\ntwo\n```\nthree\n")
+    (insert "```\none\ntwo\n```\n\nthree\n")
     (let ((inside (progn (goto-char (point-min)) (forward-line 2) (point))))
-      ;; asked from the middle of the fence: "two" is still code, while
-      ;; the line after the closing fence is markdown again
-      (should (equal (mapcar (lambda (line)
-                               (buffer-substring-no-properties
-                                (car line) (cdr line)))
-                             (overblock-md-preview--lines inside
-                                                          (point-max)))
+      ;; the fence is one block and it began before the region, so what
+      ;; is left is the paragraph after it
+      (should (equal (overblock-md-preview-test--texts inside (point-max))
                      '("three"))))))
 
 (ert-deftest overblock-md-preview-test-every-line-is-rendered ()
