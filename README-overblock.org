@@ -409,18 +409,18 @@ paths cost.
 *** When this becomes a repository of its own
 
 The =URL:= header of every file here, and of every test, names
-=MArpogaus/pycell=, the repository they live in today.  melpazoid asks
+=MArpogaus/overblock-pycell=, the repository they live in today.  melpazoid asks
 GitHub whether that URL answers, so it cannot name a repository that
 does not exist yet.  The move begins with one command:
 
 #+begin_src shell
-  sed -i 's|MArpogaus/pycell|MArpogaus/overblock|' overblock*.el test/overblock*-test.el
+  sed -i 's|MArpogaus/overblock-pycell|MArpogaus/overblock|' overblock*.el test/overblock*-test.el
 #+end_src
 
 and the recipe in =.github/workflows/pre-commit.yml= takes the same
 change to its =:repo=.
 
-The other half of the move is one line in the notebook: =pycell.el=
+The other half of the move is one line in the notebook: =overblock-pycell.el=
 adds =(overblock "0.1.0")= to its =Package-Requires=.  It does not
 carry that line today on purpose.  A package that names a dependency
 nobody can install is a package nobody can install: elpaca answers

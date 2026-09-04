@@ -1,11 +1,11 @@
-;;; pycell-scroll-test.el --- Scrolling regression test -*- lexical-binding: t; -*-
+;;; overblock-pycell-scroll-test.el --- Scrolling regression test -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 Marcel Arpogaus
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock-pycell
 
 ;; This file is not part of GNU Emacs.
 
@@ -40,10 +40,10 @@
 ;;; Code:
 
 (require 'ert)
-(require 'pycell)
+(require 'overblock-pycell)
 (require 'pixel-scroll)
 
-(defun pycell-scroll-test--source (cells paragraphs)
+(defun overblock-pycell-scroll-test--source (cells paragraphs)
   "Return buffer text of CELLS markdown cells of PARAGRAPHS each.
 Enough prose that each rendered block is taller than the window."
   (mapconcat
@@ -57,7 +57,7 @@ Enough prose that each rendered block is taller than the window."
              (format "\n# %%%%\ny%d = %d\nprint(y%d)\n\n" n n n)))
    (number-sequence 1 cells) ""))
 
-(defun pycell-scroll-test--reversals ()
+(defun overblock-pycell-scroll-test--reversals ()
   "Scroll the window up to the top, 40 pixels at a time.
 Return the steps that went wrong, as a list of strings.  Scrolling up
 may only lower the window start, or keep it and lower the vscroll,
@@ -97,7 +97,7 @@ refusal to scroll and not the end of the buffer."
         (setq previous now)))
     (nreverse reversals)))
 
-(defun pycell-scroll-test--stalls ()
+(defun overblock-pycell-scroll-test--stalls ()
   "Scroll the window down from the top, 40 pixels at a time.
 Return the steps that went wrong.  Scrolling down may only raise the
 window start, or keep it and raise the vscroll: a block the wheel
@@ -139,7 +139,7 @@ buffer below stays out of reach."
             stalls))
     (nreverse stalls)))
 
-(ert-deftest pycell-scroll-test-defaults ()
+(ert-deftest overblock-pycell-scroll-test-defaults ()
   "With the scroll options at their defaults the window never reverses.
 Two block shapes on purpose: text blocks taller than the window, and
 a short one after them, which is where redisplay changes lines."
@@ -147,27 +147,27 @@ a short one after them, which is where redisplay changes lines."
   ;; Without a converter the cells stay plain source and the test
   ;; would pass without a single block in the buffer.
   (skip-unless (overblock-md-program))
-  (let ((buffer (generate-new-buffer "*pycell scroll*")))
+  (let ((buffer (generate-new-buffer "*overblock-pycell scroll*")))
     (unwind-protect
         (progn
           (switch-to-buffer buffer)
           (delete-other-windows)
-          (insert (pycell-scroll-test--source 2 14)
+          (insert (overblock-pycell-scroll-test--source 2 14)
                   "# %% [markdown]\n# A short one.\n\n# %%\nz = 3\n")
           (python-mode)
           (code-cells-mode)
-          (pycell-mode 1)
+          (overblock-pycell-mode 1)
           (redisplay t)
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
                               (lambda (o) (overblock-get o :parts))
                               (overblock-in (point-min) (point-max) 'markdown)))
                      3))
-          (should (equal (pycell-scroll-test--stalls) nil))
-          (should (equal (pycell-scroll-test--reversals) nil)))
+          (should (equal (overblock-pycell-scroll-test--stalls) nil))
+          (should (equal (overblock-pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 
-(ert-deftest pycell-scroll-test-figures ()
+(ert-deftest overblock-pycell-scroll-test-figures ()
   "A wheel passes a result that holds a figure, in both directions.
 The rows of such a result ride a string, because a display property
 swallows an image.  Measured while this test was written: with those rows
@@ -179,7 +179,7 @@ the top without one.  The rows therefore ride the anchor, and this test
 is what says so."
   (skip-unless (display-graphic-p))
   (skip-unless (image-type-available-p 'svg))
-  (let ((buffer (generate-new-buffer "*pycell figures*"))
+  (let ((buffer (generate-new-buffer "*overblock-pycell figures*"))
         ;; A square of a colour, as tall as a figure from matplotlib.
         (figure (create-image
                  (concat "<svg xmlns=\"http://www.w3.org/2000/svg\" "
@@ -197,7 +197,7 @@ is what says so."
           (goto-char (point-min))
           (while (< (point) (point-max))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-              (pycell--show beg end
+              (overblock-pycell--show beg end
                             (concat "a figure\n"
                                     (propertize " " 'display figure))
                             0.2)
@@ -211,9 +211,9 @@ is what says so."
                                   (or (overlay-get block 'after-string) "")))
                                (overblock-in (point-min) (point-max)
                                              'result)))
-          (should (equal (pycell-scroll-test--stalls) nil))
-          (should (equal (pycell-scroll-test--reversals) nil)))
+          (should (equal (overblock-pycell-scroll-test--stalls) nil))
+          (should (equal (overblock-pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 
-(provide 'pycell-scroll-test)
-;;; pycell-scroll-test.el ends here
+(provide 'overblock-pycell-scroll-test)
+;;; overblock-pycell-scroll-test.el ends here

@@ -8,7 +8,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock-pycell
 
 ;; This file is not part of GNU Emacs.
 
