@@ -8,7 +8,7 @@
 ;; Package-Requires: ((emacs "29.1") (overblock "0.1.0"))
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -56,6 +56,7 @@
 ;; live.  It reads XDG_CACHE_HOME as the specification says to, which a
 ;; bare `getenv' does not: a relative value there names no directory.
 (require 'xdg)
+(require 'cl-lib)
 (require 'seq)
 (require 'subr-x)
 
@@ -708,6 +709,85 @@ does better: it costs no process and keeps the lines as written."
       (replace-regexp-in-string
        "\n\n\n+" "\n\n" (apply #'concat (nreverse pieces))))))
 
+(defvar overblock-md-width nil
+  "The number of columns a rendering is filled to, or nil for shr\'s own.
+A rendering happens in a temporary buffer, which no window shows, and
+shr fills to the width of the frame there.  A block is narrower than
+that in every case that matters — a window split in two, a doc string
+indented into a class — and the rows that overran were truncated at the
+window\'s edge, taking the end of a sentence with them.
+
+Bound by the mode that renders, which is the one that knows where its
+block sits; `overblock-window-width\' measures the room.")
+
+(defun overblock-md--background (face)
+  "Return the background FACE paints with, or nil where it paints none.
+FACE is what a text property holds: a named face, a plist, or a list of
+either."
+  (cond
+   ((null face) nil)
+   ((facep face)
+    (let ((background (face-attribute face :background nil t)))
+      (unless (memq background '(nil unspecified)) background)))
+   ((keywordp (car-safe face))
+    (or (let ((background (plist-get face :background)))
+          (unless (memq background '(nil unspecified)) background))
+        (overblock-md--background (plist-get face :inherit))))
+   ((consp face) (seq-some #'overblock-md--background face))))
+
+(defun overblock-md--rectangle (lines background)
+  "Return LINES painted BACKGROUND over their whole width.
+A fenced block of code and the rows of a table wear a background, and
+shr paints it exactly as far as the text of each row reaches: the block
+came out as a ragged patch of colour, one edge per line of code.  The
+rows are squared off to the longest of them, and the columns before the
+text — the indentation of a line of code — are painted as well."
+  (let ((width (apply #'max (mapcar #'string-width lines)))
+        (paint (list :background background)))
+    (mapcar (lambda (line)
+              (let ((padded (concat line (make-string
+                                          (- width (string-width line))
+                                          ?\s))))
+                ;; Under whatever each character already wears, so a bold
+                ;; header cell stays bold and only the bare columns gain
+                ;; a colour.
+                (add-face-text-property 0 (length padded) paint t padded)
+                padded))
+            lines)))
+
+(defun overblock-md--squared (text)
+  "Return TEXT with every run of painted rows squared off.
+A row is painted where its last character is: shr ends a table row and
+a line of code with the face the block wears, and a row it left short
+is a row of colour that stops in the middle of the block."
+  (let (rows run background)
+    (cl-flet ((flush ()
+                (when run
+                  (setq rows (nconc rows (overblock-md--rectangle
+                                          run background))
+                        run nil))))
+      (dolist (line (split-string text "\n"))
+        (let ((paint (and (> (length line) 0)
+                          (overblock-md--background
+                           (get-text-property (1- (length line))
+                                              'face line)))))
+          (cond
+           ((and paint (equal paint background))
+            (setq run (nconc run (list line))))
+           (paint (flush) (setq background paint run (list line)))
+           (t (flush)
+              (setq background nil rows (nconc rows (list line)))))))
+      (flush))
+    (string-join rows "\n")))
+
+(defun overblock-md-columns (&optional indent)
+  "Return the columns a rendering has, INDENT of them spent on indenting.
+Nil where no window shows this buffer, which leaves the filling to shr.
+One column is kept back: a row that fills the last one wraps, and a
+wrapped row is two."
+  (when-let* ((pixels (overblock-window-width)))
+    (max 20 (- (/ pixels (frame-char-width)) (or indent 0) 1))))
+
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
 `overblock-md-command' produces HTML, shr renders it, and LaTeX
@@ -733,6 +813,12 @@ without a converter has to see."
                  (insert page)
                  (libxml-parse-html-region (point-min) (point-max))))
           (shr-use-fonts nil)
+          ;; In columns, because `shr-use-fonts' is off above.
+          (shr-width overblock-md-width)
+          ;; shr marks a list item with an asterisk, which is what the
+          ;; markdown under the rendering already says: a rendered list
+          ;; read exactly like its source.
+          (shr-bullet "• ")
           ;; Emacs 31 slices an image taller than this into a row for
           ;; each line of the window it is drawn in.  There is no window
           ;; here — the rendering happens in a temporary buffer and is
@@ -765,8 +851,9 @@ without a converter has to see."
         ;; `overblock-image-height' — such a figure came back at its own
         ;; height, which is the block the wheel cannot get past.
         (overblock-image-cap
-         (overblock-md--mathify
-          (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")))))))
+         (overblock-md--squared
+          (overblock-md--mathify
+           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here

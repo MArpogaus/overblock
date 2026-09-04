@@ -8,7 +8,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -241,6 +241,15 @@ every `overblock-refresh'."
     (when block
       (overlay-put block 'evaporate t)
       (overlay-put block 'overblock-part t)
+      ;; The source under a block is painted plain, newlines and all.
+      ;; The face of a newline is drawn across the rest of its screen
+      ;; line, and the source keeps what font lock gave it: a rendered
+      ;; table row ended in a stripe of `markdown-table-face' running to
+      ;; the window and a fenced block in a stripe of
+      ;; `markdown-code-face', one ragged edge per row.  What a rendering
+      ;; paints itself outranks this, so only the columns nothing claims
+      ;; come out plain.
+      (overlay-put block 'face 'default)
       ;; `modification-hooks' is left to the caller.  What an edit of the
       ;; region means is the caller's business — a stale result goes, a
       ;; rendering goes with its source — and a hook of the layer's own was
@@ -258,6 +267,15 @@ every `overblock-refresh'."
         (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
           (overlay-put ov 'evaporate t)
           (overlay-put ov 'overblock-part t)
+          ;; The face of a newline is drawn across the rest of the
+          ;; screen line, and the newline under a block still wears
+          ;; what font lock painted the source: a rendered table row
+          ;; ended in a stripe of `markdown-table-face' running to the
+          ;; window, one edge per row, and a fenced block in a stripe of
+          ;; `markdown-code-face'.  An overlay face outranks a text
+          ;; property, and what a rendering paints itself outranks this,
+          ;; so only the columns nothing else claims come out plain.
+          (overlay-put ov 'face 'default)
           (overblock-set block :newline ov)))
       (overblock-refresh block)
       block)))
