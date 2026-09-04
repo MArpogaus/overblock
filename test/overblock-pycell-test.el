@@ -115,11 +115,16 @@ outside the suite ever called."
   (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
 
 (ert-deftest overblock-pycell-test-clean-prompts ()
-  "Prompts at both ends and Out[n] markers go, whitespace is trimmed."
+  "Prompts at both ends and Out[n] markers go, and the trailing blanks.
+The indentation of the first line stays: that is where the columns of
+an aligned table start, and taking those spaces off left the first row
+of a `describe' three characters left of the second."
   (let ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)"))
     (should (equal (overblock-pycell--clean ">>> 2\n>>> ") "2"))
     (should (equal (overblock-pycell--clean "a\nOut[3]: 42\n") "a\n42"))
-    (should (equal (overblock-pycell--clean "  x  ") "x"))
+    (should (equal (overblock-pycell--clean "  x  ") "  x"))
+    (should (equal (overblock-pycell--clean "\n\n  x  ") "  x"))
+    (should (equal (overblock-pycell--clean "   ") ""))
     (should (equal (overblock-pycell--clean "no prompts") "no prompts"))))
 
 (ert-deftest overblock-pycell-test-clean-terminates-on-empty-prompt ()
