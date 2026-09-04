@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Keywords: text, markdown, convenience
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -70,8 +70,12 @@ a rendering they mean to edit."
 
 ;;;; Which regions
 
-(defun overblock-md-preview--fences (end)
+(defun overblock-md-preview-fences (end)
   "Return the bounds of every fenced code block up to END.
+Each is a cons of the start of the opening fence line and the end of
+the closing one.  Public because a caller that treats the fences as
+something other than markdown needs the same walk: `overblock-rmd'
+takes the R chunks of an Rmd file from it and runs them.
 A fence opens a block and the next one closes it, whatever blank lines
 stand between them, so the code inside is never cut in two.  A fence
 that is never closed runs to the end of the buffer, which is what a
@@ -87,10 +91,10 @@ reader sees while they are still typing it."
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
-(defun overblock-md-preview--paragraphs (end fences)
+(defun overblock-md-preview-paragraphs (end fences)
   "Return the bounds of every paragraph up to END, FENCES aside.
 A paragraph is the run of lines between two blank ones.  The lines a
-fence holds are not read here: `overblock-md-preview--fences' has them
+fence holds are not read here: `overblock-md-preview-fences' has them
 already, and a blank line inside one ends no paragraph."
   (save-excursion
     (goto-char (point-min))
@@ -115,6 +119,17 @@ already, and a blank line inside one ends no paragraph."
       (when from (push (cons from last) regions))
       (nreverse regions))))
 
+(defvar-local overblock-md-preview-regions-function
+  #'overblock-md-preview--regions
+  "What answers which regions of this buffer to render, as a function.
+Called with the bounds to look at, and answers a list of conses in
+order.  The default renders every block of markdown, which is what a
+markdown buffer wants.
+
+A caller that reads some of the buffer as something else sets this: in
+an Rmd file the fenced chunks are R and are run rather than rendered,
+so `overblock-rmd' answers with the prose alone.")
+
 (defun overblock-md-preview--regions (beg end)
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of where the block starts and where it ends.  A block is
@@ -131,7 +146,7 @@ the converter and the rendering is dealt back over its lines by
 
 Read from the top of the buffer whatever BEG says, because that is the
 only way to know whether BEG stands inside a fence."
-  (let ((fences (overblock-md-preview--fences end)))
+  (let ((fences (overblock-md-preview-fences end)))
     (seq-filter (lambda (region)
                   (and (< (car region) (cdr region))
                        (<= beg (car region) end)))
@@ -139,7 +154,7 @@ only way to know whether BEG stands inside a fence."
                 ;; `sort' is Emacs 30 and later, and this package asks
                 ;; for 29.1 — where it fails to compile at all.
                 (sort (append fences
-                              (overblock-md-preview--paragraphs end fences))
+                              (overblock-md-preview-paragraphs end fences))
                       (lambda (a b) (< (car a) (car b)))))))
 
 ;;;; What to render them with
@@ -152,7 +167,8 @@ dealt over the lines of the region by `overblock-show', a piece to a
 line, which is what lets a tall block scroll like text."
   (when-let* ((source (string-trim (buffer-substring-no-properties beg end)))
               ((not (string-empty-p source)))
-              (rendered (overblock-md-rendered source html))
+              (rendered (let ((overblock-md-width (overblock-md-columns)))
+                          (overblock-md-rendered source html)))
               ;; A line that renders to nothing of its own — a lone
               ;; HTML comment — is left as it is rather than blanked.
               ((not (string-empty-p (string-trim rendered)))))
@@ -196,8 +212,8 @@ given, and it is called again whenever the reader stops."
                        (lambda (block)
                          (overblock-live-wanted-p (car block) (cdr block)
                                                   'md-preview))
-                       (overblock-md-preview--regions (point-min)
-                                                      (point-max)))))
+                       (funcall overblock-md-preview-regions-function
+                                (point-min) (point-max)))))
     (overblock-md-html-batch-async
      (mapcar (lambda (block)
                (buffer-substring-no-properties (car block) (cdr block)))
