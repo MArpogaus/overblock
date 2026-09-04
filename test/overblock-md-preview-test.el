@@ -89,7 +89,7 @@ because nothing else can tell whether the region opened in a fence."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# A heading\n\nsome *emphasis*\n"
     (goto-char (point-max))
-    (overblock-md-preview--render-elsewhere)
+    (overblock-live--render-elsewhere)
     (should (equal (overblock-md-preview-test--sources)
                    '("# A heading" "some *emphasis*")))
     ;; the markup is gone from what the reader sees
@@ -104,14 +104,14 @@ Leaving it renders it again, which is the whole of the cycle."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
     (goto-char (point-max))
-    (overblock-md-preview--render-elsewhere)
+    (overblock-live--render-elsewhere)
     (should (equal (overblock-md-preview-test--sources)
                    '("# One" "two" "three")))
     (goto-char (point-min))
-    (overblock-md-preview--reveal-here)
+    (overblock-live--reveal-here)
     (should (equal (overblock-md-preview-test--sources) '("two" "three")))
     (goto-char (point-max))
-    (overblock-md-preview--render-elsewhere)
+    (overblock-live--render-elsewhere)
     (should (equal (overblock-md-preview-test--sources)
                    '("# One" "two" "three")))))
 
@@ -122,7 +122,7 @@ typing never reaches this; a replacement over the buffer does."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# One\n\ntwo\n"
     (goto-char (point-max))
-    (overblock-md-preview--render-elsewhere)
+    (overblock-live--render-elsewhere)
     (should (equal (overblock-md-preview-test--sources) '("# One" "two")))
     (goto-char (point-min))
     (while (search-forward "One" nil t) (replace-match "Three"))
@@ -136,11 +136,13 @@ typing never reaches this; a replacement over the buffer does."
     (let ((before (buffer-string)))
       (overblock-md-preview-mode 1)
       (goto-char (point-max))
-      (overblock-md-preview--render-elsewhere)
+      (overblock-live--render-elsewhere)
       (should (overblock-md-preview-test--blocks))
       (overblock-md-preview-mode -1)
       (should-not (overblock-md-preview-test--blocks))
-      (should-not overblock-md-preview--timer)
+      ;; and the cycle the layer runs is stopped with it
+      (should-not overblock-live--timer)
+      (should-not overblock-live--spec)
       (should (equal (buffer-string) before)))))
 
 (provide 'overblock-md-preview-test)
