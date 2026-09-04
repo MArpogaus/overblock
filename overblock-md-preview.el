@@ -167,18 +167,24 @@ line, which is what lets a tall block scroll like text."
 ;;;; When to render them
 
 (defun overblock-md-preview-render-buffer ()
-  "Render every block of the buffer that is not already rendered.
-One converter process for the whole buffer: the blocks go through
-`overblock-md-html-batch' together, and each falls back to its own
-conversion where that answers nothing.  `overblock-live-render-buffer'
-would render them one process at a time, which is what this is for."
+  "Render every block of the buffer that is not rendered yet.
+One converter process for the whole buffer rather than one for each
+block, and each block falls back to its own conversion where the
+answer comes back without the marker between every pair.
+
+What is left alone: a block that carries a rendering already, and the
+block point is in — the reader is editing that one, and rendering it
+would take the text out from under them.  This is what
+`overblock-live-start' is given, and it is called again whenever the
+reader stops."
   (interactive)
   (when (overblock-md-program)
-    (let* ((blocks (seq-remove (lambda (block)
-                                 (overblock-in (car block) (cdr block)
-                                               'md-preview))
-                               (overblock-md-preview--regions (point-min)
-                                                              (point-max))))
+    (let* ((blocks (seq-remove
+                    (lambda (block)
+                      (or (<= (car block) (point) (cdr block))
+                          (overblock-in (car block) (cdr block)
+                                        'md-preview)))
+                    (overblock-md-preview--regions (point-min) (point-max))))
            (htmls (and (cdr blocks)
                        (overblock-md-html-batch
                         (mapcar (lambda (block)
@@ -199,14 +205,9 @@ rendered line puts point there.
 nothing where none of its candidates is installed."
   :lighter " MdPrev"
   (if overblock-md-preview-mode
-      (progn
-        ;; The whole buffer first, in one converter process, and then
-        ;; the cycle: the layer would start it a process at a time.
-        (overblock-md-preview-render-buffer)
-        (overblock-live-start 'md-preview
-                              #'overblock-md-preview--regions
-                              #'overblock-md-preview--show
-                              overblock-md-preview-idle))
+      (overblock-live-start 'md-preview
+                            #'overblock-md-preview-render-buffer
+                            overblock-md-preview-idle)
     (overblock-live-stop)))
 
 (provide 'overblock-md-preview)
