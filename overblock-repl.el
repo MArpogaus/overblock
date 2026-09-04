@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -167,6 +167,13 @@ The outer whitespace goes, except whitespace that carries a display
 property: comint-mime renders an image as one space with such a
 property, and `string-trim' would delete it.
 
+Leading whitespace goes as far as the last newline inside it, and no
+further.  What stands after that newline is the first line of the
+output, and its indentation is content: the columns of an R `summary'
+or a pandas `describe' line up on it, and taking those spaces off left
+the first row of every such table three characters to the left of the
+second.
+
 What the shell buffer shows is not what a copy of it shows.  comint-mime
 renders a DataFrame as a vtable, which aligns its columns with pixel
 targets measured in that window and carries the keymap of a live table.
@@ -187,7 +194,13 @@ images, and the table object."
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
                                  (not (get-text-property i 'display text))))))
-    (while (and (< beg end) (funcall blank beg)) (setq beg (1+ beg)))
+    (let ((i 0))
+      (while (and (< i end) (funcall blank i))
+        (when (eq (aref text i) ?\n) (setq beg (1+ i)))
+        (setq i (1+ i)))
+      ;; Whitespace all the way: there is no first line to keep the
+      ;; indentation of, so all of it goes.
+      (when (= i end) (setq beg i)))
     (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
     (let ((copy (let ((cut (substring text beg end)))
                   ;; Only a rendering leaves alignment stretches behind,
