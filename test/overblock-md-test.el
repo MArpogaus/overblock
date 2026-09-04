@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -31,6 +31,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'overblock-md)
 
@@ -43,7 +44,7 @@
 (defmacro overblock-md-test--with-image-file (name &rest body)
   "Run BODY in a directory with a PNG file, bound to NAME."
   (declare (indent 1))
-  `(let* ((dir (make-temp-file "pycell-img" t))
+  `(let* ((dir (make-temp-file "overblock-img" t))
           (,name (expand-file-name "figure.png" dir)))
      (unwind-protect
          (progn
@@ -191,10 +192,21 @@ that the rendering has already left."
           (should (= fetches 1)))
       (delete-directory cache t))))
 
+(ert-deftest overblock-md-test-no-parser-no-program ()
+  "Without the parser there is no converter worth naming.
+shr reads the converter's HTML with `libxml-parse-html-region', which
+an Emacs built without libxml2 does not have.  Rendering signalled a
+void function there instead of answering nil, so a caller could not
+leave the text plain and say which part was missing."
+  (cl-letf (((symbol-function 'libxml-parse-html-region) nil))
+    (should-not (fboundp 'libxml-parse-html-region))
+    (should-not (overblock-md-program))
+    (should-not (overblock-md-rendered "# heading"))))
+
 (ert-deftest overblock-md-test-program-takes-a-string-or-a-list ()
   "A string and a list of candidates both resolve to a program.
 Only where there is a parser to read the converter's HTML with: see
-`pycell-test-md-program-needs-libxml' for the other direction."
+`overblock-md-test-no-parser-no-program' for the other direction."
   (skip-unless (fboundp 'libxml-parse-html-region))
   (let ((overblock-md-command "definitely-not-installed-xyz"))
     (should-not (overblock-md-program)))
@@ -450,9 +462,9 @@ them, and so did \"`$HOME` and then `$PATH`\"."
 
 (ert-deftest overblock-md-test-a-converter-that-fails-keeps-the-cell-plain ()
   "A converter that exits non-zero answers nil rather than raising.
-`pycell-md-render-all' is the body of `pycell-mode', so a signal here
-left the mode on with nothing rendered and took the rest of
-`code-cells-mode-hook' with it."
+A caller renders from the body of a minor mode, so a signal here left
+the mode on with nothing rendered and took the rest of the hook that
+turned it on with it."
   (let ((overblock-md-command "false"))
     (should-not (overblock-md--html "# heading"))
     (should-not (overblock-md-rendered "# heading"))

@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -107,8 +107,8 @@ own."
 
 (ert-deftest overblock-repl-test-first-lines-of-nothing-is-nothing ()
   "A limit of zero takes no lines, rather than the whole result.
-`pycell-max-lines' is a natnum, so zero is a legal value, and the scan
-counts from one: it never met a limit of zero and read and copied
+A caller's own limit is a natnum, so zero is a legal value, and the
+scan counts from one: it never met a limit of zero and read and copied
 everything instead."
   (should-not (overblock-repl-first-lines "a\nb\nc\n" 0))
   (should-not (overblock-repl-first-lines "a\nb\nc\n" -1))
