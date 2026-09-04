@@ -60,15 +60,15 @@ from it until `overblock-terminal-glyphs' says otherwise.  Then the
 coding system decides, which is the one thing a terminal can be asked."
   (let ((overblock-terminal-glyphs nil))
     (overblock-forget-glyphs)
-    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "copy")))
+    (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "copy")))
   (let ((overblock-terminal-glyphs t))
     (overblock-forget-glyphs)
-    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "\U000F0137"))
+    (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "\uEBCC"))
     ;; and what this terminal cannot encode it still does not get
     (cl-letf (((symbol-function 'char-displayable-p)
-               (lambda (ch) (not (eq ch ?\U000F0137)))))
+               (lambda (ch) (not (eq ch ?\uEBCC)))))
       (overblock-forget-glyphs)
-      (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "◫"))))
+      (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "◫"))))
   (overblock-forget-glyphs))
 
 (ert-deftest overblock-test-the-glyph-answer-is-forgotten-on-a-change ()
@@ -76,9 +76,9 @@ coding system decides, which is the one thing a terminal can be asked."
 The answers are memoized per display, font and option, and the option
 is what a reader turns on once the bars are already drawn."
   (let ((overblock-terminal-glyphs nil))
-    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "copy")))
+    (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "copy")))
   (let ((overblock-terminal-glyphs t))
-    (should (equal (overblock-glyph "\U000F0137" "◫" "copy") "\U000F0137"))))
+    (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "\uEBCC"))))
 
 (ert-deftest overblock-test-glyph-weighs-every-character ()
   "A leading space must not answer for the glyph behind it.
