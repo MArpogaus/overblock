@@ -399,7 +399,14 @@ again — a window changing width, or the file opened afresh."
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return it.
 HTML is what the converter answered for this doc string, where a caller
-sent the whole buffer through one process."
+sent the whole buffer through one process.
+
+Every row is padded to the column BEG itself begins at, measured, and
+not to the indentation of its line.  The first row of a rendering is
+the only one that hangs where the block does and it carries no padding
+of its own, so the two have to be the same column: a raw doc string
+begins one column in from its code, past the letter that prefixes its
+quotes, and the rendering of one stood a column out of line."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
               (overblock-md-command overblock-pydoc-command)
@@ -411,7 +418,7 @@ sent the whole buffer through one process."
                             (overblock-md-rendered source html))
                           "\n+")
                          (save-excursion (goto-char beg)
-                                         (current-indentation))))
+                                         (current-column))))
               ((not (string-empty-p (string-trim rendered))))
               (block (overblock-show
                       beg end
