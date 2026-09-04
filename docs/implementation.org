@@ -13,6 +13,10 @@ The text uses these terms:
 - *shell*: the inferior Python process that =python.el= starts.
 - *mirror*: the copy of the output that the block shows.
 
+The layer that puts a block on the screen is overblock, a package of
+its own: [[file:overblock.org][docs/overblock.org]] describes it.  What is here
+is the part that knows about Python.
+
 * How a result gets into the buffer
 
 =python-shell-send-string= puts the code into =__PYTHON_EL_eval=.
@@ -70,108 +74,43 @@ final newline if it has none, because the block needs that character.
 
 ** The block layer
 
-Results and rendered markdown cells are two callers of one layer, which
-knows nothing of Python, cells or markdown: a caller renders text and
-hands it over.  It is three files, and everything they own is named
-=overblock-=, so they can leave for a package of their own without a
-rename:
-
-- =overblock.el= — the blocks themselves, and the bars, buttons and
-  glyphs a header is made of.
-- =overblock-md.el= — markdown in, one propertized string out.
-- =overblock-repl.el= — the output of a shell, cut loose from that
-  shell.
+Results and rendered markdown cells are two callers of one layer,
+which knows nothing of Python, cells or markdown: a caller renders
+text and hands it over.  =overblock-show= takes the region and a
+plist, and the layer decides which slot each row of the block lands
+in and how a rendering is dealt over the source lines.  See
+[[file:overblock.org][docs/overblock.org]].
 
 What stays in =pycell.el= is the part that knows about Python: the
-cells, the process, the commands, and what a prompt of that shell looks
-like.
+cells, the process, the commands, and what a prompt of that shell
+looks like.
 
-#+begin_src emacs-lisp
-  (overblock-show BEG END
-                  :kind 'result          ; whose block this is
-                  :data ANYTHING         ; what the caller keeps with it
-                  :over TEXT             ; shown instead of the region
-                  :body TEXT             ; shown after the region
-                  :header TEXT
-                  :hidden t              ; show nothing for now
-                  :keymap MAP :help-echo STRING
-                  :attached OVERLAYS)    ; the caller's own
-#+end_src
-
-An anchor overlay covers the region and holds those properties.  It
-stops before the newline that ends the region, so a window which starts
-at the next line keeps the block out of view; a second overlay covers
-that newline and carries what shows after it.
-=overblock-refresh= makes everything the block shows anew from the
-properties, so nothing has to be saved and given back — that is how a
-fold takes a markdown cell off the screen and gives it back with
-=:hidden=.
-
-Where each row goes was decided by measurement, in a graphical frame:
-
-- The header is a string of its own.  A bar puts its
-  icons at the window edge with =(space :align-to (- right ...))=, and a
-  display property ignores that spec: the icons then sit beside the
-  label.
-- A plain body rides the =display= property of the newline, which costs
-  least.
-- A body with an image cannot: display properties do not nest, so the
-  image is swallowed.  Such a body joins the header on the
-  =after-string= of the anchor.  The newline is never hidden: with the
-  rows of a figure on its after-string and the newline itself replaced
-  by an empty display string,
-  =pixel-scroll-precision-scroll-up= refused to pass the block — 280
-  refusals over six figures.
-- The first row takes a line break only where the newline it hangs on
-  does not already begin a line, so a cell that ends in a blank line
-  gives that line to its header.
-
-Text shown =:over= a region hangs on its lines, a piece to a line, and
-lines with no piece left for them go under a cloak.  That is what makes
-a tall rendering scroll a line at a time; see [[#the-cost-of-a-rendered-markdown-cell][the cost of a rendered
-markdown cell]].
+One thing the layer asks of this package: a block hangs on the
+newline that ends its region, so the last cell of a buffer gets a
+final newline if it has none.  That is the one change pycell makes to
+the text.
 
 ** The header bars
 
 =pycell-result-buttons= and =pycell-markdown-buttons= hold the buttons
-of the two bars — the shape that =overblock-button-type= asks customize
-for — and =overblock-buttons= walks a list of them.  A
-descriptor names the glyph candidates rather than one glyph, because
-=overblock-glyph= asks the frame which of them it can draw and a
-terminal answers differently from a graphic frame.  Keep the plain
-candidates apart from each other: in a terminal that draws no arrows,
-=^= for the button that pops a result out and =^= for the one that
-moves a cell up would be the same button to a reader.
+of the two bars — the shape that =overblock-button-type= asks
+customize for — and =overblock-buttons= walks a list of them.  A
+descriptor names the glyph candidates rather than one glyph, because a
+terminal draws differently from a graphic frame.
 
 The fold arrow and the spinner are not in those lists.  They are not
 buttons of the reader's choosing: they say what the result is doing.
 
 ** The bar over a boundary line
 
-A cell carries a bar of its own, in place of its =# %%= line: the label
-is the name written after the marker, and the buttons are
+A cell carries a bar of its own, in place of its =# %%= line: the
+label is the name written after the marker, and the buttons are
 =pycell-cell-buttons=.  A rendered markdown cell has had one since it
-was rendered; the two are now drawn by one function, and the code cell's
-is put there by =pycell--cell-bars=.
+was rendered; the two are now drawn by one function, and the code
+cell's is put there by =pycell--cell-bars=.
 
-The bar is an overlay over the whole line.  All of the bar but its last
-character rides the =before-string=; the last character is the
-=display=, in place of the line's own text, and carries =cursor=.
-
-Both halves are forced.  The bar has to be a string on an overlay: a
-display property whose value is a string ignores =(space :align-to (-
-right ...))=, and the buttons would then sit beside the label instead of
-at the window edge.  And something has to be left for the caret to draw
-on: over a display of the empty string there is no glyph, so point could
-stand on a boundary line with nothing to show it, and the line could not
-be folded from.  The stretch aligns to the window's right edge, so
-moving one character out of the string moves nothing.
-
-Never the =after-string=: a string after the overlay draws at the
-overlay's *end*, and a rendered markdown cell's cloak covers that place.
-A markdown cell at the top of a buffer is the worst of it — its cloak
-begins at the boundary line's own newline — and the bar drew as one
-glyph and nothing else.
+The overlay, the strings it hangs the bar on, the width it is cut to
+and what point does to it are the layer's: [[file:overblock.org][docs/overblock.org]].
 
 *** What draws them, and when
 
@@ -204,21 +143,6 @@ keystroke costs in that configuration is what it cost before the bars
 existed.  Two hundred cells hold two hundred bars and three other
 overlays at the end of that run, so nothing accumulates.
 
-*** What the layer offers
-
-Everything above the label belongs to the layer, so a second caller of
-it gets the bars for the price of a label:
-
-| =overblock-bar-over=    | an overlay showing a bar in place of a region      |
-| =overblock-bar-draw=    | draw a label and icons on it, in a face            |
-| =overblock-bar-kind=    | what the caller called it, or nil for no bar       |
-| =overblock-bar-in=      | the bar covering a region, if any                  |
-| =overblock-bars=        | every bar of the buffer                            |
-| =overblock-bar-stale=   | make one forget what it was drawn from              |
-
-What pycell keeps is what only a notebook knows: which kind of cell a
-boundary line begins, what to call it, and which buttons belong on it.
-
 *** One line, one bar
 
 Three things can want a bar on a boundary line: the pass over the
@@ -244,34 +168,6 @@ or typing before the marker would be typing inside the bar — so a search
 at the start of the line found nothing, and a line that had stopped
 being a boundary kept a bar whose buttons then moved the cell that
 enclosed it.
-
-*** Point on the line
-
-A bar stays where it is, whatever point does.  It used to give way to
-its line while point was on it, and that cost more than it paid: the
-buffer moved under the reader as point crossed a boundary line, and a
-button went dead — a press moves point, the bar was gone before the
-release, and the release then landed on the text the bar had covered.
-
-The line is still there to be edited.  Point rests on it, the caret
-shows on the bar's last glyph, and the label follows what is written on
-the line.  Folding works from there: =outline-cycle= and
-=outline-hide-subtree= fold the cell and leave the bar standing.
-
-The commands hang off =<down-mouse-1>= with =<mouse-1>= bound to
-=ignore=, which is what the header line buttons of a side window have
-always done: the press is answered before anything can redraw under the
-pointer.
-
-*** A column of slack
-
-=overblock-bar= holds the buttons one column short of the right edge in
-a graphic frame, as it always did two columns short in a terminal.
-Ending at the edge exactly leaves redisplay to decide whether the row
-wraps, and it decides differently at different moments: measured in one
-window at one width, the same bar drew all of its buttons when the
-notebook was opened and put the last one on a row of its own after the
-first command — same string, same specification, same window.
 
 * Moving a cell
 
@@ -363,134 +259,25 @@ therefore has a height in lines and moves as normal text.  An earlier
 version drew the whole cell as one display string, and the view then
 jumped by a whole cell.
 
-The pieces cover the text of the line only.  A line that has no piece
-goes under a cloak.  A cloak is an invisible overlay that starts at
-the newline of the line above.  An invisible run that starts inside a
-line, or a line of no height, stops =scroll-down= with a
-=beginning-of-buffer= error in the middle of the cell.
-
-The cell keeps the height of its source, or it becomes shorter.  A
+The cell keeps the height of its source, or it becomes shorter: a
 three line table can render as one line, and the spare lines then go
-under a cloak.
+under a cloak.  The cloak, the pieces and the image that cannot ride
+a display property are the layer's, and so is the converter that
+turns the markdown into the string: [[file:overblock.org][docs/overblock.org]].
 
-A piece that holds an image cannot ride a display property, because
-display properties do not nest and the image would be swallowed.  Such
-a piece hides its line with a display string of nothing, which is not
-an invisible run, and rides the before-string, which draws images.  The
-before-string and not the after-string: a cloak begins where the piece
-ends, and Emacs leaves out an overlay string whose position is inside
-invisible text — measured by the pixels of the image itself, 0 on the
-after-string against 32 on the before-string.  The
-line keeps its own row, so a cell with a preview scrolls a line at a
-time like any other.  An earlier version gave the whole cell one
-string as soon as one image was in it, and a machine with LaTeX
-therefore scrolled markdown worse than one without.
-
-** The converter
-
-=overblock-md-command= names the command that turns Markdown into
-HTML.  pycell looks for =pandoc --mathjax --no-highlight=, =markdown_py
--x tables -x fenced_code=, =cmark-gfm -e table=, =markdown= and
-=cmark=, in this order: the ones that can carry a table and a code
-fence first, and each one told to leave the math for the preview
-machinery.  Plain =pandoc= renders a formula itself, which left a
-notebook with no inline math at all.
-
-=--no-highlight= because shr reads no CSS class, so the colours pandoc
-encodes in one are dropped and the only thing that survives its
-highlighting is the line anchor it hangs on each row of a code block.
-Measured on a document of 216 lines with three fenced blocks, pandoc
-spent 785 milliseconds of which 720 were the syntax definitions it
-loaded to paint them.
-
-shr reads the HTML with libxml2.  Without libxml2 the markdown cells
-stay plain text, and the mode reports which part is missing.
-
-=overblock-md-html-batch= sends all cells of a buffer to the converter in one
-call.  It puts a marker between the cells and splits the HTML at that
-marker.  One call for a buffer is much faster than one call for each
-cell.  pycell falls back to one call per cell if the number of pieces
-does not match the number of cells.
-
-** Images
-
-shr fetches an image with =url-queue-retrieve=, which answers long after
-a cell is rendered: a cell rendered in a temporary buffer keeps the grey
-placeholder shr leaves in the meantime.  Measured with a relative path,
-an absolute one and a =file://= URL alike, every local image stayed a
-placeholder.
-
-=overblock-md--tag-img= therefore draws a file itself, through
-=shr-external-rendering-functions=.  The alt text carries the image, so
-a terminal still says what is there, and the figure is capped from the
-window as a result's figure is.  An image the cell names by URL — the
-Colab badge a notebook opens with — is fetched once into
-=~/.cache/overblock-images= and drawn from there like a local one; a URL
-that failed is not asked for again in the session.  Set
-=overblock-md-remote-images= to nil to leave such an image to shr, which
-shows its own box for what it cannot fetch in time.
-
-An image inside a link keeps the link: shr wraps whatever the renderer
-inserted, and =overblock-fill-props= writes the block's keymap only where
-the rendering has none of its own.
-
-A terminal draws no image, and shr's placeholder is itself an image: its
-display property swallows the text under it and leaves a blank row where
-a figure belongs.  So where images cannot be drawn the label goes in
-plainly — the alt text, or the file's name in brackets where there is
-none.
-
-** Formulas
-
-A =$...$= or =$$...$$= fragment becomes a preview image.  The images
-live in =~/.cache/overblock-math=.
-
-The formulas take the shortest road.  What the converter renders
-stays text.  Only the rest becomes an image.  pandoc renders simple
-math as text by itself.
-
-A formula inside a table stays text as well.  A table is padded to the
-width of its text, and an image is never as wide as the text it
-replaces, so a row with a preview in it would stand out of line.  The
-table rendering marks the text it covers and the formula pass leaves
-marked text alone.
-
-** Tables
-
-shr renders a table without rules, and it gives a header cell and
-inline code no face of its own: its answer for code is a fixed pitch,
-which says nothing in a buffer that is fixed pitch throughout.  pycell
-renders =th= in bold and =code= in =overblock-md-code= through
-=shr-external-rendering-functions=.
-
-The rules are shr's to draw and it draws them badly here: a frame
-around a frame, one per cell, and a ragged end to every row.  The
-columns and the bold header carry the table instead.
+=pycell-md-render-all= takes a region, so a move renders the two
+cells that moved rather than every markdown cell in the buffer.  The
+whole buffer goes to the converter in one process, which is what
+=overblock-md-html-batch= is for: one call for fifty cells rather than
+fifty.
 
 * Scrolling
 
 A result block is one buffer line, because it is one display string.
-=next-line= and =previous-line= cross it in one step.  A window can
-start at a buffer position only.
-
-A block that holds an image is worse.  Display properties do not
-nest, so such a block rides on the after-string of the overlay, and a
-window cannot start inside an overlay string.  Three measurements on
-a notebook of forty cells with one such block:
-
-- The wheel does not cross the block in a symmetric way.  Twenty
-  crossings of six events of 25 pixels bring a block of plain text
-  back to the pixel.  A block with an image ends 26 characters and 69
-  pixels lower.
-- A block that is taller than the window throws the wheel back.  A
-  figure at 0.9 of a text area of 437 pixels bounced 40 times in 399
-  events and never passed.  =overblock-image-height= therefore caps
-  an inline figure at 0.8 of the window.  The same figure then passes
-  in 94 events.
-- =scroll-up-line= does not pass such a block at all.  From the top
-  of the buffer it stopped after 119 commands, and the next 40
-  commands changed nothing.  The same buffer without the block
-  reaches the end in 134 commands.
+=next-line= and =previous-line= cross it in one step.  A block with an
+image is worse: the wheel does not cross it in a symmetric way and
+=scroll-up-line= does not cross it at all.  The measurements and the
+reason are the layer's: [[file:overblock.org][docs/overblock.org]].
 
 These commands do pass: =scroll-up= and =scroll-down=, which move a
 page, and =next-line=, which moves point.  A folded block also
@@ -516,6 +303,7 @@ twelve lines with many face changes cost three times as much.
 =M-x pycell-md-unrender= gives the plain source and the speed back.
 =pycell-md-render-all= brings the blocks back.
 
+
 * What the hot paths cost
 
 Three audits read this package with no history of it, and their findings
@@ -535,15 +323,8 @@ nerd font the bars are drawn in:
 
 | what                          | before   | after    |
 |-------------------------------+----------+----------|
-| =overblock-glyph=             | 0.010 ms | 0.001 ms |
 | =pycell--header=              | 0.338 ms | 0.231 ms |
 | =pycell--update=, whole tick  | 0.378 ms | 0.298 ms |
-
-=overblock-glyph= asks =internal-char-font= once for every character of
-every candidate, and a header of six buttons asked it twenty times,
-five times a second, for an answer that cannot change while the frame
-keeps its font.  The answers are now kept in a table keyed by that font
-and the candidates.
 
 - The table is read off a text property that =overblock-repl-detach=
   left on the text, instead of being searched for in the output.  A
@@ -559,10 +340,10 @@ and the candidates.
   only where no escape sequence begins inside it: comint-mime sends an
   image as one, and a cut inside it drops the figure — measured, a result
   of no characters at all.
-- =overblock-repl-first-lines= looks at the lines that show and stops;
-  =overblock-repl-count-lines= counts only where the number is not known yet.
-- =pycell--show= keeps the block it has when only the data changed,
-  which is every tick of a running cell.
+
+The layer's own share of that tick — the glyphs asked for once and
+kept, the pieces dealt off a walking list, the bounded read of a long
+output — is in [[file:overblock.org][docs/overblock.org]].
 
 And what a keypress does, which is where the rest of the cost was:
 
@@ -576,12 +357,6 @@ And what a keypress does, which is where the rest of the cost was:
   markdown cell in the buffer.
 - A result counts its lines once and keeps the number in its record, so
   a fold reads it instead of scanning the output again.
-- =overblock--pieces= deals its rendered lines off a walking list
-  rather than with =seq-subseq= from the front, which was quadratic in
-  the lines of a cell: 2.7 milliseconds at a thousand against 0.3 at
-  three hundred.
-- =overblock-fill-props= takes a plist and walks the rendering once,
-  where the code before it walked the rendering once for each property.
 
 The scrolling was measured with bursts of wheel events shaped like a
 flick of a trackpad, over forty cells with results, figures and rendered
@@ -598,32 +373,11 @@ same frame.
 * The tests
 
 =make test= runs the batch suites, one to a file, and a test sits with
-the code it checks:
-
-- =test/overblock-test.el= — which slot each row lands in, the line
-  break the first row takes and the one it does not, a hidden block and
-  its return, blocks of two kinds in one region, what a delete takes
-  with it, the cloak that reaches the last line, the sweep of what lost
-  its anchor, and the bars, buttons and glyphs.
-- =test/overblock-md-test.el= — the converter, the batch of cells, the
-  math previews, the tables laid out in characters, and the images:
-  which paths name a file, that the file is drawn rather than shr's
-  placeholder, that a link on an image keeps the click, and that a
-  remote image stays shr's business.
-- =test/overblock-repl-test.el= — a copied table laid out again, its
-  getter, and the images capped.
-- =test/pycell-test.el= — the clean of the output, the body lines, the
-  cell markers, the folds, the edit buffers, the mirror, and moving a
-  cell.
-
-A test that names only what the layer owns moved to the layer's suite; a
-test that goes through pycell's own commands stayed with pycell.
-
-=test/overblock-client-test.el= is a second caller of that layer,
-and a test rather than a feature: it renders the math in a Python
-docstring over the lines of the docstring, with no process behind it and
-no cell.  It answers one question — does a caller of another shape need
-anything the layer does not have — and so far it needs nothing.
+the code it checks.  =test/pycell-test.el= is this package's: the clean
+of the output, the body lines, the cell markers, the folds, the edit
+buffers, the mirror, and moving a cell.  A test that names only what
+the layer owns lives in the layer's suite instead, and
+[[file:overblock.org][docs/overblock.org]] lists those.
 
 =make test-live= sends real cells down a real IPython and reads back
 what the blocks show.  It exists because two faults — a read-only
