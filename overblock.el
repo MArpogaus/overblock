@@ -505,6 +505,56 @@ Each string carries the line breaks that its own rows need."
                      (concat (if header "\n" lead) body "\n")))
       (overblock--dress block newline))))
 
+(defun overblock--stale-hook (block after beg end &optional _length)
+  "Take BLOCK down where the text it covers, BEG..END, really changed.
+AFTER marks the call that follows the change; see
+`overblock-stale-when-edited', which is what puts this on a block, and
+which names the function that takes it down.
+
+An insertion is judged on the call after the change and no earlier: the
+call before it has nothing to read, and acting on it took the block
+down before the text it was to be judged by existed.  A deletion is
+judged before, because the anchor evaporates with the text it covers
+and no call would follow — and then whatever the block drew outside its
+own region stayed behind.
+
+One insertion a block survives: a single newline at the end of the
+buffer.  An anchor stops one character short of the newline that ends
+its region, so a region at the end of a file that has none ends at
+`point-max\' — and then the newline `require-final-newline\' adds is an
+insertion at that end.  A rendering came off as the reader saved the
+file.  Such a newline changes nothing a block shows, typed by hand or
+added by a save; a second character reaches the anchor\'s interior and
+takes it down.
+
+The whole buffer, not the accessible part: under a narrowing
+`point-max\' is the end of that, and an insertion there is in the middle
+of the buffer like any other."
+  (when (if after
+            (not (and (equal (buffer-substring-no-properties beg end) "\n")
+                      (= end (without-restriction (point-max)))))
+          (/= beg end))
+    (funcall (or (overblock-get block :stale) #'overblock-delete) block)))
+
+(defun overblock-stale-when-edited (block &optional function)
+  "Take BLOCK down on the next edit of the text it covers.
+FUNCTION is called with the block instead, where the caller has more to
+do than delete it — a bar of its own to take with it, or a move of its
+own to stand down for.
+
+Three hooks and not one: `modification-hooks\' runs for a change inside
+an overlay, `insert-in-front-hooks\' for one at its first character and
+`insert-behind-hooks\' for one at its end.  An anchor stops one
+character short of the newline that ends its region, so the blank line
+that ends the region — where `C-e\' on the last line puts point — is an
+insertion at the end: with `modification-hooks\' alone the block stayed
+behind, showing a rendering of text that had changed under it."
+  (when function (overblock-set block :stale function))
+  (let ((hooks (list #'overblock--stale-hook)))
+    (overlay-put block 'modification-hooks hooks)
+    (overlay-put block 'insert-in-front-hooks hooks)
+    (overlay-put block 'insert-behind-hooks hooks)))
+
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
 Call it after `overblock-set'.  Everything the block shows is made

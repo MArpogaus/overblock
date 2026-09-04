@@ -244,50 +244,13 @@ that bar."
 
 (defvar pycell--moving nil
   "Non-nil while `pycell-move-cell-down' is moving a cell.
-`pycell--stale-hook' stands down while it is: a move relocates whole
+`pycell--stale-when-edited' stands down while it is: a move relocates whole
 cells rather than editing the text of one, and the command takes the
 blocks of both cells off and puts them back itself.  The text the move
 inserts lands at the first character of the cell below, which is where
 that cell's anchor begins, so its `insert-in-front-hooks' ran and its
 result went with the insertion — measured, a third cell that had
 nothing to do with the move lost its result on every move down.")
-
-(defun pycell--stale-hook (block after beg end &optional _length)
-  "Take BLOCK down when the text it covers changes, BEG..END.
-AFTER marks the call that follows the change; see
-`pycell--stale-when-edited'.
-
-An insertion is judged on that call and no earlier: the call before the
-change has nothing to read, and acting on it took the block down before
-the text it was to be judged by existed.  A deletion is judged before,
-because the anchor evaporates with the text it covers and no call would
-follow.
-What it reads for is one insertion the block must survive: a single
-newline at the end of the buffer.  A block's anchor stops one character
-short of the last newline of its cell, so a cell at the end of a file
-that has none has an anchor ending at `point-max' — and then the
-newline `require-final-newline' adds is an insertion at that end.  The
-rendering came off as the reader saved the file.  A newline there
-changes nothing the cell renders, typed by hand or added by a save, so
-the block stays either way; a second character reaches the anchor's
-interior and takes it down.
-
-The whole buffer, not the accessible part: under a narrowing
-`point-max' is the end of that, and an insertion there is in the middle
-of the buffer like any other."
-  (unless pycell--moving
-    (cond
-     (after
-      (unless (and (equal (buffer-substring-no-properties beg end) "\n")
-                   (= end (without-restriction (point-max))))
-        (pycell--drop-rendering block)))
-     ;; Before the change, an insertion has nothing to read: BEG and END
-     ;; are the one position it will go to.  A deletion is judged here
-     ;; all the same, because the anchor evaporates with the text it
-     ;; covers and the call after the change would never come — and then
-     ;; the bar above a rendered cell, which the anchor does not cover,
-     ;; stayed behind.
-     ((/= beg end) (pycell--drop-rendering block)))))
 
 (defvar-local pycell--width nil
   "The width the bars of this buffer were built for, in pixels.
@@ -325,17 +288,14 @@ as well."
 
 (defun pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
-Three hooks and not one: `modification-hooks' runs for a change inside
-an overlay, `insert-in-front-hooks' for one at its first character and
-`insert-behind-hooks' for one at its end.  A block's anchor stops one
-character short of the cell's last newline, so the blank line that ends
-a cell — where `C-e' on the last line puts point — is an insertion at
-the end: with `modification-hooks' alone the block stayed behind,
-showing the result of text that had changed under it."
-  (let ((drop (list #'pycell--stale-hook)))
-    (overlay-put block 'modification-hooks drop)
-    (overlay-put block 'insert-in-front-hooks drop)
-    (overlay-put block 'insert-behind-hooks drop)))
+A move stands the taking down: `pycell--moving' says the text is being
+relocated rather than edited, and the command puts the blocks of both
+cells back itself.  What comes down is the rendering and the bar a
+rendered cell carries above it, which is what `pycell--drop-rendering'
+knows and a plain delete does not."
+  (overblock-stale-when-edited
+   block (lambda (block)
+           (unless pycell--moving (pycell--drop-rendering block)))))
 
 ;;;; Result blocks
 
