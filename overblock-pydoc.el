@@ -188,6 +188,17 @@ prose drawn over code.  Left as source it is merely unrendered."
                    (save-excursion (goto-char start) (pos-bol))
                    start)))
 
+(defun overblock-pydoc--with-prefix (start)
+  "Return START moved back over the letters that prefix a string.
+Font lock paints the quotes of a doc string and not the letters that
+open it, so the `r\' of a raw doc string stood to the left of the bar
+that covers the rest of the line — a letter of code beside a rendering,
+which is exactly what a block is supposed not to leave behind."
+  (save-excursion
+    (goto-char start)
+    (skip-chars-backward "rRbBuUfF" (pos-bol))
+    (point)))
+
 (defun overblock-pydoc--string-end (start limit)
   "Return where the string that opens at START ends, at most LIMIT.
 The syntax scan answers it: `parse-partial-sexp\' told to stop at the
@@ -233,8 +244,9 @@ otherwise be no doc string at all."
       (while (< pos end)
         (if (and (overblock-pydoc--doc-face-p pos)
                  (overblock-pydoc--opens-a-line-p pos))
-            (let ((finish (overblock-pydoc--string-end pos end)))
-              (push (cons pos finish) found)
+            (let ((finish (overblock-pydoc--string-end pos end))
+                  (start (overblock-pydoc--with-prefix pos)))
+              (push (cons start finish) found)
               (setq pos (max finish (1+ pos))))
           (setq pos (or (next-single-property-change pos 'face nil end)
                         end))))

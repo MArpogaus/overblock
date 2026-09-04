@@ -39,8 +39,22 @@
 (defconst ob-gif-src
   (file-name-directory (or load-file-name buffer-file-name))
   "Where the files a scenario opens live, which is this directory.")
-(defconst ob-gif-width 900)
-(defconst ob-gif-height 480)
+(defconst ob-gif-width 820
+  "The width of a picture, in pixels.
+The same width as every other picture of these packages, and the width
+the animation is written at: a frame exported at the width it is shown
+at needs no scaling, and text scaled by even a little comes out
+blurred.")
+(defconst ob-gif-height 470
+  "The height of a picture, in pixels, where a scenario wants no other.")
+
+(defconst ob-gif-heights '(("pydoc" . 800) ("rmd" . 640) ("pycell" . 620)
+                           ("md" . 560) ("family" . 640))
+  "The height a named scenario wants, where the default is too short.
+The doc strings of a class are the tall case: a rendering of one runs
+to two dozen rows, and a picture that cuts it in half says nothing
+about what it looks like whole.  An Rmd file and a notebook want the
+room their results take, so that the last one is in the picture too.")
 
 (defvar ob-gif-n 0)
 (defvar ob-gif-holds nil)
@@ -58,9 +72,12 @@ has a warning to show and every one of them opened a window."
   (unless (window-minibuffer-p)
     (ignore-errors (window-toggle-side-windows))
     ;; The demonstration's own windows stay — an edit opens one, and the
-    ;; picture is of that.  A fresh profile's warnings do not.
+    ;; picture is of the source and the edit side by side.  A window
+    ;; showing a buffer with no file and no block is a profile's own
+    ;; noise and goes.
     (dolist (window (window-list nil 'no-mini))
       (unless (or (eq window (selected-window))
+                  (buffer-file-name (window-buffer window))
                   (string-match-p (rx (or "pydoc:" "cell" "markdown" "chunk"))
                                   (buffer-name (window-buffer window))))
         (ignore-errors (delete-window window)))))
@@ -80,6 +97,11 @@ renders what point has left once the reader stops, and a scenario moves
 point by calling a function rather than by running a command."
   (let ((end (+ (float-time) seconds)))
     (run-hooks 'post-command-hook)
+    ;; And the render itself: the live cycle asks for it on an idle
+    ;; timer, and a session driven by a program rather than by a reader
+    ;; is never idle in the way that timer waits for.
+    (when-let* ((render (nth 1 (bound-and-true-p overblock-live--spec))))
+      (ignore-errors (funcall render)))
     (while (and (< (float-time) end) (not (funcall predicate)))
       ;; `sit-for' and not `accept-process-output': the rendering is
       ;; asked for by an idle timer, and idle timers run only while
@@ -119,7 +141,10 @@ whoever reads it."
   (delete-directory ob-gif-dir t)
   (make-directory ob-gif-dir t)
   (when (fboundp 'demo-set-font) (demo-set-font))
-  (set-frame-size (selected-frame) ob-gif-width ob-gif-height t)
+  (set-frame-size (selected-frame) ob-gif-width
+                  (or (cdr (assoc ob-gif-scenario ob-gif-heights))
+                      ob-gif-height)
+                  t)
   (delete-other-windows)
   (dolist (name '("*Warnings*" "*Messages*" "*scratch*" "*Compile-Log*"))
     (when-let* ((buffer (get-buffer name))) (kill-buffer buffer)))
@@ -296,7 +321,7 @@ plt.show()
   (ob-gif-wait 120 (lambda () (overblock-in (point-min) (point-max) 'result)))
   (ob-gif-frame 200)
   ;; and what it answered
-  (ob-gif-wait 60 #'ob-gif-pycell--idle)
+  (ob-gif-wait 120 (ob-gif-results 1))
   (ob-gif-settle 0.4)
   (ob-gif-frame 350)
   ;; and the figure of the next one, drawn in the buffer
@@ -323,9 +348,19 @@ plt.show()
     (ob-gif-frame 350)))
 
 (defun ob-gif-pycell--idle ()
-  "Return non-nil where the notebook\'s shell has finished its cell."
+  "Return non-nil where the shell of this buffer has finished its cell."
   (when-let* ((shell (overblock-run-shell)))
     (not (buffer-local-value 'overblock-run--state shell))))
+
+(defun ob-gif-results (n)
+  "Return a predicate for N results, the shell having finished them.
+The state alone is not enough: between the moment a cell is armed on
+the first prompt of a fresh interpreter and the moment it is sent there
+is none, and a second cell sent then is refused with \"the shell is
+still busy\"."
+  (lambda ()
+    (and (>= (length (overblock-in (point-min) (point-max) 'result)) n)
+         (ob-gif-pycell--idle))))
 
 (defun ob-gif-rmd ()
   "An R Markdown file: the prose rendered, the chunks run in place."
@@ -378,7 +413,7 @@ head(cars, 4)
   (ob-gif-settle 0.5)
   (ob-gif-frame 400)
   ;; and the second, which keeps what the first knew
-  (ob-gif-wait 60 #'ob-gif-pycell--idle)
+  (ob-gif-wait 60 (ob-gif-results 1))
   (goto-char (point-min))
   (search-forward "head(cars" nil t)
   (call-interactively #'overblock-rmd-run-chunk)
@@ -388,7 +423,94 @@ head(cars, 4)
                      2)))
   (ob-gif-settle 0.6)
   (goto-char (point-min))
-  (ob-gif-frame 450))
+  (ob-gif-frame 450)
+  ;; and one of the two folded away to its bar
+  (when-let* ((block (car (overblock-in (point-min) (point-max) 'result))))
+    (goto-char (overlay-start block))
+    (overblock-rmd-toggle-output)
+    (goto-char (point-min))
+    (ob-gif-settle 0.4)
+    (ob-gif-frame 400)))
+
+(defun ob-gif-family ()
+  "All four modes in one session, for the animation on the front page.
+The scenarios above take each package on its own and at whatever height
+it wants; this one is the tour, and every picture in it is the same
+size."
+  ;; markdown, rendered over its own source
+  (find-file (ob-gif-file "notes.md" nil))
+  (overblock-md-preview-mode -1)
+  (goto-char (point-min))
+  (ob-gif-frame 220)
+  (goto-char (point-min))
+  (forward-line 1)
+  (overblock-md-preview-mode 1)
+  (ob-gif-wait 60 #'ob-gif-md--settled)
+  (ob-gif-settle)
+  (ob-gif-frame 300)
+  ;; the doc strings of a module
+  (find-file (ob-gif-file "shapes.py" nil))
+  (setq overblock-pydoc-renderer 'converter)
+  ;; The top of the file, and point on the line of code above the first
+  ;; doc string: the one point is in is left as source.
+  (goto-char (point-min))
+  (ob-gif-frame 220)
+  (overblock-pydoc-mode 1)
+  (ob-gif-wait 40 #'ob-gif-pydoc--settled)
+  (goto-char (point-min))
+  (ob-gif-frame 320)
+  ;; a notebook: a markdown cell, a cell run, a figure
+  (find-file (ob-gif-file "demo.py" nil))
+  (goto-char (point-min))
+  (overblock-pycell-mode 1)
+  (ob-gif-wait 30 (lambda () (overblock-in (point-min) (point-max) 'markdown)))
+  (ob-gif-frame 260)
+  (goto-char (point-min))
+  (search-forward "import numpy" nil t)
+  (call-interactively #'overblock-pycell-run-cell)
+  (ob-gif-wait 120 (ob-gif-results 1))
+  (ob-gif-settle 0.4)
+  (ob-gif-frame 300)
+  (goto-char (point-min))
+  (search-forward "plt.subplots" nil t)
+  (call-interactively #'overblock-pycell-run-cell)
+  (ob-gif-wait 120
+               (lambda ()
+                 (seq-some (lambda (block)
+                             (overblock-image-in
+                              (or (overblock-get block :body) "")))
+                           (overblock-in (point-min) (point-max) 'result))))
+  (ob-gif-settle 0.5)
+  (goto-char (point-min))
+  (search-forward "import matplotlib" nil t)
+  (recenter 1)
+  (ob-gif-frame 340)
+  ;; and the chunks of an Rmd file
+  (find-file (ob-gif-file "report.Rmd" nil))
+  (if (require 'markdown-mode nil t) (markdown-mode) (text-mode))
+  (setq ess-ask-for-ess-directory nil
+        ess-eval-visibly 'nowait
+        inferior-R-args "--no-save --no-restore-data")
+  (goto-char (point-min))
+  (forward-line 1)
+  (overblock-rmd-mode 1)
+  (ob-gif-wait 40 (lambda () (overblock-in (point-min) (point-max) 'md-preview)))
+  (ob-gif-settle)
+  (ob-gif-frame 260)
+  (goto-char (point-min))
+  (search-forward "summary(cars" nil t)
+  (call-interactively #'overblock-rmd-run-chunk)
+  (ob-gif-wait 120 (ob-gif-results 1))
+  (goto-char (point-min))
+  (search-forward "head(cars" nil t)
+  (call-interactively #'overblock-rmd-run-chunk)
+  (ob-gif-wait 120
+               (lambda ()
+                 (>= (length (overblock-in (point-min) (point-max) 'result))
+                     2)))
+  (ob-gif-settle 0.5)
+  (goto-char (point-min))
+  (ob-gif-frame 360))
 
 (condition-case err
     (progn

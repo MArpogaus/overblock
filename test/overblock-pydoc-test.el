@@ -199,12 +199,13 @@ syntax scan says where the string ends."
                                (buffer-substring-no-properties
                                 (car (car bounds)) (cdr (car bounds))))))))
 
-(ert-deftest overblock-pydoc-test-a-raw-doc-string-hangs-at-its-quotes ()
-  "A raw doc string is rendered, and every row of it lines up.
-Its region begins at the quotes and the letter that prefixes them
-stands to their left, so the block hangs one column in from the code:
-the rendering is padded to the column the block begins at, measured,
-and not to the indentation of the line."
+(ert-deftest overblock-pydoc-test-a-raw-doc-string-covers-its-prefix ()
+  "A raw doc string is rendered, prefix and all, and every row lines up.
+Font lock paints the quotes and not the letter that opens them, so a
+region that began at the quotes left the `r\' standing to their left —
+a letter of code beside a rendering.  The block covers it, and the
+rendering is padded to the column the block begins at, measured, and
+not to the indentation of the line."
   (with-temp-buffer
     (insert "class A:\n    r\"\"\"Raw doc, with a \\alpha in it.\n\n    More.\n    \"\"\"\n")
     (python-mode)
@@ -217,17 +218,18 @@ and not to the indentation of the line."
                                  (overblock-get block :over))
                                 "\n")))
       (should block)
-      ;; the block begins at the quotes, past the prefix
+      ;; the block begins at the prefix, which is where the code ends
       (goto-char (overlay-start block))
-      (should (= (current-column) 5))
+      (should (= (current-column) 4))
+      (should (looking-at-p "r\"\"\""))
       ;; the first row hangs there and carries no padding; every row
       ;; below it is padded to the same column
       ;; the label glyph of the bar falls back to a word in batch, so
       ;; the row opens with the space that follows it; what it must not
       ;; carry is the padding of the rows below
-      (should-not (string-prefix-p "     " (car lines)))
+      (should-not (string-prefix-p "    " (car lines)))
       (dolist (line (cdr lines))
-        (should (string-prefix-p "     " line))))))
+        (should (string-prefix-p "    " line))))))
 
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
   "The quotes go, and the indentation the lines share with the code.
