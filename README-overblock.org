@@ -413,6 +413,14 @@ does not exist yet.  The move begins with one command:
 and the recipe in =.github/workflows/pre-commit.yml= takes the same
 change to its =:repo=.
 
+The other half of the move is one line in the notebook: =pycell.el=
+adds =(overblock "0.1.0")= to its =Package-Requires=.  It does not
+carry that line today on purpose.  A package that names a dependency
+nobody can install is a package nobody can install: elpaca answers
+"Unable to determine recipe URL" and takes the notebook down with it,
+and melpazoid answers "Package overblock is not installable".  Both are
+right, and both stop being right the moment this repository exists.
+
 * Development
 
 =make= runs what the CI runs: byte-compilation with warnings as errors,
