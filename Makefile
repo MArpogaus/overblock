@@ -4,7 +4,8 @@
 #   make lint      package-lint, the MELPA rules
 #   make relint    regexp and docstring escapes
 #   make test      ERT test suite, STRICT=1 to refuse to skip
-#   make test-live the suite against a real ipython; skips without one
+#   make test-live the suites against a real ipython and a real R;
+#                  each skips where its interpreter is not installed
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
 #
@@ -20,14 +21,15 @@ SANDBOX ?= .sandbox
 # way leaves the directory behind, and a directory target would then
 # count as made and the tools stay missing.
 STAMP   := $(SANDBOX)/.installed
-DEPS    ?= package-lint relint code-cells comint-mime
+DEPS    ?= package-lint relint code-cells comint-mime ess
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
 TEST := $(wildcard test/*.el)
-# The live suite drives a real IPython, so the batch suite does not load
-# it; `test-live' below is its target.  It is still in TEST, so it is
-# byte-compiled and relinted with the rest.
-SUITE := $(filter-out test/overblock-pycell-live-test.el,$(TEST))
+# The live suites drive a real IPython and a real R, so the batch suite
+# does not load them; `test-live' below is their target.  They are still
+# in TEST, so they are byte-compiled and relinted with the rest.
+LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el
+SUITE := $(filter-out $(LIVE),$(TEST))
 
 # Elisp programs live in variables: make joins their continuation lines,
 # while a backslash inside a quoted recipe line would reach Emacs as is.
@@ -63,7 +65,7 @@ compile: $(STAMP)
 # reads one main file and calls every symbol outside its prefix an
 # error, so it is run once for each package.  The lists below are the
 # whole of each package: what moves when the two get a repository each.
-# Four packages live here, each with a main file of its own carrying its
+# Five packages live here, each with a main file of its own carrying its
 # version and its dependencies.  These lists are the whole of each one,
 # and `lint' reads every file against the main file of its own package —
 # as MELPA does, one recipe per list.
@@ -71,7 +73,9 @@ LAYER  := overblock.el overblock-repl.el overblock-run.el
 MD     := overblock-md.el overblock-md-preview.el
 PYDOC  := overblock-pydoc.el
 PYCELL := overblock-pycell.el
-PACKAGES := overblock overblock-md overblock-pydoc overblock-pycell
+RMD    := overblock-rmd.el
+PACKAGES := overblock overblock-md overblock-pydoc overblock-pycell \
+            overblock-rmd
 
 # A package here that requires another one here finds it uninstallable:
 # none of them has a MELPA recipe yet.  They are in this checkout, so
@@ -102,6 +106,8 @@ lint: $(STAMP)
 	  -f package-lint-batch-and-exit $(PYDOC)
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock-pycell.el")' \
 	  -f package-lint-batch-and-exit $(PYCELL)
+	@$(BATCH) --eval '(setq package-lint-main-file "overblock-rmd.el")' \
+	  -f package-lint-batch-and-exit $(RMD)
 
 # What checkdoc and package-lint both let through: a docstring escape
 # written \= rather than \\=, which the reader eats, so `describe-function'
@@ -119,16 +125,24 @@ test: $(STAMP)
 # What only a live interpreter can prove: two faults — a read-only
 # notebook wedging the pass, and a result painted as a prompt — survived
 # every batch check, because no batch test starts a process.  Not part
-# of `all', because a machine without an ipython can only skip it; the
-# CI installs one and runs this with STRICT=1, where a skip is a
+# of `all', because a machine without an interpreter can only skip it;
+# the CI installs both and runs this with STRICT=1, where a skip is a
 # failure rather than a line nobody reads.
-test-live: $(STAMP)
-	@if command -v ipython >/dev/null 2>&1; then \
-	  $(BATCH) -l test/overblock-pycell-live-test.el -f ert-run-tests-batch-and-exit; \
+#
+# One suite a language, and each is skipped on its own: a machine with
+# an ipython and no R still proves what it can.
+define live
+	@if command -v $(2) >/dev/null 2>&1; then \
+	  $(BATCH) -l $(1) -f ert-run-tests-batch-and-exit; \
 	elif [ -n "$(STRICT)" ]; then \
-	  echo "test-live: no ipython installed, and STRICT asks for one"; \
+	  echo "test-live: no $(2) installed, and STRICT asks for one"; \
 	  exit 1; \
-	else echo "test-live: no ipython installed, skipping"; fi
+	else echo "test-live: no $(2) installed, skipping $(1)"; fi
+endef
+
+test-live: $(STAMP)
+	$(call live,test/overblock-pycell-live-test.el,ipython)
+	$(call live,test/overblock-rmd-live-test.el,R)
 
 # A block is one buffer line and can be taller than the window, and only
 # a graphical frame gives a line a pixel height.  These tests therefore

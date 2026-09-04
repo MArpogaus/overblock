@@ -405,9 +405,31 @@ shell buffer, where `comint-prompt-regexp' has its value."
   (overblock-repl-detach
    (overblock-pycell--drop-prompt-face (overblock-pycell--strip-prompts text))))
 
+(defun overblock-pycell-tab-filter (cmd)
+  "Return CMD when point sits at the very end of a cell with a result.
+A `menu-item' filter for a key in `overblock-pycell-result-map': it keeps a key
+that means something in the rest of the cell — TAB indents — out of the
+way everywhere but on the one spot where the reader faces the result."
+  (and (eolp)
+       (seq-some (lambda (o) (eq (point) (overlay-end o)))
+                 (overblock-in (max (1- (point)) (point-min)) (point)
+                               'result))
+       cmd))
+
+(defvar-keymap overblock-pycell-result-map
+  :doc "Keymap inside a cell that shows a result, empty on purpose.
+overblock-pycell binds no keys; put your own here.  is the
+`overblock-pycell-toggle-output'
+natural candidate.  Guard a key the rest of the cell needs with
+`overblock-pycell-tab-filter', which answers only at the very end of the cell:
+
+  (keymap-set overblock-pycell-result-map \"TAB\"
+              \\='(menu-item \"\" overblock-pycell-toggle-output
+                          :filter overblock-pycell-tab-filter))")
+
 (defvar overblock-pycell--style
   (list :kind 'result
-        :keymap nil                     ; filled in below
+        :keymap overblock-pycell-result-map
         :buttons (lambda () overblock-pycell-result-buttons)
         :fold #'overblock-pycell-toggle-output
         :header-face 'overblock-pycell-header
@@ -452,30 +474,6 @@ RUNTIME, STATE and TOTAL are what `overblock-run-show' takes."
   (overblock-run-output-head from overblock-pycell-max-lines
                              overblock-pycell-max-line-length
                              #'overblock-pycell--clean))
-
-(defun overblock-pycell-tab-filter (cmd)
-  "Return CMD when point sits at the very end of a cell with a result.
-A `menu-item' filter for a key in `overblock-pycell-result-map': it keeps a key
-that means something in the rest of the cell — TAB indents — out of the
-way everywhere but on the one spot where the reader faces the result."
-  (and (eolp)
-       (seq-some (lambda (o) (eq (point) (overlay-end o)))
-                 (overblock-in (max (1- (point)) (point-min)) (point)
-                               'result))
-       cmd))
-
-(defvar-keymap overblock-pycell-result-map
-  :doc "Keymap inside a cell that shows a result, empty on purpose.
-overblock-pycell binds no keys; put your own here.  is the
-`overblock-pycell-toggle-output'
-natural candidate.  Guard a key the rest of the cell needs with
-`overblock-pycell-tab-filter', which answers only at the very end of the cell:
-
-  (keymap-set overblock-pycell-result-map \"TAB\"
-              \\='(menu-item \"\" overblock-pycell-toggle-output
-                          :filter overblock-pycell-tab-filter))")
-
-(setf (plist-get overblock-pycell--style :keymap) overblock-pycell-result-map)
 
 (defun overblock-pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
@@ -966,10 +964,11 @@ Only the word =markdown= of the boundary line carries the header, so
               ;; the boundary in the notebook meanwhile reached
               ;; `overblock-pycell--md-block' with no start for its bar.
               ((overblock-pycell--md-cell-start beg))
-              (rendered (overblock-md-rendered
-                         (overblock-pycell--md-uncomment
-                          (buffer-substring-no-properties beg end))
-                         html)))
+              (rendered (let ((overblock-md-width (overblock-md-columns)))
+                          (overblock-md-rendered
+                           (overblock-pycell--md-uncomment
+                            (buffer-substring-no-properties beg end))
+                           html))))
     (overblock-pycell--md-block beg end rendered)))
 
 (defun overblock-pycell--md-bar (hov)
