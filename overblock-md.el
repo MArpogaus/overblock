@@ -574,6 +574,51 @@ not ours to open."
               ((image-supported-file-p file)))
     file))
 
+(defun overblock-md--tag-list (dom)
+  "Render the list DOM, and open a paragraph only where no list is open.
+A list nested in a list is one list to the reader, and shr opens a
+paragraph — a blank line — before and after every list: five source
+lines of a list with two nested items came back as seven, in three
+groups the writer never wrote, and the rendering stood taller than the
+text it covers.  `shr-list-mode' is what says a list is open already.
+
+Outside a list, shr's own handler and its blank lines: a list wants
+air between itself and the prose around it."
+  (let ((ordered (eq (dom-tag dom) 'ol)))
+    (if (not shr-list-mode)
+        (if ordered (shr-tag-ol dom) (shr-tag-ul dom))
+      (shr-ensure-newline)
+      (let ((shr-list-mode
+             (if ordered
+                 (max 1 (string-to-number (or (dom-attr dom 'start) "1")))
+               'ul)))
+        (shr-generic dom))
+      (shr-ensure-newline))))
+
+(defun overblock-md--tag-dd (dom)
+  "Render the definition DOM under its term, with no blank line between.
+Pandoc wraps the description of a definition in a paragraph and shr
+opens a paragraph with a blank line, so every entry of a numpydoc
+section came out three lines where its source is two: a rendered doc
+string stood half again as tall as the one the writer wrote, and the
+code below it was pushed that far down the screen.  Only the first
+paragraph is unwrapped — a description of two paragraphs still reads as
+two.
+
+Otherwise `shr-tag-dd', whose indentation this keeps: the description
+stands four columns in from its term, which is where numpydoc puts it
+in the source as well."
+  (shr-ensure-newline)
+  (let ((shr-indentation (+ shr-indentation
+                            (* 4 shr-table-separator-pixel-width)))
+        (opening t))
+    (dolist (child (dom-children dom))
+      (cond ((stringp child) (shr-insert child))
+            ((and opening (eq (dom-tag child) 'p))
+             (setq opening nil)
+             (shr-generic child))
+            (t (shr-descend child))))))
+
 (defun overblock-md--tag-img (dom)
   "Draw the image DOM names when it is a file, and leave the rest to shr.
 shr fetches an image with `url-queue-retrieve', which answers long
@@ -699,6 +744,9 @@ without a converter has to see."
            `((th . ,(lambda (dom) (shr-fontize-dom dom 'bold)))
              (code . ,(lambda (dom)
                         (shr-fontize-dom dom 'overblock-md-code)))
+             (dd . overblock-md--tag-dd)
+             (ul . overblock-md--tag-list)
+             (ol . overblock-md--tag-list)
              (img . overblock-md--tag-img)
              (table . overblock-md--tag-table)
              ,@shr-external-rendering-functions)))
