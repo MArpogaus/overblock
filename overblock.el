@@ -555,6 +555,90 @@ behind, showing a rendering of text that had changed under it."
     (overlay-put block 'insert-in-front-hooks hooks)
     (overlay-put block 'insert-behind-hooks hooks)))
 
+(defvar-local overblock-edit--source nil
+  "What this edit buffer feeds, as (BUFFER BEG END PUT).
+PUT is the function that writes the edited text back; see
+`overblock-edit-in-buffer\'.")
+
+(defvar-keymap overblock-edit-mode-map
+  :doc "Keymap of `overblock-edit-mode\', empty on purpose.
+This layer binds no keys; put your own here.  `overblock-edit-commit\'
+and `overblock-edit-abort\' are the natural candidates.")
+
+(define-minor-mode overblock-edit-mode
+  "Edit the text under a block, as `org-edit-special\' edits a source block."
+  ;; The :lighter also keeps the body out of the deprecated positional
+  ;; INIT-VALUE argument.
+  :lighter " block-edit")
+
+(defun overblock-edit-in-buffer (beg end props)
+  "Edit the text of BEG..END in a buffer of its own, and show it.
+PROPS is a plist:
+
+  :name   the name of the edit buffer.  A buffer for each region and
+          not one for the whole file: the text of the region opened
+          second would otherwise land on top of the first, and an hour
+          of writing with it.  Carry a line number in the name.
+  :label  what the buffer calls the thing, for the hint on its header
+          line.
+  :mode   the major mode of the edit buffer.
+  :text   called with BEG and END in this buffer; answers the plain
+          text to edit.
+  :put    called with BEG, END and the edited string, in this buffer,
+          and writes it back.  Rendering it again is its business too.
+
+An edit of this very region that is already under way is the edit the
+reader wants back, not a fresh copy of what the file still says; org
+answers the same, by asking.  The same region and not merely the same
+name: a name carries a line number, and two regions can stand on that
+line at different times.  Keeping a stranger\'s pending edit committed
+one region\'s text into another, and throwing it away without a word
+would lose an hour of writing just as quietly, so the reader is asked."
+  (let* ((source (current-buffer))
+         (text (funcall (plist-get props :text) beg end))
+         (put (plist-get props :put))
+         (buffer (get-buffer-create (plist-get props :name))))
+    (with-current-buffer buffer
+      (let ((pending (and overblock-edit-mode (buffer-modified-p)))
+            (mine (equal (take 3 overblock-edit--source)
+                         (list source beg end))))
+        (when (and pending (not mine)
+                   (not (yes-or-no-p
+                         (format "Discard the unsaved edit of another %s? "
+                                 (plist-get props :label)))))
+          (user-error "Kept the unsaved edit"))
+        (unless (and pending mine)
+          (erase-buffer)
+          (insert text)
+          (funcall (plist-get props :mode))
+          (overblock-edit-mode)
+          ;; The keys come from the keymap, so the hint stays true when
+          ;; the bindings or the prefix change.
+          (setq header-line-format
+                (substitute-command-keys
+                 (format " %s — \\[overblock-edit-commit] applies, \
+\\[overblock-edit-abort] discards"
+                         (capitalize (plist-get props :label)))))
+          (set-buffer-modified-p nil)))
+      (setq overblock-edit--source (list source beg end put)))
+    (pop-to-buffer buffer)))
+
+(defun overblock-edit-commit ()
+  "Put the edited text back where it came from."
+  (interactive)
+  (pcase-let ((`(,source ,beg ,end ,put) overblock-edit--source)
+              (text (string-trim-right (buffer-string))))
+    (unless (and source (buffer-live-p source))
+      (user-error "The buffer this text came from is gone"))
+    (with-current-buffer source
+      (save-excursion (funcall put beg end text)))
+    (quit-window t)))
+
+(defun overblock-edit-abort ()
+  "Discard the edit."
+  (interactive)
+  (quit-window t))
+
 (defun overblock-goto-event (event)
   "Select the window of EVENT and move point to the click.
 Anything that is not a click leaves point where it is: a command reads

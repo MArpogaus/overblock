@@ -177,7 +177,7 @@ reader could not tell it from a result with no output."
   "An edit of a rendered cell removes the rendering and its bar.
 The block evaporates with the text it covers, and the bar sits on the
 boundary line above, where no edit of the cell reaches it: without the
-modification hook it stayed behind, and `pycell-md-commit' drew a
+modification hook it stayed behind, and `overblock-edit-commit' drew a
 second bar beside it."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
@@ -626,13 +626,13 @@ writes between cells belongs to it and has to be written back."
                                      (string-prefix-p prefix (buffer-name b)))
                                    (buffer-list)))))
           (should edit)
-          ;; `pycell-md-commit' ends by quitting its window, and the
+          ;; `overblock-edit-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
           ;; whatever the selected window holds — and the next test
           ;; would find a marker into a dead buffer.  The round trip
           ;; is what this checks.
           (cl-letf (((symbol-function 'quit-window) #'ignore))
-            (with-current-buffer edit (pycell-md-commit)))
+            (with-current-buffer edit (overblock-edit-commit)))
           (with-current-buffer notebook
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
                            text))))
@@ -798,13 +798,13 @@ it into a bare #, so a commit that changed nothing changed the file."
                                      (string-prefix-p prefix (buffer-name b)))
                                    (buffer-list)))))
           (should edit)
-          ;; `pycell-md-commit' ends by quitting its window, and the
+          ;; `overblock-edit-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
           ;; whatever the selected window holds — and the next test
           ;; would find a marker into a dead buffer.  The round trip
           ;; is what this checks.
           (cl-letf (((symbol-function 'quit-window) #'ignore))
-            (with-current-buffer edit (pycell-md-commit)))
+            (with-current-buffer edit (overblock-edit-commit)))
           (with-current-buffer notebook
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
                            text))))
@@ -1745,17 +1745,18 @@ in, and the commands select it."
     (should-error (pycell-discard-output) :type 'user-error)))
 
 (ert-deftest pycell-test-a-markdown-edit-can-be-abandoned ()
-  "`pycell-md-abort' leaves the source as it was, and the window with it."
+  "`overblock-edit-abort' leaves the source as it was, and the window with it."
   (let ((buffer (get-buffer-create " *pycell test md abort*")))
     (unwind-protect
         (with-current-buffer buffer
-          (setq-local pycell--md-source (list (current-buffer) 1 2))
-          (should (commandp 'pycell-md-abort))
+          (setq-local overblock-edit--source
+                      (list (current-buffer) 1 2 #'ignore))
+          (should (commandp 'overblock-edit-abort))
           (cl-letf (((symbol-function 'quit-window)
                      (lambda (&optional kill _window)
                        (should kill)
                        (throw 'quit t))))
-            (should (catch 'quit (pycell-md-abort) nil))))
+            (should (catch 'quit (overblock-edit-abort) nil))))
       (kill-buffer buffer))))
 
 (ert-deftest pycell-test-save-image-writes-the-bytes-it-was-given ()
