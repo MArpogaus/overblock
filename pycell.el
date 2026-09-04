@@ -1057,7 +1057,7 @@ Only the word =markdown= of the boundary line carries the header, so
 `outline-minor-mode' still finds a heading line where it expects one."
   (when-let* (;; Still a markdown cell: the line above BEG is the
               ;; boundary that says so, and an edit of that line drops
-              ;; the cell's block.  `pycell-md-commit' rewrites the
+              ;; the cell's block.  `overblock-edit-commit' rewrites the
               ;; body and renders it again, and a reader who changed
               ;; the boundary in the notebook meanwhile reached
               ;; `pycell--md-block' with no start for its bar.
@@ -1128,7 +1128,7 @@ See `pycell--md-show', which renders and calls this."
     ;; An edit of the source takes the rendering with it, the bar
     ;; included.  The block itself evaporates with the text it covers,
     ;; and the bar sits on the boundary line above, where no edit of the
-    ;; cell reaches it: it would be left behind, and `pycell-md-commit'
+    ;; cell reaches it: it would be left behind, and `overblock-edit-commit'
     ;; would draw a second bar beside it.
     (pycell--stale-when-edited block)
     block))
@@ -1239,112 +1239,52 @@ The cell is then editable in place; press the button on its bar, or run
   (interactive (list last-input-event))
   (pycell--drop-rendering (pycell--md-at event)))
 
-(defvar-local pycell--md-source nil
-  "Markdown cell (BUFFER BEG END) that this edit buffer feeds.")
+(defun pycell--md-put (beg end md)
+  "Write the edited MD back into the markdown cell BEG..END and render it.
+The cell reaches to the next boundary line, so it holds the blank line
+jupytext writes between cells: what stood after the body goes back
+rather than one newline, or committing an edit that changed nothing
+would close the gap.
 
-(defvar-keymap pycell-md-edit-mode-map
-  :doc "Keymap of `pycell-md-edit-mode', empty on purpose.
-pycell binds no keys; put your own here.  `pycell-md-commit' and
-`pycell-md-abort' are the natural candidates.")
-
-(define-minor-mode pycell-md-edit-mode
-  "Edit a markdown cell, as `org-edit-special' edits a source block."
-  ;; The :lighter also keeps the body out of the deprecated
-  ;; positional INIT-VALUE argument.
-  :lighter " cell-edit")
+An empty cell has no line to comment — `pycell--md-comment' would write
+a bare # where the author left nothing, and a commit that changed
+nothing would change the file."
+  (let ((tail (buffer-substring-no-properties
+               (save-excursion
+                 (goto-char end)
+                 (skip-chars-backward " \t\n" beg)
+                 (point))
+               end)))
+    (goto-char beg)
+    (delete-region beg end)
+    (insert (if (string-empty-p md) "" (pycell--md-comment md)) tail))
+  (pycell--md-show beg end))
 
 ;;;###autoload
 (defun pycell-md-edit (&optional event)
   "Edit the markdown cell at point, or the one clicked in EVENT.
 The body opens in its own buffer, without the comment prefixes, in
-`markdown-mode' when that is installed.
-`pycell-md-commit' puts it back and renders it; `pycell-md-abort'
-discards the edit."
+`markdown-mode' when that is installed.  `overblock-edit-commit' puts
+it back and renders it; `overblock-edit-abort' discards the edit."
   (interactive (list last-input-event))
   (pcase-let* ((block (pycell--md-at event))
-               (`(,beg . ,end) (overblock-get block :data))
-               (src (current-buffer))
-               ;; Trimmed on the right: the cell reaches to the next
-               ;; boundary line, so it holds the blank line jupytext
-               ;; writes between cells.  With that line in the edit
-               ;; buffer a paragraph typed at the end landed after it,
-               ;; and `pycell-md-commit' put the gap back below —
-               ;; three comment lines a round, compounding.
-               (md (string-trim-right
+               (`(,beg . ,end) (overblock-get block :data)))
+    (overblock-edit-in-buffer
+     beg end
+     (list :name (pycell--cell-buffer-name "md" beg)
+           :label "markdown cell"
+           :mode (if (fboundp 'markdown-mode) #'markdown-mode #'text-mode)
+           ;; Trimmed on the right: the cell reaches to the next
+           ;; boundary line, so it holds the blank line jupytext writes
+           ;; between cells.  With that line in the edit buffer a
+           ;; paragraph typed at the end landed after it, and the
+           ;; commit put the gap back below — three comment lines a
+           ;; round, compounding.
+           :text (lambda (from to)
+                   (string-trim-right
                     (pycell--md-uncomment
-                     (buffer-substring-no-properties beg end))))
-               ;; A buffer per cell, as `pycell-pop-output' does with
-               ;; results: one buffer for the whole file would put the
-               ;; text of the cell opened second over the text of the
-               ;; cell opened first, and an hour of writing with it.
-               (buf (get-buffer-create
-                     (pycell--cell-buffer-name "md" beg))))
-    (with-current-buffer buf
-      ;; An edit of this very cell that is already under way is the
-      ;; edit the reader wants back, not a fresh copy of what the file
-      ;; still says.  Org answers the same, by asking.
-      ;; The same cell, not merely the same name: the name carries a
-      ;; line number, and two cells can stand on that line at different
-      ;; times.  Keeping a stranger's pending edit committed one cell's
-      ;; text into another; throwing it away without a word would lose an
-      ;; hour of writing just as quietly, so the reader is asked.
-      (let ((pending (and pycell-md-edit-mode (buffer-modified-p)))
-            (mine (equal pycell--md-source (list src beg end))))
-        (when (and pending (not mine)
-                   (not (yes-or-no-p
-                         "Discard the unsaved edit of another cell? ")))
-          (user-error "Kept the unsaved edit"))
-        (unless (and pending mine)
-          (erase-buffer)
-          (insert md)
-          (if (fboundp 'markdown-mode) (markdown-mode) (text-mode))
-          (pycell-md-edit-mode)
-          ;; The keys come from the keymap, so the hint stays true when
-          ;; the bindings or the prefix change.
-          (setq header-line-format
-                (substitute-command-keys
-                 " Markdown cell — \\[pycell-md-commit] applies, \
-  \\[pycell-md-abort] discards"))
-          (set-buffer-modified-p nil)))
-      (setq pycell--md-source (list src beg end)))
-    (pop-to-buffer buf)))
-
-;;;###autoload
-(defun pycell-md-commit ()
-  "Put the edited markdown back into its cell and render it."
-  (interactive)
-  (pcase-let ((`(,src ,beg ,end) pycell--md-source)
-              (md (string-trim-right (buffer-string))))
-    (unless (and src (buffer-live-p src))
-      (user-error "The cell's buffer is gone"))
-    (with-current-buffer src
-      (save-excursion
-        ;; The cell reaches to the next boundary line, so it holds the
-        ;; blank line that jupytext writes between cells.  Put back
-        ;; what stood after the body rather than one newline, or
-        ;; committing an edit that changed nothing would still close
-        ;; the gap.
-        (let ((tail (buffer-substring-no-properties
-                     (save-excursion
-                       (goto-char end)
-                       (skip-chars-backward " \t\n" beg)
-                       (point))
-                     end)))
-          (goto-char beg)
-          (delete-region beg end)
-          ;; An empty cell has no line to comment: `pycell--md-comment'
-          ;; would write a bare # where the author left nothing, and a
-          ;; commit that changed nothing would change the file.
-          (insert (if (string-empty-p md) "" (pycell--md-comment md))
-                  tail)))
-      (pycell--md-show beg end))
-    (quit-window t)))
-
-;;;###autoload
-(defun pycell-md-abort ()
-  "Discard the markdown edit."
-  (interactive)
-  (quit-window t))
+                     (buffer-substring-no-properties from to))))
+           :put #'pycell--md-put))))
 
 ;;;; The bar over a boundary line
 
