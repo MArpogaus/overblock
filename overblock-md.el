@@ -497,10 +497,17 @@ The process is killed where the buffer that asked dies first."
                :command program
                :noquery t
                :connection-type 'pipe
-               ;; Standard error goes nowhere: pandoc warns there about
-               ;; the math it leaves alone, and that text in the HTML
-               ;; would reach the reader as prose.
-               :stderr nil
+               ;; Standard error to a pipe that throws it away.  Not
+               ;; `:stderr nil', which mixes it into the output: pandoc
+               ;; warns there about the math it leaves alone and about
+               ;; the arguments it means to retire, and one such line
+               ;; came back as the first paragraph of the rendering.
+               :stderr (make-pipe-process
+                        :name "overblock-md-stderr"
+                        :buffer nil
+                        :noquery t
+                        :filter #'ignore
+                        :sentinel #'ignore)
                :sentinel
                (lambda (process _event)
                  (unless (process-live-p process)
