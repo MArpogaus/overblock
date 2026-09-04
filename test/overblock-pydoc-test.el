@@ -147,6 +147,29 @@ column from the left."
               (should-not (string-match-p "----" shown)))))
       (overblock-pydoc-mode -1))))
 
+(ert-deftest overblock-pydoc-test-the-answer-lands-nowhere-near-point ()
+  "A doc string the reader walked into is left alone when the HTML lands.
+The pass asks for every doc string but the one point is in, and the
+answer comes back a moment later — by which time the reader may have
+clicked one, or walked point into it.  Rendering it then takes the text
+out from under them."
+  (skip-unless (overblock-md-program))
+  (overblock-pydoc-test--with
+    (overblock-pydoc-mode 1)
+    (unwind-protect
+        (progn
+          (goto-char (point-max))
+          (overblock-pydoc-render-buffer)
+          ;; the reader walks into the second doc string while the
+          ;; converter runs; nothing has been answered yet, because
+          ;; nothing here has waited
+          (let ((bounds (nth 1 (overblock-pydoc--strings (point-min)
+                                                         (point-max)))))
+            (goto-char (1+ (car bounds)))
+            (should (= (overblock-pydoc-test--wait 3) 3))
+            (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))))
+      (overblock-pydoc-mode -1))))
+
 (ert-deftest overblock-pydoc-test-the-fontify-renderer-needs-no-process ()
   "Font lock renders the doc strings where the reader asks for it.
 Nothing is waited for because nothing is started: the renderings are

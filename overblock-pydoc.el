@@ -256,12 +256,9 @@ sent the whole buffer through one process."
 
 (defun overblock-pydoc--pending (beg end)
   "Return the doc strings between BEG and END that want rendering.
-What is left out: a doc string that carries a rendering already, and the
-one point is in — the reader is editing that one, and rendering it
-would take the text out from under them."
-  (seq-remove (lambda (region)
-                (or (<= (car region) (point) (cdr region))
-                    (overblock-in (car region) (cdr region) 'pydoc)))
+`overblock-live-wanted-p' says which those are."
+  (seq-filter (lambda (region)
+                (overblock-live-wanted-p (car region) (cdr region) 'pydoc))
               (overblock-pydoc--strings beg end)))
 
 (defun overblock-pydoc--render-fontified (regions)
@@ -277,11 +274,12 @@ Measured, eight doc strings cost 145 milliseconds one process apiece
 and the reader felt every one; this way they cost 7 and the renderings
 arrive together a moment later.
 
-The callback renders each doc string that is still without one: the
-reader may have edited or clicked one while the process ran.  A batch
-that comes back without its marker between every pair says nothing
-about which HTML belongs where, and each doc string is then converted
-on its own."
+The callback renders each doc string that still wants it: the reader
+may have clicked one, edited one, or walked point into one while the
+process ran, and a rendering laid over point takes the text out from
+under them.  A batch that comes back without its marker between every
+pair says nothing about which HTML belongs where, and each doc string
+is then converted on its own."
   (let ((overblock-md-command overblock-pydoc-command))
     (when (overblock-md-program)
       (overblock-md-html-batch-async
@@ -290,9 +288,9 @@ on its own."
                regions)
        (lambda (htmls)
          (dolist (region regions)
-           (unless (overblock-in (car region) (cdr region) 'pydoc)
-             (overblock-pydoc--show (car region) (cdr region)
-                                    (pop htmls)))))))))
+           (let ((html (pop htmls)))
+             (when (overblock-live-wanted-p (car region) (cdr region) 'pydoc)
+               (overblock-pydoc--show (car region) (cdr region) html)))))))))
 
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.
