@@ -303,8 +303,8 @@ and render the cells again."
           ;; made a formula of the prose between two prices — "costs $100
           ;; and that one $200" — and of "`$HOME` and then `$PATH`".  The
           ;; `opt' is what keeps "$x$" matching.
-          (seq "$" (not (any "$" space))
-               (opt (*? (not (any "$" "\n"))) (not (any "$" space)))
+          (seq "$" (not (or "$" space))
+               (opt (*? (not (or "$" "\n"))) (not (or "$" space)))
                "$")
           (seq "\\(" (+? anychar) "\\)")
           (seq "\\[" (+? anychar) "\\]")))
