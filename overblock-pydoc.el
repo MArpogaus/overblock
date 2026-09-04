@@ -166,12 +166,40 @@ and reads as prose one column from the left."
                                 (cdr lines)))
                   "\n"))))
 
-(defun overblock-pydoc--show (beg end)
-  "Render the doc string BEG..END over its own source, and return it."
+(defun overblock-pydoc--indented (text indent)
+  "Return TEXT with INDENT spaces before every line but the first.
+A doc string belongs to the definition above it and reads as its
+prose: rendered from the first column it stood apart from the code it
+documents, and a reader had to look twice to see which was which.
+
+Every line but the first, because the first hangs where the quotes
+stood: `overblock--rows\' begins its first row at the block, which is
+the opening quote and already that far in, while every row after it
+begins at a line start.  Padding the first line as well put it two
+indents deep.
+
+`split-string\' keeps the faces of the pieces it cuts, so the rendering
+comes back indented and still rendered."
+  (if (zerop indent)
+      text
+    (let ((pad (make-string indent ?\s))
+          (lines (split-string text "\n")))
+      (string-join (cons (car lines)
+                         (mapcar (lambda (line) (concat pad line))
+                                 (cdr lines)))
+                   "\n"))))
+
+(defun overblock-pydoc--show (beg end &optional html)
+  "Render the doc string BEG..END over its own source, and return it.
+HTML is what the converter answered for this doc string, where a caller
+sent the whole buffer through one process."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
               (overblock-md-command overblock-pydoc-command)
-              (rendered (overblock-md-rendered source))
+              (rendered (overblock-pydoc--indented
+                         (overblock-md-rendered source html)
+                         (save-excursion (goto-char beg)
+                                         (current-indentation))))
               ((not (string-empty-p (string-trim rendered))))
               (block (overblock-show
                       beg end
@@ -188,6 +216,38 @@ and reads as prose one column from the left."
     (overblock-stale-when-edited block)
     block))
 
+;;;; When
+
+(defun overblock-pydoc-render-buffer ()
+  "Render every doc string of the buffer, without waiting for it.
+One converter process for the whole buffer rather than one for each
+doc string — measured, eight of them cost 145 milliseconds that way —
+and the process is asked rather than waited for, so a file of doc
+strings does not freeze Emacs while it opens.  The renderings arrive
+together a moment later.
+
+A doc string the reader is inside is left alone, as everywhere else."
+  (interactive)
+  (when-let* ((overblock-md-command overblock-pydoc-command)
+              ((overblock-md-program))
+              (regions (seq-remove
+                        (lambda (region)
+                          (or (<= (car region) (point) (cdr region))
+                              (overblock-in (car region) (cdr region) 'pydoc)))
+                        (overblock-pydoc--strings (point-min) (point-max)))))
+    (overblock-md-html-batch-async
+     (mapcar (lambda (region)
+               (overblock-pydoc--source (car region) (cdr region)))
+             regions)
+     (lambda (htmls)
+       ;; Without the marker between every pair there is no telling
+       ;; which HTML belongs to which doc string, and each is then
+       ;; rendered on its own, as it was before the batch.
+       (dolist (region regions)
+         (unless (overblock-in (car region) (cdr region) 'pydoc)
+           (overblock-pydoc--show (car region) (cdr region)
+                                  (pop htmls))))))))
+
 ;;;; The mode
 
 ;;;###autoload
@@ -202,8 +262,7 @@ nothing where none of its candidates is installed."
   :lighter " PyDoc"
   (if overblock-pydoc-mode
       (overblock-live-start 'pydoc
-                            #'overblock-pydoc--strings
-                            #'overblock-pydoc--show
+                            #'overblock-pydoc-render-buffer
                             overblock-pydoc-idle)
     (overblock-live-stop)))
 

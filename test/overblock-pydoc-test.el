@@ -72,6 +72,17 @@ documentation.")
      (goto-char (point-min))
      ,@body))
 
+(defun overblock-pydoc-test--wait (count)
+  "Wait until COUNT doc strings carry a rendering, and return how many do.
+The rendering is asked of a process and not waited for, which is the
+point of it: a test has to wait where a reader does not."
+  (let ((deadline (+ (float-time) 10)))
+    (while (and (< (length (overblock-in (point-min) (point-max) 'pydoc))
+                   count)
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05)))
+  (length (overblock-in (point-min) (point-max) 'pydoc)))
+
 (defun overblock-pydoc-test--first-lines ()
   "Return the first line of the prose of every doc string found."
   (mapcar (lambda (bounds)
@@ -116,9 +127,9 @@ column from the left."
     (unwind-protect
         (progn
           (goto-char (point-max))
-          (overblock-live--render-elsewhere)
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4))
           (let ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
-            (should (= (length blocks) 4))
             ;; the roles of a numpydoc section survive, the underline
             ;; that marks them does not
             (let ((shown (substring-no-properties
@@ -137,14 +148,16 @@ column from the left."
                        (length (overblock-in (point-min) (point-max)
                                              'pydoc)))))
           (goto-char (point-max))
-          (overblock-live--render-elsewhere)
-          (should (= (funcall count) 4))
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4))
+          ;; a click takes one rendering off
           (goto-char (point-min))
           (overblock-live-edit)
           (should (= (funcall count) 3))
+          ;; and the next pass puts it back
           (goto-char (point-max))
-          (overblock-live--render-elsewhere)
-          (should (= (funcall count) 4)))
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4)))
       (overblock-pydoc-mode -1))))
 
 (ert-deftest overblock-pydoc-test-the-mode-leaves-nothing-behind ()
@@ -154,8 +167,8 @@ column from the left."
     (let ((before (buffer-string)))
       (overblock-pydoc-mode 1)
       (goto-char (point-max))
-      (overblock-live--render-elsewhere)
-      (should (overblock-in (point-min) (point-max) 'pydoc))
+      (overblock-pydoc-render-buffer)
+      (should (= (overblock-pydoc-test--wait 4) 4))
       (overblock-pydoc-mode -1)
       (should-not (overblock-in (point-min) (point-max) 'pydoc))
       (should-not overblock-live--spec)
