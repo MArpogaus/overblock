@@ -1,70 +1,74 @@
-#+TITLE: The demo recording
+#+TITLE: The animations, and how to record them again
 
-=img/demo.gif= comes from a real Emacs session.  There is no screen
-recorder.  Emacs exports its own frame ten times a second with
-=x-export-frames=.  The picture therefore has no mouse pointer and no
-window decoration.
+The animations in [[file:../README.org][the README]] come from a real
+Emacs session.  There is no screen recorder: Emacs exports its own
+frame with =x-export-frames=, which is why the pictures carry no mouse
+pointer and no window decoration.
+
+Everything the pictures were taken with is in this directory:
+
+| File           | What                                                    |
+|----------------+---------------------------------------------------------|
+| =init.el=      | the whole configuration — a built-in theme, one font    |
+| =record.el=    | the scenarios: what a reader does, and what is held     |
+| =assemble.sh=  | the frames into one animation                           |
+| =shapes.py=    | the doc strings of the =overblock-pydoc= animation      |
+| =notes.md=     | the markdown of the =overblock-md= animation            |
+| =demo.py=      | the notebook of the =overblock-pycell= animation        |
+| =report.Rmd=   | the R Markdown of the =overblock-rmd= animation         |
+| =scrolling.py= | the notebook the scroll measurements are taken on       |
 
 * What you need
 
-- An Emacs with X support, and a display.  A machine without a
-  display can use =Xvfb :99 -screen 0 1280x900x24= and =DISPLAY=:99=.
-- IPython, matplotlib and numpy for the cells that make output.
-- pandoc for the markdown cells.
-- ffmpeg and gifsicle to make the animation from the frames.
+- An Emacs with X support and a display.  A machine without one can use
+  =Xvfb :99 -screen 0 1920x1080x24= and =DISPLAY=:99=.
+- =pandoc= for every rendering, and a LaTeX with =dvipng= for the math:
+  without it a formula stays as text, which is what
+  =overblock-md-forget-failed-previews= is about.
+- =code-cells= and =comint-mime= for the notebook, =ESS= and an =R= for
+  the chunks, =markdown-mode= for the prose.  =init.el= expects them
+  from a package archive and says so where one is missing.
+- IPython, numpy and matplotlib for the cells that make output.
+- =ffmpeg= and =gifsicle= to turn the frames into the animation.
+- A nerd font for the icons on the bars.  Without one the bars fall back
+  to plain characters, which is what a terminal without the font shows;
+  see =overblock-terminal-glyphs=.
 
-The recording asks for Source Code Pro and falls back to whatever
-monospace font is installed.  It asks for no nerd font on purpose: the
-bars then draw the plain glyphs that `overblock-glyph' falls back to,
-which is what the picture has always shown.
-
-* How to record
-
-#+begin_src shell
-  emacs -Q -g 101x29 -l demo.el   # writes /tmp/demo/ready, then waits
-  touch /tmp/demo/go              # starts the demo and the capture
-#+end_src
-
-The size on the command line is not decoration.  =set-frame-size= is a
-request, and a bare X server with no window manager can ignore it: six
-recordings in a row came out 904x828 instead of 1135x667, with the
-markdown wrapped and the animation half as large again, and nothing
-said so.  The script now waits for the size, writes what it got to the
-trace, and refuses to record a picture of the wrong shape.  1135x667 is
-what Source Code Pro 13 gives at 101 by 29 characters, and 820x482 —
-the size of the animation — is exactly that scaled.
-
-The fallback glyphs the recording shows are the *second* row of
-candidates, not the plain one: Source Code Pro draws =◆=, =↗=, =✕= and
-their like.  A terminal is what draws the third row.
-
-The script drives the whole session.  It captures one frame for each
-scroll step, and ten frames each second while a view stays.  Nothing
-samples on a timer.  The motion in the frames is therefore as even as
-the steps that made it.
-
-The script writes a trace of the stages to =/tmp/demo/trace=.  A pan
-that stops too early reports this there.
-
-* How to build the animation
-
-The frames are one sequence in the order of the recording, and this
-includes the pan:
+* How to record one
 
 #+begin_src shell
-  ffmpeg -framerate 13 -start_number 1 -i frames/f%04d.png \
-      -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=2.5,\
-                       scale=820:-1:flags=lanczos,split[a][b];\
-                       [a]palettegen=max_colors=128[p];[b][p]paletteuse" \
-      -loop 0 raw.gif
-  gifsicle -O3 --lossy=80 raw.gif -o ../img/demo.gif
+  OB_GIF=md emacs -Q -l demo/init.el -l demo/record.el
+  sh demo/assemble.sh md
 #+end_src
 
-Each frame stands for a tenth of a second.  A rate of thirteen frames
-each second sets the pace.
+=OB_GIF= names the scenario: =md=, =pydoc=, =pycell= or =rmd=.  The
+frames and their hold times go to =$TMPDIR/overblock-demo/SCENARIO/=,
+or wherever =OB_GIF_OUT= says, and =assemble.sh= writes =SCENARIO.gif=
+beside them.  Emacs exits when the scenario ends.
 
-Do not resample with the =fps= filter.  It drops frames in an
-irregular way, and the motion becomes uneven.
+A scenario photographs the frame after each step and says how long that
+picture is held, in hundredths of a second.  =assemble.sh= scales those
+holds — a recording watched once reads slower than one that loops in a
+README — so =sh demo/assemble.sh md 1.0= keeps them as recorded.
 
-The =tpad= filter holds the last view.  The restart of the loop then
-reads as a restart, and not as a jump.
+* What each one shows
+
+- *md* — a markdown file rendered line by line, a click giving one
+  line's source back, and a heading typed and rendered as it is written.
+- *pydoc* — the doc strings of a module rendered with a bar of their
+  own, by both renderers in turn: =converter=, which lays
+  reStructuredText out with shr, and =fontify=, which paints the source
+  where the writer left it.  Then one doc string opened in its own
+  buffer, edited and put back.
+- *pycell* — a =# %%= notebook: a markdown cell rendered, a cell run
+  with its output under it, a matplotlib figure drawn in the buffer,
+  and an output folded to its bar.
+- *rmd* — an R Markdown file with its prose rendered and two R chunks
+  run in place.
+
+* Why the frame is asked for in pixels
+
+=set-frame-size= is a request, and a bare X server with no window
+manager can ignore a size given in characters.  Every animation is
+900 pixels wide because a README is read at that width, and the frame
+is asked for in pixels for the same reason.

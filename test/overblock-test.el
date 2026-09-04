@@ -848,4 +848,21 @@ own idle cycle."
       (set-window-buffer (selected-window) (other-buffer))
       (kill-buffer buffer))))
 
+(ert-deftest overblock-test-a-strange-event-raises-nothing ()
+  "An event that is not a click leaves point where it is, and raises nothing.
+A command reads its event from `last-input-event\', which can hold
+anything at all: a bare cons — measured, `(1 . 0)\' — which
+`event-start\' reads as a list and answers `wrong-type-argument listp 0\'
+for, and a click whose window slot is no window, which
+`select-window\' answers `wrong-type-argument\' for.  Both
+came out of a keyboard macro, in a command that had nothing to do with
+the mouse."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (goto-char (point-min))
+    (dolist (event (list nil ?a 'return "text" '(1 . 0)
+                         (list 'mouse-1 (list '(1 . 0) 3))))
+      (should-not (overblock-goto-event event))
+      (should (= (point) (point-min))))))
+
 ;;; overblock-test.el ends here

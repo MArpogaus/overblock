@@ -331,7 +331,7 @@ the block so `overblock-width-follow\' can drop what no longer fits."
 The label at the left, the buttons at the window's edge, and the rule
 of `overblock-pydoc-header\' over the whole row."
   (overblock-pydoc--row
-   (concat (overblock-glyph "\ueaa4" "≡" "")
+   (concat (overblock-glyph "󰈙" "≡" "")
            (if (string-empty-p overblock-pydoc-label)
                ""
              (concat " " overblock-pydoc-label))

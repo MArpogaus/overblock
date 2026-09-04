@@ -221,6 +221,26 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
      (concat mark " " (string-join (delq nil (list label time)) " · "))
      icons (or (plist-get style :header-face) 'default))))
 
+(defun overblock-run-clear-results ()
+  "Take the results of this buffer down, and sweep what lost its anchor.
+Whatever else is rendered stays — the prose of an Rmd file, the markdown
+cells of a notebook.  A clear that names a kind cannot sweep an orphan,
+because an orphan says nothing about the kind it belonged to, so the
+sweep is asked for by name here: taking the results down with
+`overblock-clear\' alone left the cloak of a lost block keeping lines of
+the buffer invisible, with nothing able to remove it."
+  (overblock-clear nil nil 'result)
+  (overblock-sweep-orphans))
+
+(defun overblock-run-fold (style block)
+  "Fold BLOCK where it is unfolded and unfold it where it is folded.
+Drawn again as STYLE says.  This is the body of the toggle command each
+package binds to its own key and its own fold mark."
+  (let ((data (overblock-get block :data)))
+    (overblock-set block :data
+                   (plist-put data :folded (not (plist-get data :folded))))
+    (overblock-run-update style block)))
+
 (defun overblock-run-update (style block)
   "Make the header and the body of the result BLOCK again, and show them.
 STYLE is the look it is drawn with.

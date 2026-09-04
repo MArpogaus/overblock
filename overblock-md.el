@@ -354,6 +354,38 @@ stays text keeps its rows."
           (concat bare (make-string (- (length frag) (length bare)) ?\s))
         bare))))
 
+(defun overblock-md--one-line (frag)
+  "Return FRAG with the line breaks the fill left in it turned to spaces.
+LaTeX reads a formula the same either way, and the fragment that goes
+to it must be the whole formula: shr fills a paragraph before this
+sees it, and a formula wide enough is broken across two rows."
+  (if (string-search "\n" frag)
+      (replace-regexp-in-string "[ \t]*\n[ \t]*" " " frag)
+    frag))
+
+(defun overblock-md--place-image (frag image)
+  "Return FRAG drawing IMAGE once, whatever line break the fill left in it.
+A display property is drawn once for every screen line the run it
+covers reaches, so an image hung on a fragment the fill had broken came
+out twice — measured on a paragraph whose formula straddled two rows,
+which showed the same preview at the end of one row and the start of
+the next.
+
+The image goes on the part before the first break and the rest of the
+fragment is dropped, the newlines excepted: the rows of the rendering
+stay the rows they were, and the formula is whole on the first of them.
+
+Dropped and not hidden.  A row of a block rides on a display property,
+and a display property inside a display string is never looked at — the
+same rule that keeps an image off one — so a `display' of the empty
+string over the rest left the raw LaTeX standing on the screen."
+  (if (not (string-search "\n" frag))
+      (propertize frag 'display image)
+    (let ((break (string-search "\n" frag)))
+      (concat (propertize (substring frag 0 break) 'display image)
+              ;; The newlines of the rest, and nothing else of it.
+              (make-string (cl-count ?\n frag :start break) ?\n)))))
+
 (defun overblock-md--mathify (text)
   "Replace the LaTeX fragments in TEXT with preview images.
 Only fragments the converter left behind reach this function; a
@@ -380,8 +412,9 @@ off, or every formula of the cell reads \\(x_1\\)."
        (save-match-data
          (if-let* (((display-images-p))
                    ((not (get-text-property 0 'overblock-md--table frag)))
-                   (img (overblock-md--latex-image frag)))
-             (propertize frag 'display img)
+                   (img (overblock-md--latex-image
+                         (overblock-md--one-line frag))))
+             (overblock-md--place-image frag img)
            (overblock-md--bare-math frag))))
      text t t)))
 

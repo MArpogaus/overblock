@@ -278,11 +278,7 @@ commands that call it give their reader."
 (defun overblock-rmd-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (let* ((block (overblock-rmd--result-at event))
-         (data (overblock-get block :data)))
-    (overblock-set block :data
-                   (plist-put data :folded (not (plist-get data :folded))))
-    (overblock-rmd--update block)))
+  (overblock-run-fold overblock-rmd--style (overblock-rmd--result-at event)))
 
 ;;;###autoload
 (defun overblock-rmd-discard-output (&optional event)
@@ -406,7 +402,7 @@ Python to anyone who can read it."
       (move-overlay ov bol eol)
       (overblock-bar-draw
        ov 'chunk
-       (concat (overblock-glyph "" "◆" "R") " "
+       (concat (overblock-glyph "" "◆" "R") " "
                (or (overblock-rmd--chunk-name bol eol) "chunk"))
        (overblock-buttons overblock-rmd-chunk-buttons)
        'overblock-rmd-header))))
@@ -664,16 +660,6 @@ The chunks run in order and the pass stops at the first error, or on
     (unless cells (user-error "No chunk above this one"))
     (overblock-run-cells cells "overblock-rmd: running the chunks above")))
 
-(defun overblock-rmd--clear-results ()
-  "Take the results of the buffer down, and sweep what lost its anchor.
-The renderings of the prose stay.  A clear that names a kind cannot
-sweep an orphan — an orphan says nothing about the kind it belonged to
-— so the sweep is asked for by name here: taking the results down with
-`overblock-clear' alone left the cloak of a lost block keeping lines of
-the buffer invisible, with nothing able to remove it."
-  (overblock-clear nil nil 'result)
-  (overblock-sweep-orphans))
-
 ;;;###autoload
 (defun overblock-rmd-restart ()
   "Restart R, and remove every result of this buffer.
@@ -700,7 +686,7 @@ the same buffer is a case `inferior-ess' is written for."
     ;; here, the dead process leaves its name behind and the new R takes
     ;; the same name and the same buffer.
     (update-ess-process-name-list))
-  (overblock-rmd--clear-results)
+  (overblock-run-clear-results)
   (overblock-rmd--start))
 
 ;;;###autoload
