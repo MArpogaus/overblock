@@ -41,15 +41,22 @@ Everything the pictures were taken with is in this directory:
   sh demo/assemble.sh md
 #+end_src
 
-=OB_GIF= names the scenario: =md=, =pydoc=, =pycell= or =rmd=.  The
-frames and their hold times go to =$TMPDIR/overblock-demo/SCENARIO/=,
-or wherever =OB_GIF_OUT= says, and =assemble.sh= writes =SCENARIO.gif=
-beside them.  Emacs exits when the scenario ends.
+=OB_GIF= names the scenario: =md=, =pydoc=, =pycell=, =rmd=, or
+=family= for the tour of all four that stands at the top of the README.
+The frames and their hold times go to
+=$TMPDIR/overblock-demo/SCENARIO/=, or wherever =OB_GIF_OUT= says, and
+=assemble.sh= writes =SCENARIO.gif= beside them.  Emacs exits when the
+scenario ends.
+
+Each scenario asks for the frame it needs — the doc strings of a class
+run to two dozen rendered rows — so the animations share one width and
+differ in height.  The width is the width they are shown at, and the
+frames are written at it: text scaled by even a little is blurred text.
 
 A scenario photographs the frame after each step and says how long that
 picture is held, in hundredths of a second.  =assemble.sh= scales those
-holds — a recording watched once reads slower than one that loops in a
-README — so =sh demo/assemble.sh md 1.0= keeps them as recorded.
+holds, so =sh demo/assemble.sh md 0.6= makes a quicker animation of the
+same recording.
 
 * What each one shows
 
@@ -63,8 +70,9 @@ README — so =sh demo/assemble.sh md 1.0= keeps them as recorded.
 - *pycell* — a =# %%= notebook: a markdown cell rendered, a cell run
   with its output under it, a matplotlib figure drawn in the buffer,
   and an output folded to its bar.
-- *rmd* — an R Markdown file with its prose rendered and two R chunks
-  run in place.
+- *rmd* — an R Markdown file with its prose rendered, two R chunks run
+  in place, and one result folded to its bar.
+- *family* — all four in one session, every picture the same size.
 
 * Why the frame is asked for in pixels
 

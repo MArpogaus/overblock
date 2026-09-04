@@ -53,6 +53,14 @@
            ,@body)
        (delete-directory dir t))))
 
+(defun overblock-md-test--math (text)
+  "Return TEXT with its LaTeX fragments taken out and put back.
+The renderer takes the fragments out of the HTML before shr lays it
+out and puts them back after; this does both in one step, which is what
+the fragments themselves see."
+  (let ((stowed (overblock-md--stow-math text)))
+    (overblock-md--unstow-math (car stowed) (cdr stowed))))
+
 (ert-deftest overblock-md-test-image-file-reads-a-path ()
   "A local path names a file; another scheme, or nothing readable, does not.
 An Emacs that cannot draw a PNG answers nil for every path, and rightly:
@@ -330,10 +338,10 @@ scrolling, and a terminal cannot even show it — so where
             ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) (error "The terminal asked for an image"))))
     (let ((text "before $x^2$ after"))
-      (should (equal (overblock-md--mathify text) text)))
+      (should (equal (overblock-md-test--math text) text)))
     ;; and the MathJax delimiters still come off, or the terminal reads
     ;; every formula of the cell as \\(x_1\\)
-    (should (equal (overblock-md--mathify "before \\(x^2\\) after")
+    (should (equal (overblock-md-test--math "before \\(x^2\\) after")
                    "before x^2 after"))))
 
 (ert-deftest overblock-md-test-verbatim-math-keeps-lines ()
@@ -520,20 +528,20 @@ never looked at."
             ((symbol-function 'overblock-md--latex-image) #'ignore))
     ;; in a table, where no preview is ever made
     (let* ((cell (propertize "\\(x_1\\)  a source" 'overblock-md--table t))
-           (shown (substring-no-properties (overblock-md--mathify cell))))
+           (shown (substring-no-properties (overblock-md-test--math cell))))
       (should (string-prefix-p "x_1" shown))
       (should-not (string-search "\\(" shown))
       ;; as wide as before, or the columns move
       (should (= (length shown) (length "\\(x_1\\)  a source"))))
     ;; outside a table nothing needs padding
-    (should (equal (overblock-md--mathify "before \\(x^2\\) after")
+    (should (equal (overblock-md-test--math "before \\(x^2\\) after")
                    "before x^2 after"))
     ;; dollars are how a notebook writes a formula: they stay
     (let ((text "before $x^2$ after"))
-      (should (equal (overblock-md--mathify text) text)))
+      (should (equal (overblock-md-test--math text) text)))
     ;; display math over several rows keeps them
     (let ((text "\\[\na = b\n\\]"))
-      (should (equal (overblock-md--mathify text) text)))))
+      (should (equal (overblock-md-test--math text) text)))))
 
 (ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
   "With `overblock-md-remote-images' off, nothing reaches the network.

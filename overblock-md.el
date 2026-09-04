@@ -123,7 +123,8 @@ installed.
 
 Leave the math alone when choosing arguments.  Pandoc, for one, turns
 simple formulas into text on its own and passes the rest through, and
-`overblock-md--mathify' then makes preview images of what is left."
+`overblock-md--stow-math' then takes what is left to org, which makes
+the preview images."
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command")))
   :group 'overblock-md)
@@ -354,14 +355,100 @@ stays text keeps its rows."
           (concat bare (make-string (- (length frag) (length bare)) ?\s))
         bare))))
 
+(defconst overblock-md--math-mark ?\N{OBJECT REPLACEMENT CHARACTER}
+  "The character that stands in the HTML where a LaTeX fragment was.
+shr fills a paragraph and a formula is prose to it, so a fragment left
+in came back broken — measured, `\\(d = \\sqrt{w^2 + h^2}\\)\' with the
+line ending between the backslash and the parenthesis, which is a
+fragment nothing recognizes afterwards.
+
+A fragment is replaced by as many of these as its text is wide, so the
+fill still knows how much room it wants and wraps before it where it
+does not fit.  What the fill may still do is break the run itself, and
+`overblock-md--unstow-math\' reads a broken run as the one fragment it
+is.")
+
+(defun overblock-md--stow-math (page)
+  "Return PAGE with its LaTeX fragments taken out, and the fragments.
+The answer is (PAGE . FRAGMENTS), the fragments in the order the marks
+that stand for them appear in PAGE; `overblock-md--unstow-math' puts
+them back once shr has laid the text out.  Each is replaced by as many
+marks as its text is wide, so the fill knows how much room to leave."
+  (if (not (string-match-p "[$\\]" page))
+      (cons page nil)
+    (let (stowed)
+      (cons (replace-regexp-in-string
+             overblock-md--math-regexp
+             (lambda (frag)
+               (push frag stowed)
+               (make-string (max 1 (string-width frag))
+                            overblock-md--math-mark))
+             page t t)
+            (nreverse stowed)))))
+
+(defconst overblock-md--math-run
+  (let ((mark (regexp-quote (string overblock-md--math-mark))))
+    (concat mark "\\(?:[" (string overblock-md--math-mark) "\n]*" mark "\\)?"))
+  "What one stowed fragment looks like after the text has been laid out.
+A run of marks, which the fill may have broken over two rows: it is
+still the one fragment it was.")
+
+(defun overblock-md--unstow-math (text stowed)
+  "Return TEXT with each run of marks replaced by what STOWED holds.
+A fragment comes back as its preview image where one can be made and
+drawn, and as its own text where it cannot — with the MathJax
+delimiters off, since those say nothing to a reader.
+
+A run inside a table comes back as text of exactly the width the marks
+took: a table is laid out in columns of characters, and a preview image
+is never as wide as the text it replaces, so a formula in a cell would
+pull the columns of its row out of line."
+  (let ((rest stowed))
+    (replace-regexp-in-string
+     overblock-md--math-run
+     (lambda (marks)
+       (save-match-data
+         (let ((frag (or (pop rest) "")))
+           (if-let* (((display-images-p))
+                     ((not (get-text-property 0 'overblock-md--table marks)))
+                     (image (overblock-md--latex-image
+                             (overblock-md--one-line frag))))
+               ;; The fragment's own text under the image where the
+               ;; run is whole — what a reader copies out of a
+               ;; rendering is then the formula, not a row of marks.
+               (overblock-md--place-image
+                (if (string-search "\n" marks) marks frag) image)
+             (overblock-md--fit
+              (overblock-md--bare-math frag) marks
+              ;; Padded inside a table and nowhere else: a table is laid
+              ;; out in columns of characters, and text shorter than the
+              ;; marks it replaces would pull the row out of line.  In
+              ;; prose the shorter text simply takes less room.
+              (get-text-property 0 'overblock-md--table marks))))))
+     text t t)))
+
+(defun overblock-md--fit (text marks &optional pad)
+  "Return TEXT laid out where MARKS stood, in the same number of rows.
+With PAD the text takes exactly the columns the marks took, which is
+what a table needs: it is laid out in columns of characters, and a
+shorter cell pulls the columns of its row out of line."
+  (let ((rows (1- (length (split-string marks "\n")))))
+    (concat (if pad
+                (truncate-string-to-width
+                 text (string-width marks) 0 ?\s)
+              text)
+            (make-string rows ?\n))))
+
 (defun overblock-md--one-line (frag)
   "Return FRAG with the line breaks the fill left in it turned to spaces.
 LaTeX reads a formula the same either way, and the fragment that goes
 to it must be the whole formula: shr fills a paragraph before this
 sees it, and a formula wide enough is broken across two rows."
-  (if (string-search "\n" frag)
-      (replace-regexp-in-string "[ \t]*\n[ \t]*" " " frag)
-    frag))
+  (subst-char-in-string
+   ?\N{NO-BREAK SPACE} ?\s
+   (if (string-search "\n" frag)
+       (replace-regexp-in-string "[ \t]*\n[ \t]*" " " frag)
+     frag)))
 
 (defun overblock-md--place-image (frag image)
   "Return FRAG drawing IMAGE once, whatever line break the fill left in it.
@@ -385,38 +472,6 @@ string over the rest left the raw LaTeX standing on the screen."
       (concat (propertize (substring frag 0 break) 'display image)
               ;; The newlines of the rest, and nothing else of it.
               (make-string (cl-count ?\n frag :start break) ?\n)))))
-
-(defun overblock-md--mathify (text)
-  "Replace the LaTeX fragments in TEXT with preview images.
-Only fragments the converter left behind reach this function; a
-fragment that fails to render here stays plain, and so does one
-inside a table \(see `overblock-md--tag-table').
-
-Only where the display can draw an image: a preview made in a
-terminal cannot be seen.  A terminal still has the delimiters taken
-off, or every formula of the cell reads \\(x_1\\)."
-  ;; `replace-regexp-in-string' copies its argument twice whether it
-  ;; matches or not, so a search stands in front of it.  Measured over a
-  ;; rendered cell of two hundred lines with no formula in it: 0.016
-  ;; milliseconds guarded against 0.871 unguarded, which is the guard
-  ;; earning fifty times its keep.  (Two earlier comments here had this
-  ;; wrong in both directions; the numbers come from an interleaved run
-  ;; on a real rendering.)
-  (if (not (string-match-p "[$\\]" text))
-      text
-    (replace-regexp-in-string
-     overblock-md--math-regexp
-     (lambda (frag)
-       ;; `replace-regexp-in-string' uses the match data after the
-       ;; replacement function returns; rendering must not touch it.
-       (save-match-data
-         (if-let* (((display-images-p))
-                   ((not (get-text-property 0 'overblock-md--table frag)))
-                   (img (overblock-md--latex-image
-                         (overblock-md--one-line frag))))
-             (overblock-md--place-image frag img)
-           (overblock-md--bare-math frag))))
-     text t t)))
 
 (defun overblock-md-program ()
   "Return the markdown converter as a list of program and arguments.
@@ -587,7 +642,8 @@ matched across its lines and replaced whole."
 
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
-`overblock-md--mathify' leaves marked text alone.  A table is padded to
+`overblock-md--unstow-math' leaves marked text as text.  A table is
+padded to
 the width of its text, and a preview image is never as wide as the
 text it replaces, so a formula in a cell would pull the columns of its
 row out of line."
@@ -851,37 +907,41 @@ without a converter has to see."
   ;; is what an empty cell has to be.
   (when-let* ((page (or html (overblock-md--html
                               (overblock-md--verbatim-math md)))))
-    (let ((dom (with-temp-buffer
-                 (insert page)
-                 (libxml-parse-html-region (point-min) (point-max))))
-          (shr-use-fonts nil)
-          ;; In columns, because `shr-use-fonts' is off above.
-          (shr-width overblock-md-width)
-          ;; shr marks a list item with an asterisk, which is what the
-          ;; markdown under the rendering already says: a rendered list
-          ;; read exactly like its source.
-          (shr-bullet "• ")
-          ;; Emacs 31 slices an image taller than this into a row for
-          ;; each line of the window it is drawn in.  There is no window
-          ;; here — the rendering happens in a temporary buffer and is
-          ;; laid out over source lines afterwards — and a slice is
-          ;; measured against one, so the images come whole and
-          ;; `overblock-image-limit' caps them as it always did.
-          (shr-sliced-image-height nil)
-          ;; shr has no function for a =th=, so a header cell reads
-          ;; like any other row, and it draws code in a fixed pitch
-          ;; face, which says nothing in a buffer that is fixed pitch
-          ;; throughout: code came out as prose.
-          (shr-external-rendering-functions
-           `((th . ,(lambda (dom) (shr-fontize-dom dom 'bold)))
-             (code . ,(lambda (dom)
-                        (shr-fontize-dom dom 'overblock-md-code)))
-             (dd . overblock-md--tag-dd)
-             (ul . overblock-md--tag-list)
-             (ol . overblock-md--tag-list)
-             (img . overblock-md--tag-img)
-             (table . overblock-md--tag-table)
-             ,@shr-external-rendering-functions)))
+    (let* ((stowed (overblock-md--stow-math page))
+           (dom (with-temp-buffer
+                  ;; The math is taken out first: shr fills at the
+                  ;; spaces it finds, and a formula it breaks is a
+                  ;; formula nothing recognizes afterwards.
+                  (insert (car stowed))
+                  (libxml-parse-html-region (point-min) (point-max))))
+           (shr-use-fonts nil)
+           ;; In columns, because `shr-use-fonts' is off above.
+           (shr-width overblock-md-width)
+           ;; shr marks a list item with an asterisk, which is what the
+           ;; markdown under the rendering already says: a rendered list
+           ;; read exactly like its source.
+           (shr-bullet "• ")
+           ;; Emacs 31 slices an image taller than this into a row for
+           ;; each line of the window it is drawn in.  There is no window
+           ;; here — the rendering happens in a temporary buffer and is
+           ;; laid out over source lines afterwards — and a slice is
+           ;; measured against one, so the images come whole and
+           ;; `overblock-image-limit' caps them as it always did.
+           (shr-sliced-image-height nil)
+           ;; shr has no function for a =th=, so a header cell reads
+           ;; like any other row, and it draws code in a fixed pitch
+           ;; face, which says nothing in a buffer that is fixed pitch
+           ;; throughout: code came out as prose.
+           (shr-external-rendering-functions
+            `((th . ,(lambda (dom) (shr-fontize-dom dom 'bold)))
+              (code . ,(lambda (dom)
+                         (shr-fontize-dom dom 'overblock-md-code)))
+              (dd . overblock-md--tag-dd)
+              (ul . overblock-md--tag-list)
+              (ol . overblock-md--tag-list)
+              (img . overblock-md--tag-img)
+              (table . overblock-md--tag-table)
+              ,@shr-external-rendering-functions)))
       (with-temp-buffer
         (shr-insert-document dom)
         (overblock--flatten-alignment)
@@ -894,8 +954,9 @@ without a converter has to see."
         ;; height, which is the block the wheel cannot get past.
         (overblock-image-cap
          (overblock-md--squared
-          (overblock-md--mathify
-           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))))
+          (overblock-md--unstow-math
+           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")
+           (cdr stowed))))))))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here

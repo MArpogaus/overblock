@@ -93,6 +93,17 @@ missing, so a system without one shows words instead of icons."
   (unless (ignore-errors (require feature nil t))
     (message "demo: %s needs a package that is not installed" feature)))
 
+;; A notebook's figures ride on comint-mime, which sends its own setup
+;; into the interpreter when the shell starts; without it `plt.show()'
+;; opens a window of its own and the cell waits for it to be closed.
+;; IPython, because that is what comint-mime speaks.
+(with-eval-after-load 'python
+  (when-let* ((ipython (executable-find "ipython")))
+    (setq python-shell-interpreter ipython
+          python-shell-interpreter-args "-i --simple-prompt --no-color-info")))
+(when (require 'comint-mime nil t)
+  (add-hook 'inferior-python-mode-hook #'comint-mime-setup))
+
 ;; Nothing above turns anything on, which is how the packages ship.  The
 ;; animations turn each mode on where they show it; these hooks are the
 ;; ordinary way to do it in a configuration of your own.

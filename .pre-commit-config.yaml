@@ -39,9 +39,16 @@ repos:
   rev: v0.2.0
   hooks:
   - id: elisp-complexity
+    exclude: ^(demo/|\.dir-locals\.el$)
+  # The indent hook loads the file it formats, and `demo/init.el' is a
+  # configuration: loading it turns modes on and says what it cannot
+  # find.  The demonstration files are not part of any package.
   - id: elisp-indent
+    exclude: ^(demo/|\.dir-locals\.el$)
   - id: elisp-checkdoc
+    exclude: ^(demo/|\.dir-locals\.el$)
   - id: elisp-check-declare
+    exclude: ^(demo/|\.dir-locals\.el$)
 - repo: local
   hooks:
   - id: relint
