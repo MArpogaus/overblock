@@ -195,9 +195,8 @@ right, in the order of =pycell-result-buttons=.  A rendered markdown
 cell carries the edit button, the one that shows its source, and the
 same move pair at its end.
 
-=TAB= at the end of a cell also folds the result.  The header shows
-=⚠= if the interpreter dies while the cell runs, and the result ends
-with a note.
+The header shows =⚠= if the interpreter dies while the cell runs, and
+the result ends with a note.
 
 A table, a DataFrame among them, gets its columns laid out again for
 the block: literal columns that stand where they are whatever face the
@@ -206,10 +205,10 @@ buffer, where every binding of vtable works: =S= or a click on a
 column name sorts, ={= and =}= narrow and widen a column, and =M-left=
 and =M-right= move one.
 
-In such a buffer =i= interrupts the cell, as =pycell-interrupt= does in
-the notebook, so a run being watched can be stopped where you are
-watching it.  =C-c C-c= is bound as well, and reaches nothing where
-your configuration owns the =C-c= prefix.
+=pycell-interrupt= and =pycell-stop= work in such a buffer as they do
+in the notebook — the buffer remembers the shell it came from — so a
+run being watched can be stopped where you are watching it.  Bind them
+in =pycell-pop-map=; the buffer is read-only, so a plain key is free.
 
 =pycell-pop-output= on a cell that is still running keeps writing there
 as the cell prints.  The block shows =pycell-max-lines= of the output;
@@ -276,16 +275,18 @@ a link around it included, follow the URL.  A click is answered by the
 rendering itself, which carries shr's own keymap.
 
 Point cannot be put on a link — the rendering is shown over the source
-lines, and point stays in the source — so =C-c C-o= asks the cell for
-its links instead.  With one link it follows it; with several it asks
-which.
+lines, and point stays in the source — so =pycell-md-follow-link= asks
+the cell for its links instead.  With one link it follows it; with
+several it asks which.
 
-=RET= or =mouse-2= opens the cell in a buffer of its own, as
-=org-edit-special= does for a source block.  =C-c C-c= puts the text
-back and renders it again.  =C-c C-k= discards the edit.  Each cell
-has an edit buffer of its own, so you can open several cells at the
-same time.  =mouse-1= shows the plain source of one cell, and follows a
-link where it lands on one.
+=mouse-2= opens the cell in a buffer of its own, as =org-edit-special=
+does for a source block; =pycell-md-edit= is the same from the
+keyboard, once you bind it in =pycell-md-map=.  =pycell-md-commit=
+puts the text back and renders it again, and =pycell-md-abort=
+discards the edit; both belong in =pycell-md-edit-mode-map=.  Each
+cell has an edit buffer of its own, so you can open several cells at
+the same time.  =mouse-1= shows the plain source of one cell, and
+follows a link where it lands on one.
 
 ** Commands
 
@@ -315,10 +316,36 @@ link where it lands on one.
 | =pycell-run-above=           | run every cell above the one at point      |
 | =pycell-stop=                | stop the run of the cells after this one   |
 
-pycell binds none of these commands, apart from the two of the markdown
-edit buffer, which are =C-c C-c= and =C-c C-k= there.  It binds the
-mouse actions and =TAB= on the blocks only.  Bind the commands that you use, for
-example in =code-cells-mode-map=.
+pycell binds no keys.  It binds the mouse on its buttons and blocks
+only.  The maps are there, empty, so every place has one to bind into:
+
+| Map                       | Where it answers                     |
+|---------------------------+--------------------------------------|
+| =pycell-mode-map=         | the notebook, while the mode is on   |
+| =pycell-pop-map=          | a result popped out into its own buffer |
+| =pycell-result-map=       | inside a cell that shows a result    |
+| =pycell-md-map=           | a rendered markdown cell             |
+| =pycell-md-edit-mode-map= | the markdown edit buffer             |
+
+Bind the commands that you use.  The two to start with are the
+interrupt and the stop, in the notebook and in the pop-out:
+
+#+begin_src emacs-lisp
+  (keymap-set pycell-mode-map "C-c C-k" #'pycell-interrupt)
+  (keymap-set pycell-mode-map "C-c C-q" #'pycell-stop)
+  (keymap-set pycell-pop-map "i" #'pycell-interrupt)
+#+end_src
+
+Both commands resolve the shell of the buffer they are pressed in — a
+pop-out remembers the one it came from — so they act on the run you
+are looking at.  =pycell-tab-filter= guards a key that the rest of the
+cell needs, such as =TAB= for folding:
+
+#+begin_src emacs-lisp
+  (keymap-set pycell-result-map "TAB"
+              '(menu-item "" pycell-toggle-output
+                          :filter pycell-tab-filter))
+#+end_src
 
 ** Customization
 

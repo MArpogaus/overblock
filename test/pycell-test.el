@@ -1285,12 +1285,12 @@ checkout, or any file the reader cannot write."
     (should (overblock-in (point-min) (point-max) 'markdown))))
 
 (ert-deftest pycell-test-a-key-in-a-rendered-cell-reaches-the-cell ()
-  "RET in a rendered markdown cell opens it, and does not insert a newline.
+  "A key bound in `pycell-md-map' answers on a rendered markdown cell.
 Point never enters a display string, so the keymap that answers a key
 is the one on the overlays.  With the rendering left to answer for
-itself, RET ran `newline': it split the source line under the
-rendering and took the rendering with it.  No test bound a key, which
-is how that got through."
+itself, a key ran the buffer's own command: RET split the source line
+under the rendering and took the rendering with it.  The map ships
+empty of keys — the reader's own binding is what has to arrive."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# A [link](https://ctan.org/) in prose.\n\n"
@@ -1299,10 +1299,15 @@ is how that got through."
     (code-cells-mode)
     (pycell-md-render-all)
     (should (overblock-in (point-min) (point-max) 'markdown))
-    ;; point on the rendered cell, where a reader would press RET
+    ;; point on the rendered cell, where a reader would press the key
     (goto-char (point-min))
     (forward-line 1)
-    (should (eq (key-binding (kbd "RET")) #'pycell-md-edit))
+    ;; no key of the package's own
+    (should-not (keymap-lookup pycell-md-map "RET"))
+    (unwind-protect
+        (progn (keymap-set pycell-md-map "RET" #'pycell-md-edit)
+               (should (eq (key-binding (kbd "RET")) #'pycell-md-edit)))
+      (keymap-unset pycell-md-map "RET" t))
     (should (eq (key-binding [mouse-1]) #'pycell-md-raw))
     (should (get-char-property (point) 'help-echo))))
 
@@ -1490,10 +1495,8 @@ buffer that is meant to hold more than the block."
   "A popped-out result interrupts the shell it came from.
 It is not a Python buffer, so `python-shell-get-process' would answer
 with whatever the settings point at — the wrong shell where the
-notebook has one of its own.  `i' is the key: the buffer is read-only,
-so a plain one is free and answers wherever the reader has bound the
-`C-c' prefix."
-  (should (eq (keymap-lookup pycell-pop-map "i") #'pycell-interrupt))
+notebook has one of its own.  The buffer remembers its shell instead,
+so `pycell-interrupt' works there wherever the reader binds it."
   (let* ((shell (generate-new-buffer " *pycell-test-shell*"))
          (notebook (generate-new-buffer " *pycell-test-nb*"))
          ;; A marker whose buffer is gone, made before anything is
