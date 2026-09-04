@@ -70,11 +70,49 @@ a rendering they mean to edit."
 
 ;;;; Which regions
 
+(defun overblock-md-preview--fences (end)
+  "Return the bounds of every fenced code block up to END.
+A fence opens a block and the next one closes it, whatever blank lines
+stand between them, so the code inside is never cut in two.  A fence
+that is never closed runs to the end of the buffer, which is what a
+reader sees while they are still typing it."
+  (save-excursion
+    (goto-char (point-min))
+    (let (regions open)
+      (while (re-search-forward "^[[:blank:]]*\\(```\\|~~~\\)" end t)
+        (if open
+            (progn (push (cons open (pos-eol)) regions)
+                   (setq open nil))
+          (setq open (pos-bol))))
+      (when open (push (cons open (point-max)) regions))
+      (nreverse regions))))
+
+(defun overblock-md-preview--paragraphs (end fences)
+  "Return the bounds of every paragraph up to END, FENCES aside.
+A paragraph is the run of lines between two blank ones.  The lines a
+fence holds are not read here: `overblock-md-preview--fences' has them
+already, and a blank line inside one ends no paragraph."
+  (save-excursion
+    (goto-char (point-min))
+    (let (regions from last)
+      (while (< (point) end)
+        (cond
+         ((seq-find (lambda (fence) (<= (car fence) (point) (cdr fence)))
+                    fences))
+         ((looking-at-p "[[:blank:]]*$")
+          (when from (push (cons from last) regions))
+          (setq from nil))
+         (t (setq last (pos-eol))
+            (unless from (setq from (pos-bol)))))
+        (forward-line 1))
+      (when from (push (cons from last) regions))
+      (nreverse regions))))
+
 (defun overblock-md-preview--regions (beg end)
-  "Return every block of markdown between BEG and END.
+  "Return every block of markdown between BEG and END, in order.
 Each is a cons of where the block starts and where it ends.  A block is
-what markdown calls one: the run of lines between two blank ones, and a
-fenced piece of code with whatever blank lines it holds.
+what markdown calls one: a fenced piece of code whole, and otherwise
+the run of lines between two blank ones.
 
 The block and not the line, because a line of markdown is often not
 markdown at all.  Measured against pandoc: the three lines of a table
@@ -84,46 +122,15 @@ lines of a list each render as a list of one.  The whole block reaches
 the converter and the rendering is dealt back over its lines by
 `overblock-show', which hangs a piece on each of them.
 
-Walked from the top of the buffer whatever BEG says, because that is the
+Read from the top of the buffer whatever BEG says, because that is the
 only way to know whether BEG stands inside a fence."
-  (save-excursion
-    (goto-char (point-min))
-    (let ((fenced nil)
-          (from nil)
-          ;; Where the last line of text ended: a block that runs to
-          ;; the end of the buffer ends there and not at `point-max',
-          ;; which is past the newline of that line.
-          (last nil)
-          regions)
-      (while (not (eobp))
-        (let ((fence (looking-at-p "[[:blank:]]*\\(```\\|~~~\\)"))
-              (blank (looking-at-p "[[:blank:]]*$")))
-          (cond
-           ;; A fence opens a block of its own and closes it, so the
-           ;; code between two of them is never cut at a blank line.
-           (fence
-            (setq last (pos-eol))
-            (if fenced
-                (progn (setq fenced nil)
-                       (when from
-                         (push (cons from (pos-eol)) regions)
-                         (setq from nil)))
-              (unless from (setq from (pos-bol)))
-              (setq fenced t)))
-           ((and blank (not fenced))
-            (when from
-              (push (cons from last) regions)
-              (setq from nil)))
-           (t (setq last (pos-eol))
-              (unless from (setq from (pos-bol))))))
-        (forward-line 1))
-      (when from (push (cons from last) regions))
-      ;; Only what the caller asked for, and nothing of no length.
-      (seq-filter (lambda (region)
-                    (and (< (car region) (cdr region))
-                         (>= (car region) beg)
-                         (<= (car region) end)))
-                  (nreverse regions)))))
+  (let ((fences (overblock-md-preview--fences end)))
+    (seq-filter (lambda (region)
+                  (and (< (car region) (cdr region))
+                       (<= beg (car region) end)))
+                (sort (append fences
+                              (overblock-md-preview--paragraphs end fences))
+                      :key #'car))))
 
 ;;;; What to render them with
 
