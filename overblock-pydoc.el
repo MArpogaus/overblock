@@ -116,18 +116,18 @@ The underline closes what `overblock-pydoc-header' opened; see there for
 why neither rule is measured.")
 
 (defcustom overblock-pydoc-buttons
-  '((edit ("\U000f0cb6" "✎" "edit") "Edit this doc string in its own buffer"
-          overblock-pydoc-edit t)
-    (unrender ("\U000f054d" "⟲" "raw") "Show the plain source"
-              overblock-live-edit t))
+  '((edit ("\uea73" "✎" "edit") "Edit this doc string in its own buffer"
+          overblock-pydoc-edit t))
   "The buttons on the bar of a rendered doc string, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN), the shape
 `overblock-buttons' reads: a key that names the button for you, the
 glyph candidates for its label, the tooltip, the command a click runs,
 and when it shows — t always.
 
-The pair: one opens the text in a buffer of its own, the other gives
-the source back where it stands."
+One button, and a codicon like every other glyph of the layer: a
+click on the rendering already gives the source back where it stands,
+which is what its tooltip says, so a button for it said the same thing
+twice."
   :type overblock-button-type
   ;; `custom-initialize-reset', which a `defcustom' takes by default,
   ;; calls the `:set' function as the option is defined, and the
@@ -329,7 +329,7 @@ what rebuilds it when that changes."
 The label at the left, the buttons at the window's edge, and the rule
 of `overblock-pydoc-header\' over the whole row."
   (overblock-pydoc--row
-   (concat (overblock-glyph "\U000f09ee" "◆" "")
+   (concat (overblock-glyph "\ueaa4" "≡" "")
            (if (string-empty-p overblock-pydoc-label)
                ""
              (concat " " overblock-pydoc-label))

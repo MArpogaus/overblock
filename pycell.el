@@ -99,16 +99,16 @@ was already open appeared to do nothing at all."
           (pycell--update block))))))
 
 (defcustom pycell-result-buttons
-  '((stop ("󰓛" "□" "stop") "Stop the run after this cell"
+  '((stop ("" "□" "stop") "Stop the run after this cell"
           pycell-stop running)
-    (save-image ("󰮏" "↧" "save") "Save the result's image to a file"
+    (save-image ("" "↧" "save") "Save the result's image to a file"
                 pycell-save-image image)
-    (copy ("󰄷" "◫" "copy") "Copy this result" pycell-copy-output lines)
-    (pop ("󱦴" "↗" "pop") "Show this result in its own buffer"
+    (copy ("" "◫" "copy") "Copy this result" pycell-copy-output lines)
+    (pop ("" "↗" "pop") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("󰅖" "✕" "drop") "Discard this result" pycell-discard-output t)
-    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "down") "Move this cell down" pycell-move-cell-down t))
+    (discard ("" "✕" "drop") "Discard this result" pycell-discard-output t)
+    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down" pycell-move-cell-down t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -125,6 +125,15 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
   to the last candidate for that button and to a symbol for every
   other.
 
+  Every nerd glyph here is a codicon, the set whose names begin
+  nf-cod- and which VS Code draws its own buttons with.  One family,
+  because it is the one whose shapes share a single hairline weight
+  and a single visual size: sets mixed, the notebook drew a heavy
+  filled arrow beside a thin outlined page.  A glyph the reader's own
+  nerd font is too old to carry is skipped by `overblock-glyph', so
+  the row falls to the symbol rather than drawing a box of hex
+  digits.
+
   A terminal takes the last candidate as well, unless
   `overblock-terminal-glyphs' says its font carries the icons.
 - HELP is the tooltip.
@@ -140,23 +149,26 @@ this list: they say what the result is doing."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-markdown-buttons
-  '((edit ("󰲶" "✎" "edit") "Edit this markdown cell in its own buffer"
+  '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("󰕍" "⟲" "raw") "Show the plain source" pycell-md-raw t)
-    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "down") "Move this cell down"
+    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
-no output, so `lines' and `image' say nothing here."
+no output, so `lines' and `image' say nothing here.
+
+No button for the source: a click on the rendering shows it, which is
+what the cell's own tooltip says, and a second way of saying it is one
+more icon to read."
   :type overblock-button-type
   :set #'pycell--set-buttons)
 
 (defcustom pycell-source-buttons
-  '((render ("󰑐" "⟳" "render") "Render this markdown cell"
+  '((render ("" "⟳" "render") "Render this markdown cell"
             pycell-md-render-cell t)
-    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "down") "Move this cell down"
+    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
 The entries read as in `pycell-result-buttons'.  Such a cell is one
@@ -171,11 +183,11 @@ frame with a font but no nerd glyphs draws the second one."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-cell-buttons
-  '((run-above ("󱏦" "⇈" "above") "Run every cell above this one"
+  '((run-above ("" "⇈" "above") "Run every cell above this one"
                pycell-run-above t)
-    (run ("󰼛" "▷" "run") "Run this cell" pycell-run-cell t)
-    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "down") "Move this cell down"
+    (run ("" "▷" "run") "Run this cell" pycell-run-cell t)
+    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the bar of a code cell, left to right.
 The entries read as in `pycell-result-buttons'.  A cell bar is drawn
@@ -443,17 +455,17 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                       (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
                         (string ?\s (aref frames (mod (truncate runtime 0.2)
                                                       (length frames))))))
-                     ((eq state 'died) (overblock-glyph " 󰀪" " ⚠" " !"))
+                     ((eq state 'died) (overblock-glyph " " " ⚠" " !"))
                      ;; A single line can still be tall: one image is
                      ;; one line, and that is the block worth folding.
                      ((> total 0)
                       (overblock-button (if folded
-                                            (overblock-glyph " 󰍟" " ▸" " >")
-                                          (overblock-glyph " 󰍝" " ▾" " v"))
+                                            (overblock-glyph " " " ▸" " >")
+                                          (overblock-glyph " " " ▾" " v"))
                                         "Fold or unfold this result"
                                         #'pycell-toggle-output))
                      ;; nothing printed: every other case is above
-                     (t (overblock-glyph " 󰄬" " ✓" " ."))))
+                     (t (overblock-glyph " " " ✓" " ."))))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
                                (if (< shown total)
@@ -1084,7 +1096,7 @@ the width, and the label of the bar does."
       (goto-char (overlay-start hov))
       (move-overlay hov (pos-bol) (pos-eol)))
     (overblock-bar-draw hov 'markdown
-                        (concat (overblock-glyph "󰽛" "◇" "M") " "
+                        (concat (overblock-glyph "" "◇" "M") " "
                                 (or (pycell--cell-title (overlay-start hov)
                                                         (overlay-end hov))
                                     "markdown"))
@@ -1345,13 +1357,13 @@ all, and the line read as one the package had lost track of."
   ;; captured in a terminal, two bars saying `M markdown' that differed
   ;; only in their buttons.
   (pycell--bar-line bol eol 'source
-                    (overblock-glyph "󰽛" "◇" "M") "source"
+                    (overblock-glyph "" "◇" "M") "source"
                     pycell-source-buttons))
 
 (defun pycell--code-bar (bol eol)
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
   (pycell--bar-line bol eol 'code
-                    (overblock-glyph "󰌠" "◆" "%") "python"
+                    (overblock-glyph "" "◆" "%") "python"
                     pycell-cell-buttons))
 
 (defun pycell--drop-bar (bar)
