@@ -226,6 +226,29 @@ many as it needs, so the two rarely match either way."
         (should (equal (funcall shown parts) text))
         (should (seq-some (lambda (p) (overlay-get p 'overblock-cloak)) parts))))))
 
+(ert-deftest overblock-test-the-first-row-shows-the-first-line ()
+  "The first line of a rendering stands on the first row of the region.
+It is the only row that begins where the block does — every row after
+it begins at a line start — and a rendering whose first line is
+written for that column has nowhere else to go.  Dealt out with the
+remainder rounded down, a rendering of fewer lines than the region has
+rows left the first row empty and under a cloak: the bar of a rendered
+doc string then hung at column 0, as many columns left of its own
+prose as the doc string was indented.  Measured, and reported."
+  (with-temp-buffer
+    (insert "    aaa
+    bbb
+    ccc
+    ddd
+    eee
+")
+    (let* ((beg (+ (point-min) 4))
+           (parts (overblock-test--pieces beg (point-max) "one\ntwo"))
+           (first (car parts)))
+      (should-not (overlay-get first 'overblock-cloak))
+      (should (= (overlay-start first) beg))
+      (should (equal (overlay-get first 'display) "one")))))
+
 (ert-deftest overblock-test-fill-props-leaves-what-is-there ()
   "Properties are filled in only where the string carries none.
 The rendered markdown keeps the keymap that shr gave its links."
