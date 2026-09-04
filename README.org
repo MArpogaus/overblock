@@ -484,7 +484,7 @@ Two of those are worth a word:
   CI sets it.
 
 The complexity check is a pre-commit hook rather than a target here:
-[[https://github.com/MArpogaus/elisp-complexity][elisp-complexity]] scores every function by how much of it a reader
+[[https://github.com/MArpogaus/emacs-pre-commit-hooks][elisp-complexity]] scores every function by how much of it a reader
 must hold at once, by the rules of the SonarSource paper read as Lisp,
 and stops a commit at fifteen.  Comments and doc strings count for
 nothing there, so a long explanation is free and a dense line is not.
@@ -494,7 +494,7 @@ checks, and the indent, checkdoc, complexity and relint hooks before a
 commit, the commit message through commitizen, and package-lint,
 check-declare, melpazoid, the compilation and the tests before a push.
 Indent and checkdoc come
-from [[https://github.com/MArpogaus/elisp-complexity][elisp-complexity]] as well: indent gives Lisp the indentation
+from [[https://github.com/MArpogaus/emacs-pre-commit-hooks][emacs-pre-commit-hooks]] as well: indent gives Lisp the indentation
 =indent-region= gives it, no form rewritten and no line reflowed, and
 loads each file first, so a macro of this package indents its body the
 way its =declare= says; checkdoc reads the documentation strings and
