@@ -91,6 +91,15 @@ point of it: a test has to wait where a reader does not."
                                "\n")))
           (overblock-pydoc--strings (point-min) (point-max))))
 
+(ert-deftest overblock-pydoc-test-the-converter-paints-no-code ()
+  "Every pandoc named here is told to leave a code block alone.
+For the reason `overblock-md-command' gives: shr reads no CSS class,
+so painting one costs the reader the syntax definitions pandoc loads
+and gives them nothing."
+  (dolist (command (ensure-list overblock-pydoc-command))
+    (when (string-prefix-p "pandoc" command)
+      (should (string-search "--no-highlight" command)))))
+
 (ert-deftest overblock-pydoc-test-a-doc-string-opens-its-line ()
   "Every doc string is found, and a string that is data is not one.
 The module, the function, the class behind its comment and the method

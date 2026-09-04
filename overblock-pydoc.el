@@ -61,7 +61,8 @@ See `overblock-md-preview-idle', which this follows."
   :type 'number)
 
 (defcustom overblock-pydoc-command
-  '("pandoc --mathjax -f rst" "pandoc --mathjax -f markdown")
+  '("pandoc --mathjax --no-highlight -f rst"
+    "pandoc --mathjax --no-highlight -f markdown")
   "How to turn a doc string into HTML.
 Read as `overblock-md-command' is read — one shell command, or a list
 of candidates of which the first one installed is used — and it stands
@@ -69,7 +70,11 @@ in its place while a doc string is rendered.
 
 reStructuredText first, because that is what Python's own tools read,
 and numpydoc and Sphinx with them.  A project that writes Markdown in
-its doc strings puts a Markdown command first, or names one alone."
+its doc strings puts a Markdown command first, or names one alone.
+
+No highlighting, for the reason `overblock-md-command' gives: shr
+reads no CSS class, so what pandoc spends on painting a code block is
+spent for nothing."
   :type '(choice string (repeat string)))
 
 (defcustom overblock-pydoc-renderer 'converter
