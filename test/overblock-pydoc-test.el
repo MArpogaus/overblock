@@ -138,6 +138,46 @@ column from the left."
               (should-not (string-match-p "----" shown)))))
       (overblock-pydoc-mode -1))))
 
+(ert-deftest overblock-pydoc-test-the-fontify-renderer-needs-no-process ()
+  "Font lock renders the doc strings where the reader asks for it.
+Nothing is waited for because nothing is started: the renderings are
+there when the pass returns.  The lines stay as the writer wrote them,
+so the rendering is exactly as tall as its source."
+  (overblock-pydoc-test--with
+    (let ((overblock-pydoc-renderer 'fontify)
+          (overblock-pydoc-fontify-mode #'rst-mode))
+      ;; out of the way first: the doc string point is in is the one
+      ;; left alone, and the macro leaves point at the top of the file
+      (goto-char (point-max))
+      (overblock-pydoc-mode 1)
+      (unwind-protect
+          (let ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
+            ;; every doc string, and no waiting
+            (should (= (length blocks) 4))
+            (let* ((block (nth 1 blocks))
+                   (shown (substring-no-properties
+                           (overblock-get block :over)))
+                   (source (overblock-pydoc--source (overlay-start block)
+                                                    (overlay-end block))))
+              ;; the title of a numpydoc section survives, its row of
+              ;; dashes does not
+              (should (string-match-p "Parameters" shown))
+              (should-not (string-match-p "----" shown))
+              ;; and the rendering is no taller than what it covers
+              (should (<= (length (split-string shown "\n"))
+                          (length (split-string source "\n"))))))
+        (overblock-pydoc-mode -1)))))
+
+(ert-deftest overblock-pydoc-test-a-fontified-title-carries-its-face ()
+  "The face is the rendering: a section title is painted, not marked up."
+  (with-temp-buffer
+    (let ((shown (overblock-md-fontified
+                  "Parameters\n----------\nxs : int\n" #'rst-mode)))
+      (should (string-match-p "Parameters" shown))
+      (should-not (string-match-p "----" shown))
+      (should (get-text-property (string-match-p "Parameters" shown)
+                                 'face shown)))))
+
 (ert-deftest overblock-pydoc-test-point-inside-shows-the-source ()
   "The doc string point is in shows its source; leaving renders it again."
   (skip-unless (overblock-md-program))
