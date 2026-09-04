@@ -173,8 +173,11 @@ both hung a second rendering over lines the first already covered."
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
     (should (equal (overblock-md-preview-test--wait 2) 2))
+    ;; Two arguments and not `:key': the keyword form of `sort' is
+    ;; Emacs 30 and later, and this package asks for 29.1.
     (let ((blocks (sort (overblock-md-preview-test--blocks)
-                        :key #'overlay-start)))
+                        (lambda (a b)
+                          (< (overlay-start a) (overlay-start b))))))
       (should (= (length blocks) 2))
       ;; and no rendering stands on a line another one covers
       (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks)))))))
