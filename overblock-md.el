@@ -303,8 +303,13 @@ and render the cells again."
           ;; made a formula of the prose between two prices — "costs $100
           ;; and that one $200" — and of "`$HOME` and then `$PATH`".  The
           ;; `opt' is what keeps "$x$" matching.
-          (seq "$" (not (or "$" space))
-               (opt (*? (not (or "$" "\n"))) (not (or "$" space)))
+          ;; `in' rather than `any': the two are one rx form, and
+          ;; package-lint reads the `any' inside a `not' as the Emacs
+          ;; 31.1 function of that name, while `(not (or ...))' is a
+          ;; character set only from Emacs 30 — 29.1 answers "Bad
+          ;; character set: space" and compiles nothing in the file.
+          (seq "$" (not (in "$" space))
+               (opt (*? (not (in "$" "\n"))) (not (in "$" space)))
                "$")
           (seq "\\(" (+? anychar) "\\)")
           (seq "\\[" (+? anychar) "\\]")))
