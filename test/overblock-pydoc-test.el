@@ -58,8 +58,10 @@ class C:
         s = \"\"\"data, not documentation\"\"\"
         return s
 "
-  "A Python buffer with a doc string of every kind, and one string that
-is not one.")
+  "A Python buffer with a doc string of every kind.
+It carries the doc string of a module, of a function, of a class behind
+a comment and of a method — and one string that is data rather than
+documentation.")
 
 (defmacro overblock-pydoc-test--with (&rest body)
   "Evaluate BODY in a Python buffer holding the source above."
@@ -89,7 +91,7 @@ are documentation; the string assigned inside the method is a value."
 
 (ert-deftest overblock-pydoc-test-a-doc-string-ends-at-its-quotes ()
   "The bounds reach from the opening quotes to past the closing ones.
-`scan-sexps' cannot answer this: python-mode gives the first of three
+`scan-sexps' cannot answer this: `python-mode' gives the first of three
 quotes the syntax of a plain string delimiter, so a scan from the
 start reads the first two as an empty string."
   (overblock-pydoc-test--with

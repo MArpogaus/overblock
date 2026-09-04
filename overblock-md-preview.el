@@ -150,9 +150,7 @@ would render them one process at a time, which is what this is for."
 The rendering comes down and the line is text again; leaving it renders
 it anew."
   (interactive (list last-input-event))
-  (when-let* ((position (and (consp event) (event-start event))))
-    (select-window (posn-window position))
-    (goto-char (posn-point position)))
+  (overblock-goto-event event)
   (when-let* ((block (overblock-at 'md-preview)))
     (overblock-delete block)))
 

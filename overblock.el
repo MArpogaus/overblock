@@ -555,6 +555,22 @@ behind, showing a rendering of text that had changed under it."
     (overlay-put block 'insert-in-front-hooks hooks)
     (overlay-put block 'insert-behind-hooks hooks)))
 
+(defun overblock-goto-event (event)
+  "Select the window of EVENT and move point to the click.
+Anything that is not a click leaves point where it is: a command reads
+EVENT from `last-input-event\', so it can be any event at all — a
+`switch-frame\' is a cons whose start is a frame rather than a place,
+and a click on a mode line has no position in the buffer.
+
+A block is reached by point, so this is what a command bound to the
+mouse calls before it asks `overblock-at\' what it was pointed at."
+  (when-let* (((consp event))
+              (posn (event-start event))
+              ((consp posn))
+              (pos (posn-point posn)))
+    (select-window (posn-window posn))
+    (goto-char pos)))
+
 (defvar-local overblock-live--spec nil
   "How this buffer renders itself, as (KIND REGIONS SHOW IDLE).
 `overblock-live-start' puts it there and `overblock-live-stop' takes it

@@ -574,27 +574,12 @@ counted."
           (pycell--update block))
         block))))
 
-(defun pycell--goto-event (event)
-  "Select the window of EVENT and move point to the click.
-Anything that is not a click leaves point where it is: the commands read
-EVENT from `last-input-event', so it can be any event at all, and a
-`switch-frame' is a cons whose start is a frame rather than a place.
-
-A click on a bar lands on the boundary line, which belongs to the cell
-the bar stands for, so every command finds what it is for."
-  (when-let* (((consp event))
-              (posn (event-start event))
-              ((consp posn))
-              (pos (posn-point posn)))
-    (select-window (posn-window posn))
-    (goto-char pos)))
-
 (defun pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
 Point first, then anywhere in the cell around it.  Signals a
 `user-error' where the cell has no result, which is the answer the
 commands that call it give their reader."
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (or (overblock-at 'result)
       (car (apply #'overblock-in (append (code-cells--bounds) '(result))))
       (user-error "No result here")))
@@ -675,7 +660,7 @@ cell."
   ;; pressed.  A header answers for its own cell wherever point is: with
   ;; point left where it was, clicking the arrow of one cell moved
   ;; another.
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (pcase-let* ((`(,beg ,end) (code-cells--bounds))
                (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
                (offset (- (point) beg))
@@ -1225,7 +1210,7 @@ the converter's HTML with")))))
 A click on the bar lands on the small overlay that draws it, which
 points back at the block.  Signals a `user-error' where there is no
 rendered cell, which is the answer the commands that call it give."
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (or (overblock-at 'markdown)
       ;; A click on the bar lands beside the block, so the overlay that
       ;; drew it is asked next.
@@ -1240,7 +1225,7 @@ rendered cell, which is the answer the commands that call it give."
 `pycell-md-render-all' does the whole buffer; this is the button on the
 bar of a cell that is showing its source."
   (interactive (list last-input-event))
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
     (unless (pycell--md-cell-start beg)
       (user-error "This is not a markdown cell"))
@@ -2233,7 +2218,7 @@ The queue lives with the shell, and the shell is resolved as
 it came from, and every other buffer asks `python-shell-get-process'.
 EVENT is the click on a stop button, and names the notebook to act on."
   (interactive (list last-input-event))
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (let ((shell (if (local-variable-p 'pycell--shell)
                    pycell--shell
                  (pycell--queue-buffer))))
@@ -2302,7 +2287,7 @@ first prompt."
 The same as `code-cells-eval' on that cell, which is what the reader
 presses \\[code-cells-eval] for."
   (interactive (list last-input-event))
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (apply #'code-cells-eval (code-cells--bounds nil nil t)))
 
 ;;;###autoload
@@ -2313,7 +2298,7 @@ The cells run in order and the pass stops at the first error, or on
 The interpreter keeps what it has: `pycell-restart-and-run-all' is the
 one that starts from nothing."
   (interactive (list last-input-event))
-  (pycell--goto-event event)
+  (overblock-goto-event event)
   (let* ((beg (car (code-cells--bounds)))
          (cells (seq-take-while (lambda (m) (< m beg)) (pycell--cell-starts))))
     (unless cells (user-error "No cell above this one"))

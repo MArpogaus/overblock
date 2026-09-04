@@ -193,9 +193,7 @@ and reads as prose one column from the left."
 (defun overblock-pydoc-edit (&optional event)
   "Show the source of the doc string at point, or the one EVENT clicked."
   (interactive (list last-input-event))
-  (when-let* ((position (and (consp event) (event-start event))))
-    (select-window (posn-window position))
-    (goto-char (posn-point position)))
+  (overblock-goto-event event)
   (when-let* ((block (overblock-at 'pydoc)))
     (overblock-delete block)))
 
