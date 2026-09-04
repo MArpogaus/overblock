@@ -1,15 +1,15 @@
 ;; -*- lexical-binding: t; -*-
-(setq package-user-dir "/home/marcel/.emacs.d/packages/pycell/.sandbox")
+(setq package-user-dir "/home/marcel/.emacs.d/packages/overblock-pycell/.sandbox")
 (package-initialize)
-(add-to-list 'load-path "/home/marcel/.emacs.d/packages/pycell")
-(require 'pycell) (require 'pixel-scroll)
+(add-to-list 'load-path "/home/marcel/.emacs.d/packages/overblock-pycell")
+(require 'overblock-pycell) (require 'pixel-scroll)
 
 (setq inhibit-startup-screen t
       ring-bell-function #'ignore
       python-shell-interpreter "ipython"
       python-shell-interpreter-args "-i --simple-prompt --no-color-info"
       overblock-md-command "pandoc -f gfm -t html"
-      pycell-max-lines 14)
+      overblock-pycell-max-lines 14)
 (menu-bar-mode -1) (tool-bar-mode -1) (scroll-bar-mode -1)
 ;; The look of the recording: Source Code Pro where it is installed,
 ;; and a plain monospace elsewhere.  Not a nerd font — the bars then
@@ -147,8 +147,8 @@ from; another font needs another pair, and the trace says which."
   (switch-to-buffer "demo.py")
   (delete-other-windows)
   (goto-char (point-min))
-  (code-cells-mode 1)          ; pycell-mode comes along and renders
-  (pycell-mode -1)             ; ... but start plain, to show the change
+  (code-cells-mode 1)          ; overblock-pycell-mode comes along and renders
+  (overblock-pycell-mode -1)             ; ... but start plain, to show the change
   (redisplay t)
   (demo--check-size 1135 667)
   (write-region "" nil "/tmp/demo/ready")
@@ -158,7 +158,7 @@ from; another font needs another pair, and the trace says which."
   (demo--log "f%04d plain source" demo--frame)
   (demo--hold 3.0)
   ;; 1. markdown cells render in place
-  (pycell-mode 1)
+  (overblock-pycell-mode 1)
   (demo--log "f%04d markdown rendered" demo--frame)
   (demo--hold 5.0)
   ;; 2. evaluate the numpy cell

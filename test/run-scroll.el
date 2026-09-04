@@ -12,7 +12,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'pycell-scroll-test)
+(require 'overblock-pycell-scroll-test)
 
 (defconst run-scroll-report "scroll-report.txt"
   "File the report is written to.")
@@ -31,7 +31,7 @@
     (redisplay t)
     (run-scroll--say "graphical=%s frame=%dx%d" (display-graphic-p)
                      (frame-pixel-width) (frame-pixel-height))
-    (dolist (test (ert-select-tests "pycell-scroll-" t))
+    (dolist (test (ert-select-tests "overblock-pycell-scroll-" t))
       (let* ((name (ert-test-name test))
              (start (float-time))
              (result (ert-run-test test))

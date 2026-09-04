@@ -1,15 +1,15 @@
 # Inspired by: https://github.com/othneildrew/Best-README-Template
 #+OPTIONS: toc:nil
 
-[[https://github.com/MArpogaus/pycell/graphs/contributors][https://img.shields.io/github/contributors/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/network/members][https://img.shields.io/github/forks/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/stargazers][https://img.shields.io/github/stars/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/issues][https://img.shields.io/github/issues/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/blob/main/COPYING][https://img.shields.io/github/license/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/pycell/test.yml.svg?branch=main&label=tests&style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/graphs/contributors][https://img.shields.io/github/contributors/MArpogaus/overblock-pycell.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/network/members][https://img.shields.io/github/forks/MArpogaus/overblock-pycell.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/stargazers][https://img.shields.io/github/stars/MArpogaus/overblock-pycell.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/issues][https://img.shields.io/github/issues/MArpogaus/overblock-pycell.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/blob/main/COPYING][https://img.shields.io/github/license/MArpogaus/overblock-pycell.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock-pycell/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/overblock-pycell/test.yml.svg?branch=main&label=tests&style=flat-square]]
 [[https://linkedin.com/in/MArpogaus][https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555]]
 
-* pycell :TOC_3_gh:noexport:
+* overblock-pycell :TOC_3_gh:noexport:
   - [[#about-the-project][About The Project]]
   - [[#getting-started][Getting Started]]
     - [[#prerequisites][Prerequisites]]
@@ -32,7 +32,7 @@
 
 ** About The Project
 
-=pycell= shows the results of Python code cells in the buffer, in the
+=overblock-pycell= shows the results of Python code cells in the buffer, in the
 style of a notebook.  It needs no Jupyter kernel.
 
 The package builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]], and it shows what
@@ -69,14 +69,14 @@ render in place, and this includes the LaTeX fragments.
 Install from MELPA with the package manager of Emacs:
 
 #+begin_src emacs-lisp
-  (use-package pycell
+  (use-package overblock-pycell
     :ensure t)
 #+end_src
 
 *** Example Configuration
 
 The configuration below is small and complete.  code-cells finds the
-=# %%= cells in a plain Python file, and the hook turns =pycell-mode=
+=# %%= cells in a plain Python file, and the hook turns =overblock-pycell-mode=
 on with it.
 
 The package installs no hook itself.  An installation must not change
@@ -88,13 +88,13 @@ how Emacs behaves.
     :ensure t
     :hook (python-base-mode . code-cells-mode-maybe))
 
-  (use-package pycell
+  (use-package overblock-pycell
     :ensure t
-    :hook (code-cells-mode . pycell-mode-maybe)
+    :hook (code-cells-mode . overblock-pycell-mode-maybe)
     :custom
     ;; A block is one buffer line.  A long result therefore makes a
     ;; long jump.  Keep the inline part short.
-    (pycell-max-lines 12)
+    (overblock-pycell-max-lines 12)
     (overblock-md-command "pandoc -f gfm -t html"))
 
   ;; IPython gives rich output, if the project has one.
@@ -110,7 +110,7 @@ how Emacs behaves.
 
 Open a Python file with =# %%= cells and evaluate one cell with
 =code-cells-eval=.  The result appears below the cell.  Turn
-=pycell-mode= off, and the evaluation goes back to
+=overblock-pycell-mode= off, and the evaluation goes back to
 =python-shell-send-region=.
 
 *** Scrolling
@@ -154,7 +154,7 @@ and a markdown cell /markdown/.
 
 A markdown cell that is not rendered — one you just wrote, or one you
 took back to its source — carries a bar of its own, which says /source/
-and holds the buttons of =pycell-source-buttons=.  The third of them
+and holds the buttons of =overblock-pycell-source-buttons=.  The third of them
 renders the cell.
 
 The bar stays where it is, whatever point does.  The line under it is
@@ -162,7 +162,7 @@ still there: point rests on it, you write a name, add a tag or make the
 cell a markdown cell as you would in any other buffer, and the bar
 follows what you write.  Folding works from that line too.
 
-The buttons are =pycell-cell-buttons=, and they read as the buttons of
+The buttons are =overblock-pycell-cell-buttons=, and they read as the buttons of
 a result do.  A button acts on the cell whose bar you press, wherever
 point is.  The move pair closes every kind of bar, so the order is the
 same one everywhere.  The buttons themselves are held at the window
@@ -190,37 +190,37 @@ The header bar has buttons at its right:
 | =⌃=    | move this cell up                      |
 | =⌄=    | move this cell down                    |
 
-The stop button shows only while the cell runs.  It is =pycell-stop=
+The stop button shows only while the cell runs.  It is =overblock-pycell-stop=
 as a click: the running cell runs to its end, and the cells queued
-after it do not start.  =pycell-interrupt= is the harder stop.
+after it do not start.  =overblock-pycell-interrupt= is the harder stop.
 
 The fold arrow stands at the left of the bar and the buttons at its
-right, in the order of =pycell-result-buttons=.  A rendered markdown
+right, in the order of =overblock-pycell-result-buttons=.  A rendered markdown
 cell carries the edit button, the one that shows its source, and the
 same move pair at its end.
 
 The header shows =⚠= if the interpreter dies while the cell runs, and
 the result ends with a note.
 
-A pass over several cells — =pycell-restart-and-run-all= or
-=pycell-run-above= — scrolls each cell it starts to the top of the
+A pass over several cells — =overblock-pycell-restart-and-run-all= or
+=overblock-pycell-run-above= — scrolls each cell it starts to the top of the
 window, so the code that runs is visible.  Point comes back to where
 you asked for the pass when it ends.
 
 A table, a DataFrame among them, gets its columns laid out again for
 the block: literal columns that stand where they are whatever face the
-block wears.  =pycell-pop-output= gives you that table live, in its own
+block wears.  =overblock-pycell-pop-output= gives you that table live, in its own
 buffer, where every binding of vtable works: =S= or a click on a
 column name sorts, ={= and =}= narrow and widen a column, and =M-left=
 and =M-right= move one.
 
-=pycell-interrupt= and =pycell-stop= work in such a buffer as they do
+=overblock-pycell-interrupt= and =overblock-pycell-stop= work in such a buffer as they do
 in the notebook — the buffer remembers the shell it came from — so a
 run being watched can be stopped where you are watching it.  Bind them
-in =pycell-pop-map=; the buffer is read-only, so a plain key is free.
+in =overblock-pycell-pop-map=; the buffer is read-only, so a plain key is free.
 
-=pycell-pop-output= on a cell that is still running keeps writing there
-as the cell prints.  The block shows =pycell-max-lines= of the output;
+=overblock-pycell-pop-output= on a cell that is still running keeps writing there
+as the cell prints.  The block shows =overblock-pycell-max-lines= of the output;
 the buffer takes all of it, so a long run can be followed in a window
 of its own.  Point at the end of that buffer follows the output, and
 anywhere else it stays where you left it.  The buffer is written once
@@ -232,7 +232,7 @@ works there.  Code and output fold apart from each other.
 
 A cell can hold syntax that only IPython reads: =%matplotlib inline=
 and the other magics, =!ls= and =print?=.  jupytext files hold such
-cells.  pycell sends such a cell to the reader of IPython, and it
+cells.  overblock-pycell sends such a cell to the reader of IPython, and it
 runs as if you typed it.  Two things follow.  The tracebacks count
 the lines from the top of the cell, and a shell without IPython
 reports that it does not know =get_ipython=.
@@ -242,7 +242,7 @@ reports that it does not know =get_ipython=.
 A cell with the marker =# %% [markdown]= renders in place.  The
 rendering hangs on the commented source lines, one piece to a line.
 The bar of the cell says /markdown/, or the name you wrote after the
-tag, and carries the buttons of =pycell-markdown-buttons=.
+tag, and carries the buttons of =overblock-pycell-markdown-buttons=.
 
 The cell moves as normal text, and an outline fold takes the whole
 cell with it.  The cell keeps the height of its source.  It becomes
@@ -261,15 +261,15 @@ instead.  A link keeps its click: =mouse-1= and =mouse-2= on a link, an
 image with a link around it included, follow the URL.
 
 Point cannot be put on a link — the rendering is shown over the source
-lines, and point stays in the source — so =pycell-md-follow-link= asks
+lines, and point stays in the source — so =overblock-pycell-md-follow-link= asks
 the cell for its links instead.  With one link it follows it; with
 several it asks which.
 
 =mouse-2= opens the cell in a buffer of its own, as =org-edit-special=
-does for a source block; =pycell-md-edit= is the same from the
-keyboard, once you bind it in =pycell-md-map=.  =pycell-md-commit=
-puts the text back and renders it again, and =pycell-md-abort=
-discards the edit; both belong in =pycell-md-edit-mode-map=.  Each
+does for a source block; =overblock-pycell-md-edit= is the same from the
+keyboard, once you bind it in =overblock-pycell-md-map=.  =overblock-pycell-md-commit=
+puts the text back and renders it again, and =overblock-pycell-md-abort=
+discards the edit; both belong in =overblock-pycell-md-edit-mode-map=.  Each
 cell has an edit buffer of its own, so you can open several cells at
 the same time.  =mouse-1= shows the plain source of one cell, and
 follows a link where it lands on one.
@@ -278,75 +278,75 @@ follows a link where it lands on one.
 
 | Command                      | Action                                     |
 |------------------------------+--------------------------------------------|
-| =pycell-mode=                | turn the feature on or off for a buffer    |
-| =pycell-toggle-output=       | fold or unfold the result at point         |
-| =pycell-copy-output=         | copy the result at point                   |
-| =pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
-| =pycell-save-image=          | write the image of the result to a file    |
-| =pycell-discard-output=      | remove the result at point                 |
-| =pycell-remove-blocks=       | remove every result and rendering          |
-| =pycell-interrupt=           | send a KeyboardInterrupt to the cell       |
-| =pycell-restart=             | restart the interpreter, drop the results  |
-| =pycell-restart-and-run-all= | restart, then run each cell in order       |
-| =pycell-md-render-all=       | render each markdown cell                  |
-| =pycell-md-unrender=         | show each markdown cell as source          |
-| =pycell-md-edit=             | edit the markdown cell in its own buffer   |
-| =pycell-md-follow-link=      | follow a link of the rendered cell         |
-| =pycell-md-raw=              | show one markdown cell as source           |
-| =pycell-md-render-cell=      | render the markdown cell at point          |
-| =pycell-md-commit=           | put an edited markdown cell back           |
-| =pycell-md-abort=            | discard a markdown edit                    |
-| =pycell-move-cell-up=        | move the cell at point up, with its result |
-| =pycell-move-cell-down=      | move the cell at point down, likewise      |
-| =pycell-run-cell=            | run the cell at point                      |
-| =pycell-run-above=           | run every cell above the one at point      |
-| =pycell-stop=                | stop the run of the cells after this one   |
+| =overblock-pycell-mode=                | turn the feature on or off for a buffer    |
+| =overblock-pycell-toggle-output=       | fold or unfold the result at point         |
+| =overblock-pycell-copy-output=         | copy the result at point                   |
+| =overblock-pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
+| =overblock-pycell-save-image=          | write the image of the result to a file    |
+| =overblock-pycell-discard-output=      | remove the result at point                 |
+| =overblock-pycell-remove-blocks=       | remove every result and rendering          |
+| =overblock-pycell-interrupt=           | send a KeyboardInterrupt to the cell       |
+| =overblock-pycell-restart=             | restart the interpreter, drop the results  |
+| =overblock-pycell-restart-and-run-all= | restart, then run each cell in order       |
+| =overblock-pycell-md-render-all=       | render each markdown cell                  |
+| =overblock-pycell-md-unrender=         | show each markdown cell as source          |
+| =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer   |
+| =overblock-pycell-md-follow-link=      | follow a link of the rendered cell         |
+| =overblock-pycell-md-raw=              | show one markdown cell as source           |
+| =overblock-pycell-md-render-cell=      | render the markdown cell at point          |
+| =overblock-pycell-md-commit=           | put an edited markdown cell back           |
+| =overblock-pycell-md-abort=            | discard a markdown edit                    |
+| =overblock-pycell-move-cell-up=        | move the cell at point up, with its result |
+| =overblock-pycell-move-cell-down=      | move the cell at point down, likewise      |
+| =overblock-pycell-run-cell=            | run the cell at point                      |
+| =overblock-pycell-run-above=           | run every cell above the one at point      |
+| =overblock-pycell-stop=                | stop the run of the cells after this one   |
 
-pycell binds no keys.  It binds the mouse on its buttons and blocks
+overblock-pycell binds no keys.  It binds the mouse on its buttons and blocks
 only.  The maps are there, empty, so every place has one to bind into:
 
 | Map                       | Where it answers                     |
 |---------------------------+--------------------------------------|
-| =pycell-mode-map=         | the notebook, while the mode is on   |
-| =pycell-pop-map=          | a result popped out into its own buffer |
-| =pycell-result-map=       | inside a cell that shows a result    |
-| =pycell-md-map=           | a rendered markdown cell             |
-| =pycell-md-edit-mode-map= | the markdown edit buffer             |
+| =overblock-pycell-mode-map=         | the notebook, while the mode is on   |
+| =overblock-pycell-pop-map=          | a result popped out into its own buffer |
+| =overblock-pycell-result-map=       | inside a cell that shows a result    |
+| =overblock-pycell-md-map=           | a rendered markdown cell             |
+| =overblock-pycell-md-edit-mode-map= | the markdown edit buffer             |
 
 Bind the commands that you use.  The two to start with are the
 interrupt and the stop, in the notebook and in the pop-out:
 
 #+begin_src emacs-lisp
-  (keymap-set pycell-mode-map "C-c C-k" #'pycell-interrupt)
-  (keymap-set pycell-mode-map "C-c C-q" #'pycell-stop)
-  (keymap-set pycell-pop-map "i" #'pycell-interrupt)
+  (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-pycell-interrupt)
+  (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-pycell-stop)
+  (keymap-set overblock-pycell-pop-map "i" #'overblock-pycell-interrupt)
 #+end_src
 
 Both commands resolve the shell of the buffer they are pressed in — a
 pop-out remembers the one it came from — so they act on the run you
-are looking at.  =pycell-tab-filter= guards a key that the rest of the
+are looking at.  =overblock-pycell-tab-filter= guards a key that the rest of the
 cell needs, such as =TAB= for folding:
 
 #+begin_src emacs-lisp
-  (keymap-set pycell-result-map "TAB"
-              '(menu-item "" pycell-toggle-output
-                          :filter pycell-tab-filter))
+  (keymap-set overblock-pycell-result-map "TAB"
+              '(menu-item "" overblock-pycell-toggle-output
+                          :filter overblock-pycell-tab-filter))
 #+end_src
 
 ** Customization
 
 | Option                    | Meaning                                          |
 |---------------------------+--------------------------------------------------|
-| =pycell-max-lines=        | the result lines that show inline                |
-| =pycell-max-line-length=  | the characters of a result line that show inline |
-| =pycell-result-buttons=   | the buttons on the header of a result            |
-| =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
-| =pycell-cell-buttons=     | the buttons on the bar of a code cell            |
-| =pycell-source-buttons=   | the buttons on an unrendered markdown cell       |
-| =pycell-header=           | the face of the header bar                       |
-| =pycell-output=           | the face of the result body                      |
+| =overblock-pycell-max-lines=        | the result lines that show inline                |
+| =overblock-pycell-max-line-length=  | the characters of a result line that show inline |
+| =overblock-pycell-result-buttons=   | the buttons on the header of a result            |
+| =overblock-pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
+| =overblock-pycell-cell-buttons=     | the buttons on the bar of a code cell            |
+| =overblock-pycell-source-buttons=   | the buttons on an unrendered markdown cell       |
+| =overblock-pycell-header=           | the face of the header bar                       |
+| =overblock-pycell-output=           | the face of the result body                      |
 
-pycell renders through overblock, and the layer's own options shape
+overblock-pycell renders through overblock, and the layer's own options shape
 what a block looks like: =overblock-image-height= caps an inline
 figure, =overblock-md-command= names the converter, and
 =overblock-md-code= is the face of inline code.  Every caller of the
@@ -365,11 +365,11 @@ a glyph your font draws better:
 
 #+begin_src emacs-lisp
   ;; no discard button, and a plain arrow for the move
-  (setopt pycell-result-buttons
-          '((copy ("◫" "≡") "Copy this result" pycell-copy-output lines)
-            (move-up ("↑" "u") "Move this cell up" pycell-move-cell-up t)
+  (setopt overblock-pycell-result-buttons
+          '((copy ("◫" "≡") "Copy this result" overblock-pycell-copy-output lines)
+            (move-up ("↑" "u") "Move this cell up" overblock-pycell-move-cell-up t)
             (move-down ("↓" "d") "Move this cell down"
-                       pycell-move-cell-down t)))
+                       overblock-pycell-move-cell-down t)))
 #+end_src
 
 =setopt= and not =setq=: the buttons of every open notebook are drawn
@@ -390,16 +390,16 @@ click, so read =last-input-event= as the commands of this package do.
   therefore cross it in one step.  The mouse wheel moves through it,
   see [[#scrolling][Scrolling]].  A markdown cell has a height in lines and moves as
   normal text.
-- A result block shows =pycell-max-lines= of the output and no more.
-  =pycell-pop-output= shows the whole of it, and keeps up with a cell
+- A result block shows =overblock-pycell-max-lines= of the output and no more.
+  =overblock-pycell-pop-output= shows the whole of it, and keeps up with a cell
   that is still printing.
 - A result block with an image is harder to scroll through than a
   block of text.  The wheel does not cross it in a symmetric way, and
   =scroll-up-line= does not cross it at all.
   =overblock-image-height= keeps such a block small enough for the
-  wheel.  Use =pycell-pop-output= for the full figure.  The
+  wheel.  Use =overblock-pycell-pop-output= for the full figure.  The
   measurements are in [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
-- One cell runs at a time for each inferior process.  pycell refuses
+- One cell runs at a time for each inferior process.  overblock-pycell refuses
   a cell while another cell runs.
 - A block shows a copy of what the shell rendered, with the columns of
   a table made literal so that they survive the move.  A DataFrame
@@ -408,7 +408,7 @@ click, so read =last-input-event= as the commands of this package do.
   are gone rather than dead.
 - A rendered markdown cell makes each scroll event more expensive,
   because rendered Markdown holds many face runs.  =M-x
-  pycell-md-unrender= gives the plain source and the speed back for a
+  overblock-pycell-md-unrender= gives the plain source and the speed back for a
   buffer.
 - The measurements behind these limits are in
   [[file:docs/implementation.org][docs/implementation.org]].
@@ -417,21 +417,21 @@ click, so read =last-input-event= as the commands of this package do.
 
 [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the Jupyter protocol and needs the =zmq= module.
 It gives you kernels for many languages and a notebook interface.
-=pycell= uses the inferior Python process that =python.el= starts,
+=overblock-pycell= uses the inferior Python process that =python.el= starts,
 started the way =python-shell-dedicated= asks — one shell for the
 project, one for the buffer, or one shared.  This costs one build
 dependency less and keeps the REPL in reach.
 
 [[https://github.com/astoff/code-cells.el][code-cells]] gives the cells, the navigation and the evaluation
-command.  =pycell= adds what happens to the output.
+command.  =overblock-pycell= adds what happens to the output.
 
-[[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits =.ipynb= files.  =pycell= works on plain Python files with
+[[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits =.ipynb= files.  =overblock-pycell= works on plain Python files with
 cell markers in the style of jupytext, and these files stay easy to
 diff.
 
 ** How It Works
 
-The package is one file.  =pycell.el= knows about Python: the cells,
+The package is one file.  =overblock-pycell.el= knows about Python: the cells,
 the process, the commands, and what a prompt of that shell looks like.
 Everything a block is made of comes from
 [[https://github.com/MArpogaus/overblock][overblock]], which knows
@@ -455,11 +455,11 @@ Two of those are worth a word:
 
 - package-lint runs twice, because two packages live in this
   repository: overblock, the block layer and the two modes built on it,
-  and pycell, the notebook that uses the layer.  Each is linted against
+  and overblock-pycell, the notebook that uses the layer.  Each is linted against
   its own main file, and the two file lists at the top of the =lint=
   target are the whole of each package.  overblock is not on MELPA yet,
   so the target registers it from this checkout — otherwise
-  package-lint calls pycell's dependency uninstallable.
+  package-lint calls overblock-pycell's dependency uninstallable.
 - =make test STRICT=1= refuses to run where no markdown converter is
   installed, rather than skipping a fifth of the suite in silence.  The
   CI sets it.
@@ -493,7 +493,7 @@ made without the hooks is still checked.
 ** Contributions
 
 Contributions are greatly appreciated!  Feel free to check the
-[[https://github.com/MArpogaus/pycell/issues][issues page]] or submit a [[https://github.com/MArpogaus/pycell/pulls][pull request]].
+[[https://github.com/MArpogaus/overblock-pycell/issues][issues page]] or submit a [[https://github.com/MArpogaus/overblock-pycell/pulls][pull request]].
 
 ** License
 

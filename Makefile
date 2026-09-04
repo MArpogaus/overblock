@@ -27,7 +27,7 @@ TEST := $(wildcard test/*.el)
 # The live suite drives a real IPython, so the batch suite does not load
 # it; `test-live' below is its target.  It is still in TEST, so it is
 # byte-compiled and relinted with the rest.
-SUITE := $(filter-out test/pycell-live-test.el,$(TEST))
+SUITE := $(filter-out test/overblock-pycell-live-test.el,$(TEST))
 
 # Elisp programs live in variables: make joins their continuation lines,
 # while a backslash inside a quoted recipe line would reach Emacs as is.
@@ -59,15 +59,15 @@ compile: $(STAMP)
 
 # Two packages live here, and these are their files.  overblock is the
 # block layer and the two modes built on it, and it knows nothing about
-# Python; pycell is the notebook that uses the layer.  package-lint
+# Python; overblock-pycell is the notebook that uses the layer.  package-lint
 # reads one main file and calls every symbol outside its prefix an
 # error, so it is run once for each package.  The lists below are the
 # whole of each package: what moves when the two get a repository each.
 OVERBLOCK := overblock.el overblock-md.el overblock-repl.el \
              overblock-md-preview.el overblock-pydoc.el
-PYCELL    := pycell.el
+PYCELL    := overblock-pycell.el
 
-# pycell requires overblock, which has no MELPA recipe yet, so
+# overblock-pycell requires overblock, which has no MELPA recipe yet, so
 # package-lint calls the dependency uninstallable.  The layer is in this
 # checkout, so it is registered from here: a descriptor alone, no copy of
 # the sources, or the copy would shadow the working tree on the load
@@ -84,7 +84,7 @@ lint: $(STAMP)
 	@: > $(OBDIR)/overblock-autoloads.el
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock.el")' \
 	  -f package-lint-batch-and-exit $(OVERBLOCK)
-	@$(BATCH) --eval '(setq package-lint-main-file "pycell.el")' \
+	@$(BATCH) --eval '(setq package-lint-main-file "overblock-pycell.el")' \
 	  -f package-lint-batch-and-exit $(PYCELL)
 
 # What checkdoc and package-lint both let through: a docstring escape
@@ -108,7 +108,7 @@ test: $(STAMP)
 # failure rather than a line nobody reads.
 test-live: $(STAMP)
 	@if command -v ipython >/dev/null 2>&1; then \
-	  $(BATCH) -l test/pycell-live-test.el -f ert-run-tests-batch-and-exit; \
+	  $(BATCH) -l test/overblock-pycell-live-test.el -f ert-run-tests-batch-and-exit; \
 	elif [ -n "$(STRICT)" ]; then \
 	  echo "test-live: no ipython installed, and STRICT asks for one"; \
 	  exit 1; \

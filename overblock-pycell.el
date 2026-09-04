@@ -1,4 +1,4 @@
-;;; pycell.el --- Inline results for Python code cells -*- lexical-binding: t; -*-
+;;; overblock-pycell.el --- Inline results for Python code cells -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 Marcel Arpogaus
 
@@ -8,7 +8,7 @@
 ;; Version: 0.1.3
 ;; Package-Requires: ((emacs "29.1") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock-pycell
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,7 +30,7 @@
 ;; Notebook style results for Python code cells, built from python.el
 ;; and comint-mime alone -- no Jupyter kernel and no zmq module.
 ;;
-;; Add `pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
+;; Add `overblock-pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
 ;; on in every Python buffer with cells.  Evaluating a cell sends it
 ;; to the inferior Python process as usual, so the REPL keeps the full
 ;; log.  While the cell runs, the result
@@ -75,16 +75,16 @@
 (require 'seq)
 (require 'subr-x)
 
-(defgroup pycell nil "Inline results for Python code cells." :group 'python)
+(defgroup overblock-pycell nil "Inline results for Python code cells." :group 'python)
 
-(defface pycell-header '((t :inherit code-cells-header-line))
+(defface overblock-pycell-header '((t :inherit code-cells-header-line))
   "Face for the header bar above a result.
 It inherits the cell boundary face, so results match the cells.")
 
-(defface pycell-output '((t :inherit shadow :extend t))
+(defface overblock-pycell-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
-(defun pycell--set-buttons (symbol value)
+(defun overblock-pycell--set-buttons (symbol value)
   "Set SYMBOL to VALUE, and draw the headers of every notebook again.
 The `:set' of the button options.  A change to one of them showed up
 only when something else drew a bar again — a window changing width, or
@@ -93,22 +93,22 @@ was already open appeared to do nothing at all."
   (set-default symbol value)
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
-      (when (bound-and-true-p pycell-mode)
-        (mapc #'pycell--bar-redraw (overblock-bars))
+      (when (bound-and-true-p overblock-pycell-mode)
+        (mapc #'overblock-pycell--bar-redraw (overblock-bars))
         (dolist (block (overblock-in (point-min) (point-max) 'result))
-          (pycell--update block))))))
+          (overblock-pycell--update block))))))
 
-(defcustom pycell-result-buttons
+(defcustom overblock-pycell-result-buttons
   '((stop ("" "□" "stop") "Stop the run after this cell"
-          pycell-stop running)
+          overblock-pycell-stop running)
     (save-image ("" "↧" "save") "Save the result's image to a file"
-                pycell-save-image image)
-    (copy ("" "◫" "copy") "Copy this result" pycell-copy-output lines)
+                overblock-pycell-save-image image)
+    (copy ("" "◫" "copy") "Copy this result" overblock-pycell-copy-output lines)
     (pop ("" "↗" "pop") "Show this result in its own buffer"
-         pycell-pop-output lines)
-    (discard ("" "✕" "drop") "Discard this result" pycell-discard-output t)
-    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("" "⌄" "down") "Move this cell down" pycell-move-cell-down t))
+         overblock-pycell-pop-output lines)
+    (discard ("" "✕" "drop") "Discard this result" overblock-pycell-discard-output t)
+    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down" overblock-pycell-move-cell-down t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -146,33 +146,33 @@ Drop an entry you never press, reorder them, or give one a glyph your
 font draws better.  The fold arrow and the spinner are not buttons of
 this list: they say what the result is doing."
   :type overblock-button-type
-  :set #'pycell--set-buttons)
+  :set #'overblock-pycell--set-buttons)
 
-(defcustom pycell-markdown-buttons
+(defcustom overblock-pycell-markdown-buttons
   '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
-          pycell-md-edit t)
-    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+          overblock-pycell-md-edit t)
+    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
     (move-down ("" "⌄" "down") "Move this cell down"
-               pycell-move-cell-down t))
+               overblock-pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
-The entries read as in `pycell-result-buttons'.  A markdown cell has
+The entries read as in `overblock-pycell-result-buttons'.  A markdown cell has
 no output, so `lines' and `image' say nothing here.
 
 No button for the source: a click on the rendering shows it, which is
 what the cell's own tooltip says, and a second way of saying it is one
 more icon to read."
   :type overblock-button-type
-  :set #'pycell--set-buttons)
+  :set #'overblock-pycell--set-buttons)
 
-(defcustom pycell-source-buttons
+(defcustom overblock-pycell-source-buttons
   '((render ("" "⟳" "render") "Render this markdown cell"
-            pycell-md-render-cell t)
-    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+            overblock-pycell-md-render-cell t)
+    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
     (move-down ("" "⌄" "down") "Move this cell down"
-               pycell-move-cell-down t))
+               overblock-pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
-The entries read as in `pycell-result-buttons'.  Such a cell is one
-just written, or one taken back to its source with `pycell-md-raw';
+The entries read as in `overblock-pycell-result-buttons'.  Such a cell is one
+just written, or one taken back to its source with `overblock-pycell-md-raw';
 the third button renders it.
 
 No candidate of a bar is the candidate of another button of that bar,
@@ -180,17 +180,17 @@ or of a button that means something else on another kind of bar — in
 any of the three rows.  A frame draws whichever row it can, and a
 frame with a font but no nerd glyphs draws the second one."
   :type overblock-button-type
-  :set #'pycell--set-buttons)
+  :set #'overblock-pycell--set-buttons)
 
-(defcustom pycell-cell-buttons
+(defcustom overblock-pycell-cell-buttons
   '((run-above ("" "⇈" "above") "Run every cell above this one"
-               pycell-run-above t)
-    (run ("" "▷" "run") "Run this cell" pycell-run-cell t)
-    (move-up ("" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+               overblock-pycell-run-above t)
+    (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t)
+    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
     (move-down ("" "⌄" "down") "Move this cell down"
-               pycell-move-cell-down t))
+               overblock-pycell-move-cell-down t))
   "The buttons on the bar of a code cell, left to right.
-The entries read as in `pycell-result-buttons'.  A cell bar is drawn
+The entries read as in `overblock-pycell-result-buttons'.  A cell bar is drawn
 before the cell has run, so `lines' and `image' say nothing here.
 
 The two move buttons come last, as they do on every other bar.  The
@@ -199,28 +199,28 @@ ones that fall in the same place whatever else a bar carries: measured,
 the pair leading sat at x=996 on a bar of four buttons and x=959 on one
 of five, and trailing it stands in one column down the window."
   :type overblock-button-type
-  :set #'pycell--set-buttons)
+  :set #'overblock-pycell--set-buttons)
 
-(defcustom pycell-max-lines 12
+(defcustom overblock-pycell-max-lines 12
   "Number of result lines that show inline.
 A result block is one buffer line however tall it is, so a long
 result makes one long step for `next-line' and for the wheel.  Use
-`pycell-pop-output' to see the whole of it.
+`overblock-pycell-pop-output' to see the whole of it.
 
 Length is not what costs redisplay its time.  Measured in a 1000x700
 window, forty lines of plain output scroll as cheaply as none, while
 twelve lines full of face changes cost three times as much: the work
 follows the number of face runs the text carries, not its size.
 
-Width is another matter: see `pycell-max-line-length'."
+Width is another matter: see `overblock-pycell-max-line-length'."
   :type 'natnum)
 
-(defcustom pycell-max-line-length 2000
+(defcustom overblock-pycell-max-line-length 2000
   "Number of characters of a result line that show inline.
 Zero shows all of them.  A line longer than this is cut, and the cut
-is marked with an ellipsis; `pycell-pop-output' has the whole of it.
+is marked with an ellipsis; `overblock-pycell-pop-output' has the whole of it.
 
-One long line is one line, so `pycell-max-lines' does not bound it,
+One long line is one line, so `overblock-pycell-max-lines' does not bound it,
 and a block laid out on every redisplay costs what it holds.
 Measured in a 1200x800 window: a thousand characters on one line cost
 1.4 milliseconds a wheel event, five thousand 2.4, twenty thousand
@@ -232,7 +232,7 @@ list or a base64 blob is one such line."
 ;;;; Blocks of every kind
 
 ;;;###autoload
-(defun pycell-remove-blocks ()
+(defun overblock-pycell-remove-blocks ()
   "Remove the blocks of the buffer.
 This is the command a reader binds, and `overblock-clear' is the same
 thing under it.  Results and rendered markdown cells go; the text of
@@ -240,7 +240,7 @@ the buffer is not touched."
   (interactive)
   (overblock-clear))
 
-(defun pycell--drop-rendering (block)
+(defun overblock-pycell--drop-rendering (block)
   "Take BLOCK down, and bar the boundary line a rendering leaves behind.
 The bar of a rendered markdown cell is the block's own overlay, so it
 goes with the block — and no text on that line changed, so nothing else
@@ -251,12 +251,13 @@ that bar."
         (start (overlay-start block)))
     (overblock-delete block)
     (when markdown
-      (when-let* ((from (pycell--md-cell-start start)))
-        (pycell--cell-bars from start)))))
+      (when-let* ((from (overblock-pycell--md-cell-start start)))
+        (overblock-pycell--cell-bars from start)))))
 
-(defvar pycell--moving nil
-  "Non-nil while `pycell-move-cell-down' is moving a cell.
-`pycell--stale-when-edited' stands down while it is: a move relocates whole
+(defvar overblock-pycell--moving nil
+  "Non-nil while `overblock-pycell-move-cell-down' is moving a cell.
+`overblock-pycell--stale-when-edited' stands down while it is: a move relocates
+whole
 cells rather than editing the text of one, and the command takes the
 blocks of both cells off and puts them back itself.  The text the move
 inserts lands at the first character of the cell below, which is where
@@ -264,24 +265,24 @@ that cell's anchor begins, so its `insert-in-front-hooks' ran and its
 result went with the insertion — measured, a third cell that had
 nothing to do with the move lost its result on every move down.")
 
-(defvar-local pycell--width nil
+(defvar-local overblock-pycell--width nil
   "The width the bars of this buffer were built for, in pixels.
 `overblock-bar' cuts the label to the room the icons leave, and the cut
 is in the string: a window made narrower afterwards — a split, a side
 window, a frame resized — was left with a label too long for it, and
 the header took two rows.  A bar is remade when this changes.")
 
-(defun pycell--rescale ()
+(defun overblock-pycell--rescale ()
   "Draw the bars again after the text scale changed.
 The room a label has did not change — the window is the same width — but
 the label is cut in pixels and the font is now a different size, so a
 bar cut for the old one took two rows.  Measured at scale +6: a bar of
 132 pixels on a line 64 pixels high."
-  (setq pycell--width nil)
+  (setq overblock-pycell--width nil)
   (mapc #'overblock-bar-stale (overblock-bars))
-  (pycell--rewidth))
+  (overblock-pycell--rewidth))
 
-(defun pycell--rewidth ()
+(defun overblock-pycell--rewidth ()
   "Draw the bars again where the window has changed width.
 On `window-configuration-change-hook', where it runs for the buffer of
 every window that changed.
@@ -292,26 +293,26 @@ markdown cell keeps its rendering and takes a new bar.  Only on a
 change of width, because the hook runs for every other kind of change
 as well."
   (when-let* ((width (overblock-window-width)))
-    (unless (eql width pycell--width)
-      (setq pycell--width width)
+    (unless (eql width overblock-pycell--width)
+      (setq overblock-pycell--width width)
       (dolist (block (overblock-in (point-min) (point-max) 'result))
-        (pycell--update block))
-      (mapc #'pycell--bar-redraw (overblock-bars)))))
+        (overblock-pycell--update block))
+      (mapc #'overblock-pycell--bar-redraw (overblock-bars)))))
 
-(defun pycell--stale-when-edited (block)
+(defun overblock-pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
-A move stands the taking down: `pycell--moving' says the text is being
+A move stands the taking down: `overblock-pycell--moving' says the text is being
 relocated rather than edited, and the command puts the blocks of both
 cells back itself.  What comes down is the rendering and the bar a
-rendered cell carries above it, which is what `pycell--drop-rendering'
+rendered cell carries above it, which is what `overblock-pycell--drop-rendering'
 knows and a plain delete does not."
   (overblock-stale-when-edited
    block (lambda (block)
-           (unless pycell--moving (pycell--drop-rendering block)))))
+           (unless overblock-pycell--moving (overblock-pycell--drop-rendering block)))))
 
 ;;;; Result blocks
 
-(defun pycell--strip-prompts (text)
+(defun overblock-pycell--strip-prompts (text)
   "Return TEXT without the shell's prompts and its Out[N] labels.
 The prompt before the output goes, the prompt after it goes, and so does
 the one that ends up on the same line as output which stopped without a
@@ -349,8 +350,8 @@ variable has its value."
   ;; sits on that same line and stays: unanchored, this took `Out[1]: '
   ;; out of the middle of a value that held those characters itself —
   ;; `'a value that says Out[1]: inside it'' came out as `'a value that
-  ;; says inside it'', and `pycell--text' hands that to
-  ;; `pycell-copy-output', so the reader yanked the hole as well.  The
+  ;; says inside it'', and `overblock-pycell--text' hands that to
+  ;; `overblock-pycell-copy-output', so the reader yanked the hole as well.  The
   ;; two cannot be told apart: a trailing prompt takes the newline after
   ;; a `print' with it, so "ends the text" says nothing either.  A label
   ;; left on the screen is the cheaper fault of the two.
@@ -358,7 +359,7 @@ variable has its value."
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
-(defun pycell--drop-prompt-face (text)
+(defun overblock-pycell--drop-prompt-face (text)
   "Return TEXT with the face comint paints a prompt with taken off.
 comint calls a chunk of output that ends without a newline a prompt,
 and paints it `comint-highlight-prompt'.  A cell that prints a single
@@ -375,7 +376,7 @@ A run left with no face at all loses the property rather than carrying
 a nil: what a block costs redisplay follows the number of face runs its
 text has, and a property set to nil is a run of its own.
 
-TEXT is written on in place.  It is the copy `pycell--clean' was
+TEXT is written on in place.  It is the copy `overblock-pycell--clean' was
 handed, which comes from `buffer-substring'."
   (let ((pos 0)
         (len (length text)))
@@ -393,30 +394,31 @@ handed, which comes from `buffer-substring'."
         (setq pos next))))
   text)
 
-(defun pycell--clean (text)
+(defun overblock-pycell--clean (text)
   "Return TEXT as a result block can show it.
 The prompts and the Out[N] labels go, the face of a prompt goes with
 them, and the copy is cut loose from the shell; see
-`pycell--strip-prompts', `pycell--drop-prompt-face' and
+`overblock-pycell--strip-prompts', `overblock-pycell--drop-prompt-face' and
 `overblock-repl-detach' for what each of those means.  Call this in the
 shell buffer, where `comint-prompt-regexp' has its value."
   (overblock-repl-detach
-   (pycell--drop-prompt-face (pycell--strip-prompts text))))
+   (overblock-pycell--drop-prompt-face (overblock-pycell--strip-prompts text))))
 
-(defun pycell--shorten (line)
-  "Return LINE cut to `pycell-max-line-length' characters.
+(defun overblock-pycell--shorten (line)
+  "Return LINE cut to `overblock-pycell-max-line-length' characters.
 The cut is marked with an ellipsis.  See the option for what a line
 left whole costs the scroller."
-  (if (or (not (natnump pycell-max-line-length))
-          (zerop pycell-max-line-length)
-          (<= (length line) pycell-max-line-length))
+  (if (or (not (natnump overblock-pycell-max-line-length))
+          (zerop overblock-pycell-max-line-length)
+          (<= (length line) overblock-pycell-max-line-length))
       line
-    (concat (substring line 0 pycell-max-line-length)
+    (concat (substring line 0 overblock-pycell-max-line-length)
             (overblock-glyph "…" "..."))))
 
-(defun pycell--body-lines (lines)
+(defun overblock-pycell--body-lines (lines)
   "Return the leading LINES that show inline.
-At most `pycell-max-lines', each cut to `pycell-max-line-length', and
+At most `overblock-pycell-max-lines', each cut to and
+`overblock-pycell-max-line-length',
 nothing after the first line that carries an image it can draw: more
 inline figures would grow the block, and the scroll jump with it,
 without bound.  A display that shows no images has nothing to stop
@@ -424,7 +426,7 @@ for, and names them instead.  A line with an image on it is not cut,
 since the image may sit past the cut; its images are capped to
 `overblock-image-height' instead."
   (let (shown stop)
-    (while (and lines (not stop) (< (length shown) pycell-max-lines))
+    (while (and lines (not stop) (< (length shown) overblock-pycell-max-lines))
       (let* ((l (pop lines))
              (imagep (overblock-image-in l))
              ;; Only where an image can be drawn.  A terminal shows
@@ -435,20 +437,20 @@ since the image may sit past the cut; its images are capped to
         (push (cond (drawp (overblock-image-cap l))
                     ;; A blank row said nothing about the figure that
                     ;; could not be drawn there.
-                    (imagep (pycell--shorten (overblock-image-label l)))
-                    (t (pycell--shorten l)))
+                    (imagep (overblock-pycell--shorten (overblock-image-label l)))
+                    (t (overblock-pycell--shorten l)))
               shown)
         (when drawp (setq stop t))))
     (nreverse shown)))
 
-(defun pycell--header (folded total shown runtime state imagep)
+(defun overblock-pycell--header (folded total shown runtime state imagep)
   "Return the header bar of a result.
 FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
 time in seconds since the cell started.  STATE is `running' while the
 cell runs, `died' where the interpreter went away before the cell
 ended, and nil where the cell finished.  IMAGEP marks a result with an image."
-  (let* ((icons (overblock-buttons pycell-result-buttons imagep total
+  (let* ((icons (overblock-buttons overblock-pycell-result-buttons imagep total
                                    (eq state 'running)))
          ;; The stopwatch drives the spinner: one frame for each tick.
          ;; Braille and not a codicon like every other mark here: a
@@ -467,7 +469,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                                             (overblock-glyph " " " ▸" " >")
                                           (overblock-glyph " " " ▾" " v"))
                                         "Fold or unfold this result"
-                                        #'pycell-toggle-output))
+                                        #'overblock-pycell-toggle-output))
                      ;; nothing printed: every other case is above
                      (t (overblock-glyph " " " ✓" " ."))))
          (label (cond ((> total 0)
@@ -478,9 +480,9 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
          (time (format "%.1fs" runtime)))
     (overblock-bar
      (concat mark " " (string-join (delq nil (list label time)) " · "))
-     icons 'pycell-header)))
+     icons 'overblock-pycell-header)))
 
-(defun pycell--update (block)
+(defun overblock-pycell--update (block)
   "Make the header and the body of the result BLOCK again, and show them.
 The lines are counted once for both: the header says how many there
 are and how many of them show, and the body is those that show."
@@ -489,8 +491,8 @@ are and how many of them show, and the body is those that show."
          (text (plist-get data :text))
          (total (plist-get data :total)))
     (let* ((empty (string-empty-p text))
-           (lines (unless empty (overblock-repl-first-lines text pycell-max-lines)))
-           (shown (pycell--body-lines lines))
+           (lines (unless empty (overblock-repl-first-lines text overblock-pycell-max-lines)))
+           (shown (overblock-pycell--body-lines lines))
            ;; The count is asked for once and kept: a finished result
            ;; carries none, and a fold would otherwise scan the whole
            ;; output again on every keypress.
@@ -501,19 +503,19 @@ are and how many of them show, and the body is those that show."
                                             (plist-put data :total n))
                              n)))))
       (overblock-set block :header
-                     (pycell--header folded count (length shown)
+                     (overblock-pycell--header folded count (length shown)
                                      (plist-get data :runtime)
                                      (plist-get data :state)
                                      (and lines (overblock-image-in text))))
       (overblock-set block :body
                      (when (and shown (not folded))
                        (overblock-faced (string-join shown "\n")
-                                        'pycell-output)))
+                                        'overblock-pycell-output)))
       (overblock-refresh block))))
 
-(defun pycell-tab-filter (cmd)
+(defun overblock-pycell-tab-filter (cmd)
   "Return CMD when point sits at the very end of a cell with a result.
-A `menu-item' filter for a key in `pycell-result-map': it keeps a key
+A `menu-item' filter for a key in `overblock-pycell-result-map': it keeps a key
 that means something in the rest of the cell — TAB indents — out of the
 way everywhere but on the one spot where the reader faces the result."
   (and (eolp)
@@ -522,17 +524,18 @@ way everywhere but on the one spot where the reader faces the result."
                                'result))
        cmd))
 
-(defvar-keymap pycell-result-map
+(defvar-keymap overblock-pycell-result-map
   :doc "Keymap inside a cell that shows a result, empty on purpose.
-pycell binds no keys; put your own here.  `pycell-toggle-output' is the
+overblock-pycell binds no keys; put your own here.  is the
+`overblock-pycell-toggle-output'
 natural candidate.  Guard a key the rest of the cell needs with
-`pycell-tab-filter', which answers only at the very end of the cell:
+`overblock-pycell-tab-filter', which answers only at the very end of the cell:
 
-  (keymap-set pycell-result-map \"TAB\"
-              \\='(menu-item \"\" pycell-toggle-output
-                          :filter pycell-tab-filter))")
+  (keymap-set overblock-pycell-result-map \"TAB\"
+              \\='(menu-item \"\" overblock-pycell-toggle-output
+                          :filter overblock-pycell-tab-filter))")
 
-(defun pycell--show (beg end text runtime &optional state total)
+(defun overblock-pycell--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the cell BEG..END.
 RUNTIME is the time in seconds since the cell started.  STATE is
 `running' while the cell runs, `died' where the interpreter went away
@@ -553,7 +556,7 @@ counted."
         ;; two overlays and a scan of the region on every tick, and it
         ;; leaves redisplay alone.
         (progn (overblock-set old :data data)
-               (pycell--update old)
+               (overblock-pycell--update old)
                old)
       ;; The newline that ends the cell carries the result; give the
       ;; last cell of the buffer one.  The whole buffer: under a
@@ -575,7 +578,7 @@ counted."
       (let ((block (overblock-show beg end
                                    :kind 'result
                                    :data data
-                                   :keymap pycell-result-map)))
+                                   :keymap overblock-pycell-result-map)))
         ;; An empty cell — a boundary line directly followed by the
         ;; next — has no newline of its own to hang a block on, and
         ;; `overblock-show' answers nil rather than anchor a
@@ -586,11 +589,11 @@ counted."
         ;; the session and the queue wedged.
         (when block
           ;; An edit of the cell makes the result stale; it goes.
-          (pycell--stale-when-edited block)
-          (pycell--update block))
+          (overblock-pycell--stale-when-edited block)
+          (overblock-pycell--update block))
         block))))
 
-(defun pycell--result-at (event)
+(defun overblock-pycell--result-at (event)
   "Return the result block at point, or at the click in EVENT.
 Point first, then anywhere in the cell around it.  Signals a
 `user-error' where the cell has no result, which is the answer the
@@ -601,24 +604,24 @@ commands that call it give their reader."
       (user-error "No result here")))
 
 ;;;###autoload
-(defun pycell-toggle-output (&optional event)
+(defun overblock-pycell-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (let* ((block (pycell--result-at event))
+  (let* ((block (overblock-pycell--result-at event))
          (data (overblock-get block :data)))
     (overblock-set block :data
                    (plist-put data :folded (not (plist-get data :folded))))
-    (pycell--update block)))
+    (overblock-pycell--update block)))
 
 ;;;###autoload
-(defun pycell-discard-output (&optional event)
+(defun overblock-pycell-discard-output (&optional event)
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (overblock-delete (pycell--result-at event)))
+  (overblock-delete (overblock-pycell--result-at event)))
 
 ;;;; Moving a cell
 
-(defun pycell--cell-state (beg end)
+(defun overblock-pycell--cell-state (beg end)
   "Return what the cell BEG..END shows, to put back after a move.
 The car is the record of its result, or nil, and the cdr says whether
 its markdown was rendered."
@@ -626,31 +629,31 @@ its markdown was rendered."
           (copy-sequence (overblock-get block :data)))
         (and (overblock-in beg end 'markdown) t)))
 
-(defun pycell--restore-cell (beg end state)
+(defun overblock-pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
-STATE comes from `pycell--cell-state'.  A markdown cell is rendered by
+STATE comes from `overblock-pycell--cell-state'.  A markdown cell is rendered by
 the caller, which does the whole buffer at once."
   ;; The record goes back whole: the region was cleared, so the block
-  ;; `pycell--show' builds has no state of its own worth keeping.
+  ;; `overblock-pycell--show' builds has no state of its own worth keeping.
   (when-let* ((record (car state))
-              (block (pycell--show beg end "" 0.0)))
+              (block (overblock-pycell--show beg end "" 0.0)))
     (overblock-set block :data record)
-    (pycell--update block)))
+    (overblock-pycell--update block)))
 
-(defun pycell--running-in-p (beg end)
+(defun overblock-pycell--running-in-p (beg end)
   "Return non-nil where the cell the shell is running lies in BEG..END.
 Asked of this buffer alone: another notebook on the same shell may be
 the one running, and its cells are not moving."
   (when-let* ((proc (python-shell-get-process))
-              (run (buffer-local-value 'pycell--run (process-buffer proc)))
+              (run (buffer-local-value 'overblock-pycell--run (process-buffer proc)))
               (mark (plist-get run :beg))
               ((eq (marker-buffer mark) (current-buffer))))
     (<= beg mark end)))
 
 ;;;###autoload
-(defun pycell-move-cell-down (&optional arg event)
+(defun overblock-pycell-move-cell-down (&optional arg event)
   "Move the cell at point down ARG cells, with what it shows.
-A negative ARG moves it up, which is all `pycell-move-cell-up' does.
+A negative ARG moves it up, which is all `overblock-pycell-move-cell-up' does.
 EVENT is the click that asked for the move, where a button asked.
 
 An outline move, because `code-cells-mode' makes every boundary line an
@@ -680,14 +683,14 @@ cell."
   (pcase-let* ((`(,beg ,end) (code-cells--bounds))
                (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
                (offset (- (point) beg))
-               (mine (pycell--cell-state beg end))
-               (theirs (pycell--cell-state nbeg nend)))
+               (mine (overblock-pycell--cell-state beg end))
+               (theirs (overblock-pycell--cell-state nbeg nend)))
     ;; A cell the shell is still writing into cannot move: the run holds
     ;; markers into its text, and the move cuts that text out — the
     ;; markers collapsed, the block came back frozen at whatever the
     ;; last tick had shown, and the rest of the output went nowhere.
-    (when (pycell--running-in-p (min beg nbeg) (max end nend))
-      (user-error "Wait for the cell to finish, or M-x pycell-interrupt"))
+    (when (overblock-pycell--running-in-p (min beg nbeg) (max end nend))
+      (user-error "Wait for the cell to finish, or M-x overblock-pycell-interrupt"))
     ;; From the cell's own boundary line: `code-cells-mode' takes the
     ;; major mode's headings into `outline-regexp' as well, so
     ;; `outline-back-to-heading' from inside a cell that holds a `def'
@@ -701,7 +704,7 @@ cell."
     ;; not named here — one from a mode whose headings are in
     ;; `outline-regexp' beside the cells — left the reader inside
     ;; another cell with nothing said.
-    (let ((pycell--moving t)
+    (let ((overblock-pycell--moving t)
           (here (point-marker)))
       (condition-case error
           (outline-move-subtree-down arg)
@@ -727,57 +730,57 @@ cell."
     (overblock-sweep-orphans)
     (pcase-let* ((`(,mbeg ,mend) (code-cells--bounds))
                  (`(,tbeg ,tend) (code-cells--neighbor-bounds (- arg))))
-      (pycell--restore-cell mbeg mend mine)
-      (pycell--restore-cell tbeg tend theirs)
+      (overblock-pycell--restore-cell mbeg mend mine)
+      (overblock-pycell--restore-cell tbeg tend theirs)
       (when (or (cdr mine) (cdr theirs))
         ;; The two cells that moved, not every cell in the file.
-        (pycell-md-render-all (min mbeg tbeg) (max mend tend)))
+        (overblock-pycell-md-render-all (min mbeg tbeg) (max mend tend)))
       (goto-char (+ mbeg (min offset (- mend mbeg)))))))
 
 ;;;###autoload
-(defun pycell-move-cell-up (&optional arg event)
+(defun overblock-pycell-move-cell-up (&optional arg event)
   "Move the cell at point up ARG cells, with what it shows.
 EVENT is the click that asked for the move, where a button asked."
   (interactive (list (prefix-numeric-value current-prefix-arg)
                      last-input-event))
-  (pycell-move-cell-down (- (or arg 1)) event))
+  (overblock-pycell-move-cell-down (- (or arg 1)) event))
 
-(defun pycell--text (block)
+(defun overblock-pycell--text (block)
   "Return the text of the result BLOCK.
 While the cell runs, that is only the part that shows — the head the
 tick reads, some sixteen lines — so copying, popping out or saving says
 as much rather than handing over a fraction in silence."
   (let ((data (overblock-get block :data)))
     (when (eq (plist-get data :state) 'running)
-      (message "pycell: the cell is still running, so this is only \
+      (message "overblock-pycell: the cell is still running, so this is only \
 what shows"))
     (plist-get data :text)))
 
-(defun pycell--cell-buffer-name (kind position)
+(defun overblock-pycell--cell-buffer-name (kind position)
   "Return the name of the KIND buffer for the cell at POSITION.
-KIND is the word after `pycell' in the name, or nil for a result.
+KIND is the word after `overblock-pycell' in the name, or nil for a result.
 The name carries the line of the cell, so each cell has a buffer of
 its own and the buffers of two cells cannot collide."
-  (format "*pycell%s: %s:%d*"
+  (format "*overblock-pycell%s: %s:%d*"
           (if kind (concat " " kind) "")
           (buffer-name)
           (line-number-at-pos position)))
 
 ;;;###autoload
-(defun pycell-copy-output (&optional event)
+(defun overblock-pycell-copy-output (&optional event)
   "Copy the result at point, or the one clicked in EVENT.
 The copy keeps its text properties, so images survive a yank."
   (interactive (list last-input-event))
-  (kill-new (pycell--text (pycell--result-at event)))
-  (message "pycell: result copied"))
+  (kill-new (overblock-pycell--text (overblock-pycell--result-at event)))
+  (message "overblock-pycell: result copied"))
 
 ;;;###autoload
-(defun pycell-save-image (&optional event)
+(defun overblock-pycell-save-image (&optional event)
   "Save the first image of the result at point, or of the one in EVENT.
 The file type comes from the image descriptor; `create-image' read
 it from the data's magic bytes."
   (interactive (list last-input-event))
-  (let* ((text (pycell--text (pycell--result-at event)))
+  (let* ((text (overblock-pycell--text (overblock-pycell--result-at event)))
          (img (or (overblock-image-in text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
@@ -790,9 +793,9 @@ it from the data's magic bytes."
       ;; Asks before it overwrites: the name comes from
       ;; `read-file-name', which does not.
       (write-region data nil file nil nil nil t))
-    (message "pycell: image saved to %s" file)))
+    (message "overblock-pycell: image saved to %s" file)))
 
-(defun pycell--follow-done (follow text)
+(defun overblock-pycell--follow-done (follow text)
   "Put TEXT, the whole of what the cell printed, into FOLLOW's buffer.
 The tail the run wrote there is raw: it carries the shell's prompts,
 and the last of it arrives after the closing one.  The finished buffer
@@ -811,35 +814,36 @@ holds what a result popped out after the fact would hold."
                                       (= (window-point window) end))
                                     (get-buffer-window-list buffer nil t))))
         (erase-buffer)
-        (pycell--insert-result text)
+        (overblock-pycell--insert-result text)
         (goto-char (if at-end (point-max) (point-min)))
         (dolist (window following)
           (set-window-point window (point-max)))))))
 
-(defvar-local pycell--cell nil
+(defvar-local overblock-pycell--cell nil
   "Where the cell a popped-out result shows begins, as a marker.
-`pycell-interrupt' asks whether that is still the cell the shell is
+`overblock-pycell-interrupt' asks whether that is still the cell the shell is
 running: a buffer showing a result that has ended, or one whose cell is
 long finished, must not stop somebody else's run.")
 
-(defvar-local pycell--shell nil
+(defvar-local overblock-pycell--shell nil
   "The Python shell a popped-out result came from.
 A pop-out is not a Python buffer, so `python-shell-get-process' would
 answer with whatever shell the settings point at — the wrong one where
-the notebook has a shell of its own.  `pycell-interrupt' asks this
+the notebook has a shell of its own.  `overblock-pycell-interrupt' asks this
 first.")
 
-(defvar-keymap pycell-pop-map
+(defvar-keymap overblock-pycell-pop-map
   :doc "Keymap in a buffer showing one result of its own, empty on purpose.
-pycell binds no keys; put your own here.  `pycell-interrupt' and
-`pycell-stop' are the natural candidates: both resolve the shell the
+overblock-pycell binds no keys; put your own here.  `overblock-pycell-interrupt'
+and
+`overblock-pycell-stop' are the natural candidates: both resolve the shell the
 result came from, not the buffer they are pressed in.  The buffer is
 read-only, so a plain key is free:
 
-  (keymap-set pycell-pop-map \"i\" #\\='pycell-interrupt)"
+  (keymap-set overblock-pycell-pop-map \"i\" #\\='overblock-pycell-interrupt)"
   :parent special-mode-map)
 
-(defun pycell--insert-result (text)
+(defun overblock-pycell--insert-result (text)
   "Insert TEXT as a popped-out result, in the current buffer.
 A table goes in live: every binding of vtable works here, and vtable
 aligns the columns for this window itself.  It goes in as a copy,
@@ -881,50 +885,50 @@ more than the block, so what is around a table goes in with it."
         (setq pos next)))))
 
 ;;;###autoload
-(defun pycell-pop-output (&optional event)
+(defun overblock-pycell-pop-output (&optional event)
   "Show the result at point, or the one clicked in EVENT, in a buffer.
 Each cell gets one buffer, so results are comparable side by side.
 
 A cell that is still running keeps writing there: the whole of what it
-prints, where the block itself shows `pycell-max-lines' of it, so a
+prints, where the block itself shows `overblock-pycell-max-lines' of it, so a
 long run can be followed in a window of its own.  Point at the end of
 that buffer follows the output; anywhere else it stays where it is.
 The buffer is written once more when the cell ends, with the prompts
 taken off and a table laid out live."
   (interactive (list last-input-event))
-  (let* ((ov (pycell--result-at event))
+  (let* ((ov (overblock-pycell--result-at event))
          (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
-         ;; Not `pycell--text': that answers with the head the tick
+         ;; Not `overblock-pycell--text': that answers with the head the tick
          ;; reads and says so.  A buffer that is about to follow the
          ;; cell wants everything printed so far instead.
-         (text (if runningp "" (pycell--text ov)))
-         (name (pycell--cell-buffer-name nil (overlay-start ov)))
+         (text (if runningp "" (overblock-pycell--text ov)))
+         (name (overblock-pycell--cell-buffer-name nil (overlay-start ov)))
          (buffer (get-buffer-create name)))
     (with-current-buffer buffer
       (special-mode)
-      (use-local-map pycell-pop-map)
+      (use-local-map overblock-pycell-pop-map)
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (pycell--insert-result text))
+        (overblock-pycell--insert-result text))
       (goto-char (point-max)))
     ;; Set whether or not a shell answers: a pop-out whose shell is
-    ;; gone is still not a notebook, and `pycell-interrupt' there must
+    ;; gone is still not a notebook, and `overblock-pycell-interrupt' there must
     ;; not fall through to whatever shell the settings point at — that
     ;; killed another notebook's running cell at a keystroke.
     (let* ((proc (python-shell-get-process))
            (shell (and proc (process-buffer proc))))
       (with-current-buffer buffer
-        (setq pycell--shell shell
-              pycell--cell (and runningp shell
-                                (plist-get (buffer-local-value 'pycell--run
+        (setq overblock-pycell--shell shell
+              overblock-pycell--cell (and runningp shell
+                                (plist-get (buffer-local-value 'overblock-pycell--run
                                                                shell)
                                            :beg)))))
-    (when runningp (pycell--follow buffer))
+    (when runningp (overblock-pycell--follow buffer))
     (pop-to-buffer buffer)))
 
 ;;;; Markdown cells
 
-(defconst pycell--md-boundary
+(defconst overblock-pycell--md-boundary
   "#+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
   "What marks a cell boundary line as a markdown cell.
 Loose where `code-cells-boundary-regexp' is loose: any number of
@@ -937,15 +941,15 @@ table: this package reads Python and nothing else, and a caller with
 another table current — a test, or a buffer whose mode has not been
 set yet — would otherwise get a different answer.")
 
-(defun pycell--md-cell-start (pos)
+(defun overblock-pycell--md-cell-start (pos)
   "Return the start of the =# %% [markdown]= line above POS, or nil.
 A non-nil value marks POS as the body of a markdown cell."
   (save-excursion
     (goto-char pos)
     (forward-line -1)
-    (and (looking-at-p pycell--md-boundary) (point))))
+    (and (looking-at-p overblock-pycell--md-boundary) (point))))
 
-(defun pycell--keep-result-newline (from to)
+(defun overblock-pycell--keep-result-newline (from to)
   "Keep the newline a result block hangs on out of a fold over FROM..TO.
 A fold that reaches the end of the buffer covers that newline, where a
 fold in the middle of one stops short of it.  The block would go with
@@ -964,7 +968,7 @@ itself, so the invisible run is shrunk back off the newline."
           (move-overlay ov (overlay-start ov)
                         (max (overlay-start ov) (overlay-start nl))))))))
 
-(defun pycell--outline-flag-blocks (from to flag)
+(defun overblock-pycell--outline-flag-blocks (from to flag)
   "Hide or show the blocks in FROM..TO to match an outline fold.
 FLAG is non-nil where `outline-flag-region' hid the region, and this
 follows that call rather than guessing which command made it.
@@ -974,7 +978,7 @@ A markdown cell is the content of its cell, so it goes under the fold:
 block makes what it shows anew.
 
 A result block stays.  The fold hides the code and the block keeps its
-own fold button, so the two fold apart; `pycell--keep-result-newline'
+own fold button, so the two fold apart; `overblock-pycell--keep-result-newline'
 is what leaves it room.
 
 The advice is global, so this runs on every fold in every outline
@@ -983,30 +987,30 @@ properties rather than on the mode: a buffer can carry blocks with the
 mode off — the tests do it, and so does a mode turned off while a
 result is on the screen — and the two scans below cost two
 interval-tree queries where there is nothing to find."
-  (when flag (pycell--keep-result-newline from to))
+  (when flag (overblock-pycell--keep-result-newline from to))
   (dolist (block (overblock-in from to 'markdown))
     (overblock-set block :hidden flag)
     (overblock-refresh block)))
 
-(defun pycell--md-uncomment (text)
+(defun overblock-pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
   (replace-regexp-in-string "^# ?" "" text))
 
-(defun pycell--md-comment (text)
+(defun overblock-pycell--md-comment (text)
   "Prefix each line of TEXT as a jupytext markdown comment."
   (mapconcat (lambda (l) (if (string-empty-p l) "#" (concat "# " l)))
              (split-string text "\n") "\n"))
 
-(defvar-keymap pycell-md-map
+(defvar-keymap overblock-pycell-md-map
   :doc "Keymap on rendered markdown cells.
-Only the mouse is bound: pycell binds no keys.  Put your own here;
-`pycell-md-edit' and `pycell-md-follow-link' are the natural
+Only the mouse is bound: overblock-pycell binds no keys.  Put your own here;
+`overblock-pycell-md-edit' and `overblock-pycell-md-follow-link' are the natural
 candidates.  Point never enters the rendering, so a key pressed on the
 cell is answered by this map through the overlays that carry it."
-  "<mouse-2>" #'pycell-md-edit
-  "<mouse-1>" #'pycell-md-raw)
+  "<mouse-2>" #'overblock-pycell-md-edit
+  "<mouse-1>" #'overblock-pycell-md-raw)
 
-(defun pycell--md-links (block)
+(defun overblock-pycell--md-links (block)
   "Return the links of BLOCK's rendering, in the order they are shown.
 Each is a cons of the text the reader sees and the URL under it.
 
@@ -1034,7 +1038,7 @@ notebook opens with included."
     (nreverse links)))
 
 ;;;###autoload
-(defun pycell-md-follow-link ()
+(defun overblock-pycell-md-follow-link ()
   "Follow a link of the rendered markdown cell at point.
 Clicking a link follows it already: a click is answered by the string
 it lands on, and the rendering carries shr's own keymap there.  Point
@@ -1043,8 +1047,8 @@ the row under it belongs to the source, not to the rendering — so this
 asks the cell for its links instead.  With one, it is followed; with
 several, the reader chooses."
   (interactive)
-  (let* ((block (pycell--md-at nil))
-         (links (pycell--md-links block)))
+  (let* ((block (overblock-pycell--md-at nil))
+         (links (overblock-pycell--md-links block)))
     (cond
      ((null links) (user-error "No link in this cell"))
      ((null (cdr links)) (browse-url (cdar links)))
@@ -1053,7 +1057,7 @@ several, the reader chooses."
                                       nil t)
                      links)))))))
 
-(defun pycell--md-show (beg end &optional html)
+(defun overblock-pycell--md-show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.
 With HTML, the cell is not sent to the converter again: it was
 converted with the rest of the buffer.
@@ -1076,15 +1080,15 @@ Only the word =markdown= of the boundary line carries the header, so
               ;; the cell's block.  `overblock-edit-commit' rewrites the
               ;; body and renders it again, and a reader who changed
               ;; the boundary in the notebook meanwhile reached
-              ;; `pycell--md-block' with no start for its bar.
-              ((pycell--md-cell-start beg))
+              ;; `overblock-pycell--md-block' with no start for its bar.
+              ((overblock-pycell--md-cell-start beg))
               (rendered (overblock-md-rendered
-                         (pycell--md-uncomment
+                         (overblock-pycell--md-uncomment
                           (buffer-substring-no-properties beg end))
                          html)))
-    (pycell--md-block beg end rendered)))
+    (overblock-pycell--md-block beg end rendered)))
 
-(defun pycell--md-bar (hov)
+(defun overblock-pycell--md-bar (hov)
   "Draw the bar HOV of a rendered markdown cell, or draw it again.
 The bar is an overlay on the boundary line above the cell, which the
 block keeps under `:bar'.  It is remade rather than the cell rendered
@@ -1101,27 +1105,27 @@ the width, and the label of the bar does."
       (move-overlay hov (pos-bol) (pos-eol)))
     (overblock-bar-draw hov 'markdown
                         (concat (overblock-glyph "" "◇" "M") " "
-                                (or (pycell--cell-title (overlay-start hov)
+                                (or (overblock-pycell--cell-title (overlay-start hov)
                                                         (overlay-end hov))
                                     "markdown"))
-                        (overblock-buttons pycell-markdown-buttons)
-                        'pycell-header)))
+                        (overblock-buttons overblock-pycell-markdown-buttons)
+                        'overblock-pycell-header)))
 
-(defun pycell--md-block (beg end rendered)
+(defun overblock-pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
-See `pycell--md-show', which renders and calls this."
+See `overblock-pycell--md-show', which renders and calls this."
   (let* ((start (1- beg))
          (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
-                'keymap pycell-md-map 'help-echo help))
+                'keymap overblock-pycell-md-map 'help-echo help))
          ;; The bar covers the boundary line and stops before the
          ;; newline where the cell begins, so the line reads as the
          ;; header of the cell and not as a comment with a bar after it.
          ;; Whatever bar the line carries goes first: the cell may have
          ;; been showing its source, which is barred too.
-         (hov (let ((from (pycell--md-cell-start beg)))
-                (pycell--sole-bar from start nil)
+         (hov (let ((from (overblock-pycell--md-cell-start beg)))
+                (overblock-pycell--sole-bar from start nil)
                 (overblock-bar-over from start)))
          ;; The block covers the source of the cell.  The pieces hang
          ;; on those lines, and the bar above them is not part of it.
@@ -1132,24 +1136,24 @@ See `pycell--md-show', which renders and calls this."
                                 :data (cons (copy-marker beg)
                                             (copy-marker end t))
                                 :over text
-                                :keymap pycell-md-map
+                                :keymap overblock-pycell-md-map
                                 :help-echo help
                                 :attached (list hov))))
-    (overlay-put hov 'keymap pycell-md-map)
+    (overlay-put hov 'keymap overblock-pycell-md-map)
     ;; A click on the bar lands on this overlay, so it points back at
     ;; the block, which knows the bounds of the cell.
-    (overlay-put hov 'pycell-main block)
+    (overlay-put hov 'overblock-pycell-main block)
     (overblock-set block :bar hov)
-    (pycell--md-bar hov)
+    (overblock-pycell--md-bar hov)
     ;; An edit of the source takes the rendering with it, the bar
     ;; included.  The block itself evaporates with the text it covers,
     ;; and the bar sits on the boundary line above, where no edit of the
     ;; cell reaches it: it would be left behind, and `overblock-edit-commit'
     ;; would draw a second bar beside it.
-    (pycell--stale-when-edited block)
+    (overblock-pycell--stale-when-edited block)
     block))
 
-(defun pycell--md-cells (beg end)
+(defun overblock-pycell--md-cells (beg end)
   "Return the body of every markdown cell between BEG and END, in order.
 Each is a cons of where the body starts and where it ends, which is the
 next boundary line or the end of the buffer.  A cell with nothing in it
@@ -1157,7 +1161,7 @@ is left out: there is nothing to render."
   (save-excursion
     (goto-char beg)
     (let (cells)
-      (while (re-search-forward (concat "^" pycell--md-boundary) end t)
+      (while (re-search-forward (concat "^" overblock-pycell--md-boundary) end t)
         (forward-line 1)
         (let ((from (point))
               (to (if (re-search-forward code-cells-boundary-regexp nil t)
@@ -1171,14 +1175,14 @@ is left out: there is nothing to render."
       (nreverse cells))))
 
 ;;;###autoload
-(defun pycell-md-render-all (&optional beg end)
+(defun overblock-pycell-md-render-all (&optional beg end)
   "Render the markdown cells between BEG and END, the whole buffer by default.
 A markdown cell is one whose boundary line reads \"# %% [markdown]\".
 A caller that knows which cells changed says so: measured, one moved
 cell in a file of two hundred rendered every one of them, 436
 milliseconds against 17.7 for the two that moved."
   (interactive)
-  (let* ((found (pycell--md-cells (or beg (point-min))
+  (let* ((found (overblock-pycell--md-cells (or beg (point-min))
                                   (or end (point-max))))
          ;; Without a converter there is nothing to render, and the
          ;; reader is told once rather than once a cell.
@@ -1189,14 +1193,14 @@ milliseconds against 17.7 for the two that moved."
     (let ((htmls (and (cdr cells)
                       (overblock-md-html-batch
                        (mapcar (lambda (cell)
-                                 (pycell--md-uncomment
+                                 (overblock-pycell--md-uncomment
                                   (buffer-substring-no-properties
                                    (car cell) (cdr cell))))
                                cells)))))
       (dolist (cell cells)
-        (pycell--md-show (car cell) (cdr cell) (pop htmls))))
+        (overblock-pycell--md-show (car cell) (cdr cell) (pop htmls))))
     (when (and found (not cells))
-      (message "pycell: %s, cells stay plain"
+      (message "overblock-pycell: %s, cells stay plain"
                (if (fboundp 'libxml-parse-html-region)
                    (format "no markdown converter found (%s)"
                            (string-join (ensure-list overblock-md-command)
@@ -1205,14 +1209,14 @@ milliseconds against 17.7 for the two that moved."
 the converter's HTML with")))))
 
 ;;;###autoload
-(defun pycell-md-unrender ()
+(defun overblock-pycell-md-unrender ()
   "Show all markdown cells as their plain source again."
   (interactive)
   (overblock-clear (point-min) (point-max) 'markdown)
   ;; The bar of a rendering goes with it, and no text changed, so
   ;; nothing else would draw the bar those lines want now.
   (without-restriction
-    (pycell--cell-bars (point-min) (point-max)))
+    (overblock-pycell--cell-bars (point-min) (point-max)))
   ;; And whatever lost its anchor: a block whose anchor evaporated with
   ;; the line it hung on leaves its parts behind, and a clear that names
   ;; a kind cannot sweep them — an orphan says nothing about the kind it
@@ -1221,7 +1225,7 @@ the converter's HTML with")))))
   ;; bare `overblock-clear' here took every one of them with it.
   (overblock-sweep-orphans))
 
-(defun pycell--md-at (event)
+(defun overblock-pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
 A click on the bar lands on the small overlay that draws it, which
 points back at the block.  Signals a `user-error' where there is no
@@ -1230,39 +1234,41 @@ rendered cell, which is the answer the commands that call it give."
   (or (overblock-at 'markdown)
       ;; A click on the bar lands beside the block, so the overlay that
       ;; drew it is asked next.
-      (seq-some (lambda (ov) (overlay-get ov 'pycell-main))
+      (seq-some (lambda (ov) (overlay-get ov 'overblock-pycell-main))
                 (overlays-in (max (1- (point)) (point-min))
                              (min (1+ (point)) (point-max))))
       (user-error "No rendered markdown cell here")))
 
 ;;;###autoload
-(defun pycell-md-render-cell (&optional event)
+(defun overblock-pycell-md-render-cell (&optional event)
   "Render the markdown cell at point, or the one whose button EVENT clicked.
-`pycell-md-render-all' does the whole buffer; this is the button on the
+`overblock-pycell-md-render-all' does the whole buffer; this is the button on
+the
 bar of a cell that is showing its source."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-    (unless (pycell--md-cell-start beg)
+    (unless (overblock-pycell--md-cell-start beg)
       (user-error "This is not a markdown cell"))
-    (pycell--md-show beg end)))
+    (overblock-pycell--md-show beg end)))
 
 ;;;###autoload
-(defun pycell-md-raw (&optional event)
+(defun overblock-pycell-md-raw (&optional event)
   "Show the markdown cell at point, or the one in EVENT, as plain source.
 The cell is then editable in place; press the button on its bar, or run
-`pycell-md-render-all', to render it again."
+`overblock-pycell-md-render-all', to render it again."
   (interactive (list last-input-event))
-  (pycell--drop-rendering (pycell--md-at event)))
+  (overblock-pycell--drop-rendering (overblock-pycell--md-at event)))
 
-(defun pycell--md-put (beg end md)
+(defun overblock-pycell--md-put (beg end md)
   "Write the edited MD back into the markdown cell BEG..END and render it.
 The cell reaches to the next boundary line, so it holds the blank line
 jupytext writes between cells: what stood after the body goes back
 rather than one newline, or committing an edit that changed nothing
 would close the gap.
 
-An empty cell has no line to comment — `pycell--md-comment' would write
+An empty cell has no line to comment — `overblock-pycell--md-comment' would
+write
 a bare # where the author left nothing, and a commit that changed
 nothing would change the file."
   (let ((tail (buffer-substring-no-properties
@@ -1273,21 +1279,21 @@ nothing would change the file."
                end)))
     (goto-char beg)
     (delete-region beg end)
-    (insert (if (string-empty-p md) "" (pycell--md-comment md)) tail))
-  (pycell--md-show beg end))
+    (insert (if (string-empty-p md) "" (overblock-pycell--md-comment md)) tail))
+  (overblock-pycell--md-show beg end))
 
 ;;;###autoload
-(defun pycell-md-edit (&optional event)
+(defun overblock-pycell-md-edit (&optional event)
   "Edit the markdown cell at point, or the one clicked in EVENT.
 The body opens in its own buffer, without the comment prefixes, in
 `markdown-mode' when that is installed.  `overblock-edit-commit' puts
 it back and renders it; `overblock-edit-abort' discards the edit."
   (interactive (list last-input-event))
-  (pcase-let* ((block (pycell--md-at event))
+  (pcase-let* ((block (overblock-pycell--md-at event))
                (`(,beg . ,end) (overblock-get block :data)))
     (overblock-edit-in-buffer
      beg end
-     (list :name (pycell--cell-buffer-name "md" beg)
+     (list :name (overblock-pycell--cell-buffer-name "md" beg)
            :label "markdown cell"
            :mode (if (fboundp 'markdown-mode) #'markdown-mode #'text-mode)
            ;; Trimmed on the right: the cell reaches to the next
@@ -1298,13 +1304,13 @@ it back and renders it; `overblock-edit-abort' discards the edit."
            ;; round, compounding.
            :text (lambda (from to)
                    (string-trim-right
-                    (pycell--md-uncomment
+                    (overblock-pycell--md-uncomment
                      (buffer-substring-no-properties from to))))
-           :put #'pycell--md-put))))
+           :put #'overblock-pycell--md-put))))
 
 ;;;; The bar over a boundary line
 
-(defun pycell--cell-title (bol eol)
+(defun overblock-pycell--cell-title (bol eol)
   "Return the title written on the boundary line BOL..EOL, or nil.
 What follows the =%%= marker is the title, as jupytext writes it, less
 the tag list of a =# %% [markdown]= line.  A cell without one is named
@@ -1323,14 +1329,14 @@ after what it holds."
                       (buffer-substring-no-properties (match-end 0) eol))))))
         (unless (string-empty-p title) title)))))
 
-(defun pycell--bar-redraw (ov)
+(defun overblock-pycell--bar-redraw (ov)
   "Draw the bar OV again, of whichever kind of cell it belongs to."
   (pcase (overblock-bar-kind ov)
-    ('code (pycell--code-bar (overlay-start ov) (overlay-end ov)))
-    ('source (pycell--source-bar (overlay-start ov) (overlay-end ov)))
-    ('markdown (pycell--md-bar ov))))
+    ('code (overblock-pycell--code-bar (overlay-start ov) (overlay-end ov)))
+    ('source (overblock-pycell--source-bar (overlay-start ov) (overlay-end ov)))
+    ('markdown (overblock-pycell--md-bar ov))))
 
-(defun pycell--bar-line (bol eol kind glyph plain buttons)
+(defun overblock-pycell--bar-line (bol eol kind glyph plain buttons)
   "Draw the bar of KIND over the boundary line BOL..EOL.
 GLYPH is what stands in front of the label, PLAIN the label of a cell
 with no title of its own, and BUTTONS the buttons of the bar.  A bar of
@@ -1346,12 +1352,12 @@ the block holding an overlay that was no longer its own."
     ;; the line was shorter.
     (move-overlay ov bol eol)
     (overblock-bar-draw ov kind
-                        (concat glyph " " (or (pycell--cell-title bol eol)
+                        (concat glyph " " (or (overblock-pycell--cell-title bol eol)
                                               plain))
                         (overblock-buttons buttons)
-                        'pycell-header)))
+                        'overblock-pycell-header)))
 
-(defun pycell--source-bar (bol eol)
+(defun overblock-pycell--source-bar (bol eol)
   "Draw the bar of the markdown cell BOL..EOL that is showing its source.
 A rendered markdown cell is barred by its rendering; a cell that has
 none — one just written, or one taken back to its source — had no bar at
@@ -1360,26 +1366,26 @@ all, and the line read as one the package had lost track of."
   ;; rendered cell and one showing its source read alike otherwise —
   ;; captured in a terminal, two bars saying `M markdown' that differed
   ;; only in their buttons.
-  (pycell--bar-line bol eol 'source
+  (overblock-pycell--bar-line bol eol 'source
                     (overblock-glyph "" "◇" "M") "source"
-                    pycell-source-buttons))
+                    overblock-pycell-source-buttons))
 
-(defun pycell--code-bar (bol eol)
+(defun overblock-pycell--code-bar (bol eol)
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
-  (pycell--bar-line bol eol 'code
+  (overblock-pycell--bar-line bol eol 'code
                     (overblock-glyph "" "◆" "%") "python"
-                    pycell-cell-buttons))
+                    overblock-pycell-cell-buttons))
 
-(defun pycell--drop-bar (bar)
+(defun overblock-pycell--drop-bar (bar)
   "Take BAR down, and the rendering it belongs to where it has one.
 A markdown bar is a block's own overlay: the block goes with it, and
 the source of the cell comes back.  Its boundary line no longer says
 =[markdown]=, so the rendering below it is a rendering of nothing."
-  (if-let* ((block (overlay-get bar 'pycell-main)))
+  (if-let* ((block (overlay-get bar 'overblock-pycell-main)))
       (overblock-delete block)
     (delete-overlay bar)))
 
-(defun pycell--cell-bars (start end)
+(defun overblock-pycell--cell-bars (start end)
   "Draw the bar of every code cell whose boundary line START..END touches.
 Whole lines, whatever START and END are: this is called with the bounds
 of a change, and a change reaches the middle of a line.
@@ -1399,7 +1405,7 @@ bar left over from before the line said =[markdown]= goes."
         (when-let* ((pos (overlay-start bar)))
           (goto-char pos)
           (forward-line 0)
-          (pycell--bar-this-line)))
+          (overblock-pycell--bar-this-line)))
       ;; And the boundary lines themselves, searched for rather than
       ;; walked to: a `revert-buffer' or a jupytext round trip reports
       ;; one change over the whole buffer, and a line-by-line walk then
@@ -1411,10 +1417,10 @@ bar left over from before the line said =[markdown]= goes."
       (while (and (< (point) to)
                   (re-search-forward code-cells-boundary-regexp to t))
         (forward-line 0)
-        (pycell--bar-this-line)
+        (overblock-pycell--bar-this-line)
         (forward-line 1)))))
 
-(defun pycell--sole-bar (bol eol kinds)
+(defun overblock-pycell--sole-bar (bol eol kinds)
   "Return the one bar to keep on the line BOL..EOL, and drop the others.
 KINDS names the kinds worth keeping, best first; every bar of another
 kind goes, and so does a second bar of the same kind.  Nil keeps none of
@@ -1432,10 +1438,10 @@ bars on the boundary line of one rendered cell."
         (setq keep (seq-find (lambda (bar) (eq (overblock-bar-kind bar) kind))
                              bars))))
     (dolist (bar bars)
-      (unless (eq bar keep) (pycell--drop-bar bar)))
+      (unless (eq bar keep) (overblock-pycell--drop-bar bar)))
     keep))
 
-(defun pycell--bar-this-line ()
+(defun overblock-pycell--bar-this-line ()
   "Give the line point is on the bar it should have, or take one away.
 Four lines to tell apart: one that is no boundary, a markdown boundary
 whose cell is rendered, a markdown boundary whose cell shows its source,
@@ -1447,28 +1453,28 @@ and a code boundary."
      ;; a marker half deleted.  Whatever bar it carries goes: its
      ;; buttons would act on the cell that now encloses the line.
      ((not (looking-at-p code-cells-boundary-regexp))
-      (pycell--sole-bar bol eol nil))
+      (overblock-pycell--sole-bar bol eol nil))
      ;; A rendered markdown cell is barred by its rendering, which
      ;; brings its own bar; one showing its source is barred here, with
      ;; the button that renders it.
-     ((looking-at-p pycell--md-boundary)
-      (let ((bar (pycell--sole-bar bol eol '(markdown source))))
+     ((looking-at-p overblock-pycell--md-boundary)
+      (let ((bar (overblock-pycell--sole-bar bol eol '(markdown source))))
         ;; The rendering's own bar is drawn again, not merely left
         ;; alone: its label is the cell's title, and a title edited on
         ;; the line stayed on the bar until a width change or the next
         ;; rendering.
         (if (eq (overblock-bar-kind bar) 'markdown)
-            (pycell--md-bar bar)
-          (pycell--source-bar bol eol))))
+            (overblock-pycell--md-bar bar)
+          (overblock-pycell--source-bar bol eol))))
      (t
       ;; A rendering whose line stopped saying =[markdown]= is a
       ;; rendering of nothing, and the bar of a source that is no longer
       ;; markdown is a bar for a cell that has gone: both come down, and
       ;; the line takes a code bar like any other.
-      (pycell--sole-bar bol eol '(code))
-      (pycell--code-bar bol eol)))))
+      (overblock-pycell--sole-bar bol eol '(code))
+      (overblock-pycell--code-bar bol eol)))))
 
-(defun pycell--bars-after-change (beg end _length)
+(defun overblock-pycell--bars-after-change (beg end _length)
   "Draw the bars of the lines the change BEG..END touched.
 On `after-change-functions', and not on `jit-lock-register': one error
 in any other jit-lock function skips the rest of them, and a
@@ -1478,20 +1484,22 @@ from redisplay — not one bar was drawn in such a buffer.
 The match data is the caller's: a change hook runs between a search and
 what the searcher does with it, and `replace-match' after a
 `search-forward' signalled here."
-  (save-match-data (pycell--cell-bars beg end)))
+  (save-match-data (overblock-pycell--cell-bars beg end)))
 
 
 ;;;; Running cells
 
-(defvar-local pycell--queue nil
-  "Start markers of the cells that `pycell-restart-and-run-all' still runs.
-Kept in the Python shell's buffer, beside `pycell--run': a notebook with
+(defvar-local overblock-pycell--queue nil
+  "Start markers of the cells a run of the whole notebook has left.
+`overblock-pycell-restart-and-run-all' fills it and empties it as it goes.
+Kept in the Python shell's buffer, beside `overblock-pycell--run': a notebook
+with
 a shell of its own — which `python-shell-dedicated' gives it — has a
 queue of its own.  One global list let a run-all in one notebook discard
 another's cells and then feed its own down that notebook's interpreter.
-`pycell--queue-buffer' is how to reach it.")
+`overblock-pycell--queue-buffer' is how to reach it.")
 
-(defun pycell--queue-buffer ()
+(defun overblock-pycell--queue-buffer ()
   "Return the buffer that holds the run-all queue for this one.
 That is the Python shell: this buffer where it is one, and the shell this
 notebook sends to otherwise.  Nil where there is no shell, and then there
@@ -1501,18 +1509,19 @@ is nothing queued either."
     (when-let* ((proc (python-shell-get-process)))
       (process-buffer proc))))
 
-(defvar-local pycell--queue-home nil
+(defvar-local overblock-pycell--queue-home nil
   "Where point goes in the notebook when this shell's queue runs out.
-`pycell--run-next' walks point down the notebook, which is what makes a
+`overblock-pycell--run-next' walks point down the notebook, which is what makes
+a
 pass over the whole buffer visible.  A pass asked for from one cell
 gives point back instead: the reader pressed a button there.")
 
-(defun pycell--queued ()
+(defun overblock-pycell--queued ()
   "Return the cells a run-all still has to run, in order."
-  (when-let* ((shell (pycell--queue-buffer)))
-    (buffer-local-value 'pycell--queue shell)))
+  (when-let* ((shell (overblock-pycell--queue-buffer)))
+    (buffer-local-value 'overblock-pycell--queue shell)))
 
-(defconst pycell--error-tail
+(defconst overblock-pycell--error-tail
   (concat "\\`"
           "\\(?:[a-z][a-zA-Z0-9_]*\\.\\)*"       ; a module path, if any
           "[A-Z][a-zA-Z0-9_]*"                   ; the exception's name
@@ -1524,16 +1533,16 @@ The name of an exception, and nothing before it.
 The colon is required: a cell whose own output ends with the name of an
 exception — `print(type(err).__name__)' after catching one — stopped a
 whole pass.  The two names IPython does print alone are
-`pycell--error-alone'.")
+`overblock-pycell--error-alone'.")
 
-(defconst pycell--error-alone
+(defconst overblock-pycell--error-alone
   "\\`\\(?:KeyboardInterrupt\\|SystemExit\\)\\'"
   "The exceptions IPython reports with nothing after the name.
 An interrupted cell ends with a bare `KeyboardInterrupt', and
 `sys.exit()' with a bare `SystemExit'; every other report carries a
 colon and a message.")
 
-(defun pycell--error-p (text)
+(defun overblock-pycell--error-p (text)
   "Return non-nil when TEXT is the output of a cell that failed.
 A traceback says so in its first line, but not every failure has one:
 `SyntaxError' and `SystemExit' print the name of the exception and
@@ -1543,37 +1552,37 @@ of the exception stands, whether a traceback led to it or not."
   (or (string-match-p "Traceback (most recent call last)" text)
       (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
                   (last (car (last lines))))
-        (or (string-match-p pycell--error-tail last)
-            (string-match-p pycell--error-alone last)))))
+        (or (string-match-p overblock-pycell--error-tail last)
+            (string-match-p overblock-pycell--error-alone last)))))
 
-(defun pycell--go-home ()
+(defun overblock-pycell--go-home ()
   "Put point back where the pass that has just ended was asked for.
 The windows showing the notebook go there too: a window keeps a point
 of its own while its buffer is not the selected one, and a pass ended
 while the reader looked elsewhere left that window at whatever line it
 had been scrolled to."
-  (when-let* ((shell (pycell--queue-buffer))
-              (home (buffer-local-value 'pycell--queue-home shell)))
+  (when-let* ((shell (overblock-pycell--queue-buffer))
+              (home (buffer-local-value 'overblock-pycell--queue-home shell)))
     ;; The marker goes whatever happens next, so a notebook that was
     ;; killed while its pass ran leaves nothing behind to act on.
-    (with-current-buffer shell (setq pycell--queue-home nil))
+    (with-current-buffer shell (setq overblock-pycell--queue-home nil))
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
         (goto-char home)
         (dolist (window (get-buffer-window-list nil nil t))
           (set-window-point window home))))))
 
-(defun pycell--home-set (marker)
+(defun overblock-pycell--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none."
-  (when-let* ((shell (pycell--queue-buffer)))
-    (with-current-buffer shell (setq pycell--queue-home marker))))
+  (when-let* ((shell (overblock-pycell--queue-buffer)))
+    (with-current-buffer shell (setq overblock-pycell--queue-home marker))))
 
-(defun pycell--queue-set (cells)
+(defun overblock-pycell--queue-set (cells)
   "Give the shell CELLS to run, and answer them."
-  (when-let* ((shell (pycell--queue-buffer)))
-    (with-current-buffer shell (setq pycell--queue cells))))
+  (when-let* ((shell (overblock-pycell--queue-buffer)))
+    (with-current-buffer shell (setq overblock-pycell--queue cells))))
 
-(defvar-local pycell--run nil
+(defvar-local overblock-pycell--run nil
   "State of the cell that runs in this Python shell, or nil.
 A plist:
 
@@ -1589,10 +1598,10 @@ A plist:
 
 The last two belong to the live mirror.")
 
-(defvar-local pycell--cold-cell nil
+(defvar-local overblock-pycell--cold-cell nil
   "Cell (BEG . END markers) that waits for this shell's first prompt.")
 
-(defun pycell--whole-escapes (text)
+(defun overblock-pycell--whole-escapes (text)
   "Return TEXT without an escape sequence that has not arrived in full.
 comint-mime sends an image as one escape sequence, and half of one
 swallows everything after it until the rest comes.  The search is what
@@ -1604,15 +1613,16 @@ search that stands in front of it now."
       (replace-regexp-in-string "\e\\][^\e]*\\'" "" text)
     text))
 
-(defun pycell--output-so-far (from)
+(defun overblock-pycell--output-so-far (from)
   "Return the running cell's output after FROM, cleaned.
 An incomplete escape sequence at the end is dropped: comint-mime
 renders it only when it is complete."
-  (pycell--clean (pycell--whole-escapes (buffer-substring from (point-max)))))
+  (overblock-pycell--clean (overblock-pycell--whole-escapes (buffer-substring from (point-max)))))
 
-(defun pycell--output-head (from)
+(defun overblock-pycell--output-head (from)
   "Return as much of the output after FROM as the block can show.
-`pycell--body-lines' takes the first `pycell-max-lines' lines and
+`overblock-pycell--body-lines' takes the first `overblock-pycell-max-lines' and
+lines
 stops, so a tick has no reason to read — or clean — everything the
 cell has printed.  Once those lines are all in, the text cannot
 change anymore and is kept, and the ticks after that read nothing.
@@ -1623,16 +1633,16 @@ bound holds only where no escape sequence begins inside it.
 Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
-  (or (plist-get pycell--run :head)
-      (let* ((budget (and (natnump pycell-max-line-length)
-                          (> pycell-max-line-length 0)
-                          ;; what `pycell--body-lines' can show, and no
+  (or (plist-get overblock-pycell--run :head)
+      (let* ((budget (and (natnump overblock-pycell-max-line-length)
+                          (> overblock-pycell-max-line-length 0)
+                          ;; what `overblock-pycell--body-lines' can show, and no
                           ;; more: the lines it keeps, each cut to the
                           ;; length it cuts them to
-                          (* pycell-max-lines (1+ pycell-max-line-length))))
+                          (* overblock-pycell-max-lines (1+ overblock-pycell-max-line-length))))
              (limit (save-excursion
                       (goto-char from)
-                      (forward-line (+ pycell-max-lines 4))
+                      (forward-line (+ overblock-pycell-max-lines 4))
                       (point)))
              ;; A cell that prints much on few lines never reaches that
              ;; line, so its text is never kept and every tick reads and
@@ -1640,7 +1650,7 @@ cell whose first lines are still on their way has more to come."
              ;; milliseconds a tick over a hundred thousand characters on
              ;; one line, five times a second, for the two thousand
              ;; characters that show.  The body cuts each line to
-             ;; `pycell-max-line-length' anyway, so a bound in characters
+             ;; `overblock-pycell-max-line-length' anyway, so a bound in characters
              ;; loses nothing that shows — except where it would cut an
              ;; escape sequence in two.  comint-mime sends an image as
              ;; one, and a cut inside it drops the figure: measured, a
@@ -1655,21 +1665,21 @@ cell whose first lines are still on their way has more to come."
                                      t))))
                         (+ from budget)
                       limit))
-             (text (pycell--clean
-                    (pycell--whole-escapes (buffer-substring from limit)))))
+             (text (overblock-pycell--clean
+                    (overblock-pycell--whole-escapes (buffer-substring from limit)))))
         (when (and (< limit (point-max))
                    (not (string-empty-p text)))
-          (setq pycell--run (plist-put pycell--run :head text)))
+          (setq overblock-pycell--run (plist-put overblock-pycell--run :head text)))
         text)))
 
-(defun pycell--total (from)
+(defun overblock-pycell--total (from)
   "Return the number of lines the running cell has printed after FROM.
 Counted where they arrive: reading the whole output again is a pass
 over everything printed so far, and a cell that prints a lot pays
 that pass five times a second.  Leading blank lines go, as
-`pycell--clean' drops them, so the count agrees with the one the
+`overblock-pycell--clean' drops them, so the count agrees with the one the
 finished cell shows."
-  (let* ((state (or (plist-get pycell--run :count)
+  (let* ((state (or (plist-get overblock-pycell--run :count)
                     (cons (save-excursion
                             (goto-char from)
                             (skip-chars-forward " \t\n")
@@ -1684,8 +1694,8 @@ finished cell shows."
       ;; and comint adjusts the whole chain on every insertion: 2000
       ;; ticks over 60000 inserted lines measured 0.144 seconds with a
       ;; fresh marker each time and 0.036 with this one.
-      (setq pycell--run
-            (plist-put pycell--run :count
+      (setq overblock-pycell--run
+            (plist-put overblock-pycell--run :count
                        (cons (set-marker (car state) (point)) count))))
     ;; A line that has not ended yet is a line all the same.
     (if (and (> (point-max) (marker-position from))
@@ -1693,20 +1703,20 @@ finished cell shows."
         (1+ count)
       count)))
 
-(defun pycell--show-in-notebook (beg fin text seconds state &optional total)
+(defun overblock-pycell--show-in-notebook (beg fin text seconds state &optional total)
   "Show TEXT as the result of the cell BEG..FIN, where it can be shown.
-SECONDS, STATE and TOTAL are what `pycell--show' takes.
+SECONDS, STATE and TOTAL are what `overblock-pycell--show' takes.
 
-Nothing where the notebook is gone, and nothing where `pycell-mode' is
+Nothing where the notebook is gone, and nothing where `overblock-pycell-mode' is
 off in it: the mode's own body takes the blocks and the bars away, and
 a block put back after that would sit in a buffer with no bars and none
 of the mode's hooks, where no key of the mode could fold it again."
   (when (buffer-live-p (marker-buffer beg))
     (with-current-buffer (marker-buffer beg)
-      (when (bound-and-true-p pycell-mode)
-        (pycell--show beg fin text seconds state total)))))
+      (when (bound-and-true-p overblock-pycell-mode)
+        (overblock-pycell--show beg fin text seconds state total)))))
 
-(defun pycell--release (&rest markers)
+(defun overblock-pycell--release (&rest markers)
   "Point every marker of MARKERS nowhere, and ignore what is not one.
 A marker of a buffer stays in its chain until a garbage collection, and
 comint adjusts the whole chain on every insertion: measured over 60000
@@ -1714,7 +1724,7 @@ inserted lines, 0.144 seconds against 0.036."
   (dolist (marker markers)
     (when (markerp marker) (set-marker marker nil))))
 
-(defun pycell--end (text &optional died)
+(defun overblock-pycell--end (text &optional died)
   "End the running cell and show TEXT as its final result.
 The one exit for every way a cell ends; DIED marks abnormal ends.
 Call this in the Python shell buffer.
@@ -1722,41 +1732,41 @@ Call this in the Python shell buffer.
 Nothing happens where no cell is running: a failing send can end its
 cell through the filter and then signal, and the handler would call this
 a second time — `cancel-timer' of nil raised, which masked the error it
-was reporting.  `pycell--abort' asks the same question."
-  (when pycell--run
+was reporting.  `overblock-pycell--abort' asks the same question."
+  (when overblock-pycell--run
     (pcase-let (((map (:from from) :beg (:end fin) :start :timer :follow
                       (:count count))
-                 pycell--run))
+                 overblock-pycell--run))
       ;; The last of the output, and then the whole of it cleaned: the
       ;; tail a follower wrote is raw, and its final lines arrive with
       ;; the closing prompt.
-      (pycell--follow-tick)
-      (setq pycell--run nil)
+      (overblock-pycell--follow-tick)
+      (setq overblock-pycell--run nil)
       (cancel-timer timer)
       ;; The pass is over, and so is the place it came from: a marker
       ;; left behind would take point there at the end of the next
       ;; single cell to run.
-      (when died (setq pycell--queue nil pycell--queue-home nil))
-      (pycell--show-in-notebook beg fin text (- (float-time) start)
+      (when died (setq overblock-pycell--queue nil overblock-pycell--queue-home nil))
+      (overblock-pycell--show-in-notebook beg fin text (- (float-time) start)
                                 (and died 'died))
-      (pycell--follow-done follow text)
+      (overblock-pycell--follow-done follow text)
       ;; The markers of the run go: three of them live in the Python
       ;; shell, and a pass over a notebook of 200 cells left hundreds
       ;; of them there.
-      (pycell--release from beg fin (car-safe count) (cdr-safe follow))
-      ;; Keep `pycell-restart-and-run-all' going, or stop on error.
+      (overblock-pycell--release from beg fin (car-safe count) (cdr-safe follow))
+      ;; Keep `overblock-pycell-restart-and-run-all' going, or stop on error.
       ;; Either way the end of a pass takes point home: the last cell of
       ;; a pass is sent with the queue already empty, so waiting for
-      ;; `pycell--run-next' to find nothing left never happened and
+      ;; `overblock-pycell--run-next' to find nothing left never happened and
       ;; point stayed on whatever cell ran last.
-      (cond ((null pycell--queue) (pycell--go-home))
-            ((pycell--error-p text)
-             (setq pycell--queue nil)
-             (message "pycell: stopped at error")
-             (pycell--go-home))
-            (t (pycell--run-next))))))
+      (cond ((null overblock-pycell--queue) (overblock-pycell--go-home))
+            ((overblock-pycell--error-p text)
+             (setq overblock-pycell--queue nil)
+             (message "overblock-pycell: stopped at error")
+             (overblock-pycell--go-home))
+            (t (overblock-pycell--run-next))))))
 
-(defun pycell--abort (&optional reason)
+(defun overblock-pycell--abort (&optional reason)
   "End the running cell abnormally — its prompt will never return.
 A death notice, with the exit status when one is available, follows
 the output received so far.  This covers a dead interpreter (the
@@ -1766,9 +1776,9 @@ reinitializes the major mode — hence also on `kill-buffer-hook' and
 
 REASON says what happened, for a caller that knows: a restart is not
 an unexpected death."
-  (when pycell--run
+  (when overblock-pycell--run
     (let* ((proc (get-buffer-process (current-buffer)))
-           (out (pycell--output-so-far (plist-get pycell--run :from)))
+           (out (overblock-pycell--output-so-far (plist-get overblock-pycell--run :from)))
            (msg (propertize
                  (or reason
                      (format "Process unexpectedly died%s"
@@ -1777,10 +1787,10 @@ an unexpected death."
                                          (process-exit-status proc))
                                "")))
                  'face 'error)))
-      (pycell--end (if (string-empty-p out) msg (concat out "\n" msg))
+      (overblock-pycell--end (if (string-empty-p out) msg (concat out "\n" msg))
                    t))))
 
-(defun pycell--follow (buffer)
+(defun overblock-pycell--follow (buffer)
   "Have the running cell copy what it prints into BUFFER as it prints it.
 Call this in the notebook.  Nothing happens where no cell is running.
 
@@ -1789,16 +1799,16 @@ of it has been copied lives there, in the record of the run."
   (when-let* ((proc (python-shell-get-process))
               (shell (process-buffer proc)))
     (with-current-buffer shell
-      (when pycell--run
-        (setq pycell--run
-              (plist-put pycell--run :follow
+      (when overblock-pycell--run
+        (setq overblock-pycell--run
+              (plist-put overblock-pycell--run :follow
                          (cons buffer
-                               (copy-marker (plist-get pycell--run :from)))))
+                               (copy-marker (plist-get overblock-pycell--run :from)))))
         ;; What the cell has printed already, rather than an empty
         ;; buffer until the next tick.
-        (pycell--follow-tick)))))
+        (overblock-pycell--follow-tick)))))
 
-(defun pycell--follow-tick ()
+(defun overblock-pycell--follow-tick ()
   "Copy what the cell has printed since the last look into its buffer.
 Call this in the Python shell buffer.
 
@@ -1809,7 +1819,7 @@ hundred thousand characters would cost that on every tick here as well.
 Point at the end of the buffer follows the output, in the buffer and in
 every window showing it; point anywhere else stays where the reader put
 it."
-  (when-let* ((follow (plist-get pycell--run :follow))
+  (when-let* ((follow (plist-get overblock-pycell--run :follow))
               (buffer (car follow))
               ((buffer-live-p buffer))
               (copied (cdr follow))
@@ -1828,47 +1838,47 @@ it."
           (when (= (window-point window) end)
             (set-window-point window (point-max))))))))
 
-(defun pycell--tick (buf timer)
+(defun overblock-pycell--tick (buf timer)
   "Mirror the running cell's output and stopwatch into its overlay.
 TIMER runs this every 0.2s for the Python shell BUF.  It cancels
 itself when nothing runs there anymore."
   (if (not (and (buffer-live-p buf)
-                (buffer-local-value 'pycell--run buf)))
+                (buffer-local-value 'overblock-pycell--run buf)))
       (cancel-timer timer)
     (with-current-buffer buf
       (if (not (process-live-p (get-buffer-process buf)))
-          (pycell--abort)
-        (pcase-let (((map (:from from) :beg (:end fin) :start) pycell--run))
-          (let* ((text (pycell--output-head from))
-                 (total (if (string-empty-p text) 0 (pycell--total from))))
-            (pycell--follow-tick)
-            (pycell--show-in-notebook beg fin text (- (float-time) start)
+          (overblock-pycell--abort)
+        (pcase-let (((map (:from from) :beg (:end fin) :start) overblock-pycell--run))
+          (let* ((text (overblock-pycell--output-head from))
+                 (total (if (string-empty-p text) 0 (overblock-pycell--total from))))
+            (overblock-pycell--follow-tick)
+            (overblock-pycell--show-in-notebook beg fin text (- (float-time) start)
                                       'running total)))))))
 
-(defun pycell--filter (output)
+(defun overblock-pycell--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running cell.
 The filter stays on `comint-output-filter-functions' and idles while
 no cell runs; the live mirroring is the ticker's job."
-  (when pycell--run
+  (when overblock-pycell--run
     ;; A chunk boundary can split the prompt, so match a capped tail;
     ;; `ansi-color-filter-apply' drops the escape sequences.
-    (let ((tail (concat (plist-get pycell--run :tail)
+    (let ((tail (concat (plist-get overblock-pycell--run :tail)
                         (ansi-color-filter-apply output))))
-      (setq pycell--run
-            (plist-put pycell--run :tail
+      (setq overblock-pycell--run
+            (plist-put overblock-pycell--run :tail
                        (string-limit tail 256 t)))
       (when (python-shell-comint-end-of-output-p tail)
-        ;; Copy to the end of the buffer and let `pycell--clean' take
+        ;; Copy to the end of the buffer and let `overblock-pycell--clean' take
         ;; the prompt off.  `comint-last-prompt' cannot serve as the
         ;; end: comint calls the last line without a newline a prompt,
         ;; so a chunk that arrives split leaves the marker inside the
         ;; output, and everything after it would be dropped without a
         ;; word.
-        (pycell--end
-         (pycell--clean
-          (buffer-substring (plist-get pycell--run :from) (point-max))))))))
+        (overblock-pycell--end
+         (overblock-pycell--clean
+          (buffer-substring (plist-get overblock-pycell--run :from) (point-max))))))))
 
-(defun pycell--ipython-syntax-p (beg end)
+(defun overblock-pycell--ipython-syntax-p (beg end)
   "Return non-nil when BEG..END holds syntax that only IPython reads.
 A magic, a shell escape or a help request: a line that begins with %
 or !, or one that ends in ?.
@@ -1910,7 +1920,7 @@ be sent down it."
         (forward-line 1))
       nil)))
 
-(defun pycell--send-to-ipython (proc code)
+(defun overblock-pycell--send-to-ipython (proc code)
   "Send CODE to PROC the way typing it would.
 `python-shell-send-region' wraps the cell in a compile call, so the
 interpreter reads it as plain Python and IPython's own reader, which
@@ -1929,24 +1939,24 @@ know `get_ipython'."
            (base64-encode-string (encode-coding-string code 'utf-8) t))
    proc))
 
-(defun pycell--send (proc start end)
+(defun overblock-pycell--send (proc start end)
   "Send START..END to PROC as the running cell and track it.
 Call this with the cell's buffer current."
   (let ((beg (copy-marker start))
         (fin (copy-marker end t)))
     (with-current-buffer (process-buffer proc)
-      (when pycell--run
+      (when overblock-pycell--run
         (user-error "The Python shell is still busy with another cell"))
       ;; All idempotent: the filter idles while no cell runs, the
       ;; other two catch the shell going away under a running cell.
       ;; comint-mime renders from the same hook; because our filter
       ;; appends, the copied region already carries the images.
-      (add-hook 'comint-output-filter-functions #'pycell--filter t t)
-      (add-hook 'kill-buffer-hook #'pycell--abort nil t)
-      (add-hook 'change-major-mode-hook #'pycell--abort nil t)
+      (add-hook 'comint-output-filter-functions #'overblock-pycell--filter t t)
+      (add-hook 'kill-buffer-hook #'overblock-pycell--abort nil t)
+      (add-hook 'change-major-mode-hook #'overblock-pycell--abort nil t)
       ;; The ticker receives itself, so it can always self-cancel.
       (let ((timer (run-with-timer 0.2 0.2 #'ignore)))
-        (timer-set-function timer #'pycell--tick
+        (timer-set-function timer #'overblock-pycell--tick
                             (list (current-buffer) timer))
         ;; The process mark, and not the end of the buffer.  A render
         ;; comint-mime finishes after the closing prompt sits past the
@@ -1955,11 +1965,11 @@ Call this with the cell's buffer current."
         ;; mark, before that render — fall outside its own region.  So
         ;; a late render is still swept into the next cell's result;
         ;; that is a fault of its own and not one to cure here.
-        (setq pycell--run (list :from (copy-marker (process-mark proc))
+        (setq overblock-pycell--run (list :from (copy-marker (process-mark proc))
                                 :beg beg :end fin :tail ""
                                 :start (float-time) :timer timer
                                 :head nil :count nil))))
-    (pycell--show beg fin "" 0.0 'running)
+    (overblock-pycell--show beg fin "" 0.0 'running)
     ;; The bookkeeping above says a cell is running, and the send below
     ;; can fail — a signal from the shell, or `C-g' while the region is
     ;; written to its temporary file.  Without this the shell stays busy
@@ -1967,31 +1977,31 @@ Call this with the cell's buffer current."
     ;; cell is refused.  So a failed send ends the cell as a death, which
     ;; also empties the queue of a run-all.
     (condition-case error
-        (if (pycell--ipython-syntax-p beg fin)
-            (pycell--send-to-ipython
+        (if (overblock-pycell--ipython-syntax-p beg fin)
+            (overblock-pycell--send-to-ipython
              proc (buffer-substring-no-properties beg fin))
           ;; `python-shell-send-region' pads the code, so traceback line
           ;; numbers match the buffer.
           (python-shell-send-region beg fin))
       ((error quit)
        (with-current-buffer (process-buffer proc)
-         (pycell--end (propertize (error-message-string error) 'face 'error)
+         (overblock-pycell--end (propertize (error-message-string error) 'face 'error)
                       t))
        (signal (car error) (cdr error))))))
 
-(defun pycell--run-cold ()
+(defun overblock-pycell--run-cold ()
   "Evaluate the cell that waited for the interpreter.
-Unlike `pycell--run-next' this does not move point: the command
+Unlike `overblock-pycell--run-next' this does not move point: the command
 that caused the cold start may have moved it on already."
-  (remove-hook 'python-shell-first-prompt-hook #'pycell--run-cold t)
-  (pcase-let ((`(,beg . ,end) pycell--cold-cell)
+  (remove-hook 'python-shell-first-prompt-hook #'overblock-pycell--run-cold t)
+  (pcase-let ((`(,beg . ,end) overblock-pycell--cold-cell)
               (proc (get-buffer-process (current-buffer))))
-    (setq pycell--cold-cell nil)
+    (setq overblock-pycell--cold-cell nil)
     (when (and beg (buffer-live-p (marker-buffer beg)))
       (with-current-buffer (marker-buffer beg)
-        (pycell--send proc beg end)))))
+        (overblock-pycell--send proc beg end)))))
 
-(defun pycell--dedicated ()
+(defun overblock-pycell--dedicated ()
   "Return what a new shell is dedicated to, as the reader asked.
 `python-shell-dedicated' says it.  Its `project' value makes
 `run-python' ask which project, where the file belongs to none, and
@@ -2002,41 +2012,41 @@ such a shell the shared one anyway, so that is what this answers."
                (not (project-current)))
     python-shell-dedicated))
 
-(defun pycell-eval-region (start end)
+(defun overblock-pycell-eval-region (start end)
   "Evaluate START..END as a cell and mirror the output below it.
 This matches the calling convention of
 `code-cells-eval-region-commands'.  A markdown cell renders instead.
 Without an interpreter, one starts and the cell follows on its first
 prompt.  A cell sent while another one runs is refused, with a
-`user-error' from `pycell--send'."
+`user-error' from `overblock-pycell--send'."
   ;; ponytail: a second cell sent by hand is refused rather than
-  ;; queued; `pycell--queue' serves `pycell-restart-and-run-all' alone.
-  (if (pycell--md-cell-start start)
+  ;; queued; `overblock-pycell--queue' serves `overblock-pycell-restart-and-run-all' alone.
+  (if (overblock-pycell--md-cell-start start)
       ;; Keep a running restart-and-run-all chain going — no prompt
       ;; will arrive to do it.
       (progn
-        (pycell--md-show start end)
+        (overblock-pycell--md-show start end)
         ;; Redisplay pushes a point that the block just made
         ;; invisible out of it, and upwards; put it below instead.
         (when (<= (1- start) (point) end)
           (goto-char end)))
     (if-let* ((proc (python-shell-get-process)))
-        (pycell--send proc start end)
+        (overblock-pycell--send proc start end)
       ;; Mark the cell here, while its buffer is still current:
       ;; `copy-marker' on a number answers for whatever buffer that
       ;; is, and below it is the shell's.  Markers into the shell
       ;; would send its start-up banner as the cell.
       (let ((cell (cons (copy-marker start) (copy-marker end t))))
-        (run-python nil (pycell--dedicated))
+        (run-python nil (overblock-pycell--dedicated))
         (with-current-buffer
             (process-buffer (python-shell-get-process-or-error))
-          (setq pycell--cold-cell cell)
+          (setq overblock-pycell--cold-cell cell)
           (add-hook 'python-shell-first-prompt-hook
-                    #'pycell--run-cold 90 t)))
-      (message "pycell: starting the interpreter…"))))
+                    #'overblock-pycell--run-cold 90 t)))
+      (message "overblock-pycell: starting the interpreter…"))))
 
 ;;;###autoload
-(defun pycell-interrupt ()
+(defun overblock-pycell-interrupt ()
   "Send a KeyboardInterrupt to the cell's Python process.
 The interrupted cell ends normally: IPython prints the traceback
 and prompts again.
@@ -2056,28 +2066,28 @@ undo it."
   ;; Whether this buffer is a pop-out, not whether its shell is there:
   ;; a pop-out that came from a shell since gone has the variable set
   ;; to nil, and it must say so rather than interrupt a stranger.
-  (if (not (local-variable-p 'pycell--shell))
+  (if (not (local-variable-p 'overblock-pycell--shell))
       (interrupt-process (python-shell-get-process-or-error))
-    (unless (buffer-live-p pycell--shell)
+    (unless (buffer-live-p overblock-pycell--shell)
       (user-error "The shell this result came from is gone"))
-    (let* ((run (buffer-local-value 'pycell--run pycell--shell))
+    (let* ((run (buffer-local-value 'overblock-pycell--run overblock-pycell--shell))
            (beg (plist-get run :beg)))
       ;; Both have to point somewhere.  A killed notebook leaves the
       ;; run's marker and this buffer's — the same object — pointing
       ;; nowhere, and `eq' on two nil buffers passed the test while `='
       ;; signalled "Marker does not point anywhere".
-      (unless (and beg pycell--cell
+      (unless (and beg overblock-pycell--cell
                    (marker-buffer beg)
-                   (eq (marker-buffer beg) (marker-buffer pycell--cell))
-                   (= beg pycell--cell))
+                   (eq (marker-buffer beg) (marker-buffer overblock-pycell--cell))
+                   (= beg overblock-pycell--cell))
         (user-error "The cell this buffer shows is not running"))
       (interrupt-process
-       (or (get-buffer-process pycell--shell)
+       (or (get-buffer-process overblock-pycell--shell)
            ;; `interrupt-process' of nil takes the current buffer's
            ;; process, which is not this buffer's business.
            (user-error "The shell this result came from has no process"))))))
 
-(defun pycell--clear-results ()
+(defun overblock-pycell--clear-results ()
   "Take the results of the buffer down, and sweep what lost its anchor.
 The renderings stay.  A clear that names a kind cannot sweep an orphan —
 an orphan says nothing about the kind it belonged to — so the sweep is
@@ -2088,13 +2098,15 @@ the buffer invisible, with nothing able to remove it."
   (overblock-sweep-orphans))
 
 ;;;###autoload
-(defun pycell-restart ()
+(defun overblock-pycell-restart ()
   "Restart the Python interpreter and remove every result.
 The rendered markdown cells stay.  They were taken down with the
 results, on the grounds that a rendering is a block like any other, and
-that cost a whole notebook its renderings: `pycell-restart-and-run-all'
+that cost a whole notebook its renderings:
+`overblock-pycell-restart-and-run-all'
 puts them back one cell at a time as the pass reaches them, so a pass
-that stops — at an error, or on `pycell-stop' — leaves every cell after
+that stops — at an error, or on `overblock-pycell-stop' — leaves every cell
+after
 that point plain.  A rendering has nothing to do with the interpreter."
   (interactive)
   (if-let* ((proc (python-shell-get-process)))
@@ -2106,46 +2118,47 @@ that point plain.  A rendering has nothing to do with the interpreter."
         ;; ticker stopped — for the rest of the session.  The block of
         ;; this buffer goes with every other one, below.
         (with-current-buffer (process-buffer proc)
-          (pycell--abort "The interpreter was restarted"))
-        (pycell--queue-set nil)
-        (pycell--clear-results)
+          (overblock-pycell--abort "The interpreter was restarted"))
+        (overblock-pycell--queue-set nil)
+        (overblock-pycell--clear-results)
         (python-shell-restart))
-    (pycell--queue-set nil)
-    (pycell--clear-results)
-    (run-python nil (pycell--dedicated))))
+    (overblock-pycell--queue-set nil)
+    (overblock-pycell--clear-results)
+    (run-python nil (overblock-pycell--dedicated))))
 
-(defun pycell--run-next ()
+(defun overblock-pycell--run-next ()
   "Evaluate the cells of the shell's queue until one has to wait.
 Point follows, so the run-all pass is visible.  Called from the shell on
-its first prompt and from `pycell--end' when a cell finishes, so the
-queue is reached through `pycell--queue-buffer' either way.
+its first prompt and from `overblock-pycell--end' when a cell finishes, so the
+queue is reached through `overblock-pycell--queue-buffer' either way.
 
 A markdown cell needs no prompt, so the walk goes on to the cell after
 it here; a code cell is sent and the walk stops, to be taken up again
 when its prompt comes back.  A loop and not a call back into
-`pycell-eval-region': that built a frame for every markdown cell in a
+`overblock-pycell-eval-region': that built a frame for every markdown cell in a
 row, a hundred of them reached `max-lisp-eval-depth', and — worse —
 every frame ran its own tail on the way out, so the second one sent a
-code cell while the first was still running.  `pycell--send' refused it
+code cell while the first was still running.  `overblock-pycell--send' refused
+it
 from inside the process filter and that cell, already off the queue,
 never ran at all."
-  (remove-hook 'python-shell-first-prompt-hook #'pycell--run-next t)
+  (remove-hook 'python-shell-first-prompt-hook #'overblock-pycell--run-next t)
   (catch 'waiting
     (while t
-      (let* ((cells (pycell--queued))
+      (let* ((cells (overblock-pycell--queued))
              (m (car cells)))
         (unless m
-          (pycell--go-home)
+          (overblock-pycell--go-home)
           (throw 'waiting nil))
-        (pycell--queue-set (cdr cells))
+        (overblock-pycell--queue-set (cdr cells))
         (unless (buffer-live-p (marker-buffer m))
-          (pycell--queue-set nil)
+          (overblock-pycell--queue-set nil)
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
           (goto-char m)
           ;; The cell goes to the top of every window showing the
           ;; notebook, so the whole of the code that is about to run
-          ;; is visible.  `pycell--go-home' gives point back when the
+          ;; is visible.  `overblock-pycell--go-home' gives point back when the
           ;; pass ends.
           (dolist (window (get-buffer-window-list nil nil t))
             (set-window-point window m)
@@ -2156,33 +2169,34 @@ never ran at all."
             ;; now, and rendering them again is a converter process a
             ;; cell — measured over thirty cells, 198 milliseconds
             ;; against the 32 the batch costs.
-            (unless (and (pycell--md-cell-start beg)
+            (unless (and (overblock-pycell--md-cell-start beg)
                          (overblock-in beg end 'markdown))
-              (pycell-eval-region beg end))
-            (unless (pycell--md-cell-start beg)
+              (overblock-pycell-eval-region beg end))
+            (unless (overblock-pycell--md-cell-start beg)
               (throw 'waiting nil))))))))
 
 ;;;###autoload
-(defun pycell-stop (&optional event)
+(defun overblock-pycell-stop (&optional event)
   "Stop the run of the cells after the current one.
-Both passes go through the same queue: `pycell-restart-and-run-all' and
-`pycell-run-above'.  The cell that is already running runs to its end;
-`pycell-interrupt' is the harder stop.
+Both passes go through the same queue: `overblock-pycell-restart-and-run-all'
+and
+`overblock-pycell-run-above'.  The cell that is already running runs to its end;
+`overblock-pycell-interrupt' is the harder stop.
 
 The queue lives with the shell, and the shell is resolved as
-`pycell-interrupt' resolves it: a popped-out result remembers the one
+`overblock-pycell-interrupt' resolves it: a popped-out result remembers the one
 it came from, and every other buffer asks `python-shell-get-process'.
 EVENT is the click on a stop button, and names the notebook to act on."
   (interactive (list last-input-event))
   (overblock-goto-event event)
-  (let ((shell (if (local-variable-p 'pycell--shell)
-                   pycell--shell
-                 (pycell--queue-buffer))))
+  (let ((shell (if (local-variable-p 'overblock-pycell--shell)
+                   overblock-pycell--shell
+                 (overblock-pycell--queue-buffer))))
     (when (buffer-live-p shell)
-      (with-current-buffer shell (setq pycell--queue nil))))
-  (message "pycell: run all stopped"))
+      (with-current-buffer shell (setq overblock-pycell--queue nil))))
+  (message "overblock-pycell: run all stopped"))
 
-(defun pycell--cell-starts ()
+(defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
 The text above the first boundary line is a cell too, and the first
 marker where there is any."
@@ -2194,27 +2208,27 @@ marker where there is any."
         (push (copy-marker (pos-bol)) cells))
       (nreverse cells))))
 
-(defun pycell--run-on-prompt (cells message)
+(defun overblock-pycell--run-on-prompt (cells message)
   "Arm CELLS to run on the shell's first prompt, and say MESSAGE.
 For a shell that has not prompted yet: one just started, or one just
 restarted.  Evaluation may only start once the fresh interpreter
 prompted — and after comint-mime's setup, which runs off the same
-hook, hence the depth.  `pycell--end' chains the rest of the queue.
+hook, hence the depth.  `overblock-pycell--end' chains the rest of the queue.
 
 The queue is armed after the hook and the shell, not before: the home
 belongs to the shell's buffer, and the first pass of a session had
 none to put it in, so that pass never brought point back.  A shell that
 answers with an error here leaves nothing armed."
   (with-current-buffer (process-buffer (python-shell-get-process-or-error))
-    (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
-  (pycell--home-set (point-marker))
-  (pycell--queue-set cells)
+    (add-hook 'python-shell-first-prompt-hook #'overblock-pycell--run-next 90 t))
+  (overblock-pycell--home-set (point-marker))
+  (overblock-pycell--queue-set cells)
   (message "%s" message))
 
-(defun pycell--run-cells (cells message)
+(defun overblock-pycell--run-cells (cells message)
   "Run CELLS in order, and say MESSAGE while they run.
 Each cell goes on the prompt of the one before it, so the queue is left
-with the shell and `pycell--run-next' takes the next one off it.  The
+with the shell and `overblock-pycell--run-next' takes the next one off it.  The
 interpreter starts where there is none, and the pass begins on its
 first prompt."
   (if (python-shell-get-process)
@@ -2222,23 +2236,23 @@ first prompt."
       ;; queue was left armed by a refusal, and the cells ran later
       ;; without being asked for, less the one the refusal had already
       ;; taken off it.
-      (progn (pycell--home-set (point-marker))
-             (pycell--queue-set cells)
+      (progn (overblock-pycell--home-set (point-marker))
+             (overblock-pycell--queue-set cells)
              (condition-case err
-                 (pycell--run-next)
+                 (overblock-pycell--run-next)
                ;; A cell that will not start takes the home with it, or
                ;; the marker of a pass that never ran drags point when
                ;; the cell that refused it ends.
-               (error (pycell--queue-set nil)
-                      (pycell--home-set nil)
+               (error (overblock-pycell--queue-set nil)
+                      (overblock-pycell--home-set nil)
                       (signal (car err) (cdr err))))
              (message "%s" message))
-    (run-python nil (pycell--dedicated))
-    (message "pycell: starting the interpreter…")
-    (pycell--run-on-prompt cells message)))
+    (run-python nil (overblock-pycell--dedicated))
+    (message "overblock-pycell: starting the interpreter…")
+    (overblock-pycell--run-on-prompt cells message)))
 
 ;;;###autoload
-(defun pycell-run-cell (&optional event)
+(defun overblock-pycell-run-cell (&optional event)
   "Run the cell at point, or the one whose button EVENT clicked.
 The same as `code-cells-eval' on that cell, which is what the reader
 presses \\[code-cells-eval] for."
@@ -2247,50 +2261,51 @@ presses \\[code-cells-eval] for."
   (apply #'code-cells-eval (code-cells--bounds nil nil t)))
 
 ;;;###autoload
-(defun pycell-run-above (&optional event)
+(defun overblock-pycell-run-above (&optional event)
   "Run every cell above the one at point, or above the one EVENT clicked.
 The cells run in order and the pass stops at the first error, or on
-`pycell-stop'.
-The interpreter keeps what it has: `pycell-restart-and-run-all' is the
+`overblock-pycell-stop'.
+The interpreter keeps what it has: `overblock-pycell-restart-and-run-all' is the
 one that starts from nothing."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (let* ((beg (car (code-cells--bounds)))
-         (cells (seq-take-while (lambda (m) (< m beg)) (pycell--cell-starts))))
+         (cells (seq-take-while (lambda (m) (< m beg)) (overblock-pycell--cell-starts))))
     (unless cells (user-error "No cell above this one"))
-    (pycell--run-cells cells "pycell: evaluating the cells above")))
+    (overblock-pycell--run-cells cells "overblock-pycell: evaluating the cells above")))
 
 ;;;###autoload
-(defun pycell-restart-and-run-all ()
+(defun overblock-pycell-restart-and-run-all ()
   "Restart the Python interpreter, then evaluate every cell in order.
-The pass stops at the first error, or on `pycell-stop'."
+The pass stops at the first error, or on `overblock-pycell-stop'."
   (interactive)
-  (pycell-restart)
-  ;; The same arming `pycell--run-cells' does for a shell that is
+  (overblock-pycell-restart)
+  ;; The same arming `overblock-pycell--run-cells' does for a shell that is
   ;; starting: a restarted shell has a live process that has not
   ;; prompted, so the queue waits for that prompt here too.
-  (pycell--run-on-prompt (pycell--cell-starts)
-                         "pycell: evaluating all cells"))
+  (overblock-pycell--run-on-prompt (overblock-pycell--cell-starts)
+                         "overblock-pycell: evaluating all cells"))
 
-(defvar-keymap pycell-mode-map
-  :doc "Keymap of `pycell-mode', empty on purpose.
-pycell binds no keys; put your own here.  `pycell-interrupt' and
-`pycell-stop' are the natural candidates, beside the commands the
+(defvar-keymap overblock-pycell-mode-map
+  :doc "Keymap of `overblock-pycell-mode', empty on purpose.
+overblock-pycell binds no keys; put your own here.  `overblock-pycell-interrupt'
+and
+`overblock-pycell-stop' are the natural candidates, beside the commands the
 README lists:
 
-  (keymap-set pycell-mode-map \"C-c C-k\" #\\='pycell-interrupt)")
+  (keymap-set overblock-pycell-mode-map \"C-c C-k\" #\\='overblock-pycell-interrupt)")
 
 ;;;###autoload
-(define-minor-mode pycell-mode
+(define-minor-mode overblock-pycell-mode
   "Show Python cell results, and markdown cells, inline.
 While the mode is on, cell evaluation goes through
-`pycell-eval-region'.  Turn it off to remove all blocks and to
+`overblock-pycell-eval-region'.  Turn it off to remove all blocks and to
 get plain `python-shell-send-region' back.  The mode binds no
-keys: `pycell-mode-map' is empty and yours to fill."
+keys: `overblock-pycell-mode-map' is empty and yours to fill."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
-  :lighter " pycell"
-  (if pycell-mode
+  :lighter " overblock-pycell"
+  (if overblock-pycell-mode
       (progn
         ;; One piece of advice for the session, put on by the first
         ;; notebook and taken off by the last.  Added while this file
@@ -2298,47 +2313,47 @@ keys: `pycell-mode-map' is empty and yours to fill."
         ;; outline buffer of a session that had never turned the mode on
         ;; — and completing the name of one command loads the file.
         (advice-add 'outline-flag-region :after
-                    #'pycell--outline-flag-blocks)
+                    #'overblock-pycell--outline-flag-blocks)
         ;; A bar is cut to the width of the window it was built for, so
         ;; a window made narrower afterwards wants it drawn again.
-        (add-hook 'window-configuration-change-hook #'pycell--rewidth nil t)
-        (add-hook 'text-scale-mode-hook #'pycell--rescale nil t)
-        (add-hook 'after-change-functions #'pycell--bars-after-change nil t)
+        (add-hook 'window-configuration-change-hook #'overblock-pycell--rewidth nil t)
+        (add-hook 'text-scale-mode-hook #'overblock-pycell--rescale nil t)
+        (add-hook 'after-change-functions #'overblock-pycell--bars-after-change nil t)
         ;; The whole buffer, narrowed or not: a mode turned on under a
         ;; narrowing would otherwise bar the visible cells alone, and
         ;; the rest only when something edited them.
         (without-restriction
-          (pycell--cell-bars (point-min) (point-max)))
-        (pycell-md-render-all))
-    (remove-hook 'window-configuration-change-hook #'pycell--rewidth t)
-    (remove-hook 'text-scale-mode-hook #'pycell--rescale t)
-    (remove-hook 'after-change-functions #'pycell--bars-after-change t)
+          (overblock-pycell--cell-bars (point-min) (point-max)))
+        (overblock-pycell-md-render-all))
+    (remove-hook 'window-configuration-change-hook #'overblock-pycell--rewidth t)
+    (remove-hook 'text-scale-mode-hook #'overblock-pycell--rescale t)
+    (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
     (mapc #'delete-overlay (overblock-bars))
     ;; Every kind of block goes, rendered markdown cells included.
-    (pycell-remove-blocks)
+    (overblock-pycell-remove-blocks)
     ;; The last notebook takes the advice with it.  This buffer does not
     ;; count itself: the mode's own variable is already nil here.
     (unless (seq-some (lambda (buffer)
-                        (buffer-local-value 'pycell-mode buffer))
+                        (buffer-local-value 'overblock-pycell-mode buffer))
                       (buffer-list))
-      (advice-remove 'outline-flag-region #'pycell--outline-flag-blocks))))
+      (advice-remove 'outline-flag-region #'overblock-pycell--outline-flag-blocks))))
 
 ;;;###autoload
-(defun pycell-mode-maybe ()
-  "Enable `pycell-mode' in Python cell buffers.
+(defun overblock-pycell-mode-maybe ()
+  "Enable `overblock-pycell-mode' in Python cell buffers.
 Made for `code-cells-mode-hook', where your configuration adds it:
 
-  (add-hook \\='code-cells-mode-hook #\\='pycell-mode-maybe)
+  (add-hook \\='code-cells-mode-hook #\\='overblock-pycell-mode-maybe)
 
 The package installs no hook itself: installing it must not change
 how Emacs behaves."
   (when (derived-mode-p 'python-base-mode)
-    (pycell-mode)))
+    (overblock-pycell-mode)))
 
 ;; Keyed on the minor mode: with it off, code-cells falls through to its
 ;; stock python entry, `python-shell-send-region'.
-(setf (alist-get 'pycell-mode code-cells-eval-region-commands)
-      #'pycell-eval-region)
+(setf (alist-get 'overblock-pycell-mode code-cells-eval-region-commands)
+      #'overblock-pycell-eval-region)
 
-(provide 'pycell)
-;;; pycell.el ends here
+(provide 'overblock-pycell)
+;;; overblock-pycell.el ends here

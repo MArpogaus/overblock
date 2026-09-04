@@ -29,7 +29,7 @@ jobs:
   # It builds a container of its own; the runner's Docker does that.
   #
   # Two packages live in this repository, and melpazoid reads one
-  # package: without `:files' it took every .el file for part of pycell
+  # package: without `:files' it took every .el file for part of overblock-pycell
   # and failed over the prefixes and the second Version header.  So it
   # runs once for each package, and `:files' names that package's whole
   # file list.  Those lists are the ones in the Makefile.
@@ -44,7 +44,7 @@ jobs:
     # and not to redden the run.  Take this line out once overblock is
     # published — the layer's own recipe passes today and this is the
     # one thing waiting on the split.
-    continue-on-error: ${{ startsWith(matrix.recipe, '(pycell') }}
+    continue-on-error: ${{ startsWith(matrix.recipe, '(overblock-pycell') }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,8 +54,8 @@ jobs:
         # strings are unquoted because the YAML formatter writes a plain
         # scalar, and a quoted one fails that hook.
         recipe:
-        - (pycell :fetcher github :repo "MArpogaus/pycell" :files ("pycell.el"))
-        - (overblock :fetcher github :repo "MArpogaus/pycell" :files ("overblock.el" "overblock-md.el" "overblock-repl.el" "overblock-md-preview.el" "overblock-pydoc.el"))
+        - (overblock-pycell :fetcher github :repo "MArpogaus/overblock-pycell" :files ("overblock-pycell.el"))
+        - (overblock :fetcher github :repo "MArpogaus/overblock-pycell" :files ("overblock.el" "overblock-md.el" "overblock-repl.el" "overblock-md-preview.el" "overblock-pydoc.el"))
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
     - run: |

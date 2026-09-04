@@ -1,4 +1,4 @@
-#+TITLE: How pycell works
+#+TITLE: How overblock-pycell works
 #+OPTIONS: toc:2
 
 This document describes the implementation.  The [[file:../README.org][README]] tells you how
@@ -8,7 +8,7 @@ The text uses these terms:
 
 - *cell*: a piece of a Python file between two cell markers.
   code-cells finds the markers.
-- *block*: what pycell shows over a region of the buffer, or after it.
+- *block*: what overblock-pycell shows over a region of the buffer, or after it.
   A result is one, a rendered markdown cell is another.
 - *shell*: the inferior Python process that =python.el= starts.
 - *mirror*: the copy of the output that the block shows.
@@ -24,7 +24,7 @@ This function returns the value of a trailing expression.  The value
 goes through the display hook of IPython, where comint-mime has its
 renderers.
 
-The output therefore goes into the REPL as before.  pycell only
+The output therefore goes into the REPL as before.  overblock-pycell only
 mirrors it:
 
 1. It puts a marker at =process-mark= before it sends the cell.
@@ -51,7 +51,7 @@ have to change on the way out:
 ** A table in a block, and a table in a buffer
 
 The copy of a vtable carries the table object in its =vtable= text
-property, and that object holds the columns and the rows.  pycell reads
+property, and that object holds the columns and the rows.  overblock-pycell reads
 them and lays the table out again for the block: each column as wide as
 its widest cell, in characters, and the names of the columns in bold.
 Nothing in that layout can be moved by a face, which the stretches of
@@ -59,7 +59,7 @@ the original could: a vtable measures a header cell in the face of a
 header, so a copy shown in another face had its header squashed and its
 rows apart.
 
-=pycell-pop-output= does not copy that text.  It calls =vtable-insert=
+=overblock-pycell-pop-output= does not copy that text.  It calls =vtable-insert=
 with the table object, so the buffer holds a table that vtable drew for
 that window: sorting, narrowing and moving a column all work there.
 The block stays a fast, aligned, plain rendering; the buffer is where a
@@ -68,7 +68,7 @@ reader sorts.
 The result rides the newline that ends the cell; the block layer below
 puts it there.
 
-pycell writes nothing into the buffer.  Files, LSP and undo see no
+overblock-pycell writes nothing into the buffer.  Files, LSP and undo see no
 change.  There is one exception: the last cell of a buffer gets a
 final newline if it has none, because the block needs that character.
 
@@ -81,18 +81,18 @@ plist, and the layer decides which slot each row of the block lands
 in and how a rendering is dealt over the source lines.  See
 [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
-What stays in =pycell.el= is the part that knows about Python: the
+What stays in =overblock-pycell.el= is the part that knows about Python: the
 cells, the process, the commands, and what a prompt of that shell
 looks like.
 
 One thing the layer asks of this package: a block hangs on the
 newline that ends its region, so the last cell of a buffer gets a
-final newline if it has none.  That is the one change pycell makes to
+final newline if it has none.  That is the one change overblock-pycell makes to
 the text.
 
 ** The header bars
 
-=pycell-result-buttons= and =pycell-markdown-buttons= hold the buttons
+=overblock-pycell-result-buttons= and =overblock-pycell-markdown-buttons= hold the buttons
 of the two bars — the shape that =overblock-button-type= asks
 customize for — and =overblock-buttons= walks a list of them.  A
 descriptor names the glyph candidates rather than one glyph, because a
@@ -105,9 +105,9 @@ buttons of the reader's choosing: they say what the result is doing.
 
 A cell carries a bar of its own, in place of its =# %%= line: the
 label is the name written after the marker, and the buttons are
-=pycell-cell-buttons=.  A rendered markdown cell has had one since it
+=overblock-pycell-cell-buttons=.  A rendered markdown cell has had one since it
 was rendered; the two are now drawn by one function, and the code
-cell's is put there by =pycell--cell-bars=.
+cell's is put there by =overblock-pycell--cell-bars=.
 
 The overlay, the strings it hangs the bar on, the width it is cut to
 and what point does to it are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
@@ -147,7 +147,7 @@ overlays at the end of that run, so nothing accumulates.
 
 Three things can want a bar on a boundary line: the pass over the
 buffer, the rendering of a markdown cell, which brings its own, and the
-pass again after an edit.  =pycell--sole-bar= is the rule — the bar that
+pass again after an edit.  =overblock-pycell--sole-bar= is the rule — the bar that
 belongs to the line stays, every other one goes — and each kind of line
 says which kind belongs:
 
@@ -181,7 +181,7 @@ also writes the final newline a last cell may lack, which a transpose
 does not: without it the two cells came back as =# omega# %%=, one
 cell where there were two.
 
-=pycell-move-cell-down= reads what both cells show, moves the text,
+=overblock-pycell-move-cell-down= reads what both cells show, moves the text,
 and puts each block back on the cell it belongs to.  Point ends where
 the moved cell now begins, so the two new ranges are asked of the
 buffer rather than counted from the old positions and lengths.
@@ -193,7 +193,7 @@ Three things the move has to know:
   =def= inside a cell is an outline heading too: from inside one,
   =outline-back-to-heading= finds the def and the move refuses with
   "Cannot move past superior level".
-- =pycell--stale-hook= stands down while the move runs.  The text
+- =overblock-pycell--stale-hook= stands down while the move runs.  The text
   lands at the first character of the cell the moved cell passes,
   which is where that cell's anchor begins, so its
   =insert-in-front-hooks= ran and took its result down — a cell with
@@ -215,14 +215,14 @@ the buffer as it was.
 A ticker runs each 0.2 seconds while a cell runs.  It shows the
 output so far, a spinner and a stopwatch.
 
-The block shows at most =pycell-max-lines= lines, and these are the
+The block shows at most =overblock-pycell-max-lines= lines, and these are the
 first lines of the output.  The ticker therefore reads only the head
 of the output:
 
-- =pycell--output-head= reads the first lines and cleans them.  It keeps the
+- =overblock-pycell--output-head= reads the first lines and cleans them.  It keeps the
   text as soon as all lines that show are there.  The ticks after
   that read nothing.
-- =pycell--total= counts the new lines only.  It keeps the position
+- =overblock-pycell--total= counts the new lines only.  It keeps the position
   that it reached in the run state.
 
 An earlier version read the whole output on each tick.  The cost grew
@@ -239,13 +239,13 @@ A cell can hold syntax that only IPython reads: a magic such as
 =%matplotlib inline=, a shell escape such as =!ls=, or a help request
 such as =print?=.  jupytext files hold such cells.
 
-=pycell--ipython-syntax-p= reads the buffer with =syntax-ppss=.  Only
+=overblock-pycell--ipython-syntax-p= reads the buffer with =syntax-ppss=.  Only
 a line at the top level counts.  A continuation line inside brackets
 can start with a modulo sign.  A comment can end with a question
 mark.  A cell of plain Python must not go down the IPython road,
 because a shell without IPython answers with a =NameError=.
 
-Such a cell goes to =get_ipython().run_cell=.  pycell sends the code
+Such a cell goes to =get_ipython().run_cell=.  overblock-pycell sends the code
 as base64, because this keeps quotes and newlines safe.  Two things
 follow: the tracebacks count the lines from the top of the cell, and
 a shell without IPython reports that it does not know =get_ipython=.
@@ -265,7 +265,7 @@ under a cloak.  The cloak, the pieces and the image that cannot ride
 a display property are the layer's, and so is the converter that
 turns the markdown into the string: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
-=pycell-md-render-all= takes a region, so a move renders the two
+=overblock-pycell-md-render-all= takes a region, so a move renders the two
 cells that moved rather than every markdown cell in the buffer.  The
 whole buffer goes to the converter in one process, which is what
 =overblock-md-html-batch= is for: one call for fifty cells rather than
@@ -281,7 +281,7 @@ reason are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/
 
 These commands do pass: =scroll-up= and =scroll-down=, which move a
 page, and =next-line=, which moves point.  A folded block also
-passes.  =pycell-pop-output= shows the figure in a buffer of its own.
+passes.  =overblock-pycell-pop-output= shows the figure in a buffer of its own.
 
 ** The cost of a rendered markdown cell
 :PROPERTIES:
@@ -300,8 +300,8 @@ Markdown holds several hundred face runs in a line.  Source code
 holds a few.  Forty lines of plain output scroll as fast as none, and
 twelve lines with many face changes cost three times as much.
 
-=M-x pycell-md-unrender= gives the plain source and the speed back.
-=pycell-md-render-all= brings the blocks back.
+=M-x overblock-pycell-md-unrender= gives the plain source and the speed back.
+=overblock-pycell-md-render-all= brings the blocks back.
 
 
 * What the hot paths cost
@@ -323,19 +323,19 @@ nerd font the bars are drawn in:
 
 | what                          | before   | after    |
 |-------------------------------+----------+----------|
-| =pycell--header=              | 0.338 ms | 0.231 ms |
-| =pycell--update=, whole tick  | 0.378 ms | 0.298 ms |
+| =overblock-pycell--header=              | 0.338 ms | 0.231 ms |
+| =overblock-pycell--update=, whole tick  | 0.378 ms | 0.298 ms |
 
 - The table is read off a text property that =overblock-repl-detach=
   left on the text, instead of being searched for in the output.  A
   popped-out result walks those runs and draws each table live, with
   what the cell printed around them in its place.
-- =pycell--clean= copies through a temporary buffer only where the text
+- =overblock-pycell--clean= copies through a temporary buffer only where the text
   carries a display property, which is what a rendering leaves behind.
   Its =replace-regexp-in-string= pass asks a search first, as the three
   others in the package do, since that function copies its argument
   twice whether it matches or not.
-- =pycell--output-head= is bounded in characters as well as in lines,
+- =overblock-pycell--output-head= is bounded in characters as well as in lines,
   which is what took a tick from 68 milliseconds to one.  The bound holds
   only where no escape sequence begins inside it: comint-mime sends an
   image as one, and a cut inside it drops the figure — measured, a result
@@ -352,7 +352,7 @@ And what a keypress does, which is where the rest of the cost was:
 | move one markdown cell among sixty       | 69 ms  | 18 ms  |
 | fold a result of 10000 lines, four times | 13 ms  | 0.6 ms |
 
-- =pycell-md-render-all= takes a region, and =pycell-move-cell-down=
+- =overblock-pycell-md-render-all= takes a region, and =overblock-pycell-move-cell-down=
   passes the span of the two cells that moved rather than rendering every
   markdown cell in the buffer.
 - A result counts its lines once and keeps the number in its record, so
@@ -373,7 +373,7 @@ same frame.
 * The tests
 
 =make test= runs the batch suites, one to a file, and a test sits with
-the code it checks.  =test/pycell-test.el= is this package's: the clean
+the code it checks.  =test/overblock-pycell-test.el= is this package's: the clean
 of the output, the body lines, the cell markers, the folds, the edit
 buffers, the mirror, and moving a cell.  A test that names only what
 the layer owns lives in the layer's suite instead, and
