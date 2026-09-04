@@ -63,27 +63,43 @@ compile: $(STAMP)
 # reads one main file and calls every symbol outside its prefix an
 # error, so it is run once for each package.  The lists below are the
 # whole of each package: what moves when the two get a repository each.
-OVERBLOCK := overblock.el overblock-md.el overblock-repl.el \
-             overblock-md-preview.el overblock-pydoc.el
-PYCELL    := overblock-pycell.el
+# Four packages live here, each with a main file of its own carrying its
+# version and its dependencies.  These lists are the whole of each one,
+# and `lint' reads every file against the main file of its own package —
+# as MELPA does, one recipe per list.
+LAYER  := overblock.el overblock-repl.el
+MD     := overblock-md.el overblock-md-preview.el
+PYDOC  := overblock-pydoc.el
+PYCELL := overblock-pycell.el
+PACKAGES := overblock overblock-md overblock-pydoc overblock-pycell
 
-# overblock-pycell requires overblock, which has no MELPA recipe yet, so
-# package-lint calls the dependency uninstallable.  The layer is in this
-# checkout, so it is registered from here: a descriptor alone, no copy of
-# the sources, or the copy would shadow the working tree on the load
-# path.  This goes when overblock is published and the sandbox can
-# install it like any other dependency.
+# A package here that requires another one here finds it uninstallable:
+# none of them has a MELPA recipe yet.  They are in this checkout, so
+# they are registered from here — a descriptor apiece, no copy of the
+# sources, or the copy would shadow the working tree on the load path.
+# This goes when they are published and the sandbox can install them
+# like any other dependency.
 OBVER := $(shell sed -n 's/^;; Version: //p' overblock.el)
-OBDIR := $(SANDBOX)/overblock-$(OBVER)
-OBPKG := (define-package "overblock" "$(OBVER)" \
-          "Text blocks over a buffer" (quote ((emacs "29.1"))))
+MDVER := $(shell sed -n 's/^;; Version: //p' overblock-md.el)
+
+# The descriptor of one package in this checkout, so another here can
+# name it as a dependency: NAME, VERSION, SUMMARY, REQUIRES.
+define descriptor
+	@mkdir -p $(SANDBOX)/$(1)-$(2)
+	@printf '(define-package "%s" "%s" "%s" (quote %s))\n' \
+	  '$(1)' '$(2)' '$(3)' '$(4)' > $(SANDBOX)/$(1)-$(2)/$(1)-pkg.el
+	@: > $(SANDBOX)/$(1)-$(2)/$(1)-autoloads.el
+endef
 
 lint: $(STAMP)
-	@mkdir -p $(OBDIR)
-	@echo '$(OBPKG)' > $(OBDIR)/overblock-pkg.el
-	@: > $(OBDIR)/overblock-autoloads.el
+	$(call descriptor,overblock,$(OBVER),Text blocks over a buffer,((emacs "29.1")))
+	$(call descriptor,overblock-md,$(MDVER),Markup rendered to text,((emacs "29.1") (overblock "$(OBVER)")))
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock.el")' \
-	  -f package-lint-batch-and-exit $(OVERBLOCK)
+	  -f package-lint-batch-and-exit $(LAYER)
+	@$(BATCH) --eval '(setq package-lint-main-file "overblock-md.el")' \
+	  -f package-lint-batch-and-exit $(MD)
+	@$(BATCH) --eval '(setq package-lint-main-file "overblock-pydoc.el")' \
+	  -f package-lint-batch-and-exit $(PYDOC)
 	@$(BATCH) --eval '(setq package-lint-main-file "overblock-pycell.el")' \
 	  -f package-lint-batch-and-exit $(PYCELL)
 
