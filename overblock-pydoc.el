@@ -156,59 +156,86 @@ wants of a rendering they mean to edit."
 
 ;;;; Which regions
 
-(defun overblock-pydoc--documentation-p (start)
-  "Return non-nil where the string beginning at START is documentation.
-A doc string opens a line of its own, and stands at the top of the file
-or under a line that ends in a colon: that is what the doc string of a
-module, of a class and of a function have in common.  A string
-anywhere else is data — a value assigned, an argument passed — and
-means nothing to a reader as prose."
+(defun overblock-pydoc--doc-face-p (pos)
+  "Return non-nil where font lock painted POS as a doc string.
+python.el decides this for its own fontification, in
+`python-info-docstring-p\': a string that opens a definition, a module
+or an assignment is documentation and wears `font-lock-doc-face\',
+every other string wears `font-lock-string-face\'.  Its tree-sitter
+fontifier paints the same face, so `python-mode\' and `python-ts-mode\'
+are served by the one path and no grammar is needed.
+
+The face is asked for as a list: font lock paints one face on a doc
+string and a theme may add its own beside it."
+  (memq 'font-lock-doc-face (ensure-list (get-text-property pos 'face))))
+
+(defun overblock-pydoc--opens-a-line-p (start)
+  "Return non-nil where START is where the code of its line begins.
+Blanks may stand before it, and a string prefix — the `r\' of a raw
+doc string and the rest — because font lock paints the string and not
+the letters that open it.
+
+What this rejects is what a mispaired quote run leaves behind: a
+quote sequence inside the prose of one doc string ends it early, every
+string after it pairs the wrong way round, and font lock inherits the
+parse.  Such a region begins in the middle of a line — measured, at
+column 71 of a line indented to four — and a rendering laid over it is
+prose drawn over code.  Left as source it is merely unrendered."
+  (string-match-p "\\`[[:blank:]]*[rRbBuUfF]\\{0,2\\}\\'"
+                  (buffer-substring-no-properties
+                   (save-excursion (goto-char start) (pos-bol))
+                   start)))
+
+(defun overblock-pydoc--string-end (start limit)
+  "Return where the string that opens at START ends, at most LIMIT.
+The syntax scan answers it: `parse-partial-sexp\' told to stop at the
+end of a string walks from inside this one to just past its closing
+quotes.  Not the end of what font lock painted, which is shorter — an
+escape sequence in the prose wears a face of its own and breaks the
+run in two, measured in `python-mode\' and in `python-ts-mode\' alike;
+and not `scan-sexps\', which reads the first two of three quotes as an
+empty string."
   (save-excursion
     (goto-char start)
-    (and (string-blank-p (buffer-substring-no-properties (pos-bol) start))
-         (or (bobp)
-             (save-excursion
-               (forward-line -1)
-               ;; Past what stands between the definition and its doc
-               ;; string: blank lines, and comments of their own.
-               (while (and (not (bobp))
-                           (looking-at-p "[[:blank:]]*\\(#.*\\)?$"))
-                 (forward-line -1))
-               (or (bobp)
-                   ;; A colon ends the line a definition opens; a
-                   ;; comment may follow it.
-                   (looking-at-p ".*:[[:blank:]]*\\(#.*\\)?$")))))))
+    ;; From past the opening fence, and not from between its first two
+    ;; quotes: `python-mode' gives the first of three quotes the syntax
+    ;; of a plain string delimiter, so a scan begun there reads those
+    ;; two as a string of nothing and every doc string came out two
+    ;; characters long.
+    (let* ((fence (if (looking-at-p "\"\"\"\\|'''") 3 1))
+           (inside (min limit (+ start fence)))
+           (state (syntax-ppss inside)))
+      (if (nth 3 state)
+          (progn (parse-partial-sexp inside limit nil nil state 'syntax-table)
+                 ;; And two quotes more for a fence of three: the scan
+                 ;; ends the string at the first of the three closing
+                 ;; quotes, which is the same syntax the opening fence
+                 ;; is given.  Clamped, so an unterminated doc string
+                 ;; ends where the walk was told to stop.
+                 (min limit (+ (point) (1- fence))))
+        inside))))
 
 (defun overblock-pydoc--strings (beg end)
   "Return the bounds of every doc string between BEG and END.
 Each is a cons of the position of the opening quote and the one after
-the closing quote.  The syntax state says what is a string, which is
-why no parser is needed and a string inside a comment is never one."
+the closing quote.
+
+Font lock says which strings are documentation — see
+`overblock-pydoc--doc-face-p\' — and the syntax scan says where each of
+them ends.  `font-lock-ensure\' first: jit lock has painted only what
+has been on the screen, and a doc string below the window would
+otherwise be no doc string at all."
+  (font-lock-ensure beg end)
   (save-excursion
-    (goto-char (point-min))
-    (let (found)
-      (while (re-search-forward "\"\"\"\\|'''" end t)
-        (let* ((quotes (match-string-no-properties 0))
-               (opened (match-end 0))
-               (state (save-match-data (syntax-ppss (1+ (match-beginning 0)))))
-               (start (and (nth 3 state) (nth 8 state))))
-          (if (not start)
-              ;; Quotes that open no string: inside a comment, or the
-              ;; closing quotes of a string this loop already took.
-              (goto-char opened)
-            ;; The end is the same three quotes again.  Not
-            ;; `scan-sexps': python-mode gives the first quote of the
-            ;; three the syntax of a plain string delimiter, so a scan
-            ;; from the string's start reads the first two as an empty
-            ;; string, and every doc string came out two characters
-            ;; long.
-            (let ((finish (save-match-data
-                            (goto-char opened)
-                            (if (search-forward quotes end t) (point) end))))
-              (when (and (>= start beg)
-                         (overblock-pydoc--documentation-p start))
-                (push (cons start finish) found))
-              (goto-char (max finish opened))))))
+    (let ((pos beg) found)
+      (while (< pos end)
+        (if (and (overblock-pydoc--doc-face-p pos)
+                 (overblock-pydoc--opens-a-line-p pos))
+            (let ((finish (overblock-pydoc--string-end pos end)))
+              (push (cons pos finish) found)
+              (setq pos (max finish (1+ pos))))
+          (setq pos (or (next-single-property-change pos 'face nil end)
+                        end))))
       (nreverse found))))
 
 ;;;; What to render them with

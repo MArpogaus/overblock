@@ -119,6 +119,86 @@ start reads the first two as an empty string."
       (should (equal (buffer-substring-no-properties (car first) (cdr first))
                      "\"\"\"The module.\"\"\"")))))
 
+(defconst overblock-pydoc-test--mispaired
+  "class A:
+    \"\"\"A term's behavior, with a raw string r\"\"\"raw\"\"\" in the prose.
+    \"\"\"
+
+    def m(self):
+        \"\"\"Give this term's contribution.
+
+        More prose.
+        \"\"\"
+        return 1
+"
+  "A doc string whose prose carries a quote run, and one below it.
+The run ends the first string where Python ends it, and what follows
+pairs the other way round: font lock paints a region that begins in
+the middle of a line.")
+
+(ert-deftest overblock-pydoc-test-a-mispaired-quote-run-is-no-doc-string ()
+  "A region that does not begin where its line does is not taken.
+A quote run in the prose ends a doc string early and every string
+after it pairs the wrong way round; font lock paints those artefacts
+with the doc face too.  One of them begins in the middle of a line —
+measured, at column 51 of a line indented to four — and a rendering
+laid over it would draw prose over code.  The sound doc strings around
+it are still found."
+  (with-temp-buffer
+    (insert overblock-pydoc-test--mispaired)
+    (python-mode)
+    (let ((bounds (overblock-pydoc--strings (point-min) (point-max))))
+      (dolist (region bounds)
+        (goto-char (car region))
+        (should (= (current-column) (current-indentation))))
+      ;; the doc string of the method below the run is one of them
+      (should (seq-some (lambda (region)
+                          (string-prefix-p "\"\"\"Give this term"
+                                           (buffer-substring-no-properties
+                                            (car region) (cdr region))))
+                        bounds)))))
+
+(ert-deftest overblock-pydoc-test-an-assignment-is-no-doc-string ()
+  "A triple-quoted value is data, wherever it stands.
+python.el decides this, in `python-info-docstring-p\', and it is the
+one thing a reader must be able to count on: prose drawn over a value
+hides code."
+  (with-temp-buffer
+    (insert "s = \"\"\"data, not documentation\"\"\"\n"
+            "def f():\n"
+            "    t = \"\"\"data here too\"\"\"\n"
+            "    return t\n")
+    (python-mode)
+    (should-not (overblock-pydoc--strings (point-min) (point-max)))))
+
+(ert-deftest overblock-pydoc-test-a-quote-run-in-a-value-hides-nothing ()
+  "A quote run inside an ordinary string costs no doc string its rendering.
+The scan this replaced paired the quotes itself: a run inside an
+f-string sent it looking for a closing fence that was not there, it
+gave up at the end of the buffer, and every doc string below that line
+went unrendered."
+  (with-temp-buffer
+    (insert "x = f\"{a!r} \x27\x27\x27\"\n"
+            "class A:\n"
+            "    \"\"\"The doc string below the run.\"\"\"\n")
+    (python-mode)
+    (should (= (length (overblock-pydoc--strings (point-min) (point-max))) 1))))
+
+(ert-deftest overblock-pydoc-test-an-escape-keeps-a-doc-string-whole ()
+  "An escape sequence in the prose does not cut the doc string in two.
+Font lock paints an escape with a face of its own, in `python-mode\'
+and in `python-ts-mode\' alike, so the doc face comes in runs; the
+syntax scan says where the string ends."
+  (with-temp-buffer
+    (insert "class A:\n"
+            "    \"\"\"Doc with \\n and \\alpha in it.\n\n    More.\n    \"\"\"\n")
+    (python-mode)
+    (let ((bounds (overblock-pydoc--strings (point-min) (point-max))))
+      (should (= (length bounds) 1))
+      (should (string-suffix-p "More.\n    \"\"\""
+                               (buffer-substring-no-properties
+                                (car (car bounds)) (cdr (car bounds))))))))
+
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
   "The quotes go, and the indentation the lines share with the code.
 A doc string is written where the code stands and reads as prose one
