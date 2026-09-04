@@ -13,9 +13,11 @@ The text uses these terms:
 - *shell*: the inferior Python process that =python.el= starts.
 - *mirror*: the copy of the output that the block shows.
 
-The layer that puts a block on the screen is overblock, a package of
-its own: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]] describes it.  What is here
-is the part that knows about Python.
+Two packages of this repository carry what is not Python here.
+overblock puts a block on the screen — [[file:overblock.org][its notes]] — and
+overblock-md turns markup into a string a block can show —
+[[file:overblock-md.org][its notes]].  What is in this document is the part
+that knows about Python.
 
 * How a result gets into the buffer
 
@@ -79,7 +81,7 @@ which knows nothing of Python, cells or markdown: a caller renders
 text and hands it over.  =overblock-show= takes the region and a
 plist, and the layer decides which slot each row of the block lands
 in and how a rendering is dealt over the source lines.  See
-[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
+[[file:overblock.org][the layer's notes]].
 
 What stays in =overblock-pycell.el= is the part that knows about Python: the
 cells, the process, the commands, and what a prompt of that shell
@@ -110,7 +112,7 @@ was rendered; the two are now drawn by one function, and the code
 cell's is put there by =overblock-pycell--cell-bars=.
 
 The overlay, the strings it hangs the bar on, the width it is cut to
-and what point does to it are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
+and what point does to it are the layer's: [[file:overblock.org][the layer's notes]].
 
 *** What draws them, and when
 
@@ -128,15 +130,15 @@ change hook costs a comparison for a line that only moved.
 
 Measured on a notebook of two hundred cells, in a graphical frame:
 
-| what                                     | cost     |
-|------------------------------------------+----------|
-| the mode turning on, barring every cell  | 52.3 ms  |
-| the change hook, one line                | 0.003 ms |
-| a keystroke, with the hook               | 2.170 ms |
-| a keystroke, with the hook taken off     | 2.180 ms |
-| a change of width, every bar again       | 38.7 ms  |
-| a change of anything else                | 0.618 ms |
-| point over a boundary line and back      | 0.003 ms |
+| what                                    | cost     |
+|-----------------------------------------+----------|
+| the mode turning on, barring every cell | 52.3 ms  |
+| the change hook, one line               | 0.003 ms |
+| a keystroke, with the hook              | 2.170 ms |
+| a keystroke, with the hook taken off    | 2.180 ms |
+| a change of width, every bar again      | 38.7 ms  |
+| a change of anything else               | 0.618 ms |
+| point over a boundary line and back     | 0.003 ms |
 
 The two keystroke rows are the ones worth reading together: what a
 keystroke costs in that configuration is what it cost before the bars
@@ -151,12 +153,12 @@ pass again after an edit.  =overblock-pycell--sole-bar= is the rule — the bar 
 belongs to the line stays, every other one goes — and each kind of line
 says which kind belongs:
 
-| the line                          | the bar                     |
-|-----------------------------------+-----------------------------|
-| no longer a boundary              | none                        |
-| =# %% [markdown]=, rendered       | the block's own, =markdown= |
+| the line                          | the bar                        |
+|-----------------------------------+--------------------------------|
+| no longer a boundary              | none                           |
+| =# %% [markdown]=, rendered       | the block's own, =markdown=    |
 | =# %% [markdown]=, showing source | =source=, with a render button |
-| =# %%=                            | =code=                      |
+| =# %%=                            | =code=                         |
 
 Without that rule three bars stood on the boundary line of one rendered
 cell: the first pass barred the cell before it was rendered, the
@@ -193,7 +195,7 @@ Three things the move has to know:
   =def= inside a cell is an outline heading too: from inside one,
   =outline-back-to-heading= finds the def and the move refuses with
   "Cannot move past superior level".
-- =overblock-pycell--stale-hook= stands down while the move runs.  The text
+- =overblock-pycell--stale-when-edited= stands down while the move runs.  The text
   lands at the first character of the cell the moved cell passes,
   which is where that cell's anchor begins, so its
   =insert-in-front-hooks= ran and took its result down — a cell with
@@ -262,8 +264,9 @@ jumped by a whole cell.
 The cell keeps the height of its source, or it becomes shorter: a
 three line table can render as one line, and the spare lines then go
 under a cloak.  The cloak, the pieces and the image that cannot ride
-a display property are the layer's, and so is the converter that
-turns the markdown into the string: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
+a display property are the layer's — [[file:overblock.org][its notes]] —
+and the converter that turns the markdown into the string is
+overblock-md's: [[file:overblock-md.org][its notes]].
 
 =overblock-pycell-md-render-all= takes a region, so a move renders the two
 cells that moved rather than every markdown cell in the buffer.  The
@@ -277,7 +280,7 @@ A result block is one buffer line, because it is one display string.
 =next-line= and =previous-line= cross it in one step.  A block with an
 image is worse: the wheel does not cross it in a symmetric way and
 =scroll-up-line= does not cross it at all.  The measurements and the
-reason are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
+reason are the layer's: [[file:overblock.org][the layer's notes]].
 
 These commands do pass: =scroll-up= and =scroll-down=, which move a
 page, and =next-line=, which moves point.  A folded block also
@@ -321,10 +324,10 @@ The output of a running cell, cleaned and shown five times a second:
 A fourth audit measured the tick itself, in a graphic frame with the
 nerd font the bars are drawn in:
 
-| what                          | before   | after    |
-|-------------------------------+----------+----------|
-| =overblock-pycell--header=              | 0.338 ms | 0.231 ms |
-| =overblock-pycell--update=, whole tick  | 0.378 ms | 0.298 ms |
+| what                                   | before   | after    |
+|----------------------------------------+----------+----------|
+| =overblock-pycell--header=             | 0.338 ms | 0.231 ms |
+| =overblock-pycell--update=, whole tick | 0.378 ms | 0.298 ms |
 
 - The table is read off a text property that =overblock-repl-detach=
   left on the text, instead of being searched for in the output.  A
@@ -343,7 +346,7 @@ nerd font the bars are drawn in:
 
 The layer's own share of that tick — the glyphs asked for once and
 kept, the pieces dealt off a walking list, the bounded read of a long
-output — is in [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
+output — is in [[file:overblock.org][its notes]].
 
 And what a keypress does, which is where the rest of the cost was:
 
@@ -376,8 +379,9 @@ same frame.
 the code it checks.  =test/overblock-pycell-test.el= is this package's: the clean
 of the output, the body lines, the cell markers, the folds, the edit
 buffers, the mirror, and moving a cell.  A test that names only what
-the layer owns lives in the layer's suite instead, and
-[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]] lists those.
+another package owns lives in that package's suite instead;
+[[file:overblock.org][the layer's notes]] and
+[[file:overblock-md.org][overblock-md's]] list those.
 
 =make test-live= sends real cells down a real IPython and reads back
 what the blocks show.  It exists because two faults — a read-only
