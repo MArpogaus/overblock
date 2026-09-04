@@ -747,7 +747,8 @@ See `overblock--flatten-alignment' for why a copy needs them literal."
           (choice :tag "Shows"
                   (const :tag "Always" t)
                   (const :tag "With an image" image)
-                  (const :tag "With output" lines))))
+                  (const :tag "With output" lines)
+                  (const :tag "While the cell runs" running))))
   "The customize type of a list of header buttons.")
 
 (defun overblock-faced (string face)
@@ -831,12 +832,13 @@ A left click calls COMMAND, and HELP becomes the tooltip."
                         "<mouse-1>" #'ignore
                         "<drag-mouse-1>" #'ignore)))
 
-(defun overblock-buttons (descriptors &optional imagep lines)
+(defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.
 Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), the shape
 `overblock-button-type' asks customize for.  IMAGEP says the block
-holds an image and LINES how many lines it has; a descriptor whose WHEN
-is `image' or `lines' waits for those."
+holds an image, LINES how many lines it has and RUNNINGP that it is
+still being written; a descriptor whose WHEN is `image', `lines' or
+`running' waits for those."
   (concat
    (string-join
     (seq-keep
@@ -845,6 +847,7 @@ is `image' or `lines' waits for those."
          (when (pcase when
                  ('image imagep)
                  ('lines (> (or lines 0) 0))
+                 ('running runningp)
                  (_ t))
            ;; The space after the glyph belongs to the button, so the
            ;; place a reader can press is two columns wide rather than

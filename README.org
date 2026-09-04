@@ -183,12 +183,17 @@ The header bar has buttons at its right:
 | Button | Action                                 |
 |--------+----------------------------------------|
 | =▾=    | fold or unfold the result              |
+| =□=    | stop the run after this cell           |
 | =↧=    | save the image of the result to a file |
 | =◫=    | copy the result, with the images       |
 | =↗=    | show the full result in its own buffer |
 | =✕=    | discard the result                     |
 | =⌃=    | move this cell up                      |
 | =⌄=    | move this cell down                    |
+
+The stop button shows only while the cell runs.  It is =pycell-stop=
+as a click: the running cell runs to its end, and the cells queued
+after it do not start.  =pycell-interrupt= is the harder stop.
 
 The fold arrow stands at the left of the bar and the buttons at its
 right, in the order of =pycell-result-buttons=.  A rendered markdown
