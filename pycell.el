@@ -595,9 +595,18 @@ counted."
                                    :kind 'result
                                    :data data
                                    :keymap pycell-result-map)))
-        ;; An edit of the cell makes the result stale; it goes.
-        (pycell--stale-when-edited block)
-        (pycell--update block)
+        ;; An empty cell — a boundary line directly followed by the
+        ;; next — has no newline of its own to hang a block on, and
+        ;; `overblock-show' answers nil rather than anchor a
+        ;; zero-length overlay that would evaporate.  The cell was
+        ;; evaluated either way, and the caller that counts results
+        ;; takes the nil; what it must not do is crash inside the
+        ;; process filter, where the signal left the shell busy for
+        ;; the session and the queue wedged.
+        (when block
+          ;; An edit of the cell makes the result stale; it goes.
+          (pycell--stale-when-edited block)
+          (pycell--update block))
         block))))
 
 (defun pycell--goto-event (event)

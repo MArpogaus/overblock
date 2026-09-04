@@ -2266,6 +2266,33 @@ could fold it, and no edit of the cell took it down."
         (pycell--show-in-notebook from to "out" 0.3 nil)
         (should-not (overblock-in (point-min) (point-max) 'result))))))
 
+(ert-deftest pycell-test-a-region-of-no-length-leaves-the-shell-busy-no-longer ()
+  "A cell whose region has no length takes a run down instead of wedging it.
+A block cannot hang on nothing: `overblock-show' answers nil rather
+than anchor a zero-length overlay, which would evaporate.  In a live
+run the region of a cell can come up empty whatever the file says --
+insertions move the markers the queue runs on -- and `pycell--show'
+passed that nil on to `overlay-put' from inside the process filter,
+whose signal then never let the cell end: the shell stayed busy, the
+ticker errored by the burst, and every later cell was refused.  Caught
+live with an empty cell in a run-all; nothing in a file reproduces it
+alone."
+  (pycell-test--with-notebook "# %%\nx = 1\n"
+    ;; The empty region the filter received: two markers on one place.
+    (let ((beg (copy-marker (point-min)))
+          (end (copy-marker (point-min))))
+      (should (= beg end))
+      ;; No signal, and nothing shown: there is no place to show it.
+      (should-not (pycell--show beg end "" 0.0)))
+    ;; The filter path survives it, and the next cell of the run still
+    ;; shows its result.
+    (pycell--show-in-notebook (copy-marker (point-min))
+                              (copy-marker (point-min))
+                              "" 0.0 nil)
+    (should (pycell--show (copy-marker (+ 5 (point-min)))
+                          (copy-marker (point-max))
+                          "2" 0.0))))
+
 (ert-deftest pycell-test-a-result-of-one-line-is-not-a-prompt ()
   "The colour comint paints a prompt with does not reach a result.
 comint calls a chunk of output that ends without a newline a prompt,
