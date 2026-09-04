@@ -195,9 +195,10 @@ so the rendering is exactly as tall as its source."
               ;; dashes does not
               (should (string-match-p "Parameters" shown))
               (should-not (string-match-p "----" shown))
-              ;; and the rendering is no taller than what it covers
+              ;; and the rendering is no taller than what it covers,
+              ;; the two bars that dress it aside
               (should (<= (length (split-string shown "\n"))
-                          (length (split-string source "\n"))))))
+                          (+ 2 (length (split-string source "\n")))))))
         (overblock-pydoc-mode -1)))))
 
 (ert-deftest overblock-pydoc-test-a-fontified-title-carries-its-face ()
@@ -209,6 +210,42 @@ so the rendering is exactly as tall as its source."
       (should-not (string-match-p "----" shown))
       (should (get-text-property (string-match-p "Parameters" shown)
                                  'face shown)))))
+
+(ert-deftest overblock-pydoc-test-a-doc-string-wears-its-bars ()
+  "Prose of many lines is dressed in a bar above and a rule below.
+The bar carries the label and the two buttons; the rule carries
+nothing, since saying the same twice said nothing the second time."
+  (let* ((dressed (overblock-pydoc--dressed "one\ntwo" 0))
+         (lines (split-string dressed "\n")))
+    (should (= (length lines) 4))
+    (should (string-match-p overblock-pydoc-label (car lines)))
+    (should (equal (nth 1 lines) "one"))
+    (should (equal (nth 2 lines) "two"))
+    ;; the rule has no label and no button of its own: spaces, and
+    ;; the zero-width space that keeps the row from being read as a
+    ;; blank line and trimmed away
+    (should-not (string-match-p overblock-pydoc-label (nth 3 lines)))
+    (should (string-match-p "\\`[\u200b[:blank:]]*\\'" (nth 3 lines)))))
+
+(ert-deftest overblock-pydoc-test-one-line-takes-one-row ()
+  "Prose of a single line shares its row with the buttons.
+A bar above and a rule below would make three rows of one line of
+prose, and a doc string of one line is the commonest of all."
+  (let ((dressed (overblock-pydoc--dressed "all of it" 0)))
+    (should-not (string-search "\n" dressed))
+    (should (string-match-p "all of it" dressed))))
+
+(ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()
+  "A row does not fill the columns its own indentation stands in.
+Padded to the width of the window, the buttons of an indented doc
+string fell onto a row of their own, exactly as many columns over as
+the doc string was deep."
+  (let ((narrow (overblock-pydoc--row "a" "b" 'default 20))
+        (wide (overblock-pydoc--row "a" "b" 'default 0)))
+    ;; both are built for the same window, and the indented one is
+    ;; shorter by what it is indented by
+    (should (or (null (overblock-window-width))
+                (= (- (string-width wide) (string-width narrow)) 20)))))
 
 (ert-deftest overblock-pydoc-test-point-inside-shows-the-source ()
   "The doc string point is in shows its source; leaving renders it again."
