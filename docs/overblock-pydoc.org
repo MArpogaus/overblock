@@ -113,8 +113,8 @@ is two rows of almost nothing.
 
 Spaces are counted in columns, so a nerd glyph that draws wider than it
 counts leaves the rule a column or two short of the edge.  A row is
-built for the width of the moment, and a window made narrower keeps the
-rows it has until something renders the doc string again.
+built for the width of the moment, and a window of another width asks
+for it again: /The width one is built for/, below, says how.
 
 ** The rules
 
@@ -140,6 +140,32 @@ it.  A bar above and a rule below would make three rows out of one line
 of prose, and a doc string of one line is the commonest of all.  Both
 rules on one row boxes it in, and a boxed line of prose among plain
 lines of code is a loud way to say very little.
+
+** The width one is built for
+
+A rendering is built for a width and keeps it: the prose is filled to
+it, and the rule of a bar is spaces up to the edge of it.  A window
+made narrower afterwards — a split, a side window, a frame resized —
+was left with rows too long for it and every bar took two of them; a
+wider one left every rule short of the edge.
+
+The prose has the columns of the narrowest window that shows the
+buffer, less the columns the doc string is indented by, less one so
+that a full row does not wrap.  =overblock-md-width= carries that
+number to the renderer; [[file:overblock-md.org][overblock-md's notes]]
+say what it does with it.
+
+Each block carries the width it was built for, and
+=overblock-pydoc--follow-width= compares that against the width of the
+moment on =window-size-change-functions= and
+=window-buffer-change-functions=.  The width of the moment alone is not
+enough: an edit committed from its own window renders the doc string
+while no window shows the buffer at all, and the width is nil then
+while the window's is what it always was.  So the buffer coming back
+into a window is what asks for that rendering again.
+
+Both hooks are global — they take a frame or a window, not a buffer —
+so they come off only when no buffer is left that wants them.
 
 ** When a bar is drawn again
 
