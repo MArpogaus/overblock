@@ -807,4 +807,45 @@ were ten pixels wide with twenty pixels of nothing between them."
     (should-not (eq (funcall at 0) (funcall at 3)))))
 
 (provide 'overblock-test)
+(ert-deftest overblock-test-a-block-keeps-out-of-the-way-of-hl-line ()
+  "The plain paint of a block sits below `hl-line\', which draws at -50.
+The source under a block is painted plain so that the face of a newline
+does not run its background out to the window; with no priority at all
+that outranked the stripe of `hl-line', and the stripe disappeared
+wherever a block stood."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let ((block (overblock-show (point-min) (pos-eol 2) :body "over")))
+      (should (eq (overlay-get block 'face) 'default))
+      (should (< (overlay-get block 'priority) -50))
+      (let ((newline (overblock-get block :newline)))
+        (should (eq (overlay-get newline 'face) 'default))
+        (should (< (overlay-get newline 'priority) -50))))))
+
+(ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
+  "A block carries the columns it was built for, and loses them to a change.
+A rendering is filled to the width it is shown at, so one built for
+another width has to go; the mode that made it renders it again on its
+own idle cycle."
+  (let ((buffer (generate-new-buffer "overblock-width")))
+    (unwind-protect
+        (progn
+          (set-window-buffer (selected-window) buffer)
+          (with-current-buffer buffer
+            (insert "one\ntwo\nthree\n")
+            (let ((block (overblock-show (point-min) (pos-eol 2)
+                                         :kind 'test :body "over")))
+              ;; what the window says, which in a batch frame is a number
+              (should (eql (overlay-get block 'overblock-columns)
+                           (overblock-window-columns)))
+              ;; a width that is still the same drops nothing
+              (overblock-width-follow 'test)
+              (should (overlay-buffer block))
+              ;; and one that is not takes the block down
+              (overlay-put block 'overblock-columns 12)
+              (overblock-width-follow 'test)
+              (should-not (overblock-in (point-min) (point-max) 'test)))))
+      (set-window-buffer (selected-window) (other-buffer))
+      (kill-buffer buffer))))
+
 ;;; overblock-test.el ends here

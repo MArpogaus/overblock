@@ -114,6 +114,20 @@ for a region, and shipping this as public API gave it a name nothing
 outside the suite ever called."
   (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
 
+(defun overblock-run-body-lines-of-pycell (lines)
+  "Return the leading LINES of a result, as the notebook's options bound them.
+The package has no wrapper of its own for this — the runner takes the
+budgets as arguments — so the tests supply them here."
+  (overblock-run-body-lines lines overblock-pycell-max-lines
+                            overblock-pycell-max-line-length))
+
+(defun overblock-run-header-of-pycell (folded total shown runtime state imagep)
+  "Return the header bar of a result of the notebook.
+FOLDED, TOTAL, SHOWN, RUNTIME, STATE and IMAGEP are what
+`overblock-run-header' takes; the style is the notebook's."
+  (overblock-run-header overblock-pycell--style folded total shown runtime
+                        state imagep))
+
 (ert-deftest overblock-pycell-test-clean-prompts ()
   "Prompts at both ends and Out[n] markers go, and the trailing blanks.
 The indentation of the first line stays: that is where the columns of
@@ -157,13 +171,13 @@ left a cell whose only output is a figure with an empty block."
   "At most `overblock-pycell-max-lines' lines show inline."
   (let ((overblock-pycell-max-lines 3)
         (lines '("1" "2" "3" "4" "5")))
-    (should (equal (overblock-pycell--body-lines lines) '("1" "2" "3")))))
+    (should (equal (overblock-run-body-lines-of-pycell lines) '("1" "2" "3")))))
 
 (ert-deftest overblock-pycell-test-body-lines-stop-after-image ()
   "Nothing after the first image line shows inline."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
     (let ((overblock-pycell-max-lines 10))
-      (should (equal (overblock-pycell--body-lines (list "text" overblock-pycell-test--image "more"))
+      (should (equal (overblock-run-body-lines-of-pycell (list "text" overblock-pycell-test--image "more"))
                      (list "text" overblock-pycell-test--image))))))
 
 (ert-deftest overblock-pycell-test-body-lines-run-on-without-images ()
@@ -174,7 +188,7 @@ named where it cannot be drawn: the space alone was a blank row, and a
 reader could not tell it from a result with no output."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (let ((overblock-pycell-max-lines 10))
-      (should (equal (overblock-pycell--body-lines
+      (should (equal (overblock-run-body-lines-of-pycell
                       (list "before" overblock-pycell-test--image "after"))
                      (list "before" "[figure]" "after"))))))
 
@@ -279,7 +293,7 @@ full of those; only a real image belongs in the after-string."
 (ert-deftest overblock-pycell-test-body-lines-keep-raised-text ()
   "Raised text does not cut the inline part short; an image does."
   (let ((overblock-pycell-max-lines 10))
-    (should (equal (overblock-pycell--body-lines
+    (should (equal (overblock-run-body-lines-of-pycell
                     (list "x" (propertize "2" 'display '(raise 0.2)) "y"))
                    (list "x" (propertize "2" 'display '(raise 0.2)) "y")))))
 
@@ -663,7 +677,7 @@ block costs what it holds: a hundred thousand characters on one line
 were a fifth of a second a wheel event."
   (let ((overblock-pycell-max-lines 12)
         (overblock-pycell-max-line-length 10))
-    (should (equal (overblock-pycell--body-lines (list "short" (make-string 30 ?x)))
+    (should (equal (overblock-run-body-lines-of-pycell (list "short" (make-string 30 ?x)))
                    (list "short" (concat (make-string 10 ?x)
                                          (overblock-glyph "…" "...")))))
     ;; a line with an image on it keeps every character: the image may
@@ -671,11 +685,11 @@ were a fifth of a second a wheel event."
     ;; terminal it is a space like any other and the line is cut.
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
       (let ((line (concat (make-string 30 ?x) overblock-pycell-test--image)))
-        (should (equal (overblock-pycell--body-lines (list line)) (list line))))))
+        (should (equal (overblock-run-body-lines-of-pycell (list line)) (list line))))))
   ;; zero cuts nothing
   (let ((overblock-pycell-max-lines 12)
         (overblock-pycell-max-line-length 0))
-    (should (equal (overblock-pycell--body-lines (list (make-string 30 ?x)))
+    (should (equal (overblock-run-body-lines-of-pycell (list (make-string 30 ?x)))
                    (list (make-string 30 ?x))))))
 
 (ert-deftest overblock-pycell-test-md-without-a-converter-stays-plain ()
@@ -1271,9 +1285,9 @@ runs, and its click is `overblock-pycell-stop'."
                       (setq found t)))
                   (setq pos (1+ pos)))
                 found)))
-    (should (stops (overblock-pycell--header nil 1 1 0.5 'running nil)))
-    (should-not (stops (overblock-pycell--header nil 1 1 0.5 nil nil)))
-    (should-not (stops (overblock-pycell--header nil 1 1 0.5 'died nil)))))
+    (should (stops (overblock-run-header-of-pycell nil 1 1 0.5 'running nil)))
+    (should-not (stops (overblock-run-header-of-pycell nil 1 1 0.5 nil nil)))
+    (should-not (stops (overblock-run-header-of-pycell nil 1 1 0.5 'died nil)))))
 
 (ert-deftest overblock-pycell-test-out-label-goes-where-it-begins-a-line ()
   "An Out[N] label goes where it begins a line, and nowhere else.

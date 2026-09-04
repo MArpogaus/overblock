@@ -745,9 +745,11 @@ text — the indentation of a line of code — are painted as well."
   (let ((width (apply #'max (mapcar #'string-width lines)))
         (paint (list :background background)))
     (mapcar (lambda (line)
-              (let ((padded (concat line (make-string
-                                          (- width (string-width line))
-                                          ?\s))))
+              ;; `truncate-string-to-width' pads to a display width and
+              ;; keeps the text properties of what it pads, which is
+              ;; what the row carries; `string-pad' measures with
+              ;; `length' and would leave a row of wide characters short.
+              (let ((padded (truncate-string-to-width line width 0 ?\s)))
                 ;; Under whatever each character already wears, so a bold
                 ;; header cell stays bold and only the bare columns gain
                 ;; a colour.
@@ -759,13 +761,18 @@ text — the indentation of a line of code — are painted as well."
   "Return TEXT with every run of painted rows squared off.
 A row is painted where its last character is: shr ends a table row and
 a line of code with the face the block wears, and a row it left short
-is a row of colour that stops in the middle of the block."
-  (let (rows run background)
+is a row of colour that stops in the middle of the block.
+
+A blank line wears no face and belongs to the run all the same where
+code stands on both sides of it — held back until a painted row follows,
+because the blank line that ends a block belongs to nothing."
+  (let (rows run background held)
     (cl-flet ((flush ()
                 (when run
                   (setq rows (nconc rows (overblock-md--rectangle
                                           run background))
-                        run nil))))
+                        run nil))
+                (setq rows (nconc rows held) held nil)))
       (dolist (line (split-string text "\n"))
         (let ((paint (and (> (length line) 0)
                           (overblock-md--background
@@ -773,8 +780,10 @@ is a row of colour that stops in the middle of the block."
                                               'face line)))))
           (cond
            ((and paint (equal paint background))
-            (setq run (nconc run (list line))))
+            (setq run (nconc run held (list line)) held nil))
            (paint (flush) (setq background paint run (list line)))
+           ((and run (string-blank-p line))
+            (setq held (nconc held (list line))))
            (t (flush)
               (setq background nil rows (nconc rows (list line)))))))
       (flush))
