@@ -115,7 +115,8 @@ which the first one found in the variable `exec-path' is used.  The
 program reads Markdown on standard input and writes HTML on standard
 output, so arguments are allowed: \"pandoc -f gfm -t html\".
 
-Markdown cells stay plain text while no candidate is installed.
+A caller shows the markdown as it stands while no candidate is
+installed.
 
 Leave the math alone when choosing arguments.  Pandoc, for one, turns
 simple formulas into text on its own and passes the rest through, and
@@ -125,8 +126,8 @@ simple formulas into text on its own and passes the rest through, and
   :group 'overblock-md)
 
 (defcustom overblock-md-remote-images t
-  "Whether to fetch the images a markdown cell names by URL.
-A cell that opens with a badge names an image on the web, as the Colab
+  "Whether to fetch the images markdown names by URL.
+Text that opens with a badge names an image on the web, as the Colab
 badge of a notebook does.  shr fetches such an image
 with `url-queue-retrieve', which answers long after the rendering is
 over and into a buffer that is gone by then, so the badge stayed its alt

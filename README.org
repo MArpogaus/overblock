@@ -35,9 +35,10 @@
 =pycell= shows the results of Python code cells in the buffer, in the
 style of a notebook.  It needs no Jupyter kernel.
 
-The package builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]].  It needs nothing
-more than =python.el=.  There is no =emacs-jupyter=, no =zmq= module
-and no =.ipynb= file.
+The package builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]], and it shows what
+it shows through [[https://github.com/MArpogaus/overblock][overblock]].  It needs nothing more than
+=python.el=.  There is no =emacs-jupyter=, no =zmq= module and no
+=.ipynb= file.
 
 Evaluate a cell, and the result appears below it: text, tables and
 figures.  The =*Python*= buffer keeps the full log.  Markdown cells
@@ -50,21 +51,18 @@ render in place, and this includes the LaTeX fragments.
 *** Prerequisites
 
 - Emacs 29.1 or later.
-- [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]].  Both are dependencies of the
-  package.
+- [[https://github.com/MArpogaus/overblock][overblock]], the layer
+  that puts a block on the screen, and
+  [[https://github.com/astoff/code-cells.el][code-cells]] and
+  [[https://github.com/astoff/comint-mime][comint-mime]].  All three
+  are dependencies of the package.
 - IPython for rich output.  A plain =python3= shell gives text only,
   because comint-mime installs its renderers through IPython.
-- A converter from Markdown to HTML for the markdown cells.  pycell
-  looks for =pandoc --mathjax --no-highlight=, =markdown_py -x tables -x
-  fenced_code=, =cmark-gfm -e table=, =markdown= and =cmark=, in this
-  order — the ones that can carry a table and a code fence first, each
-  told to leave the math alone and to paint no code.  See
-  =overblock-md-command=.
-- An Emacs with libxml2, because shr reads the HTML of the converter
-  with it.  Without a converter or without libxml2 the markdown cells
-  stay plain text.  The mode then reports which part is missing.
-- =latex= and =dvipng= or =dvisvgm= for the formulas that your
-  converter does not render.
+- What the markdown cells need, which overblock names: a converter from
+  Markdown to HTML, an Emacs with libxml2, and =latex= with =dvipng= or
+  =dvisvgm= for the formulas the converter leaves alone.  Without a
+  converter or without libxml2 the markdown cells stay plain text, and
+  the mode reports which part is missing.  See [[file:README-overblock.org][README-overblock.org]].
 
 *** Installation
 
@@ -252,38 +250,15 @@ shorter if the rendering is shorter, for example a table of three
 lines that renders as one line.  The spare lines then go under a
 cloak.
 
-A =$...$= or =$$...$$= fragment becomes a preview image, capped by
-=overblock-image-height= like every other image, so that a long
-=aligned= block cannot grow taller than the window.  The images live in
-=~/.cache/overblock-math=.
-
-A fragment whose preview fails — no LaTeX, or a package the preamble
-asks for and the installation does not have — stays text, and the
-message says where LaTeX left its log.  The failure is remembered for
-the session: what caches a preview is the image file, so without that a
-cell costs one LaTeX run per fragment on every render.  Install what was
-missing and call =overblock-md-forget-failed-previews= to ask again.
-
-A converter that renders math itself leaves nothing to preview: plain
-=pandoc= turns =$x_1 \to x_2$= into markup for "x1 → x2", which is why
-the default asks it for =--mathjax=, where it passes the fragment on as
-=\(x_1 \to x_2\)=.  =markdown_py= and =cmark= pass the dollars through
-as they are.  See =overblock-md-command=.
-
-An image a cell names by URL — the Colab badge a notebook opens with —
-is fetched once and drawn from the file, and kept beside the previews in
-=~/.cache/overblock-images=.  shr fetches such an image asynchronously,
-which answers into a buffer the rendering has already left, so the badge
-stayed its alt text.  Set =overblock-md-remote-images= to nil to ask the
-network for nothing; a terminal never asks, since it draws no image
-either way.
+What a cell can hold and what it costs is overblock's to answer: the
+formulas that become preview images, the figures a cell names by path
+or by URL, the caches under =~/.cache/=, and the converter that leaves
+the math alone.  See [[file:README-overblock.org][README-overblock.org]].
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
-at an absolute path, capped by =overblock-image-height= like a result's
-figure.  A terminal draws no image and shows the alt text instead.  A
-link keeps its click: =mouse-1= and =mouse-2= on a link, an image with
-a link around it included, follow the URL.  A click is answered by the
-rendering itself, which carries shr's own keymap.
+at an absolute path.  A terminal draws no image and shows the alt text
+instead.  A link keeps its click: =mouse-1= and =mouse-2= on a link, an
+image with a link around it included, follow the URL.
 
 Point cannot be put on a link — the rendering is shown over the source
 lines, and point stays in the source — so =pycell-md-follow-link= asks
@@ -364,18 +339,18 @@ cell needs, such as =TAB= for folding:
 |---------------------------+--------------------------------------------------|
 | =pycell-max-lines=        | the result lines that show inline                |
 | =pycell-max-line-length=  | the characters of a result line that show inline |
-| =overblock-image-height=  | the share of the window for an inline image      |
-| =overblock-md-command=    | the shell command from Markdown to HTML          |
 | =pycell-result-buttons=   | the buttons on the header of a result            |
 | =pycell-markdown-buttons= | the buttons on the header of a markdown cell     |
 | =pycell-cell-buttons=     | the buttons on the bar of a code cell            |
 | =pycell-source-buttons=   | the buttons on an unrendered markdown cell       |
 | =pycell-header=           | the face of the header bar                       |
 | =pycell-output=           | the face of the result body                      |
-| =overblock-md-code=       | the face of inline code in a markdown cell       |
 
-The options named =overblock-= belong to the block layer, and every
-caller of it shares them.
+pycell renders through overblock, and the layer's own options shape
+what a block looks like: =overblock-image-height= caps an inline
+figure, =overblock-md-command= names the converter, and
+=overblock-md-code= is the face of inline code.  Every caller of the
+layer shares them; [[file:README-overblock.org][README-overblock.org]] has the tables.
 
 Each entry of the four button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
@@ -420,7 +395,8 @@ click, so read =last-input-event= as the commands of this package do.
   block of text.  The wheel does not cross it in a symmetric way, and
   =scroll-up-line= does not cross it at all.
   =overblock-image-height= keeps such a block small enough for the
-  wheel.  Use =pycell-pop-output= for the full figure.
+  wheel.  Use =pycell-pop-output= for the full figure.  The
+  measurements are in [[file:docs/overblock.org][docs/overblock.org]].
 - One cell runs at a time for each inferior process.  pycell refuses
   a cell while another cell runs.
 - A block shows a copy of what the shell rendered, with the columns of
@@ -453,18 +429,17 @@ diff.
 
 ** How It Works
 
-The package is four files.  =pycell.el= is the part that knows about
-Python — the cells, the process, the commands — and the other three know
-nothing of it: =overblock.el= puts a block of text over a region of a
-buffer with a header above it, =overblock-md.el= turns markdown into a
-string such a block can show,
-and =overblock-repl.el= cuts the output of a shell loose from that
-shell.  Those three are meant for a package of their own, and a second
-caller of them is already in the test suite.
+The package is one file.  =pycell.el= knows about Python: the cells,
+the process, the commands, and what a prompt of that shell looks like.
+Everything a block is made of comes from
+[[https://github.com/MArpogaus/overblock][overblock]], which knows
+nothing of Python — the block itself, the bars and buttons, the markdown
+renderer, and the copy of the shell output a block can show.
 
 [[file:docs/implementation.org][docs/implementation.org]] describes the implementation: how a result
 comes into the buffer, how the live mirror works, how a markdown cell
-renders, and what the scroll measurements say.
+renders, and what the scroll measurements say.  The layer's own is in
+[[file:docs/overblock.org][docs/overblock.org]].
 
 ** Development
 
@@ -476,10 +451,13 @@ installed.
 
 Two of those are worth a word:
 
-- package-lint runs twice, because two packages live here.  The block
-  layer — =overblock.el= and its two companions — knows nothing about
-  Python, and =pycell.el= is the notebook that uses it.  Each is linted
-  against its own main file.
+- package-lint runs twice, because two packages live in this
+  repository: overblock, the block layer and the two modes built on it,
+  and pycell, the notebook that uses the layer.  Each is linted against
+  its own main file, and the two file lists at the top of the =lint=
+  target are the whole of each package.  overblock is not on MELPA yet,
+  so the target registers it from this checkout — otherwise
+  package-lint calls pycell's dependency uninstallable.
 - =make test STRICT=1= refuses to run where no markdown converter is
   installed, rather than skipping a fifth of the suite in silence.  The
   CI sets it.

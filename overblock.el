@@ -987,7 +987,7 @@ See `overblock--flatten-alignment' for why a copy needs them literal."
                   (const :tag "Always" t)
                   (const :tag "With an image" image)
                   (const :tag "With output" lines)
-                  (const :tag "While the cell runs" running))))
+                  (const :tag "While it is still being written" running))))
   "The customize type of a list of header buttons.")
 
 (defun overblock-faced (string face)
