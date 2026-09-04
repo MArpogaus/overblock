@@ -99,7 +99,9 @@ was already open appeared to do nothing at all."
           (pycell--update block))))))
 
 (defcustom pycell-result-buttons
-  '((save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
+  '((stop ("󰓛" "□" "q") "Stop the run after this cell"
+          pycell-stop running)
+    (save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
                 pycell-save-image image)
     (copy ("󰄷" "◫" "≡") "Copy this result" pycell-copy-output lines)
     (pop ("󱦴" "↗" "^") "Show this result in its own buffer"
@@ -123,7 +125,8 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 - HELP is the tooltip.
 - COMMAND runs on a click.
 - WHEN says when the button shows: t always, `image' only with an
-  image in the result, `lines' only with output.
+  image in the result, `lines' only with output, `running' only while
+  the cell runs.
 
 Drop an entry you never press, reorder them, or give one a glyph your
 font draws better.  The fold arrow and the spinner are not buttons of
@@ -468,7 +471,8 @@ TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
 time in seconds since the cell started.  STATE is `running' while the
 cell runs, `died' where the interpreter went away before the cell
 ended, and nil where the cell finished.  IMAGEP marks a result with an image."
-  (let* ((icons (overblock-buttons pycell-result-buttons imagep total))
+  (let* ((icons (overblock-buttons pycell-result-buttons imagep total
+                                   (eq state 'running)))
          ;; The stopwatch drives the spinner: one frame for each tick.
          (mark (cond ((eq state 'running)
                       (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))

@@ -1234,6 +1234,25 @@ at the bottom edge with the code about to run out of sight."
               (should (= (window-point window) second))))
         (kill-buffer shell)))))
 
+(ert-deftest pycell-test-a-running-cell-carries-a-stop-button ()
+  "The header of a running cell holds a stop button, a finished one none.
+The mouse path to stopping a pass: the button shows only while the cell
+runs, and its click is `pycell-stop'."
+  (cl-flet ((stops (header)
+              (let ((len (length header))
+                    (pos 0)
+                    found)
+                (while (and (not found) (< pos len))
+                  (when-let* ((map (get-text-property pos 'keymap header)))
+                    (when (eq (keymap-lookup map "<down-mouse-1>")
+                              #'pycell-stop)
+                      (setq found t)))
+                  (setq pos (1+ pos)))
+                found)))
+    (should (stops (pycell--header nil 1 1 0.5 'running nil)))
+    (should-not (stops (pycell--header nil 1 1 0.5 nil nil)))
+    (should-not (stops (pycell--header nil 1 1 0.5 'died nil)))))
+
 (ert-deftest pycell-test-out-label-goes-where-it-begins-a-line ()
   "An Out[N] label goes where it begins a line, and nowhere else.
 That is where the shell writes one.  A label that stands in the middle
