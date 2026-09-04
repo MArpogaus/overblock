@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Keywords: languages, docs, convenience
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -38,9 +38,8 @@
 ;; syntax state answers all of it, so the mode needs no parser and no
 ;; grammar: it works in `python-mode' and in `python-ts-mode' alike.
 ;;
-;; It is the second of the two modes that show `overblock' to be a
-;; layer rather than a part of the notebook, and the shorter one: the
-;; cycle it runs is `overblock-live-start', the same call
+;; It is the second of the two modes the layer ships, and the shorter
+;; one: the cycle it runs is `overblock-live-start', the same call
 ;; `overblock-md-preview-mode' makes, and what is left here is which
 ;; regions and rendered with what.
 
@@ -127,13 +126,13 @@ so the prose shares the row with its buttons and wears both rules.")
     (unrender ("\U000f054d" "⟲" "raw") "Show the plain source"
               overblock-live-edit t))
   "The buttons on the bar of a rendered doc string, left to right.
-Each entry is (KEY GLYPHS HELP COMMAND WHEN), the shape a markdown
-cell's buttons take in `pycell-markdown-buttons': a key that names the
-button for you, the glyph candidates for its label, the tooltip, the
-command a click runs, and when it shows — t always.
+Each entry is (KEY GLYPHS HELP COMMAND WHEN), the shape
+`overblock-buttons' reads: a key that names the button for you, the
+glyph candidates for its label, the tooltip, the command a click runs,
+and when it shows — t always.
 
-The pair a markdown cell carries: one opens the text in a buffer of its
-own, the other gives the source back where it stands."
+The pair: one opens the text in a buffer of its own, the other gives
+the source back where it stands."
   :type overblock-button-type
   ;; `custom-initialize-reset', which a `defcustom' takes by default,
   ;; calls the `:set' function as the option is defined, and the

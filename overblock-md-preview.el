@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Keywords: text, markdown, convenience
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -37,9 +37,9 @@
 ;; back over its lines, a piece to a line, which is what lets a tall
 ;; rendering scroll like text.
 ;;
-;; It is one of the two demonstrations that `overblock' is a layer and
-;; not a part of the notebook — see `overblock-pydoc-mode' for the
-;; other.  What this file holds is the answer to three questions:
+;; It is one of the two modes `overblock' ships to show what the layer
+;; carries on its own — see `overblock-pydoc-mode' for the other.
+;; What this file holds is the answer to three questions:
 ;; which regions to render, what to render them with, and when to
 ;; render them.  The showing, the hiding of the source under the
 ;; rendering, and the edit that makes a rendering stale are the layer's.

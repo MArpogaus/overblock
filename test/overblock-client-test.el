@@ -4,7 +4,7 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -23,11 +23,11 @@
 
 ;;; Commentary:
 
-;; The block layer is meant to carry more than the results and the
-;; markdown cells of this package.  This file is the second caller that
-;; proves it: it renders the math in a Python docstring over the lines of
-;; that docstring.  There is no process behind it, no cell and no
-;; markdown, and it asks the layer for nothing that is not there.
+;; The block layer is meant to carry callers this package never wrote.
+;; This file is a caller of that kind: it renders the math in a Python
+;; docstring over the lines of that docstring.  There is no process
+;; behind it, no cell and no markdown, and it asks the layer for nothing
+;; that is not there.
 ;;
 ;; It is a test, not a feature.  What it is worth is the answer to one
 ;; question: does a caller of another shape need anything the layer does
@@ -36,7 +36,10 @@
 ;;; Code:
 
 (require 'ert)
-(require 'pycell)
+(require 'cl-lib)
+(require 'seq)
+(require 'overblock)
+(require 'overblock-md)
 
 ;;;; The client
 
