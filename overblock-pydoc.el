@@ -115,11 +115,6 @@ which is the window's edge.  Nothing has to measure either.")
 The underline closes what `overblock-pydoc-header' opened; see there for
 why neither rule is measured.")
 
-(defface overblock-pydoc-sole '((t :inherit shadow :overline t :underline t))
-  "Face of the one row a doc string of a single line is drawn on.
-A bar above and a bar below would make three rows of one line of prose,
-so the prose shares the row with its buttons and wears both rules.")
-
 (defcustom overblock-pydoc-buttons
   '((edit ("\U000f0cb6" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t)
@@ -330,12 +325,18 @@ footer at all."
 
 (defun overblock-pydoc--sole (prose indent)
   "Return the one row PROSE is drawn on, INDENT columns in.
-A doc string of a single line takes a single row.
-The prose stands where the label stands on a bar, and the buttons at
-the window\'s edge as they do there."
+A doc string of a single line takes a single row: a bar above and a
+rule below would make three rows of one line of prose, and a doc string
+of one line is the commonest of all.
+
+The prose stands where the label stands on a bar, the buttons at the
+window\'s edge as they do there, and the row wears the bar\'s own face —
+a rule over it and none under.  Both rules on one row boxes it in, and
+a boxed line of prose among plain lines of code is a loud way to say
+very little."
   (overblock-pydoc--row (concat prose " ")
                         (overblock-buttons overblock-pydoc-buttons)
-                        'overblock-pydoc-sole indent))
+                        'overblock-pydoc-header indent))
 
 (defun overblock-pydoc--dressed (prose indent)
   "Return PROSE with its bars, indented by INDENT.
