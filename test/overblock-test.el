@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; URL: https://github.com/MArpogaus/pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -276,7 +276,7 @@ off, which is Emacs's own default, every folded bar took two rows."
   "The stretch ends a column short of the right edge in a graphic frame.
 Icons that end at the right edge exactly leave redisplay to decide
 whether the row wraps: measured in one window at one width, the same bar
-drew all its icons when the notebook was opened and put the last one on
+drew all its icons when the buffer was opened and put the last one on
 a row of its own after the first command."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
     (let* ((bar (overblock-bar "label" "^  x " 'shadow))
@@ -324,7 +324,7 @@ room exactly still put the last icon on a row of its own."
 There is nothing to wrap in, and the cut is baked into the string: a
 long cell running while the reader looked at another buffer had its
 header cut to the width of that buffer's window, and the cut stayed
-when the notebook came back."
+when the buffer came back."
   (with-temp-buffer
     (let ((label (make-string 400 ?x)))
       (should-not (get-buffer-window-list nil nil 'visible))
@@ -688,7 +688,7 @@ blank and said nothing at all."
   "An image drawn inline is capped to a share of the window.
 A block taller than the window bounces the wheel backwards off itself
 and cannot be scrolled past at all."
-  (let ((buffer (get-buffer-create "*pycell test fit*")))
+  (let ((buffer (get-buffer-create "*overblock test fit*")))
     (unwind-protect
         (with-current-buffer buffer
           (set-window-buffer (selected-window) buffer)
@@ -708,25 +708,25 @@ and cannot be scrolled past at all."
       (kill-buffer buffer))))
 
 (ert-deftest overblock-test-image-cap-caps-from-an-unshown-buffer ()
-  "A cell that finishes while its notebook is elsewhere is capped too.
-A run of all cells works down the notebook while the user reads
-something else, and no window at all would leave the figure at full
-size, which is the block the wheel cannot get past."
-  (let ((elsewhere (get-buffer-create "*pycell test elsewhere*"))
-        (notebook (get-buffer-create "*pycell test notebook*")))
+  "A block drawn while its buffer is elsewhere is capped too.
+A caller works down a buffer while the reader looks at something else,
+and no window at all would leave the figure at full size, which is the
+block the wheel cannot get past."
+  (let ((elsewhere (get-buffer-create "*overblock test elsewhere*"))
+        (offscreen (get-buffer-create "*overblock test offscreen*")))
     (unwind-protect
         (progn
           (set-window-buffer (selected-window) elsewhere)
-          (with-current-buffer notebook
+          (with-current-buffer offscreen
             (let* ((overblock-image-height 0.5)
                    (line (concat "x" overblock-test--image))
                    (fitted (overblock-image-cap line)))
-              (should-not (get-buffer-window notebook t))
+              (should-not (get-buffer-window offscreen t))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
                                         (selected-window) t))))))))
       (kill-buffer elsewhere)
-      (kill-buffer notebook))))
+      (kill-buffer offscreen))))
 
 (ert-deftest overblock-test-image-cap-unslices-a-tall-image ()
   "A run of slices becomes the whole image, capped, on its first row.
