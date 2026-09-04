@@ -4,7 +4,7 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
-;; URL: https://github.com/MArpogaus/overblock
+;; URL: https://github.com/MArpogaus/pycell
 
 ;; This file is not part of GNU Emacs.
 
