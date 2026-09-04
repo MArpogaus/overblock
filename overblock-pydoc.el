@@ -104,6 +104,56 @@ strings names `gfm-view-mode\', which markdown-mode brings and which
 hides the markup it has painted."
   :type 'function)
 
+(defface overblock-pydoc-header '((t :inherit shadow :overline t))
+  "Face of the bar above a rendered doc string.
+The overline is the rule, and a rule a face draws runs the width of the
+row it is on: it begins where the bar's own text begins, which is the
+column the doc string is indented to, and it ends where the row ends,
+which is the window's edge.  Nothing has to measure either.")
+
+(defface overblock-pydoc-footer '((t :inherit shadow :underline t))
+  "Face of the bar below a rendered doc string.
+The underline closes what `overblock-pydoc-header' opened; see there for
+why neither rule is measured.")
+
+(defface overblock-pydoc-sole '((t :inherit shadow :overline t :underline t))
+  "Face of the one row a doc string of a single line is drawn on.
+A bar above and a bar below would make three rows of one line of prose,
+so the prose shares the row with its buttons and wears both rules.")
+
+(defcustom overblock-pydoc-buttons
+  '((edit ("\U000f0cb6" "✎" "edit") "Edit this doc string in its own buffer"
+          overblock-pydoc-edit t)
+    (unrender ("\U000f054d" "⟲" "raw") "Show the plain source"
+              overblock-live-edit t))
+  "The buttons on the bar of a rendered doc string, left to right.
+Each entry is (KEY GLYPHS HELP COMMAND WHEN), the shape a markdown
+cell's buttons take in `pycell-markdown-buttons': a key that names the
+button for you, the glyph candidates for its label, the tooltip, the
+command a click runs, and when it shows — t always.
+
+The pair a markdown cell carries: one opens the text in a buffer of its
+own, the other gives the source back where it stands."
+  :type overblock-button-type
+  ;; `custom-initialize-reset', which a `defcustom' takes by default,
+  ;; calls the `:set' function as the option is defined, and the
+  ;; drawing it asks for is defined further down.  Nothing is drawn at
+  ;; that moment anyway.
+  :initialize #'custom-initialize-default
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock-pydoc--redraw)))
+
+(defcustom overblock-pydoc-label "doc"
+  "What the bar of a rendered doc string calls it.
+The glyph before it comes from `overblock-glyph', so a terminal without
+the icon font reads the word alone."
+  :type 'string
+  :initialize #'custom-initialize-default
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock-pydoc--redraw)))
+
 (defvar-keymap overblock-pydoc-map
   :doc "Keymap on a rendered doc string.
 A click shows the source of the doc string, which is what a reader
@@ -222,6 +272,103 @@ comes back indented and still rendered."
                                  (cdr lines)))
                    "\n"))))
 
+(defun overblock-pydoc--row (left icons face indent)
+  "Return a row of LEFT, ICONS at the window's edge, all in FACE.
+INDENT is the column the row begins at, which every row of a doc
+string's rendering does: the first hangs where the opening quote stood
+and the rest are indented to it.  Its columns are not the row's to
+fill — padded to the window's full width, the buttons of an indented
+doc string fell onto a row of their own, exactly as many columns over
+as the doc string was deep.
+Padded with spaces, and not with a stretch: what a block shows rides on
+a display property, and a display property inside a display string is
+swallowed — the same rule that keeps an image off one, written down in
+`overblock--piece\'.  Measured on a frame, both a
+`(space :align-to (- right ...))\' and a `(space :width (N))\' drew
+nothing at all, and the rule the face draws ended with the text
+halfway across the window.
+
+Spaces are counted in columns, so a nerd glyph that draws wider than it
+counts leaves the rule a column or two short of the edge.  The row is
+built for the width of the moment; `overblock-pydoc--follow-width\' is
+what rebuilds it when that changes."
+  (let* ((pixels (overblock-window-width))
+         (columns (and pixels (/ pixels (frame-char-width))))
+         (text (concat left icons))
+         ;; A column of slack: a row that fills the last one wraps, and
+         ;; a wrapped bar is two rows of almost nothing.
+         (pad (and columns (- columns indent (string-width text) 1))))
+    (overblock-faced (if (and pad (> pad 0))
+                         (concat left (make-string pad ?\s) icons)
+                       text)
+                     face)))
+
+(defun overblock-pydoc--bar (indent)
+  "Return the bar above a rendered doc string, INDENT columns in.
+The label at the left, the buttons at the window's edge, and the rule
+of `overblock-pydoc-header\' over the whole row."
+  (overblock-pydoc--row
+   (concat (overblock-glyph "\U000f09ee" "◆" "")
+           (if (string-empty-p overblock-pydoc-label)
+               ""
+             (concat " " overblock-pydoc-label))
+           " ")
+   (overblock-buttons overblock-pydoc-buttons)
+   'overblock-pydoc-header indent))
+
+(defun overblock-pydoc--rule (indent)
+  "Return the row that closes a rendered doc string, INDENT columns in.
+A rule and nothing else: the label and the buttons stand on the bar
+above, and saying both twice said nothing the second time.
+
+It opens with a zero-width space, because `overblock--pieces\' trims
+the blank lines off the ends of what it is given and a row of spaces is
+a blank line: the rule was trimmed away and the doc string had no
+footer at all."
+  (concat (propertize "\N{ZERO WIDTH SPACE}"
+                      'face 'overblock-pydoc-footer)
+          (overblock-pydoc--row "" "" 'overblock-pydoc-footer indent)))
+
+(defun overblock-pydoc--sole (prose indent)
+  "Return the one row PROSE is drawn on, INDENT columns in.
+A doc string of a single line takes a single row.
+The prose stands where the label stands on a bar, and the buttons at
+the window\'s edge as they do there."
+  (overblock-pydoc--row (concat prose " ")
+                        (overblock-buttons overblock-pydoc-buttons)
+                        'overblock-pydoc-sole indent))
+
+(defun overblock-pydoc--dressed (prose indent)
+  "Return PROSE with its bars, indented by INDENT.
+A bar above and a bar below, and the one above is the first line of
+what the block shows, so it begins where the block does — the opening
+quote, already INDENT columns in — and the rule its face draws reaches
+from there to the window\'s edge.  Every line after it carries the
+indentation itself; see `overblock-pydoc--indented\'.
+
+Prose of a single line takes a single row instead, its buttons beside
+it and both rules on it: two bars would make three rows out of one line
+of prose, and a doc string of one line is the commonest of all."
+  (overblock-pydoc--indented
+   (if (string-search "\n" prose)
+       (string-join (list (overblock-pydoc--bar indent) prose
+                          (overblock-pydoc--rule indent))
+                    "\n")
+     (overblock-pydoc--sole prose indent))
+   indent))
+
+(defun overblock-pydoc--redraw ()
+  "Draw the bars of every rendered doc string again, in every buffer.
+A button list or a label the reader changes reaches the bars at once;
+without this it waited for something else to render the doc string
+again — a window changing width, or the file opened afresh."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (bound-and-true-p overblock-pydoc-mode)
+        (dolist (block (overblock-in (point-min) (point-max) 'pydoc))
+          (overblock-delete block))
+        (overblock-pydoc-render-buffer)))))
+
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return it.
 HTML is what the converter answered for this doc string, where a caller
@@ -229,11 +376,13 @@ sent the whole buffer through one process."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
               (overblock-md-command overblock-pydoc-command)
-              (rendered (overblock-pydoc--indented
-                         (if (eq overblock-pydoc-renderer 'fontify)
-                             (overblock-md-fontified
-                              source overblock-pydoc-fontify-mode)
-                           (overblock-md-rendered source html))
+              (rendered (overblock-pydoc--dressed
+                         (string-trim-right
+                          (if (eq overblock-pydoc-renderer 'fontify)
+                              (overblock-md-fontified
+                               source overblock-pydoc-fontify-mode)
+                            (overblock-md-rendered source html))
+                          "\n+")
                          (save-excursion (goto-char beg)
                                          (current-indentation))))
               ((not (string-empty-p (string-trim rendered))))
@@ -302,6 +451,49 @@ reader stops."
     (if (eq overblock-pydoc-renderer 'fontify)
         (overblock-pydoc--render-fontified regions)
       (overblock-pydoc--render-converted regions))))
+
+(defun overblock-pydoc--put (beg end prose)
+  "Write the edited PROSE back into the doc string BEG..END and render it.
+The quotes go back on and every line but the first is indented to where
+the doc string stood, which is what Python\'s own tools expect of a doc
+string and what `overblock-pydoc--source\' took off."
+  (let* ((indent (save-excursion (goto-char beg) (current-indentation)))
+         (pad (make-string indent ?\s))
+         (lines (split-string (string-trim-right prose) "\n"))
+         (body (string-join (cons (car lines)
+                                  (mapcar (lambda (line)
+                                            (if (string-blank-p line)
+                                                ""
+                                              (concat pad line)))
+                                          (cdr lines)))
+                            "\n")))
+    (goto-char beg)
+    (delete-region beg end)
+    ;; The closing quotes go on a line of their own where the doc
+    ;; string has more than one, which is how PEP 257 writes one.
+    (insert "\"\"\"" body
+            (if (cdr lines) (concat "\n" pad "\"\"\"") "\"\"\""))
+    (overblock-pydoc--show beg (point))))
+
+;;;###autoload
+(defun overblock-pydoc-edit (&optional event)
+  "Edit the doc string at point, or the one clicked in EVENT.
+The prose opens in its own buffer, without the quotes and without the
+indentation, in `overblock-pydoc-fontify-mode\'.
+`overblock-edit-commit\' puts it back and renders it;
+`overblock-edit-abort\' discards the edit."
+  (interactive (list last-input-event))
+  (overblock-goto-event event)
+  (if-let* ((block (overblock-at 'pydoc)))
+      (overblock-edit-in-buffer
+       (overlay-start block) (overlay-end block)
+       (list :name (format "*pydoc: %s:%d*" (buffer-name)
+                           (line-number-at-pos (overlay-start block)))
+             :label "doc string"
+             :mode overblock-pydoc-fontify-mode
+             :text #'overblock-pydoc--source
+             :put #'overblock-pydoc--put))
+    (user-error "No rendered doc string here")))
 
 ;;;; The mode
 
