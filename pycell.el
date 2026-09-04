@@ -99,29 +99,34 @@ was already open appeared to do nothing at all."
           (pycell--update block))))))
 
 (defcustom pycell-result-buttons
-  '((stop ("󰓛" "□" "q") "Stop the run after this cell"
+  '((stop ("󰓛" "□" "stop") "Stop the run after this cell"
           pycell-stop running)
-    (save-image ("󰮏" "↧" "↓") "Save the result's image to a file"
+    (save-image ("󰮏" "↧" "save") "Save the result's image to a file"
                 pycell-save-image image)
-    (copy ("󰄷" "◫" "≡") "Copy this result" pycell-copy-output lines)
-    (pop ("󱦴" "↗" "^") "Show this result in its own buffer"
+    (copy ("󰄷" "◫" "copy") "Copy this result" pycell-copy-output lines)
+    (pop ("󱦴" "↗" "pop") "Show this result in its own buffer"
          pycell-pop-output lines)
-    (discard ("󰅖" "✕" "x") "Discard this result" pycell-discard-output t)
-    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down" pycell-move-cell-down t))
+    (discard ("󰅖" "✕" "drop") "Discard this result" pycell-discard-output t)
+    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "down") "Move this cell down" pycell-move-cell-down t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
 - KEY names the button for you, and nothing else reads it.
 - GLYPHS are the candidates for its label.  The first one the frame
-  can draw wins, and the last one always answers, so keep a plain
-  character at the end.  Three of them is the shape used here: a nerd
-  glyph, a character an ordinary monospace font has, and a plain one
-  for a terminal.  Ask the font about the middle one before choosing
-  it — measured, `⏫' is in none of Source Code Pro, Liberation Mono
-  or FiraCode Nerd Font, so a frame without nerd glyphs fell all the
-  way to the plain character for that button and to a symbol for every
+  can draw wins, and the last one always answers, so keep something
+  every display has at the end.  Three of them is the shape used here:
+  a nerd glyph, a character an ordinary monospace font has, and a short
+  word for the display that has neither — a word rather than a letter,
+  because `u' and `d' say nothing to a reader who has not read this
+  list.  Ask the font about the middle one before choosing it —
+  measured, `⏫' is in none of Source Code Pro, Liberation Mono or
+  FiraCode Nerd Font, so a frame without nerd glyphs fell all the way
+  to the last candidate for that button and to a symbol for every
   other.
+
+  A terminal takes the last candidate as well, unless
+  `overblock-terminal-glyphs' says its font carries the icons.
 - HELP is the tooltip.
 - COMMAND runs on a click.
 - WHEN says when the button shows: t always, `image' only with an
@@ -135,11 +140,11 @@ this list: they say what the result is doing."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-markdown-buttons
-  '((edit ("󰲶" "✎" "e") "Edit this markdown cell in its own buffer"
+  '((edit ("󰲶" "✎" "edit") "Edit this markdown cell in its own buffer"
           pycell-md-edit t)
-    (source ("󰕍" "⟲" "s") "Show the plain source" pycell-md-raw t)
-    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+    (source ("󰕍" "⟲" "raw") "Show the plain source" pycell-md-raw t)
+    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
 The entries read as in `pycell-result-buttons'.  A markdown cell has
@@ -148,29 +153,29 @@ no output, so `lines' and `image' say nothing here."
   :set #'pycell--set-buttons)
 
 (defcustom pycell-source-buttons
-  '((render ("󰑐" "⟳" "m") "Render this markdown cell"
+  '((render ("󰑐" "⟳" "render") "Render this markdown cell"
             pycell-md-render-cell t)
-    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
 The entries read as in `pycell-result-buttons'.  Such a cell is one
 just written, or one taken back to its source with `pycell-md-raw';
 the third button renders it.
 
-No glyph of a bar is the glyph of another button of that bar, or of a
-button that means something else on another kind of bar — in any of the
-three rows of candidates.  A frame draws whichever row it can, and a
+No candidate of a bar is the candidate of another button of that bar,
+or of a button that means something else on another kind of bar — in
+any of the three rows.  A frame draws whichever row it can, and a
 frame with a font but no nerd glyphs draws the second one."
   :type overblock-button-type
   :set #'pycell--set-buttons)
 
 (defcustom pycell-cell-buttons
-  '((run-above ("󱏦" "⇈" "a") "Run every cell above this one"
+  '((run-above ("󱏦" "⇈" "above") "Run every cell above this one"
                pycell-run-above t)
-    (run ("󰼛" "▷" "r") "Run this cell" pycell-run-cell t)
-    (move-up ("󰅃" "⌃" "u") "Move this cell up" pycell-move-cell-up t)
-    (move-down ("󰅀" "⌄" "d") "Move this cell down"
+    (run ("󰼛" "▷" "run") "Run this cell" pycell-run-cell t)
+    (move-up ("󰅃" "⌃" "up") "Move this cell up" pycell-move-cell-up t)
+    (move-down ("󰅀" "⌄" "down") "Move this cell down"
                pycell-move-cell-down t))
   "The buttons on the bar of a code cell, left to right.
 The entries read as in `pycell-result-buttons'.  A cell bar is drawn
