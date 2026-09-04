@@ -84,11 +84,15 @@ test: $(STAMP)
 # What only a live interpreter can prove: two faults — a read-only
 # notebook wedging the pass, and a result painted as a prompt — survived
 # every batch check, because no batch test starts a process.  Not part
-# of `all': the CI has no ipython, and a suite that always skipped
-# there would only say so in silence.
+# of `all', because a machine without an ipython can only skip it; the
+# CI installs one and runs this with STRICT=1, where a skip is a
+# failure rather than a line nobody reads.
 test-live: $(STAMP)
 	@if command -v ipython >/dev/null 2>&1; then \
 	  $(BATCH) -l test/pycell-live-test.el -f ert-run-tests-batch-and-exit; \
+	elif [ -n "$(STRICT)" ]; then \
+	  echo "test-live: no ipython installed, and STRICT asks for one"; \
+	  exit 1; \
 	else echo "test-live: no ipython installed, skipping"; fi
 
 # A block is one buffer line and can be taller than the window, and only
