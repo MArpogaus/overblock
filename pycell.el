@@ -526,8 +526,11 @@ are and how many of them show, and the body is those that show."
                                         'pycell-output)))
       (overblock-refresh block))))
 
-(defun pycell--tab-filter (cmd)
-  "Return CMD when point sits at the very end of a cell with a result."
+(defun pycell-tab-filter (cmd)
+  "Return CMD when point sits at the very end of a cell with a result.
+A `menu-item' filter for a key in `pycell-result-map': it keeps a key
+that means something in the rest of the cell — TAB indents — out of the
+way everywhere but on the one spot where the reader faces the result."
   (and (eolp)
        (seq-some (lambda (o) (eq (point) (overlay-end o)))
                  (overblock-in (max (1- (point)) (point-min)) (point)
@@ -535,8 +538,14 @@ are and how many of them show, and the body is those that show."
        cmd))
 
 (defvar-keymap pycell-result-map
-  :doc "Keymap inside a cell that shows a result."
-  "TAB" '(menu-item "" pycell-toggle-output :filter pycell--tab-filter))
+  :doc "Keymap inside a cell that shows a result, empty on purpose.
+pycell binds no keys; put your own here.  `pycell-toggle-output' is the
+natural candidate.  Guard a key the rest of the cell needs with
+`pycell-tab-filter', which answers only at the very end of the cell:
+
+  (keymap-set pycell-result-map \"TAB\"
+              \\='(menu-item \"\" pycell-toggle-output
+                          :filter pycell-tab-filter))")
 
 (defun pycell--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the cell BEG..END.
@@ -842,14 +851,14 @@ the notebook has a shell of its own.  `pycell-interrupt' asks this
 first.")
 
 (defvar-keymap pycell-pop-map
-  :doc "Keymap in a buffer showing one result of its own.
-The buffer is read-only, so a plain key is free and is what answers
-wherever the reader has bound the `C-c' prefix: a minor mode that owns
-it shadows a major mode's map, and `C-c C-c' then reaches nothing at
-all.  Both are bound, and `i' is the one to rely on."
-  :parent special-mode-map
-  "i" #'pycell-interrupt
-  "C-c C-c" #'pycell-interrupt)
+  :doc "Keymap in a buffer showing one result of its own, empty on purpose.
+pycell binds no keys; put your own here.  `pycell-interrupt' and
+`pycell-stop' are the natural candidates: both resolve the shell the
+result came from, not the buffer they are pressed in.  The buffer is
+read-only, so a plain key is free:
+
+  (keymap-set pycell-pop-map \"i\" #\\='pycell-interrupt)"
+  :parent special-mode-map)
 
 (defun pycell--insert-result (text)
   "Insert TEXT as a popped-out result, in the current buffer.
@@ -1010,9 +1019,11 @@ interval-tree queries where there is nothing to find."
              (split-string text "\n") "\n"))
 
 (defvar-keymap pycell-md-map
-  :doc "Keymap on rendered markdown cells."
-  "RET" #'pycell-md-edit
-  "C-c C-o" #'pycell-md-follow-link
+  :doc "Keymap on rendered markdown cells.
+Only the mouse is bound: pycell binds no keys.  Put your own here;
+`pycell-md-edit' and `pycell-md-follow-link' are the natural
+candidates.  Point never enters the rendering, so a key pressed on the
+cell is answered by this map through the overlays that carry it."
   "<mouse-2>" #'pycell-md-edit
   "<mouse-1>" #'pycell-md-raw)
 
@@ -1268,22 +1279,24 @@ The cell is then editable in place; press the button on its bar, or run
 (defvar-local pycell--md-source nil
   "Markdown cell (BUFFER BEG END) that this edit buffer feeds.")
 
+(defvar-keymap pycell-md-edit-mode-map
+  :doc "Keymap of `pycell-md-edit-mode', empty on purpose.
+pycell binds no keys; put your own here.  `pycell-md-commit' and
+`pycell-md-abort' are the natural candidates.")
+
 (define-minor-mode pycell-md-edit-mode
   "Edit a markdown cell, as `org-edit-special' edits a source block."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
-  :lighter " cell-edit"
-  :keymap (define-keymap
-            "C-c C-c" #'pycell-md-commit
-            "C-c C-k" #'pycell-md-abort))
+  :lighter " cell-edit")
 
 ;;;###autoload
 (defun pycell-md-edit (&optional event)
   "Edit the markdown cell at point, or the one clicked in EVENT.
 The body opens in its own buffer, without the comment prefixes, in
 `markdown-mode' when that is installed.
-\\<pycell-md-edit-mode-map>\\[pycell-md-commit] puts it back \
-and renders it; \\[pycell-md-abort] discards the edit."
+`pycell-md-commit' puts it back and renders it; `pycell-md-abort'
+discards the edit."
   (interactive (list last-input-event))
   (pcase-let* ((block (pycell--md-at event))
                (`(,beg . ,end) (overblock-get block :data))
@@ -2223,46 +2236,24 @@ never ran at all."
             (unless (pycell--md-cell-start beg)
               (throw 'waiting nil))))))))
 
-(defvar pycell--stop-shell nil
-  "The shell whose pass the stop key stops.
-Captured when the map is armed: the map is global and the reader's
-point can be anywhere by the time the key is pressed, so neither the
-predicate nor the command may resolve the shell from whatever buffer
-that happens to be.")
-
-(defun pycell--pass-live-p ()
-  "Return non-nil while the armed pass still has something to stop.
-The queue, or the cell that is running now: the last cell of a pass is
-sent with the queue already empty, and a predicate that asked only the
-queue let the stop key die while that cell — often the longest one —
-was still going."
-  (and (buffer-live-p pycell--stop-shell)
-       (or (buffer-local-value 'pycell--queue pycell--stop-shell)
-           (buffer-local-value 'pycell--run pycell--stop-shell))
-       t))
-
-(defvar-keymap pycell-stop-map
-  :doc "Transient keymap, active while a pass over the cells runs.
-A text terminal has no <escape> event — ESC is its meta prefix — so
-there the key does nothing.  Bind a key of your own here for a
-terminal session."
-  "<escape>" #'pycell-stop)
-
-(defun pycell--arm-stop (message)
-  "Arm `pycell-stop-map' for as long as the pass lives, and say MESSAGE."
-  (setq pycell--stop-shell (pycell--queue-buffer))
-  (set-transient-map pycell-stop-map #'pycell--pass-live-p nil message))
-
 ;;;###autoload
-(defun pycell-stop ()
+(defun pycell-stop (&optional event)
   "Stop the run of the cells after the current one.
 Both passes go through the same queue: `pycell-restart-and-run-all' and
 `pycell-run-above'.  The cell that is already running runs to its end;
-`pycell-interrupt' is the harder stop."
-  (interactive)
-  (if (buffer-live-p pycell--stop-shell)
-      (with-current-buffer pycell--stop-shell (setq pycell--queue nil))
-    (pycell--queue-set nil))
+`pycell-interrupt' is the harder stop.
+
+The queue lives with the shell, and the shell is resolved as
+`pycell-interrupt' resolves it: a popped-out result remembers the one
+it came from, and every other buffer asks `python-shell-get-process'.
+EVENT is the click on a stop button, and names the notebook to act on."
+  (interactive (list last-input-event))
+  (pycell--goto-event event)
+  (let ((shell (if (local-variable-p 'pycell--shell)
+                   pycell--shell
+                 (pycell--queue-buffer))))
+    (when (buffer-live-p shell)
+      (with-current-buffer shell (setq pycell--queue nil))))
   (message "pycell: run all stopped"))
 
 (defun pycell--cell-starts ()
@@ -2292,7 +2283,7 @@ answers with an error here leaves nothing armed."
     (add-hook 'python-shell-first-prompt-hook #'pycell--run-next 90 t))
   (pycell--home-set (point-marker))
   (pycell--queue-set cells)
-  (pycell--arm-stop message))
+  (message "%s" message))
 
 (defun pycell--run-cells (cells message)
   "Run CELLS in order, and say MESSAGE while they run.
@@ -2315,7 +2306,7 @@ first prompt."
                (error (pycell--queue-set nil)
                       (pycell--home-set nil)
                       (signal (car err) (cdr err))))
-             (pycell--arm-stop message))
+             (message "%s" message))
     (run-python nil (pycell--dedicated))
     (message "pycell: starting the interpreter…")
     (pycell--run-on-prompt cells message)))
@@ -2332,7 +2323,8 @@ presses \\[code-cells-eval] for."
 ;;;###autoload
 (defun pycell-run-above (&optional event)
   "Run every cell above the one at point, or above the one EVENT clicked.
-The cells run in order and the pass stops at the first error, or on \\<pycell-stop-map>\\[pycell-stop].
+The cells run in order and the pass stops at the first error, or on
+`pycell-stop'.
 The interpreter keeps what it has: `pycell-restart-and-run-all' is the
 one that starts from nothing."
   (interactive (list last-input-event))
@@ -2340,28 +2332,35 @@ one that starts from nothing."
   (let* ((beg (car (code-cells--bounds)))
          (cells (seq-take-while (lambda (m) (< m beg)) (pycell--cell-starts))))
     (unless cells (user-error "No cell above this one"))
-    (pycell--run-cells cells "Evaluating the cells above, %k to stop")))
+    (pycell--run-cells cells "pycell: evaluating the cells above")))
 
 ;;;###autoload
 (defun pycell-restart-and-run-all ()
   "Restart the Python interpreter, then evaluate every cell in order.
-The pass stops at the first error, or on \
-\\<pycell-stop-map>\\[pycell-stop]."
+The pass stops at the first error, or on `pycell-stop'."
   (interactive)
   (pycell-restart)
   ;; The same arming `pycell--run-cells' does for a shell that is
   ;; starting: a restarted shell has a live process that has not
   ;; prompted, so the queue waits for that prompt here too.
   (pycell--run-on-prompt (pycell--cell-starts)
-                         "Evaluating all cells, %k to stop"))
+                         "pycell: evaluating all cells"))
+
+(defvar-keymap pycell-mode-map
+  :doc "Keymap of `pycell-mode', empty on purpose.
+pycell binds no keys; put your own here.  `pycell-interrupt' and
+`pycell-stop' are the natural candidates, beside the commands the
+README lists:
+
+  (keymap-set pycell-mode-map \"C-c C-k\" #\\='pycell-interrupt)")
 
 ;;;###autoload
 (define-minor-mode pycell-mode
   "Show Python cell results, and markdown cells, inline.
 While the mode is on, cell evaluation goes through
 `pycell-eval-region'.  Turn it off to remove all blocks and to
-get plain `python-shell-send-region' back.  The bindings live in
-the code-cells maps."
+get plain `python-shell-send-region' back.  The mode binds no
+keys: `pycell-mode-map' is empty and yours to fill."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
   :lighter " pycell"

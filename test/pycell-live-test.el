@@ -147,11 +147,12 @@ the shell stayed busy for the session."
                             (pycell-live-test--text
                              (cadr (pycell-live-test--results)))))))
 
-(ert-deftest pycell-live-test-the-stop-key-outlives-the-queue ()
-  "The stop key's predicate stays live while the last cell runs.
-The last cell of a pass is sent with the queue already empty, so a
-predicate that asked only the queue let the key die while that cell —
-often the longest one — was still going."
+(ert-deftest pycell-live-test-stop-works-while-the-last-cell-runs ()
+  "`pycell-stop' during the last cell of a pass leaves nothing queued.
+The last cell of a pass is sent with the queue already empty, and the
+reader watching a long run has their point anywhere at all — the stop
+must resolve the shell rather than fall over the buffer it is called
+in.  The running cell runs to its end, and the pass ends clean."
   (pycell-live-test--with-notebook
       "# %%\nprint('a')\n\n# %%\nimport time; time.sleep(1)\n"
     (pycell-restart-and-run-all)
@@ -163,9 +164,13 @@ often the longest one — was still going."
                       (buffer-local-value 'pycell--run
                                           (process-buffer proc)))))
              60))
-    (should (pycell--pass-live-p))
+    ;; from another buffer, as a key bound in some other map would be
+    (with-temp-buffer (pycell-stop))
+    (should-not (pycell--queued))
     (should (pycell-live-test--wait #'pycell-live-test--idle-p 60))
-    (should-not (pycell--pass-live-p))))
+    (should-not (pycell--queued))
+    ;; the running cell was not cut short: both results arrived
+    (should (= (length (pycell-live-test--results)) 2))))
 
 (provide 'pycell-live-test)
 ;;; pycell-live-test.el ends here
