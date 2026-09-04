@@ -102,14 +102,6 @@
 (defface overblock-rmd-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
-(defface overblock-rmd-footer '((t :inherit shadow :overline t))
-  "Face of the rule that closes a chunk, drawn where its fence stands.
-The overline is the rule, and a rule a face draws runs the width of the
-row it is on, so nothing has to measure it.  The closing fence of a
-chunk is what the rule is drawn over: three backquotes under a result
-read as litter, and the chunk had a bar to open it and nothing to
-close it.")
-
 (defun overblock-rmd--set-buttons (symbol value)
   "Set SYMBOL to VALUE, and draw the bars of every Rmd buffer again.
 The `:set' of the button options.  A change to one of them showed up
@@ -419,36 +411,33 @@ Python to anyone who can read it."
        (overblock-buttons overblock-rmd-chunk-buttons)
        'overblock-rmd-header))))
 
-(defun overblock-rmd--rule (close)
-  "Draw the rule that closes a chunk over the fence line at CLOSE.
-A bar with neither a label nor a button: what it says is said on the
-bar above, and what it draws is the rule of `overblock-rmd-footer\'."
+(defun overblock-rmd--hide-fence (close)
+  "Hide the closing fence line that begins at CLOSE.
+Three backquotes under a result read as litter: the chunk has a bar
+above it and its result a bar of its own, and the fence between them
+says nothing a reader needs.  The line is hidden and not merely blanked,
+so nothing is left standing where it was.
+
+Not painted over, either.  Font lock gives the fence the background of
+`markdown-code-face\', and the face of the text under a display string
+is what wins over the string\'s own: measured on a frame, a rule drawn
+there came out as a band of that same grey however the face that drew it
+was written.
+
+The overlay is one of this mode\'s bars, so `overblock-rmd--bars\' sweeps
+it away with the rest when the chunk it closes is gone."
   (save-excursion
     (goto-char close)
     (let* ((bol (pos-bol))
-           (eol (pos-eol))
-           (there (overblock-bar-in bol (min (point-max) (1+ eol))))
+           (end (min (point-max) (1+ (pos-eol))))
+           (there (overblock-bar-in bol end))
            (ov (if (eq (overblock-bar-kind there) 'chunk-end)
                    there
-                 (overblock-bar-over bol eol))))
-      (move-overlay ov bol eol)
-      (overblock-bar-draw ov 'chunk-end "" ""
-                          '(overblock-rmd-footer default))
-      ;; The rule has to reach the window's edge, and the row ends with
-      ;; the bar: the columns after it are drawn in the face of the
-      ;; newline, which is what font lock painted the fence — a band of
-      ;; `markdown-code-face' where a rule was wanted.  An overlay face
-      ;; outranks a text property, so the newline wears the rule's face.
-      (let ((tail (or (overlay-get ov 'overblock-rmd-tail)
-                      (make-overlay eol eol nil t))))
-        (overlay-put tail 'evaporate nil)
-        ;; The rule's face over `default', as a list: an attribute the
-        ;; rule does not name — the background, above all — falls
-        ;; through to the next face in the list, and font lock painted
-        ;; the fence a background of its own.
-        (overlay-put tail 'face '(overblock-rmd-footer default))
-        (move-overlay tail eol (min (point-max) (1+ eol)))
-        (overlay-put ov 'overblock-rmd-tail tail)))))
+                 (make-overlay bol end nil t))))
+      (overlay-put ov 'evaporate t)
+      (overlay-put ov 'overblock-bar 'chunk-end)
+      (overlay-put ov 'invisible t)
+      (move-overlay ov bol end))))
 
 (defun overblock-rmd--bars ()
   "Bar the header of every R chunk, and drop the bars of what is not one.
@@ -466,11 +455,9 @@ written."
             (bol (save-excursion (goto-char (overlay-start bar)) (pos-bol))))
         (when (or (and (eq kind 'chunk) (not (memql bol opens)))
                   (and (eq kind 'chunk-end) (not (memql bol closes))))
-          (when-let* ((tail (overlay-get bar 'overblock-rmd-tail)))
-            (delete-overlay tail))
           (delete-overlay bar))))
     (mapc #'overblock-rmd--bar opens)
-    (mapc #'overblock-rmd--rule closes)))
+    (mapc #'overblock-rmd--hide-fence closes)))
 
 (defun overblock-rmd--redraw ()
   "Draw what this mode builds for a window width again.
@@ -576,7 +563,12 @@ why the lines cannot simply be sent.
 
 `ess-send-string' and not `ess-send-region': the region is not what
 goes down, and `ess-send-region' hands a chunk to ess-tracebug where
-that is on, which would wrap the wrapper."
+that is on, which would wrap the wrapper.
+
+A long chunk on one line is no trouble: R\'s console reads a line of
+any length, and 48 kilobytes of escaped chunk — 700 statements — sent
+to R 4.6 through a real pseudo terminal came back with the right answer
+and no continuation prompt."
   (ess-send-string
    proc
    (format "source(exprs = parse(text = %s), print.eval = TRUE)"

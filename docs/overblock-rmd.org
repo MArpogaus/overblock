@@ -205,25 +205,21 @@ when the line was shorter.
 A bar not standing on a chunk header is deleted, which is what happens
 when a reader turns a chunk into prose or changes its engine.
 
-** The rule that closes one
+** The fence that closes one
 
-The closing fence carries a bar as well, of the kind =chunk-end=, with
-neither a label nor a button on it: what it says is said on the bar
-above.  What it draws is the =:overline= of =overblock-rmd-footer=, and
-a rule a face draws runs the width of the row it is on, so nothing has
-to measure it.  Three backquotes under a result read as litter, and a
-chunk that opened with a bar had nothing to close it.
+The closing fence line is hidden, by an overlay of the kind =chunk-end=
+so that the sweep above takes it away with the bars.  Three backquotes
+under a result read as litter, and the chunk has a bar above it and its
+result a bar of its own; the fence between the two says nothing a reader
+needs.  The text is untouched, as everything here is: the fence comes
+back the moment the mode goes off.
 
-The row ends where the bar ends, and the columns after it are drawn in
-the face of the newline — which is the face font lock painted the
-fence, a band of =markdown-code-face= where a rule was wanted.  So the
-newline is given the rule's face by an overlay of its own, because an
-overlay face outranks a text property.
-
-The two kinds are swept apart from each other.  A bar of the header
-kind is kept only where a chunk opens and one of the closing kind only
-where a chunk's code ends, so a fence that stops being one loses its
-bar whichever of the two it carried.
+A rule was tried there first and does not work.  Font lock gives the
+fence line the background of =markdown-code-face=, and the face of the
+text under a display string is what wins over the face of the string
+itself — measured on a frame, the rule came out as a band of that same
+grey however the face that drew it was written, and an explicit
+background would have to be recoloured on every theme change.
 
 ** The width a bar was cut for
 

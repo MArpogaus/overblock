@@ -908,9 +908,10 @@ echo=FALSE}= reads as /plot-one/ — and holds the buttons of
 | =⇈=    | run every chunk above this one |
 | =▷=    | run this chunk                 |
 
-The closing fence carries a rule instead: three backquotes under a
-result read as litter, and a chunk that opened with a bar had nothing
-to close it.  =overblock-rmd-footer= is the face that draws it.
+The closing fence is hidden: three backquotes under a result read as
+litter, and the chunk has a bar above it and its result a bar of its
+own.  Nothing is written to the file — the fence is still there, and it
+comes back the moment the mode goes off.
 
 A chunk of another engine is left alone, so a =```{python}= chunk of
 the same file keeps its source.  A chunk with nothing in it gets no
@@ -1020,7 +1021,6 @@ there, empty, so every key is free to bind:
 | =overblock-rmd-result-buttons=  | three buttons             | the buttons on the header of a result            |
 | =overblock-rmd-header=          | inherits =header-line=    | the face of the bar                              |
 | =overblock-rmd-output=          | inherits =shadow=         | the face of the result body                      |
-| =overblock-rmd-footer=          | =shadow= with an overline | the rule over the closing fence                  |
 
 Zero is a legal value for both limits: =max-lines= of zero shows no
 output inline, and =max-line-length= of zero shows a line whole.
