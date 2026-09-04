@@ -174,9 +174,9 @@ looks stays."
          (copy (overblock-repl-detach text)))
     (should (equal (substring-no-properties copy) "42"))
     (dolist (property '(read-only field front-sticky rear-nonsticky
-                        inhibit-line-move-field-capture insert-in-front-hooks
-                        insert-behind-hooks modification-hooks
-                        keymap mouse-face help-echo))
+                                  inhibit-line-move-field-capture insert-in-front-hooks
+                                  insert-behind-hooks modification-hooks
+                                  keymap mouse-face help-echo))
       (should-not (get-text-property 0 property copy)))
     ;; and the look of it survives
     (should (eq (get-text-property 0 'face copy) 'bold))))

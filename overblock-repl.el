@@ -201,8 +201,8 @@ images, and the table object."
       (remove-list-of-text-properties
        0 (length copy)
        '(keymap local-map mouse-face help-echo read-only field
-         front-sticky rear-nonsticky inhibit-line-move-field-capture
-         insert-in-front-hooks insert-behind-hooks modification-hooks)
+                front-sticky rear-nonsticky inhibit-line-move-field-capture
+                insert-in-front-hooks insert-behind-hooks modification-hooks)
        copy)
       ;; Back to front, so the places of the regions before each one
       ;; still hold.  The newline a run swallowed is put back: without it

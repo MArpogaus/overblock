@@ -468,13 +468,10 @@ renders, and what the scroll measurements say.
 ** Development
 
 =make= runs what the CI runs: byte-compilation with warnings as errors,
-checkdoc, package-lint, relint and the batch tests.  =make scroll=
-needs a display and measures the scrolling.  =make test-live= runs a
-small suite against a real IPython, and skips with a word where none is
-installed.  =make format= indents
-every Lisp file, which is =tools/indent.el= and nothing more than the
-indentation =indent-region= gives Lisp: no form is rewritten and no
-line reflowed.
+package-lint, relint and the batch tests.  =make scroll= needs a
+display and measures the scrolling.  =make test-live= runs a small
+suite against a real IPython, and skips with a word where none is
+installed.
 
 Two of those are worth a word:
 
@@ -493,9 +490,14 @@ and stops a commit at fifteen.  Comments and doc strings count for
 nothing there, so a long explanation is free and a dense line is not.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
-checks, the formatter, checkdoc and relint before a commit, the commit
-message through commitizen, and package-lint, the compilation and the
-tests before a push:
+checks, and the indent, checkdoc, complexity and relint hooks before a
+commit, the commit message through commitizen, and package-lint, the
+compilation and the tests before a push.  Indent and checkdoc come
+from [[https://github.com/MArpogaus/elisp-complexity][elisp-complexity]] as well: indent gives Lisp the indentation
+=indent-region= gives it, no form rewritten and no line reflowed, and
+loads each file first, so a macro of this package indents its body the
+way its =declare= says; checkdoc reads the documentation strings and
+treats any output at all as a failure:
 
 #+begin_src shell
   pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
