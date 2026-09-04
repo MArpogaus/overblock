@@ -349,20 +349,38 @@ fragment LaTeX cannot compile stays text anywhere."
                                (overblock-md--verbatim-math md)))))))
 
 (ert-deftest overblock-md-test-a-wrapped-block-still-gets-its-preview ()
-  "A block that keeps its lines is still replaced by one preview.
+  "A block that keeps its lines is replaced by one preview, drawn once.
 The fragment is matched across its lines, so the wrapping in <pre>
-costs the preview nothing."
+costs the preview nothing — and the image is hung on the first of those
+lines alone, because a display property is drawn once for every screen
+line its run reaches and one over the whole block came out once a row."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) '(image :type png :data "x"))))
-    (let ((rendered (overblock-md-rendered "prose\n\n$$\na = b\n$$\n")))
-      (should (string-match-p "a = b" (substring-no-properties rendered)))
-      ;; one image over the whole block, and the prose untouched
-      (should (eq (car-safe (get-text-property
-                             (string-match "\\$\\$" rendered) 'display
-                             rendered))
-                  'image)))))
+    (let* ((rendered (overblock-md-rendered "prose\n\n$$\na = b\n$$\n"))
+           (runs 0)
+           (pos 0))
+      (while (< pos (length rendered))
+        (let ((next (or (next-single-property-change pos 'display rendered)
+                        (length rendered))))
+          (when (eq (car-safe (get-text-property pos 'display rendered))
+                    'image)
+            (setq runs (1+ runs)))
+          (setq pos next)))
+      ;; one image, and the prose beside it untouched
+      (should (= runs 1))
+      (should (string-match-p "prose" (substring-no-properties rendered)))
+      ;; the rows the block had are the rows it has
+      (should (= (length (split-string rendered "\n"))
+                 (length (split-string
+                          (let ((overblock-md--latex-failed
+                                 (make-hash-table :test #'equal)))
+                            (cl-letf (((symbol-function 'display-images-p)
+                                       #'ignore))
+                              (overblock-md-rendered
+                               "prose\n\n$$\na = b\n$$\n")))
+                          "\n")))))))
 
 (ert-deftest overblock-md-test-table-columns-are-literal ()
   "A rendered table aligns with real spaces, not display specs.
@@ -564,5 +582,28 @@ the one that closes it does not."
     ;; and the rows around it are left as they are
     (should (member "text" (mapcar #'substring-no-properties lines)))
     (should (member "end" (mapcar #'substring-no-properties lines)))))
+
+(ert-deftest overblock-md-test-a-broken-formula-shows-one-image ()
+  "A formula the fill broke over two rows draws its preview once.
+A display property is drawn once for every screen line its run
+reaches, so an image hung on the whole fragment came out twice — at
+the end of one row and again at the start of the next.  The image goes
+on the part before the break, and the rest is drawn as nothing."
+  (let* ((image '(image :type png :file "nowhere.png"))
+         (whole (overblock-md--place-image "\\(x + y\\)" image))
+         (broken (overblock-md--place-image "\\(x +\ny\\)" image)))
+    ;; unbroken: the image on the whole fragment, as it always was
+    (should (eq (get-text-property 0 'display whole) image))
+    ;; broken: the image once, on the first row
+    (should (eq (get-text-property 0 'display broken) image))
+    (let ((rows (split-string broken "\n")))
+      (should (= (length rows) 2))
+      (should (eq (get-text-property 0 'display (nth 0 rows)) image))
+      ;; the second row keeps its place and nothing else: a display
+      ;; property inside a display string is never looked at, so
+      ;; hiding the rest would have left the raw LaTeX on the screen
+      (should (equal (nth 1 rows) "")))
+    ;; the fragment that goes to LaTeX is the whole formula
+    (should (equal (overblock-md--one-line "\\(x +\n  y\\)") "\\(x + y\\)"))))
 
 ;;; overblock-md-test.el ends here

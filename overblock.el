@@ -690,10 +690,21 @@ and a click on a mode line has no position in the buffer.
 A block is reached by point, so this is what a command bound to the
 mouse calls before it asks `overblock-at\' what it was pointed at."
   (when-let* (((consp event))
-              (posn (event-start event))
+              ;; `ignore-errors': the argument can be any event, and
+              ;; `event-start' reads it as a list — measured, a bare
+              ;; `(1 . 0)' raised `wrong-type-argument listp 0' there.
+              (posn (ignore-errors (event-start event)))
               ((consp posn))
+              ;; A live window, tested: an event can carry anything in
+              ;; that slot — measured, a command called from a keyboard
+              ;; macro read a `last-input-event' whose position named
+              ;; the window `(1 . 0)', and `select-window' raised
+              ;; `wrong-type-argument window-live-p' from the middle of
+              ;; a command that had nothing to do with the mouse.
+              (window (posn-window posn))
+              ((window-live-p window))
               (pos (posn-point posn)))
-    (select-window (posn-window posn))
+    (select-window window)
     (goto-char pos)))
 
 (defvar-local overblock-live--spec nil

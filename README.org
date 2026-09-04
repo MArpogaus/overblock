@@ -43,6 +43,12 @@ The four modes of the family, one after the other: a Markdown file
 rendered over its own source, the doc strings of a Python module, a
 =# %%= notebook with its results, and the R chunks of an =.Rmd= file.
 
+Every animation here was recorded from a real Emacs session under
+[[file:demo/init.el][=demo/init.el=]], which is the whole setup behind
+them — a built-in theme, one font, these packages and nothing else.
+[[file:demo/README.org][=demo/README.org=]] says how to record them
+again.
+
 The packages install one at a time out of this one repository.  Each
 has a main file of its own carrying its version and its dependencies,
 and each recipe names that package's files.

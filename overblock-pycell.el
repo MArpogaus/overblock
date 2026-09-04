@@ -459,11 +459,7 @@ commands that call it give their reader."
 (defun overblock-pycell-toggle-output (&optional event)
   "Fold or unfold the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (let* ((block (overblock-pycell--result-at event))
-         (data (overblock-get block :data)))
-    (overblock-set block :data
-                   (plist-put data :folded (not (plist-get data :folded))))
-    (overblock-pycell--update block)))
+  (overblock-run-fold overblock-pycell--style (overblock-pycell--result-at event)))
 
 ;;;###autoload
 (defun overblock-pycell-discard-output (&optional event)
@@ -957,7 +953,7 @@ the width, and the label of the bar does."
       (goto-char (overlay-start hov))
       (move-overlay hov (pos-bol) (pos-eol)))
     (overblock-bar-draw hov 'markdown
-                        (concat (overblock-glyph "" "◇" "M") " "
+                        (concat (overblock-glyph "" "◇" "md") " "
                                 (or (overblock-pycell--cell-title (overlay-start hov)
                                                         (overlay-end hov))
                                     "markdown"))
@@ -1220,13 +1216,13 @@ all, and the line read as one the package had lost track of."
   ;; captured in a terminal, two bars saying `M markdown' that differed
   ;; only in their buttons.
   (overblock-pycell--bar-line bol eol 'source
-                    (overblock-glyph "" "◇" "M") "source"
+                    (overblock-glyph "" "◇" "md") "source"
                     overblock-pycell-source-buttons))
 
 (defun overblock-pycell--code-bar (bol eol)
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
   (overblock-pycell--bar-line bol eol 'code
-                    (overblock-glyph "" "◆" "%") "python"
+                    (overblock-glyph "" "◆" "py") "python"
                     overblock-pycell-cell-buttons))
 
 (defun overblock-pycell--drop-bar (bar)
@@ -1577,16 +1573,6 @@ undo it."
            ;; process, which is not this buffer's business.
            (user-error "The shell this result came from has no process"))))))
 
-(defun overblock-pycell--clear-results ()
-  "Take the results of the buffer down, and sweep what lost its anchor.
-The renderings stay.  A clear that names a kind cannot sweep an orphan —
-an orphan says nothing about the kind it belonged to — so the sweep is
-asked for by name here: taking the results down with
-`overblock-clear' alone left a cloak of a lost block keeping lines of
-the buffer invisible, with nothing able to remove it."
-  (overblock-clear nil nil 'result)
-  (overblock-sweep-orphans))
-
 ;;;###autoload
 (defun overblock-pycell-restart ()
   "Restart the Python interpreter and remove every result.
@@ -1610,10 +1596,10 @@ that point plain.  A rendering has nothing to do with the interpreter."
         (with-current-buffer (process-buffer proc)
           (overblock-run-abort "The interpreter was restarted"))
         (overblock-run-queue-set nil)
-        (overblock-pycell--clear-results)
+        (overblock-run-clear-results)
         (python-shell-restart))
     (overblock-run-queue-set nil)
-    (overblock-pycell--clear-results)
+    (overblock-run-clear-results)
     (run-python nil (overblock-pycell--dedicated))))
 
 ;;;###autoload
