@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -53,7 +53,7 @@ predicate says then."
 (defun overblock-pycell-live-test--idle-p ()
   "Return non-nil while the shell is there and runs no cell."
   (when-let* ((proc (python-shell-get-process)))
-    (not (buffer-local-value 'overblock-pycell--run (process-buffer proc)))))
+    (not (buffer-local-value 'overblock-run--state (process-buffer proc)))))
 
 (defun overblock-pycell-live-test--results ()
   "Return the result blocks of the buffer, in order."
@@ -138,7 +138,7 @@ the shell stayed busy for the session."
     (overblock-pycell-restart-and-run-all)
     (should (overblock-pycell-live-test--wait
              (lambda () (and (overblock-pycell-live-test--idle-p)
-                             (null (overblock-pycell--queued))
+                             (null (overblock-run-queued))
                              (= (length (overblock-pycell-live-test--results)) 2)))
              60))
     (should (equal (overblock-pycell-live-test--text (car (overblock-pycell-live-test--results)))
@@ -160,15 +160,15 @@ in.  The running cell runs to its end, and the pass ends clean."
     (should (overblock-pycell-live-test--wait
              (lambda ()
                (when-let* ((proc (python-shell-get-process)))
-                 (and (null (overblock-pycell--queued))
-                      (buffer-local-value 'overblock-pycell--run
+                 (and (null (overblock-run-queued))
+                      (buffer-local-value 'overblock-run--state
                                           (process-buffer proc)))))
              60))
     ;; from another buffer, as a key bound in some other map would be
     (with-temp-buffer (overblock-pycell-stop))
-    (should-not (overblock-pycell--queued))
+    (should-not (overblock-run-queued))
     (should (overblock-pycell-live-test--wait #'overblock-pycell-live-test--idle-p 60))
-    (should-not (overblock-pycell--queued))
+    (should-not (overblock-run-queued))
     ;; the running cell was not cut short: both results arrived
     (should (= (length (overblock-pycell-live-test--results)) 2))))
 
