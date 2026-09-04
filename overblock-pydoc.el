@@ -31,12 +31,12 @@
 ;; it reads as documentation again.  A click puts point in it, which
 ;; comes to the same thing.
 ;;
-;; A doc string is a string that opens a line of its own, and stands
-;; either at the top of the file or under a line that ends in a colon —
-;; which is what a module, a class and a function doc string have in
-;; common.  A string anywhere else is data and is left alone.  The
-;; syntax state answers all of it, so the mode needs no parser and no
-;; grammar: it works in `python-mode' and in `python-ts-mode' alike.
+;; Which strings are documentation is what font lock has already
+;; decided: python.el paints the doc string of a module, a definition
+;; or an assignment with `font-lock-doc-face' and every other string
+;; with `font-lock-string-face'.  A string that is data is left alone,
+;; and the mode needs no parser and no grammar of its own — it works in
+;; `python-mode' and in `python-ts-mode' alike.
 ;;
 ;; It is the second of the two modes the layer ships, and the shorter
 ;; one: the cycle it runs is `overblock-live-start', the same call
