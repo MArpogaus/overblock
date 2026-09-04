@@ -39,17 +39,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
-    - name: Install Emacs, a virtual display, a markdown converter and IPython
+    - name: Install Emacs, a display, a converter, IPython and R
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -yqq xvfb emacs-gtk pandoc
+        sudo apt-get install -yqq xvfb emacs-gtk pandoc r-base-core
         pipx install ipython
     - name: Show version
       run: emacs --version
     # Everything, not only the pixels: this is the one Emacs in CI with
     # image support, so it is the only row where the tests that need a
-    # PNG run rather than skip.  It is also the only one with an
-    # interpreter, and `test-live' is the suite that starts a process —
-    # two faults once lived past every batch check for want of it.
+    # PNG run rather than skip.  It is also the only one with the
+    # interpreters, and `test-live' is the pair of suites that start a
+    # process — one an IPython and one an R, and five faults between them
+    # once lived past every batch check for want of them.  STRICT=1
+    # makes a skipped suite a failure, which is why both are installed
+    # above.
     - name: The whole suite, the scrolling tests, then the live ones
       run: make STRICT=1 all scroll test-live
