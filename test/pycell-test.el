@@ -549,9 +549,9 @@ start is a frame, and asking that for a position signals."
     (goto-char (point-min))
     (forward-line 1)
     (let ((here (point)))
-      (pycell--goto-event (list 'switch-frame (selected-frame)))
+      (overblock-goto-event (list 'switch-frame (selected-frame)))
       (should (eq (overblock-at 'result)
-                  (progn (pycell--goto-event nil)
+                  (progn (overblock-goto-event nil)
                          (overblock-at 'result))))
       (should (= (point) here)))))
 
@@ -2076,7 +2076,7 @@ one press and the next."
            (click (list 'mouse-1 (list (selected-window) second
                                        (cons 0 0) 0))))
       (goto-char (point-min))
-      (pycell--goto-event click)
+      (overblock-goto-event click)
       (should (= (point) second))
       ;; and the cell the commands will find is that one
       (should (equal (car (code-cells--bounds)) second))
