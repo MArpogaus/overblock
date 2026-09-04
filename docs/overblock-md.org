@@ -146,6 +146,29 @@ A rendered table is laid out in characters rather than pixels, so its
 columns line up over the fixed-pitch lines of a buffer.  Nothing in
 that layout can be moved by a face, which shr's own stretches could.
 
+** The width a rendering is filled to
+
+shr fills a paragraph to a width.  A rendering is made in a temporary
+buffer, which no window shows, and shr fills to the width of the frame
+there.  A block is narrower than that in every case that matters — a
+window split in two, a doc string indented into a class — and the rows
+that overran were truncated at the window's edge, taking the end of a
+sentence with them.
+
+So =overblock-md-width= is bound by the mode that renders, which is the
+one that knows where its block sits, and =overblock-md-columns=
+measures the room: the pixels =overblock-window-width= answers with,
+divided by the width of a character, less the columns the block is
+indented by.  One column is kept back, because a row that fills the
+last one wraps and a wrapped row is two.  Twenty columns is the floor:
+a rendering filled to five is a column of syllables.
+
+Nil is a legal answer, and it is what a buffer in no window gives.  The
+filling is then shr's own, and a caller that keeps its renderings makes
+them again when a window has the buffer:
+[[file:overblock-pydoc.org][overblock-pydoc's notes]] say how it
+follows the width.
+
 * The preview mode
 
 =overblock-md-preview-mode= is =overblock-live-start= with three
@@ -176,6 +199,15 @@ The walk starts at the top of the buffer whatever region it was asked
 about, because that is the only way to know whether the region begins
 inside a fence.  A fence that is never closed runs to the end of the
 buffer, which is what a reader sees while they are still typing it.
+
+Which regions is the one answer another mode may want to give itself,
+so it is a buffer-local variable: =overblock-md-preview-regions-function=
+is called with the bounds to look at and answers the regions in order.
+=overblock-rmd= sets it to the prose alone, because the fenced chunks
+of an Rmd file are R and are run rather than rendered.  The two walks
+are public for the same reason: =overblock-md-preview-fences= is where
+=overblock-rmd= takes its chunks from, and it is the walk that knows a
+fence from a line that looks like one.
 
 ** When, and at what cost
 

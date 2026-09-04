@@ -14,10 +14,13 @@ The text uses these terms:
 - *mirror*: the copy of the output that the block shows.
 
 Two packages of this repository carry what is not Python here.
-overblock puts a block on the screen — [[file:overblock.org][its notes]] — and
+overblock puts a block on the screen and holds the run loop that both
+notebooks here share — [[file:overblock.org][its notes]] — and
 overblock-md turns markup into a string a block can show —
 [[file:overblock-md.org][its notes]].  What is in this document is the part
-that knows about Python.
+that knows about Python.  The other notebook,
+[[file:overblock-rmd.org][overblock-rmd]], runs R chunks through the
+same loop.
 
 * How a result gets into the buffer
 
@@ -33,6 +36,15 @@ mirrors it:
 2. It waits for the next prompt.
 3. It copies the region up to the prompt out of the REPL.  The copy
    keeps the text properties, and therefore the images.
+
+Those three steps are =overblock-run='s and not this package's: the
+loop is the same whatever language is at the other end, and this
+package answers it with a plist — how to reach the interpreter, how to
+send a cell, what a prompt of it looks like, how to clean what came
+back, and how to draw the result.  =overblock-pycell--backend= is that
+plist and =overblock-pycell--style= is the look of the block.  See
+[[file:overblock.org][the layer's notes]] for the loop, and the
+commentary of =overblock-run.el= for the slots.
 
 What the REPL shows is not what a copy of it shows, and two things
 have to change on the way out:
@@ -74,7 +86,7 @@ overblock-pycell writes nothing into the buffer.  Files, LSP and undo see no
 change.  There is one exception: the last cell of a buffer gets a
 final newline if it has none, because the block needs that character.
 
-** The block layer
+** The layer under it
 
 Results and rendered markdown cells are two callers of one layer,
 which knows nothing of Python, cells or markdown: a caller renders
@@ -214,26 +226,19 @@ the buffer as it was.
 
 * The live mirror
 
-A ticker runs each 0.2 seconds while a cell runs.  It shows the
-output so far, a spinner and a stopwatch.
+A ticker runs each 0.2 seconds while a cell runs.  It shows the output
+so far, a spinner and a stopwatch.  The ticker itself, and the bound
+that keeps it cheap, are the runner's:
+=overblock-run-output-head= reads the head of the output and
+=overblock-run-total= counts the lines as they arrive, and
+[[file:overblock.org][the layer's notes]] carry the measurements.
 
-The block shows at most =overblock-pycell-max-lines= lines, and these are the
-first lines of the output.  The ticker therefore reads only the head
-of the output:
-
-- =overblock-pycell--output-head= reads the first lines and cleans them.  It keeps the
-  text as soon as all lines that show are there.  The ticks after
-  that read nothing.
-- =overblock-pycell--total= counts the new lines only.  It keeps the position
-  that it reached in the run state.
-
-An earlier version read the whole output on each tick.  The cost grew
-with the cell.  A cell with 60000 lines paid 25 ms for a tick at the
-start and 101 ms at the end.  A cell with 200000 lines did not
-finish.  The bounded mirror stays at 1 ms for both.
-
-The finished cell goes through one full read.  The result and the
-line count are therefore exact.
+What this package answers there is what a prompt of IPython looks like
+and how to clean it away: =overblock-pycell--output-head= hands
+=overblock-pycell-max-lines=, =overblock-pycell-max-line-length= and
+=overblock-pycell--clean= to that bounded read, and
+=overblock-pycell--clean= takes the prompts and the =Out[N]= labels off
+and cuts the copy loose from the shell.
 
 * Cells with IPython syntax
 
@@ -338,15 +343,18 @@ nerd font the bars are drawn in:
   Its =replace-regexp-in-string= pass asks a search first, as the three
   others in the package do, since that function copies its argument
   twice whether it matches or not.
-- =overblock-pycell--output-head= is bounded in characters as well as in lines,
+- The head of the output is bounded in characters as well as in lines,
   which is what took a tick from 68 milliseconds to one.  The bound holds
   only where no escape sequence begins inside it: comint-mime sends an
   image as one, and a cut inside it drops the figure — measured, a result
-  of no characters at all.
+  of no characters at all.  That bound now lives in
+  =overblock-run-output-head=, with the rest of the loop.
 
 The layer's own share of that tick — the glyphs asked for once and
 kept, the pieces dealt off a walking list, the bounded read of a long
-output — is in [[file:overblock.org][its notes]].
+output — is in [[file:overblock.org][its notes]].  The two rows above
+name this package's wrappers around =overblock-run-header= and
+=overblock-run-update=, which is where that work moved.
 
 And what a keypress does, which is where the rest of the cost was:
 

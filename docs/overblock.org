@@ -2,11 +2,12 @@
 #+OPTIONS: toc:2
 
 This document describes the implementation.  The
-[[file:../README.org][README]] tells you how to use the package.  The three
+[[file:../README.org][README]] tells you how to use the package.  The four
 packages built on this layer have notes of their own:
 [[file:overblock-md.org][overblock-md]],
-[[file:overblock-pydoc.org][overblock-pydoc]] and
-[[file:overblock-pycell.org][overblock-pycell]].
+[[file:overblock-pydoc.org][overblock-pydoc]],
+[[file:overblock-pycell.org][overblock-pycell]] and
+[[file:overblock-rmd.org][overblock-rmd]].
 
 The text uses these terms:
 
@@ -15,6 +16,9 @@ The text uses these terms:
 - *anchor*: the overlay that covers the region and holds the state.
 - *caller*: whatever renders the text.  The layer renders nothing.
 - *piece*: one line of a rendering, hung on one line of the source.
+- *notebook*: a buffer of regions and a shell to send them to.  Two of
+  the packages here are one; =overblock-run.el= is the loop they
+  share.
 
 * The block layer
 
@@ -294,6 +298,92 @@ and a scan that counts from one never met a limit of zero and read the
 whole result instead — measured, 18.6 milliseconds and a full copy over
 twenty thousand lines.
 
+* The run loop
+
+Send a region to a shell, watch what it prints, notice the prompt that
+says it is done, and show what came back under the region it came from.
+That loop is the same whatever language is at the other end, so it is
+one file: =overblock-run.el= holds the run state, the queue of a pass
+over the buffer, the ticker, the process filter and the result block.
+=overblock-pycell= drives an inferior Python with it and
+=overblock-rmd= an inferior R.  The loop lived in the notebook until
+there were two of them, wired to python.el at eleven points, and the
+second notebook would have had to copy all of it.
+
+Nothing here knows a language.  Two plists say what one is: a
+*backend*, which is the shell, and a *style*, which is the look of a
+result block.  The commentary of the file lists their slots.
+
+** Where each plist lives
+
+=overblock-run-backend= is buffer-local, because a notebook is a
+buffer: the mode sets it and takes it away again, and the runner reads
+it to know whether the buffer is still a notebook it may draw in.  A
+send copies it into the shell buffer, because the filter and the ticker
+run there and have to reach the same answers.
+
+A style is a plain variable, one to a package.  A block can be drawn
+with no mode on at all — a result put back after the mode went off
+would sit in a buffer with no bars and no keys to fold it — and three
+of its slots may be functions, so an option the reader has just
+changed is read when the block is drawn rather than when the style was
+written.  The other slots are never called: a face, a keymap and a
+command are values.
+
+** The queue lives with the shell
+
+The queue of a pass and the state of the running region are kept in the
+shell's buffer, beside each other.  A notebook with a shell of its own
+then has a queue of its own: one global list let a pass in one notebook
+discard another's regions and then feed its own down that notebook's
+interpreter.  =overblock-run-shell= answers with that buffer — this
+buffer where it is the shell, and the shell this notebook sends to
+otherwise — and every part of the runner reaches the queue through it.
+
+=overblock-run-next= is a loop and not a call back into the command
+that runs one region.  Recursion built a frame for every markdown cell
+in a row, a hundred of them reached =max-lisp-eval-depth=, and — worse
+— every frame ran its own tail on the way out, so the second one sent a
+code cell while the first was still running.  The send refused it from
+inside the process filter, and that cell, already off the queue, never
+ran at all.
+
+Each region of a pass goes to the top of every window that shows the
+notebook, so the whole of the code that is about to run is visible, and
+=overblock-run-go-home= gives point back when the queue runs out.  The
+home marker belongs to the shell's buffer as well, and it is set after
+the shell exists: the first pass of a session had none to put it in and
+never brought point back.
+
+** What the ticker reads
+
+A ticker runs five times a second while a region runs.  It reads only
+the head of the output, because that is all the block shows:
+=overblock-run-output-head= keeps the text as soon as every line that
+shows is there, and the ticks after that read nothing.
+=overblock-run-total= counts the new lines only and keeps the position
+it reached in the run state.  An earlier version read the whole output
+on each tick, and the cost grew with the region: a cell with 60000
+lines paid 25 ms for a tick at the start and 101 ms at the end, and one
+with 200000 lines did not finish.  The bounded mirror stays at 1 ms for
+both.  The finished region goes through one full read, so the result
+and the line count are exact.
+
+=overblock-run-follow= is the other reader: a buffer that follows a
+running region is written with what is new since the last look, for the
+same reason.  A backend's =:done= writes the whole of it once the
+region has ended.
+
+** When a prompt will never come
+
+=overblock-run-abort= ends the running region as a death: a death
+notice, with the exit status where there is one, after the output
+received so far.  It covers a dead interpreter, which the ticker finds,
+a killed shell buffer, and a restart, which reinitializes the major
+mode — hence =kill-buffer-hook= and =change-major-mode-hook= in the
+shell as well.  Without it a block kept a running header, spinner and
+stopwatch frozen where the ticker stopped, for the rest of the session.
+
 * Scrolling
 
 A body is one buffer line, because it is one display string.
@@ -372,6 +462,12 @@ the code it checks.  These two are this package's:
 - =test/overblock-repl-test.el= — a copied table laid out again, its
   getter, and the images capped.
 
+The runner has no suite of its own.  It is driven through the two
+notebooks: =test/overblock-pycell-test.el= and
+=test/overblock-rmd-test.el= name its functions directly, and
+=make test-live= sends real regions down a real interpreter for each of
+the two languages.
+
 =test/overblock-client-test.el= is a caller of a shape no package here
 ever wrote: it renders the math in a Python doc string over the lines
 of that doc string, with no process behind it and no mode.  It answers
@@ -379,10 +475,11 @@ one question — does a caller of another shape need anything the layer
 does not have — and so far it needs nothing.  It borrows the renderer
 of overblock-md to have something to show.
 
-The suites of the other three packages are listed in their own notes:
+The suites of the other four packages are listed in their own notes:
 [[file:overblock-md.org][overblock-md]],
-[[file:overblock-pydoc.org][overblock-pydoc]] and
-[[file:overblock-pycell.org][overblock-pycell]].
+[[file:overblock-pydoc.org][overblock-pydoc]],
+[[file:overblock-pycell.org][overblock-pycell]] and
+[[file:overblock-rmd.org][overblock-rmd]].
 
 A fifth of the whole suite renders markup and skips itself where no
 converter is installed.  =make test STRICT=1= makes that a failure
