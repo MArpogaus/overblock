@@ -6,8 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Version: 0.1.3
-;; Package-Requires: ((emacs "29.1") (overblock "0.1.0") (code-cells "0.5")
-;;                    (comint-mime "0.4"))
+;; Package-Requires: ((emacs "29.1") (overblock "0.1.0") (code-cells "0.5") (comint-mime "0.4"))
 ;; Keywords: convenience, languages, tools
 ;; URL: https://github.com/MArpogaus/pycell
 

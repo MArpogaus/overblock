@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
-;; URL: https://github.com/MArpogaus/overblock
+;; URL: https://github.com/MArpogaus/pycell
 
 ;; This file is not part of GNU Emacs.
 
