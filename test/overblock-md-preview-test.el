@@ -108,7 +108,7 @@ Leaving it renders it again, which is the whole of the cycle."
     (should (equal (overblock-md-preview-test--sources)
                    '("# One" "two" "three")))
     (goto-char (point-min))
-    (overblock-live--reveal-here)
+    (overblock-live-edit)
     (should (equal (overblock-md-preview-test--sources) '("two" "three")))
     (goto-char (point-max))
     (overblock-live--render-elsewhere)

@@ -140,7 +140,7 @@ column from the left."
           (overblock-live--render-elsewhere)
           (should (= (funcall count) 4))
           (goto-char (point-min))
-          (overblock-live--reveal-here)
+          (overblock-live-edit)
           (should (= (funcall count) 3))
           (goto-char (point-max))
           (overblock-live--render-elsewhere)
