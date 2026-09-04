@@ -232,6 +232,43 @@ the left of every row."
   (should-not (overblock-rmd--error-p "Errors were counted: 3")))
 
 
+(ert-deftest overblock-rmd-test-one-glyph-means-one-thing ()
+  "No two buttons draw the same glyph, in any row of candidates.
+A frame draws whichever row it can: the nerd glyphs, the symbols an
+ordinary font has, or the plain words a terminal falls to.  A glyph
+stands for one command whichever row it comes from, because a frame
+draws no row whole — `overblock-glyph' answers for one button at a
+time, so a font with some of the symbols draws those and the rest fall
+to the words beside them."
+  (let ((bars (list overblock-rmd-result-buttons overblock-rmd-chunk-buttons))
+        seen)
+    (dolist (buttons bars)
+      (let ((glyphs (mapcan (lambda (button) (copy-sequence (nth 1 button)))
+                            buttons)))
+        (should (equal glyphs (delete-dups (copy-sequence glyphs))))))
+    (dolist (buttons bars)
+      (dolist (button buttons)
+        (dolist (glyph (nth 1 button))
+          (let ((before (assoc glyph seen)))
+            (when before (should (eq (cdr before) (nth 3 button))))
+            (push (cons glyph (nth 3 button)) seen)))))))
+
+(ert-deftest overblock-rmd-test-every-button-carries-three-candidates ()
+  "A nerd glyph, a plain symbol and a word, and none of them empty.
+The private use characters of a nerd font are easy to lose in an editor
+that does not draw them: a row of empty strings drew a bar with a label
+and nothing else, and every button on it was invisible."
+  (dolist (buttons (list overblock-rmd-result-buttons
+                         overblock-rmd-chunk-buttons))
+    (dolist (button buttons)
+      (let ((glyphs (nth 1 button)))
+        (should (= (length glyphs) 3))
+        (dolist (glyph glyphs)
+          (should (stringp glyph))
+          (should-not (string-empty-p glyph)))
+        ;; the first candidate is a nerd font private use character
+        (should (<= #xE000 (aref (car glyphs) 0) #xF8FF))))))
+
 ;;;; The bars
 
 (ert-deftest overblock-rmd-test-every-chunk-header-gets-a-bar ()
