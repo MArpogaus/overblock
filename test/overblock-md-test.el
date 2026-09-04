@@ -244,6 +244,42 @@ line came back as the first paragraph of every rendering."
         (accept-process-output nil 0.05)))
     (should (equal answered '("<p>the whole answer</p>")))))
 
+(ert-deftest overblock-md-test-a-nested-list-is-one-list ()
+  "A list with a nested one in it renders as tall as its source.
+shr opens a paragraph — a blank line — before and after every list,
+and a nested list came back in three groups the writer never wrote."
+  (skip-unless (overblock-md-program))
+  (let* ((shr-width 60)
+         (source (concat "- a first item\n- a second item\n"
+                         "  - a nested item\n  - and another\n"
+                         "- a third item\n"))
+         (shown (substring-no-properties (overblock-md-rendered source))))
+    (should (string-match-p
+             "a second item *\n +. a nested item\n +. and another\n. a third"
+             shown))
+    (should (<= (length (split-string shown "\n"))
+                (length (split-string source "\n"))))))
+
+(ert-deftest overblock-md-test-a-definition-stands-under-its-term ()
+  "A definition renders under its term, with no blank line between.
+Which is what a numpydoc section is made of, and what keeps a rendered
+doc string from standing taller than the source it covers: pandoc
+wraps every description in a paragraph, and a paragraph opens with a
+blank line."
+  (skip-unless (executable-find "pandoc"))
+  (let* ((overblock-md-command "pandoc --mathjax --no-highlight -f rst")
+         (shr-width 60)
+         (source (concat "Parameters\n----------\n"
+                         "xs : list of float\n    the values to measure\n"
+                         "unit : str\n    the unit to answer in\n"))
+         (shown (substring-no-properties (overblock-md-rendered source))))
+    (should (string-match-p
+             "xs : list of float\n +the values to measure *\nunit : str"
+             shown))
+    ;; and the whole of it fits in the lines it stands on
+    (should (<= (length (split-string shown "\n"))
+                (length (split-string source "\n"))))))
+
 (ert-deftest overblock-md-test-the-converter-paints-no-code ()
   "Every pandoc the defaults name is told to leave the code alone.
 shr reads no CSS class, so the colours pandoc encodes in them are
