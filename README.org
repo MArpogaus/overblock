@@ -491,13 +491,16 @@ nothing there, so a long explanation is free and a dense line is not.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
 checks, and the indent, checkdoc, complexity and relint hooks before a
-commit, the commit message through commitizen, and package-lint, the
-compilation and the tests before a push.  Indent and checkdoc come
+commit, the commit message through commitizen, and package-lint,
+check-declare, melpazoid, the compilation and the tests before a push.
+Indent and checkdoc come
 from [[https://github.com/MArpogaus/elisp-complexity][elisp-complexity]] as well: indent gives Lisp the indentation
 =indent-region= gives it, no form rewritten and no line reflowed, and
 loads each file first, so a macro of this package indents its body the
 way its =declare= says; checkdoc reads the documentation strings and
-treats any output at all as a failure:
+treats any output at all as a failure; check-declare says where a
+declare-function no longer points at the file that defines its
+function.  Melpazoid reads the package as a MELPA reviewer would.
 
 #+begin_src shell
   pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
