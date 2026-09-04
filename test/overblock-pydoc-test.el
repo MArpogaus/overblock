@@ -4,7 +4,7 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
-;; URL: https://github.com/MArpogaus/overblock-pycell
+;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
 
@@ -356,6 +356,33 @@ the doc string was deep."
     ;; shorter by what it is indented by
     (should (or (null (overblock-window-width))
                 (= (- (string-width wide) (string-width narrow)) 20)))))
+
+(ert-deftest overblock-pydoc-test-the-bars-follow-the-window-width ()
+  "The mode watches the width its bars were built for, and stops watching.
+The padding that carries a rule to the window's edge is in the string,
+so a window made narrower leaves a row too long for it and a wider one
+leaves the rule short.  A buffer in no window has no width to remember,
+which is what this batch sees; the redrawing itself is a picture and is
+judged as one."
+  (overblock-pydoc-test--with
+    (goto-char (point-max))
+    (overblock-pydoc-mode 1)
+    (unwind-protect
+        (progn
+          ;; no window, no width, and the blocks say the same
+          (should (eql (overblock-pydoc--columns) nil))
+          (should (memq #'overblock-pydoc--follow-width
+                        window-size-change-functions))
+          (should (memq #'overblock-pydoc--follow-width
+                        window-buffer-change-functions))
+          ;; and asking with no window to measure is not an error
+          (should-not (overblock-pydoc--follow-width)))
+      (overblock-pydoc-mode -1))
+    ;; the hook is global, so it comes off with the last buffer that wanted it
+    (should-not (memq #'overblock-pydoc--follow-width
+                      window-size-change-functions))
+    (should-not (memq #'overblock-pydoc--follow-width
+                      window-buffer-change-functions))))
 
 (ert-deftest overblock-pydoc-test-point-inside-shows-the-source ()
   "The doc string point is in shows its source; leaving renders it again."
