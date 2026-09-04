@@ -227,6 +227,17 @@ Pixel filling needs font metrics, which a batch session has none of."
   ;; a cell that holds the marker sends everyone the ordinary way
   (should-not (overblock-md-html-batch (list "text" overblock-md--marker))))
 
+(ert-deftest overblock-md-test-the-converter-paints-no-code ()
+  "Every pandoc the defaults name is told to leave the code alone.
+shr reads no CSS class, so the colours pandoc encodes in them are
+dropped and only the line anchors it hangs on every row survive.
+Measured on a document of three fenced blocks, pandoc spent 785
+milliseconds of which 720 were the syntax definitions it loaded to
+paint them."
+  (dolist (command (ensure-list overblock-md-command))
+    (when (string-prefix-p "pandoc" command)
+      (should (string-search "--no-highlight" command)))))
+
 (ert-deftest overblock-md-test-html-batch-gives-up-when-the-marker-changes ()
   "A converter that reshapes the marker sends every cell its own way.
 The batch is only safe while the pieces come back one to a cell, and

@@ -99,7 +99,14 @@ says nothing there, so this face says it with a color.")
   ;; `markdown_py' without its extensions turns a table into one line of
   ;; pipes and a fenced block into one line of words, and `cmark' and
   ;; Perl `markdown' can do neither at all.
-  '("pandoc --mathjax -f markdown-implicit_figures"
+  ;;
+  ;; `--no-highlight' because nothing here reads what the highlighting
+  ;; says: shr knows no CSS class, so the colours pandoc encodes in
+  ;; them are dropped and only the line anchors it hangs on every row
+  ;; survive, as links to nowhere.  Measured on a document of three
+  ;; fenced blocks, pandoc spent 785 milliseconds of which 720 were
+  ;; the syntax definitions it loaded to paint them.
+  '("pandoc --mathjax --no-highlight -f markdown-implicit_figures"
     "markdown_py -x tables -x fenced_code"
     "cmark-gfm -e table" "markdown" "cmark")
   "How to turn Markdown into HTML.
