@@ -536,4 +536,33 @@ the answer arrived long after the cell had been rendered."
       (should-not asked))))
 
 (provide 'overblock-md-test)
+(ert-deftest overblock-md-test-a-painted-block-is-a-rectangle ()
+  "A run of rows that wears a background is squared off to its longest.
+shr ends a row where its text ends, so a fenced block came out as a
+ragged patch of colour.  A blank line inside the block belongs to it;
+the one that closes it does not."
+  (skip-unless (overblock-md-program))
+  (let* ((custom--inhibit-theme-enable nil)
+         (rendered
+          (progn
+            (custom-set-faces '(overblock-md-code ((t :background "#eee"))))
+            (overblock-md-rendered
+             "text\n\n```python\ndef f():\n    x = 1\n\n    return x\n```\n\nend\n")))
+         (lines (split-string rendered "\n"))
+         (painted (seq-filter (lambda (line)
+                                (and (> (length line) 0)
+                                     (overblock-md--background
+                                      (get-text-property 0 'face line))))
+                              lines)))
+    ;; the four rows of the block, the blank line among them
+    (should (= (length painted) 4))
+    ;; one width for all of them, and it is the longest row's
+    (should (= 1 (length (seq-uniq (mapcar #'string-width painted)))))
+    (should (equal (seq-map #'string-trim-right
+                            (mapcar #'substring-no-properties painted))
+                   '("def f():" "    x = 1" "" "    return x")))
+    ;; and the rows around it are left as they are
+    (should (member "text" (mapcar #'substring-no-properties lines)))
+    (should (member "end" (mapcar #'substring-no-properties lines)))))
+
 ;;; overblock-md-test.el ends here

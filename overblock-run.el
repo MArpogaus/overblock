@@ -62,7 +62,6 @@
 ;; first argument.  It is a plain plist, one per package rather than one
 ;; per buffer, so a caller can draw a block with no mode turned on:
 ;;
-;;   :kind         the kind `overblock-show' gives the block
 ;;   :keymap       the keymap on it
 ;;   :buttons      the button descriptors, or a function answering them
 ;;   :fold         the command the fold mark runs
@@ -70,6 +69,8 @@
 ;;   :output-face  the face of the body
 ;;   :lines        how many lines show, or a function answering that
 ;;   :chars        how long a line may be, or a function answering that
+;;   :stale        what to do with the block when its region is edited,
+;;                 `overblock-delete' where the style names none
 ;;
 ;; Two consumers live here: `overblock-pycell' sends Python cells to an
 ;; inferior Python, and `overblock-rmd' sends the R chunks of an Rmd
@@ -94,10 +95,6 @@ it whether a buffer is still a notebook it may draw in.
 `overblock-run-send' copies it into the shell buffer, where the filter
 and the ticker read it.")
 
-(defun overblock-run--slot (slot &optional default)
-  "Return SLOT of this buffer's backend, or DEFAULT where there is none."
-  (or (plist-get overblock-run-backend slot) default))
-
 (defun overblock-run--call (slot &rest args)
   "Call SLOT of this buffer's backend on ARGS, or answer nil for none."
   (when-let* ((fn (plist-get overblock-run-backend slot)))
@@ -113,7 +110,7 @@ nothing in silence."
 
 (defun overblock-run--name ()
   "Return the word this backend's messages carry."
-  (overblock-run--slot :name "overblock"))
+  (or (plist-get overblock-run-backend :name) "overblock"))
 
 (defun overblock-run--style (style slot &optional default)
   "Return SLOT of STYLE, called where it is a function.
@@ -139,9 +136,16 @@ scroller."
     (concat (substring line 0 chars)
             (overblock-glyph "…" "..."))))
 
+(defconst overblock-run-tick 0.2
+  "Seconds between two looks at a running region\'s output.
+The spinner turns one frame a tick, so `overblock-run-header\' divides
+the runtime by this to pick its glyph: the two have to agree, which is
+why the interval has a name.")
+
 (defun overblock-run-body-lines (lines max chars)
   "Return the leading LINES that show inline.
-At most MAX of them, each cut to CHARS characters, and
+At most MAX of them — every one where MAX is zero — each cut to CHARS
+characters, and
 nothing after the first line that carries an image it can draw: more
 inline figures would grow the block, and the scroll jump with it,
 without bound.  A display that shows no images has nothing to stop
@@ -149,7 +153,10 @@ for, and names them instead.  A line with an image on it is not cut,
 since the image may sit past the cut; its images are capped to
 `overblock-image-height' instead."
   (let (shown stop)
-    (while (and lines (not stop) (< (length shown) max))
+    ;; A MAX of zero shows every line, as a CHARS of zero leaves every
+    ;; line whole: two options of the same shape, and a zero that meant
+    ;; "all of it" in one and "none of it" in the other was a trap.
+    (while (and lines (not stop) (or (zerop max) (< (length shown) max)))
       (let* ((l (pop lines))
              (imagep (overblock-image-in l))
              ;; Only where an image can be drawn.  A terminal shows
@@ -180,7 +187,7 @@ STATE are `overblock-run-header''s own."
          ;; still glyph.  These ten are one weight and one size among
          ;; themselves, which is what the rest of the row is for.
          (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
-           (string ?\s (aref frames (mod (truncate runtime 0.2)
+           (string ?\s (aref frames (mod (truncate runtime overblock-run-tick)
                                          (length frames))))))
         ((eq state 'died) (overblock-glyph " " " ⚠" " !"))
         ;; A single line can still be tall: one image is one line, and
@@ -291,8 +298,13 @@ counted."
           (ignore-error buffer-read-only
             (save-excursion (goto-char end) (insert "\n")))))
       (let ((block (overblock-show beg end
-                                   :kind (or (plist-get style :kind)
-                                             'result)
+                                   ;; `result' and not a slot of the
+                                   ;; style: the block a new result
+                                   ;; replaces is looked for by that
+                                   ;; kind above, so a style that named
+                                   ;; another would have stopped
+                                   ;; replacing its own results.
+                                   :kind 'result
                                    :data data
                                    :keymap (plist-get style :keymap))))
         ;; An empty cell — a boundary line directly followed by the
@@ -360,13 +372,17 @@ had been scrolled to."
   (when-let* ((shell (overblock-run-shell))
               (home (buffer-local-value 'overblock-run--home shell)))
     ;; The marker goes whatever happens next, so a notebook that was
-    ;; killed while its pass ran leaves nothing behind to act on.
+    ;; killed while its pass ran leaves nothing behind to act on.  Freed
+    ;; and not merely dropped: a marker stays in its buffer's chain
+    ;; until it is set to nowhere, and comint adjusts that whole chain
+    ;; on every insertion.
     (with-current-buffer shell (setq overblock-run--home nil))
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
         (goto-char home)
         (dolist (window (get-buffer-window-list nil nil t))
-          (set-window-point window home))))))
+          (set-window-point window home))))
+    (set-marker home nil)))
 
 (defun overblock-run-home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none."
@@ -397,13 +413,15 @@ The last two belong to the live mirror.")
 (defun overblock-run--whole-escapes (text)
   "Return TEXT without an escape sequence that has not arrived in full.
 comint-mime sends an image as one escape sequence, and half of one
-swallows everything after it until the rest comes.  The search is what
-makes this cheap: `replace-regexp-in-string' copies its argument twice
-whether it matches or not, which measured 3.19 milliseconds over a
-hundred thousand characters of propertized text against 0.040 for the
-search that stands in front of it now."
-  (if (string-search "\e]" text)
-      (replace-regexp-in-string "\e\\][^\e]*\\'" "" text)
+swallows everything after it until the rest comes.
+
+A match anchored at the end of the string is a truncation, so this cuts
+rather than replaces: `replace-regexp-in-string' copies its argument
+twice whether it matches or not, and over a hundred kilobytes of
+propertized text a hundred passes measured 0.210 seconds against 0.102
+for the `substring' here."
+  (if (string-match "\e\\][^\e]*\\'" text)
+      (substring text 0 (match-beginning 0))
     text))
 
 (defun overblock-run--output-so-far (from)
@@ -484,8 +502,15 @@ finished cell shows."
                           0)))
          (count (cdr state)))
     (save-excursion
-      (goto-char (car state))
-      (while (search-forward "\n" nil t) (setq count (1+ count)))
+      ;; `count-lines' between two beginnings of lines counts the
+      ;; newlines between them, and it counts them in C: measured over
+      ;; 60000 lines, twenty passes cost 0.014 seconds against 0.596 for
+      ;; a `search-forward' loop.  The line that has arrived only in
+      ;; part is counted by the caller below, as it always was.
+      (goto-char (point-max))
+      (let ((bol (pos-bol)))
+        (setq count (+ count (count-lines (car state) bol)))
+        (goto-char bol))
       ;; The marker is moved rather than made again.  Every marker left
       ;; behind stays in the buffer's chain until a garbage collection,
       ;; and comint adjusts the whole chain on every insertion: 2000
@@ -637,8 +662,8 @@ it."
 
 (defun overblock-run--tick (buf timer)
   "Mirror the running region's output and stopwatch into its overlay.
-TIMER runs this every 0.2s for the shell BUF.  It cancels
-itself when nothing runs there anymore."
+TIMER runs this every `overblock-run-tick' seconds for the shell BUF.
+It cancels itself when nothing runs there anymore."
   (if (not (and (buffer-live-p buf)
                 (buffer-local-value 'overblock-run--state buf)))
       (cancel-timer timer)
@@ -696,10 +721,14 @@ ticker run there and read it."
       (add-hook 'comint-output-filter-functions #'overblock-run--filter t t)
       (add-hook 'kill-buffer-hook #'overblock-run-abort nil t)
       (add-hook 'change-major-mode-hook #'overblock-run-abort nil t)
-      ;; The ticker receives itself, so it can always self-cancel.
-      (let ((timer (run-with-timer 0.2 0.2 #'ignore)))
-        (timer-set-function timer #'overblock-run--tick
-                            (list (current-buffer) timer))
+      ;; The ticker receives itself, so it can always self-cancel: the
+      ;; variable is bound before the timer is made and set from the
+      ;; call that makes it, so the closure has it by the first tick.
+      (let (timer)
+        (setq timer (run-with-timer
+                     overblock-run-tick overblock-run-tick
+                     (let ((buffer (current-buffer)))
+                       (lambda () (overblock-run--tick buffer timer)))))
         ;; The process mark, and not the end of the buffer.  A render
         ;; comint-mime finishes after the closing prompt sits past the
         ;; mark, and a cell that started from the end of the buffer
@@ -809,13 +838,10 @@ A region that will not start takes the whole pass with it, which is why
 armed by a refusal, and the regions ran later without being asked for,
 less the one the refusal had already taken off it."
   (overblock-run--must)
-  (cond ((overblock-run--call :process)
-         (overblock-run--pass cells message))
-        ((overblock-run--call :start)
-         (overblock-run--pass cells message))
-        (t
-         (message "%s: starting the interpreter…" (overblock-run--name))
-         (overblock-run-on-prompt cells message))))
+  (if (or (overblock-run--call :process) (overblock-run--call :start))
+      (overblock-run--pass cells message)
+    (message "%s: starting the interpreter…" (overblock-run--name))
+    (overblock-run-on-prompt cells message)))
 
 (defun overblock-run-region (start end)
   "Run START..END, starting the interpreter where there is none.

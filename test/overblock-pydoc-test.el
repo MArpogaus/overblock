@@ -358,31 +358,29 @@ the doc string was deep."
                 (= (- (string-width wide) (string-width narrow)) 20)))))
 
 (ert-deftest overblock-pydoc-test-the-bars-follow-the-window-width ()
-  "The mode watches the width its bars were built for, and stops watching.
-The padding that carries a rule to the window's edge is in the string,
-so a window made narrower leaves a row too long for it and a wider one
-leaves the rule short.  A buffer in no window has no width to remember,
-which is what this batch sees; the redrawing itself is a picture and is
-judged as one."
+  "The mode watches the window width while it is on, and stops after.
+A rendering is built for the width it is shown at, so a window made
+narrower leaves rows too long for it.  `overblock-width-follow\' is what
+drops those, and the layer\'s own suite proves the dropping; this proves
+that the mode asks for it and that it stops asking."
   (overblock-pydoc-test--with
     (goto-char (point-max))
     (overblock-pydoc-mode 1)
     (unwind-protect
         (progn
-          ;; no window, no width, and the blocks say the same
-          (should (eql (overblock-pydoc--columns) nil))
-          (should (memq #'overblock-pydoc--follow-width
-                        window-size-change-functions))
-          (should (memq #'overblock-pydoc--follow-width
-                        window-buffer-change-functions))
-          ;; and asking with no window to measure is not an error
-          (should-not (overblock-pydoc--follow-width)))
+          ;; a buffer in no window has no width to build for
+          (should (eql (overblock-window-columns) nil))
+          (let ((watcher (gethash 'pydoc overblock--width-watchers)))
+            (should watcher)
+            (should (memq watcher window-size-change-functions))
+            (should (memq watcher window-buffer-change-functions))
+            ;; and asking with no window to measure is not an error
+            (should-not (funcall watcher))))
       (overblock-pydoc-mode -1))
-    ;; the hook is global, so it comes off with the last buffer that wanted it
-    (should-not (memq #'overblock-pydoc--follow-width
-                      window-size-change-functions))
-    (should-not (memq #'overblock-pydoc--follow-width
-                      window-buffer-change-functions))))
+    ;; the hooks are global, so they come off with the last buffer
+    (let ((watcher (gethash 'pydoc overblock--width-watchers)))
+      (should-not (memq watcher window-size-change-functions))
+      (should-not (memq watcher window-buffer-change-functions)))))
 
 (ert-deftest overblock-pydoc-test-point-inside-shows-the-source ()
   "The doc string point is in shows its source; leaving renders it again."

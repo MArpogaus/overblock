@@ -204,6 +204,7 @@ of five, and trailing it stands in one column down the window."
 
 (defcustom overblock-pycell-max-lines 12
   "Number of result lines that show inline.
+Zero shows all of them.
 A result block is one buffer line however tall it is, so a long
 result makes one long step for `next-line' and for the wheel.  Use
 `overblock-pycell-pop-output' to see the whole of it.
@@ -266,39 +267,27 @@ that cell's anchor begins, so its `insert-in-front-hooks' ran and its
 result went with the insertion — measured, a third cell that had
 nothing to do with the move lost its result on every move down.")
 
-(defvar-local overblock-pycell--width nil
-  "The width the bars of this buffer were built for, in pixels.
-`overblock-bar' cuts the label to the room the icons leave, and the cut
-is in the string: a window made narrower afterwards — a split, a side
-window, a frame resized — was left with a label too long for it, and
-the header took two rows.  A bar is remade when this changes.")
+(defun overblock-pycell--redraw ()
+  "Draw what this notebook builds for a window width again.
+Only the bars and the frames the results are drawn in: a result is
+drawn again from the record it already holds, which is what a tick does
+five times a second, and a rendered markdown cell keeps its rendering
+and takes a new bar."
+  (dolist (block (overblock-in (point-min) (point-max) 'result))
+    (overblock-pycell--update block))
+  (mapc #'overblock-pycell--bar-redraw (overblock-bars))
+  ;; A rendered markdown cell is filled to the width it is shown at.
+  (overblock-width-follow 'markdown))
 
 (defun overblock-pycell--rescale ()
   "Draw the bars again after the text scale changed.
-The room a label has did not change — the window is the same width — but
-the label is cut in pixels and the font is now a different size, so a
-bar cut for the old one took two rows.  Measured at scale +6: a bar of
-132 pixels on a line 64 pixels high."
-  (setq overblock-pycell--width nil)
-  (mapc #'overblock-bar-stale (overblock-bars))
-  (overblock-pycell--rewidth))
+`overblock-bar-rescale\' says why."
+  (overblock-bar-rescale #'overblock-pycell--redraw))
 
 (defun overblock-pycell--rewidth ()
   "Draw the bars again where the window has changed width.
-On `window-configuration-change-hook', where it runs for the buffer of
-every window that changed.
-
-Only the bars: a result is drawn again from the record it already
-holds, which is what a tick does five times a second, and a rendered
-markdown cell keeps its rendering and takes a new bar.  Only on a
-change of width, because the hook runs for every other kind of change
-as well."
-  (when-let* ((width (overblock-window-width)))
-    (unless (eql width overblock-pycell--width)
-      (setq overblock-pycell--width width)
-      (dolist (block (overblock-in (point-min) (point-max) 'result))
-        (overblock-pycell--update block))
-      (mapc #'overblock-pycell--bar-redraw (overblock-bars)))))
+`overblock-bar-width-follow\' says why, and it is what compares."
+  (overblock-bar-width-follow #'overblock-pycell--redraw))
 
 (defun overblock-pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
@@ -428,8 +417,7 @@ natural candidate.  Guard a key the rest of the cell needs with
                           :filter overblock-pycell-tab-filter))")
 
 (defvar overblock-pycell--style
-  (list :kind 'result
-        :keymap overblock-pycell-result-map
+  (list :keymap overblock-pycell-result-map
         :buttons (lambda () overblock-pycell-result-buttons)
         :fold #'overblock-pycell-toggle-output
         :header-face 'overblock-pycell-header
@@ -441,24 +429,6 @@ natural candidate.  Guard a key the rest of the cell needs with
 The commentary of `overblock-run' lists the slots.  A plain variable
 and not a buffer-local one: a block can be drawn with no mode on, and
 the options it reads are looked up when it is drawn.")
-
-(defun overblock-pycell--shorten (line)
-  "Return LINE cut to `overblock-pycell-max-line-length' characters."
-  (overblock-run-shorten line overblock-pycell-max-line-length))
-
-(defun overblock-pycell--body-lines (lines)
-  "Return the leading LINES that show inline.
-At most `overblock-pycell-max-lines', each cut to
-`overblock-pycell-max-line-length'."
-  (overblock-run-body-lines lines overblock-pycell-max-lines
-                            overblock-pycell-max-line-length))
-
-(defun overblock-pycell--header (folded total shown runtime state imagep)
-  "Return the header bar of a result.
-FOLDED, TOTAL, SHOWN, RUNTIME, STATE and IMAGEP are what
-`overblock-run-header' takes."
-  (overblock-run-header overblock-pycell--style folded total shown runtime
-                        state imagep))
 
 (defun overblock-pycell--update (block)
   "Make the header and the body of the result BLOCK again, and show them."
@@ -1660,12 +1630,21 @@ it came from, and every other buffer asks `python-shell-get-process'.
 EVENT is the click on a stop button, and names the notebook to act on."
   (interactive (list last-input-event))
   (overblock-goto-event event)
-  (let ((shell (if (local-variable-p 'overblock-pycell--shell)
-                   overblock-pycell--shell
-                 (overblock-run-shell))))
+  (let* ((shell (if (local-variable-p 'overblock-pycell--shell)
+                    overblock-pycell--shell
+                  (overblock-run-shell)))
+         ;; What was queued says what to report: a stop pressed with
+         ;; nothing left to run said a pass had been stopped that was
+         ;; already over.
+         (queued (if (buffer-live-p shell)
+                     (length (buffer-local-value 'overblock-run--queue shell))
+                   0)))
     (when (buffer-live-p shell)
-      (with-current-buffer shell (setq overblock-run--queue nil))))
-  (message "overblock-pycell: run all stopped"))
+      (with-current-buffer shell (setq overblock-run--queue nil)))
+    (message (if (> queued 0)
+                 "overblock-pycell: the pass is stopped, %d cells left unrun"
+               "overblock-pycell: nothing was queued")
+             queued)))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.

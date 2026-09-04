@@ -37,8 +37,11 @@
 ;; back over its lines, a piece to a line, which is what lets a tall
 ;; rendering scroll like text.
 ;;
-;; It is one of the two modes `overblock' ships to show what the layer
-;; carries on its own — see `overblock-pydoc-mode' for the other.
+;; It is the mode this package carries; `overblock-pydoc-mode' and
+;; `overblock-rmd-mode' are the other two readers of the same live
+;; cycle, each in a package of its own.  The regions this one renders
+;; are its own lines, and `overblock-md-preview-regions-function' is
+;; where another mode says which regions are its.
 ;; What this file holds is the answer to three questions:
 ;; which regions to render, what to render them with, and when to
 ;; render them.  The showing, the hiding of the source under the
@@ -235,6 +238,8 @@ rendered line puts point there.
 `overblock-md-command' is what converts the markdown, and the mode does
 nothing where none of its candidates is installed."
   :lighter " MdPrev"
+  (overblock-width-watch 'md-preview 'overblock-md-preview-mode
+                         overblock-md-preview-mode)
   (if overblock-md-preview-mode
       (overblock-live-start 'md-preview
                             #'overblock-md-preview-render-buffer

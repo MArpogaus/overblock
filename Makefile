@@ -59,12 +59,8 @@ compile: $(STAMP)
 	  -f batch-byte-compile $(SRC) $(TEST)
 	@rm -f ./*.elc test/*.elc
 
-# Two packages live here, and these are their files.  overblock is the
-# block layer and the two modes built on it, and it knows nothing about
-# Python; overblock-pycell is the notebook that uses the layer.  package-lint
-# reads one main file and calls every symbol outside its prefix an
-# error, so it is run once for each package.  The lists below are the
-# whole of each package: what moves when the two get a repository each.
+# package-lint reads one main file and calls every symbol outside its
+# prefix an error, so it is run once for each package.
 # Five packages live here, each with a main file of its own carrying its
 # version and its dependencies.  These lists are the whole of each one,
 # and `lint' reads every file against the main file of its own package —

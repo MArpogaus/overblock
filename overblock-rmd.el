@@ -102,6 +102,14 @@
 (defface overblock-rmd-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
+(defface overblock-rmd-footer '((t :inherit shadow :overline t))
+  "Face of the rule that closes a chunk, drawn where its fence stands.
+The overline is the rule, and a rule a face draws runs the width of the
+row it is on, so nothing has to measure it.  The closing fence of a
+chunk is what the rule is drawn over: three backquotes under a result
+read as litter, and the chunk had a bar to open it and nothing to
+close it.")
+
 (defun overblock-rmd--set-buttons (symbol value)
   "Set SYMBOL to VALUE, and draw the bars of every Rmd buffer again.
 The `:set' of the button options.  A change to one of them showed up
@@ -170,6 +178,7 @@ the code away from its paragraph is not what the reader meant."
 
 (defcustom overblock-rmd-max-lines 12
   "Number of result lines that show inline.
+Zero shows all of them.
 A result block is one buffer line however tall it is, so a long result
 makes one long step for `next-line' and for the wheel.  The header says
 how many lines there are in all where it shows fewer.
@@ -199,8 +208,7 @@ overblock-rmd binds no keys; put your own here.
               #\\='overblock-rmd-toggle-output)")
 
 (defvar overblock-rmd--style
-  (list :kind 'result
-        :keymap overblock-rmd-result-map
+  (list :keymap overblock-rmd-result-map
         :buttons (lambda () overblock-rmd-result-buttons)
         :fold #'overblock-rmd-toggle-output
         :header-face 'overblock-rmd-header
@@ -246,10 +254,9 @@ prompt tracebug wrote itself; this runs from that same filter, where
 the real value of that variable is therefore out of reach.  Measured: every
 result came back with a bare > on a line of its own."
   (let ((rx (concat "\\(?:" inferior-ess-primary-prompt "\\)")))
-    ;; The (> ...) guard stops an endless loop where the prompt regexp
-    ;; matches the empty string.
-    (while (and (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
-                (> (match-end 0) (match-beginning 0)))
+    ;; The match is at least the newline the pattern opens with, so the
+    ;; text shrinks on every turn and the loop ends.
+    (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
       (setq text (substring text 0 (match-beginning 0))))
     ;; A prompt with nothing before it: the chunk printed nothing at
     ;; all, which is what an assignment does.
@@ -412,50 +419,79 @@ Python to anyone who can read it."
        (overblock-buttons overblock-rmd-chunk-buttons)
        'overblock-rmd-header))))
 
+(defun overblock-rmd--rule (close)
+  "Draw the rule that closes a chunk over the fence line at CLOSE.
+A bar with neither a label nor a button: what it says is said on the
+bar above, and what it draws is the rule of `overblock-rmd-footer\'."
+  (save-excursion
+    (goto-char close)
+    (let* ((bol (pos-bol))
+           (eol (pos-eol))
+           (there (overblock-bar-in bol (min (point-max) (1+ eol))))
+           (ov (if (eq (overblock-bar-kind there) 'chunk-end)
+                   there
+                 (overblock-bar-over bol eol))))
+      (move-overlay ov bol eol)
+      (overblock-bar-draw ov 'chunk-end "" ""
+                          '(overblock-rmd-footer default))
+      ;; The rule has to reach the window's edge, and the row ends with
+      ;; the bar: the columns after it are drawn in the face of the
+      ;; newline, which is what font lock painted the fence — a band of
+      ;; `markdown-code-face' where a rule was wanted.  An overlay face
+      ;; outranks a text property, so the newline wears the rule's face.
+      (let ((tail (or (overlay-get ov 'overblock-rmd-tail)
+                      (make-overlay eol eol nil t))))
+        (overlay-put tail 'evaporate nil)
+        ;; The rule's face over `default', as a list: an attribute the
+        ;; rule does not name — the background, above all — falls
+        ;; through to the next face in the list, and font lock painted
+        ;; the fence a background of its own.
+        (overlay-put tail 'face '(overblock-rmd-footer default))
+        (move-overlay tail eol (min (point-max) (1+ eol)))
+        (overlay-put ov 'overblock-rmd-tail tail)))))
+
 (defun overblock-rmd--bars ()
   "Bar the header of every R chunk, and drop the bars of what is not one.
 Called from the idle cycle rather than from a change hook: a file of
 many chunks is walked once the reader has stopped rather than once a
 keypress, and a bar appears a moment after the header that wants it is
 written."
-  (let ((opens (mapcar #'car (overblock-rmd-chunks))))
+  (let* ((chunks (overblock-rmd-chunks))
+         (opens (mapcar #'car chunks))
+         ;; The line the closing fence begins, which is where
+         ;; `overblock-rmd-chunks' ends the code.
+         (closes (mapcar (lambda (chunk) (nth 2 chunk)) chunks)))
     (dolist (bar (overblock-bars))
-      (when (and (eq (overblock-bar-kind bar) 'chunk)
-                 (not (memql (save-excursion
-                               (goto-char (overlay-start bar))
-                               (pos-bol))
-                             opens)))
-        (delete-overlay bar)))
-    (mapc #'overblock-rmd--bar opens)))
+      (let ((kind (overblock-bar-kind bar))
+            (bol (save-excursion (goto-char (overlay-start bar)) (pos-bol))))
+        (when (or (and (eq kind 'chunk) (not (memql bol opens)))
+                  (and (eq kind 'chunk-end) (not (memql bol closes))))
+          (when-let* ((tail (overlay-get bar 'overblock-rmd-tail)))
+            (delete-overlay tail))
+          (delete-overlay bar))))
+    (mapc #'overblock-rmd--bar opens)
+    (mapc #'overblock-rmd--rule closes)))
 
-(defvar-local overblock-rmd--width nil
-  "The width the bars of this buffer were built for, in pixels.
-`overblock-bar' cuts the label to the room the icons leave, and the cut
-is in the string: a window made narrower afterwards — a split, a side
-window, a frame resized — was left with a label too long for it, and
-the bar took two rows.")
+(defun overblock-rmd--redraw ()
+  "Draw what this mode builds for a window width again.
+The bars over the chunks, the frames the results are drawn in, and the
+prose: a rendering of `overblock-md-preview\' is filled to the width it
+is shown at."
+  (dolist (block (overblock-in (point-min) (point-max) 'result))
+    (overblock-rmd--update block))
+  (mapc #'overblock-bar-stale (overblock-bars))
+  (overblock-rmd--bars)
+  (overblock-width-follow 'md-preview))
 
 (defun overblock-rmd--rewidth ()
-  "Draw the bars and the results again where the window changed width.
-On `window-configuration-change-hook', which runs for the buffer of
-every window that changed, and for every other kind of change as well —
-hence the question about the width."
-  (when-let* ((width (overblock-window-width)))
-    (unless (eql width overblock-rmd--width)
-      (setq overblock-rmd--width width)
-      (dolist (block (overblock-in (point-min) (point-max) 'result))
-        (overblock-rmd--update block))
-      (mapc #'overblock-bar-stale (overblock-bars))
-      (overblock-rmd--bars))))
+  "Draw the bars again where the window has changed width.
+`overblock-bar-width-follow\' says why, and it is what compares."
+  (overblock-bar-width-follow #'overblock-rmd--redraw))
 
 (defun overblock-rmd--rescale ()
   "Draw the bars again after the text scale changed.
-The room a label has did not change — the window is the same width —
-but the label is cut in pixels and the font is now a different size, so
-a bar cut for the old one takes two rows."
-  (setq overblock-rmd--width nil)
-  (mapc #'overblock-bar-stale (overblock-bars))
-  (overblock-rmd--rewidth))
+`overblock-bar-rescale\' says why."
+  (overblock-bar-rescale #'overblock-rmd--redraw))
 
 (defun overblock-rmd-render-buffer ()
   "Bar every chunk of the buffer and render the prose between them.
@@ -520,13 +556,15 @@ The newlines go in escaped, so the whole chunk travels as one line: a
 literal newline inside the string is legal R, but comint would send it
 as a line of its own and R would answer with a continuation prompt in
 the middle of the result."
-  (concat "\""
-          (replace-regexp-in-string
-           "\n" "\\\\n"
-           (replace-regexp-in-string
-            "\"" "\\\\\""
-            (replace-regexp-in-string "\\\\" "\\\\\\\\" text)))
-          "\""))
+  ;; `prin1-to-string' writes exactly this literal: quotes doubled,
+  ;; backslashes doubled, and with `print-escape-newlines' the newlines
+  ;; as \n.  Checked against the three regexps this replaced on
+  ;; backslashes, doubled backslashes, quotes, newlines, tabs, carriage
+  ;; returns and non-ASCII text: the same string every time.  R reads
+  ;; the same escapes as Lisp prints, which is why one stands for the
+  ;; other here.
+  (let ((print-escape-newlines t))
+    (prin1-to-string text)))
 
 (defun overblock-rmd--send (proc beg end)
   "Send the chunk BEG..END to PROC, as the backend's `:send'.
@@ -691,8 +729,14 @@ the harder stop.  EVENT is the click on a stop button, and names the
 buffer to act on."
   (interactive (list last-input-event))
   (overblock-goto-event event)
-  (overblock-run-queue-set nil)
-  (message "overblock-rmd: the pass is stopped"))
+  ;; What was queued says what to report: a stop pressed with nothing
+  ;; left to run said a pass had been stopped that was already over.
+  (let ((queued (length (overblock-run-queued))))
+    (overblock-run-queue-set nil)
+    (message (if (> queued 0)
+                 "overblock-rmd: the pass is stopped, %d chunks left unrun"
+               "overblock-rmd: nothing was queued")
+             queued)))
 
 ;;;###autoload
 (defun overblock-rmd-interrupt ()
@@ -741,6 +785,14 @@ either way."
       (progn
         ;; What the runner reads to know this is a notebook it may draw
         ;; in, and how to reach R.
+        ;; Both modes render prose through the same live cycle and the
+        ;; same kind of block, so two of them in one buffer would each
+        ;; take the other's renderings down.  This one renders the prose
+        ;; of an Rmd file itself, so it is the one to keep.
+        (when (bound-and-true-p overblock-md-preview-mode)
+          (overblock-md-preview-mode -1)
+          (message "overblock-rmd: overblock-md-preview-mode off, %s"
+                   "this mode renders the prose itself"))
         (setq-local overblock-run-backend (overblock-rmd--backend))
         ;; ESS asks these of the buffer it starts a process for, and an
         ;; Rmd buffer is no ESS buffer: without them

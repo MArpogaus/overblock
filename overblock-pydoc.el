@@ -313,8 +313,8 @@ halfway across the window.
 
 Spaces are counted in columns, so a nerd glyph that draws wider than it
 counts leaves the rule a column or two short of the edge.  The row is
-built for the width of the moment, and each block remembers that width
-so `overblock-pydoc--follow-width\' can build it again for another."
+built for the width of the moment, and the layer writes that width on
+the block so `overblock-width-follow\' can drop what no longer fits."
   (let* ((pixels (overblock-window-width))
          (columns (and pixels (/ pixels (frame-char-width))))
          (text (concat left icons))
@@ -386,43 +386,6 @@ of prose, and a doc string of one line is the commonest of all."
      (overblock-pydoc--sole prose indent))
    indent))
 
-(defun overblock-pydoc--columns ()
-  "Return the columns the narrowest window showing this buffer has.
-Nil where no window shows it at all, and a rendering made then is made
-for no width: the prose is filled to whatever shr chooses and the rule
-of a bar reaches nowhere.  `overblock-pydoc--follow-width\' renders such
-a doc string again as soon as a window has it."
-  (when-let* ((pixels (overblock-window-width)))
-    (/ pixels (frame-char-width))))
-
-(defun overblock-pydoc--follow-width (&optional _frame)
-  "Render the doc strings again that were built for another width.
-A rendering is built for the width it is shown at: the prose is filled
-to it, and the rule of a bar is spaces up to the edge of it.  A window
-made narrower afterwards — a split, a side window, a frame resized —
-was left with rows too long for it and every bar took two of them; a
-wider one left every rule short of the edge.
-
-Each block carries the width it was built for, which is what this
-compares.  The width of the moment is not enough: an edit committed
-from its own window renders the doc string while no window shows the
-buffer at all, and that width is nil while the window\'s is what it
-always was.
-
-On `window-size-change-functions\' and `window-buffer-change-functions\',
-which run for every other kind of change as well."
-  (dolist (buffer (mapcar #'window-buffer (window-list nil 'no-mini)))
-    (with-current-buffer buffer
-      (when (bound-and-true-p overblock-pydoc-mode)
-        (when-let* ((columns (overblock-pydoc--columns))
-                    (blocks (overblock-in (point-min) (point-max) 'pydoc))
-                    ((seq-some (lambda (block)
-                                 (not (eql columns
-                                           (overlay-get
-                                            block 'overblock-pydoc-columns))))
-                               blocks)))
-          (overblock-pydoc--redraw))))))
-
 (defun overblock-pydoc--redraw ()
   "Draw the bars of every rendered doc string again, in every buffer.
 A button list or a label the reader changes reaches the bars at once;
@@ -454,9 +417,10 @@ quotes, and the rendering of one stood a column out of line."
                ;; The prose has the window less the columns it is
                ;; indented by, and one to spare so a full row does not
                ;; wrap.
-               (let ((overblock-md-width
-                      (when-let* ((columns (overblock-pydoc--columns)))
-                        (max 20 (- columns indent 1)))))
+               ;; The prose has the window less the columns it is
+               ;; indented by; nil where no window shows the buffer,
+               ;; which leaves the filling to shr.
+               (let ((overblock-md-width (overblock-md-columns indent)))
                  (overblock-pydoc--dressed
                   (string-trim-right
                    (if (eq overblock-pydoc-renderer 'fontify)
@@ -479,7 +443,6 @@ quotes, and the rendering of one stood a column out of line."
     ;; that has changed; point entering the string takes it off first,
     ;; so the reader's own typing never reaches this.
     (overblock-stale-when-edited block)
-    (overlay-put block 'overblock-pydoc-columns (overblock-pydoc--columns))
     block))
 
 ;;;; When
@@ -589,25 +552,11 @@ reStructuredText and lays out a table, or the font lock of
 `overblock-pydoc-fontify-mode', which costs no process and leaves every
 line where the writer put it."
   :lighter " PyDoc"
+  (overblock-width-watch 'pydoc 'overblock-pydoc-mode overblock-pydoc-mode)
   (if overblock-pydoc-mode
-      (progn
-        (add-hook 'window-size-change-functions
-                  #'overblock-pydoc--follow-width)
-        (add-hook 'window-buffer-change-functions
-                  #'overblock-pydoc--follow-width)
-        (overblock-live-start 'pydoc
-                              #'overblock-pydoc-render-buffer
-                              overblock-pydoc-idle))
-    ;; The hook is global — it takes a frame, not a buffer — so it comes
-    ;; off only when no buffer is left that wants it.
-    (unless (seq-some (lambda (buffer)
-                        (and (not (eq buffer (current-buffer)))
-                             (buffer-local-value 'overblock-pydoc-mode buffer)))
-                      (buffer-list))
-      (remove-hook 'window-size-change-functions
-                   #'overblock-pydoc--follow-width)
-      (remove-hook 'window-buffer-change-functions
-                   #'overblock-pydoc--follow-width))
+      (overblock-live-start 'pydoc
+                            #'overblock-pydoc-render-buffer
+                            overblock-pydoc-idle)
     (overblock-live-stop)))
 
 (provide 'overblock-pydoc)
