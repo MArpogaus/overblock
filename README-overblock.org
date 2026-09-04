@@ -382,7 +382,7 @@ when the option is set that way.
   markup holds many face runs in a line.  The cost comes from the face
   runs and not from the height.
 - The measurements behind these limits are in
-  [[file:docs/overblock.org][docs/overblock.org]].
+  [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the implementation notes]].
 
 ** How It Works
 
@@ -394,7 +394,7 @@ shell.  =overblock-md-preview.el= and =overblock-pydoc.el= are the two
 modes, and each is little more than the three answers the live cycle
 asks for.
 
-[[file:docs/overblock.org][docs/overblock.org]] describes the
+[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the implementation notes]] describes the
 implementation: which slot each row of a block lands in, how a bar is
 drawn and when, how markup is converted and cached, and what the hot
 paths cost.

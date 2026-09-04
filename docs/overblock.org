@@ -2,8 +2,7 @@
 #+OPTIONS: toc:2
 
 This document describes the implementation.  The
-[[file:../README-overblock.org][README]] tells you how to use the
-package.
+[[https://github.com/MArpogaus/overblock][README]] tells you how to use the package.
 
 The text uses these terms:
 

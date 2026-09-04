@@ -14,7 +14,7 @@ The text uses these terms:
 - *mirror*: the copy of the output that the block shows.
 
 The layer that puts a block on the screen is overblock, a package of
-its own: [[file:overblock.org][docs/overblock.org]] describes it.  What is here
+its own: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]] describes it.  What is here
 is the part that knows about Python.
 
 * How a result gets into the buffer
@@ -79,7 +79,7 @@ which knows nothing of Python, cells or markdown: a caller renders
 text and hands it over.  =overblock-show= takes the region and a
 plist, and the layer decides which slot each row of the block lands
 in and how a rendering is dealt over the source lines.  See
-[[file:overblock.org][docs/overblock.org]].
+[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 What stays in =pycell.el= is the part that knows about Python: the
 cells, the process, the commands, and what a prompt of that shell
@@ -110,7 +110,7 @@ was rendered; the two are now drawn by one function, and the code
 cell's is put there by =pycell--cell-bars=.
 
 The overlay, the strings it hangs the bar on, the width it is cut to
-and what point does to it are the layer's: [[file:overblock.org][docs/overblock.org]].
+and what point does to it are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 *** What draws them, and when
 
@@ -263,7 +263,7 @@ The cell keeps the height of its source, or it becomes shorter: a
 three line table can render as one line, and the spare lines then go
 under a cloak.  The cloak, the pieces and the image that cannot ride
 a display property are the layer's, and so is the converter that
-turns the markdown into the string: [[file:overblock.org][docs/overblock.org]].
+turns the markdown into the string: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 =pycell-md-render-all= takes a region, so a move renders the two
 cells that moved rather than every markdown cell in the buffer.  The
@@ -277,7 +277,7 @@ A result block is one buffer line, because it is one display string.
 =next-line= and =previous-line= cross it in one step.  A block with an
 image is worse: the wheel does not cross it in a symmetric way and
 =scroll-up-line= does not cross it at all.  The measurements and the
-reason are the layer's: [[file:overblock.org][docs/overblock.org]].
+reason are the layer's: [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 These commands do pass: =scroll-up= and =scroll-down=, which move a
 page, and =next-line=, which moves point.  A folded block also
@@ -343,7 +343,7 @@ nerd font the bars are drawn in:
 
 The layer's own share of that tick — the glyphs asked for once and
 kept, the pieces dealt off a walking list, the bounded read of a long
-output — is in [[file:overblock.org][docs/overblock.org]].
+output — is in [[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]].
 
 And what a keypress does, which is where the rest of the cost was:
 
@@ -377,7 +377,7 @@ the code it checks.  =test/pycell-test.el= is this package's: the clean
 of the output, the body lines, the cell markers, the folds, the edit
 buffers, the mirror, and moving a cell.  A test that names only what
 the layer owns lives in the layer's suite instead, and
-[[file:overblock.org][docs/overblock.org]] lists those.
+[[https://github.com/MArpogaus/overblock/blob/main/docs/implementation.org][the layer's implementation notes]] lists those.
 
 =make test-live= sends real cells down a real IPython and reads back
 what the blocks show.  It exists because two faults — a read-only
