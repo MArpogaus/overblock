@@ -161,6 +161,24 @@ typing never reaches this; a replacement over the buffer does."
     (while (search-forward "One" nil t) (replace-match "Three"))
     (should (equal (overblock-md-preview-test--sources) '("two")))))
 
+(ert-deftest overblock-md-preview-test-a-fence-in-a-paragraph-renders-once ()
+  "A fence with no blank line before it carries one rendering, not two.
+The run of lines it stands in is a block, and the fence inside it is a
+block of its own, so two blocks reach the converter for the same lines
+and whichever answer comes first is the one that stands.  Rendering
+both hung a second rendering over lines the first already covered."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with
+      "before the fence\n```\ncode\n```\nafter it\n\nlast\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (let ((blocks (sort (overblock-md-preview-test--blocks)
+                        :key #'overlay-start)))
+      (should (= (length blocks) 2))
+      ;; and no rendering stands on a line another one covers
+      (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks)))))))
+
 (ert-deftest overblock-md-preview-test-the-answer-lands-nowhere-near-point ()
   "A block the reader walked into is left alone when its HTML lands.
 The pass asks for every block but the one point is in, and the answer
