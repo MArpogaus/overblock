@@ -451,6 +451,10 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (overblock-buttons pycell-result-buttons imagep total
                                    (eq state 'running)))
          ;; The stopwatch drives the spinner: one frame for each tick.
+         ;; Braille and not a codicon like every other mark here: a
+         ;; spinner needs a frame for each tick and the set has one
+         ;; still glyph.  These ten are one weight and one size among
+         ;; themselves, which is what the rest of the row is for.
          (mark (cond ((eq state 'running)
                       (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
                         (string ?\s (aref frames (mod (truncate runtime 0.2)
