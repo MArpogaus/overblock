@@ -354,11 +354,18 @@ Drop a button you never press, put them in another order, or give one a
 glyph your font draws better:
 
 #+begin_src emacs-lisp
-  ;; no edit button, and a plain label for the rest
+  ;; a button for the source, beside the edit one that is there
   (setopt overblock-pydoc-buttons
-          '((unrender ("⟲" "raw") "Show the plain source"
+          '((edit ("\uea73" "✎" "edit") "Edit this doc string"
+                  overblock-pydoc-edit t)
+            (unrender ("\ueae2" "⟲" "raw") "Show the plain source"
                       overblock-live-edit t)))
 #+end_src
+
+A click on a rendered doc string shows its source, which is why no
+button does.  The first candidate of every glyph is a codicon — a
+name that begins =nf-cod-= in nerd-icons — so that one family draws
+one weight and one size.
 
 =setopt= and not =setq=: the bars of every open buffer are drawn again
 when the option is set that way.

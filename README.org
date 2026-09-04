@@ -355,7 +355,9 @@ layer shares them; [[https://github.com/MArpogaus/overblock][the overblock READM
 Each entry of the four button options is =(KEY GLYPHS HELP COMMAND
 WHEN)=.  GLYPHS are the candidates for the label: the first one your
 frame can draw wins, and the last one always answers, so keep a plain
-character at the end.  WHEN is =t=, or =image= for a button that waits
+character at the end.  The first candidate is always a codicon — a
+glyph whose nerd-icons name begins =nf-cod-= — because one family
+draws one weight and one size.  WHEN is =t=, or =image= for a button that waits
 for an image in the result, or =lines= for one that waits for output.
 
 Drop a button you never press, put them in another order, or give one
