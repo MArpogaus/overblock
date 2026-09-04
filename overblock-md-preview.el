@@ -135,9 +135,12 @@ only way to know whether BEG stands inside a fence."
     (seq-filter (lambda (region)
                   (and (< (car region) (cdr region))
                        (<= beg (car region) end)))
+                ;; Two arguments and not `:key': the keyword form of
+                ;; `sort' is Emacs 30 and later, and this package asks
+                ;; for 29.1 — where it fails to compile at all.
                 (sort (append fences
                               (overblock-md-preview--paragraphs end fences))
-                      :key #'car))))
+                      (lambda (a b) (< (car a) (car b)))))))
 
 ;;;; What to render them with
 
