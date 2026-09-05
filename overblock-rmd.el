@@ -102,27 +102,12 @@
 (defface overblock-rmd-output '((t :inherit shadow :extend t))
   "Face for the body of a result.")
 
-(defun overblock-rmd--set-buttons (symbol value)
-  "Set SYMBOL to VALUE, and draw the bars of every Rmd buffer again.
-The `:set' of the button options.  A change to one of them showed up
-only when something else drew a bar again — a window changing width, or
-the file opened afresh — so customizing the buttons of a file that was
-already open appeared to do nothing at all."
-  (set-default symbol value)
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer
-      (when (bound-and-true-p overblock-rmd-mode)
-        (mapc #'overblock-bar-stale (overblock-bars))
-        (overblock-rmd--bars)
-        (dolist (block (overblock-in (point-min) (point-max) 'result))
-          (overblock-rmd--update block))))))
-
 (defcustom overblock-rmd-result-buttons
   '((stop ("" "□" "stop") "Stop the run after this chunk"
-          overblock-rmd-stop running)
-    (copy ("" "◫" "copy") "Copy this result" overblock-rmd-copy-output lines)
+          overblock-run-stop running)
+    (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)
     (discard ("" "✕" "drop") "Discard this result"
-             overblock-rmd-discard-output t))
+             overblock-run-discard-output t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -150,11 +135,11 @@ run in a buffer of its own is the notebook's feature rather than a
 promise this package makes.  The fold arrow and the spinner are not
 buttons of this list: they say what the result is doing."
   :type overblock-button-type
-  :set #'overblock-rmd--set-buttons)
+  :set #'overblock-run-set-buttons)
 
 (defcustom overblock-rmd-chunk-buttons
   '((run-above ("" "⇈" "above") "Run every chunk above this one"
-               overblock-rmd-run-above t)
+               overblock-run-above t)
     (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t))
   "The buttons on the bar of an R chunk, left to right.
 The entries read as in `overblock-rmd-result-buttons'.  A chunk bar is
@@ -166,7 +151,7 @@ notebook are its top level structure and moving one is an ordinary
 edit, while a chunk sits inside prose that reads about it, and moving
 the code away from its paragraph is not what the reader meant."
   :type overblock-button-type
-  :set #'overblock-rmd--set-buttons)
+  :set #'overblock-run-set-buttons)
 
 (defcustom overblock-rmd-max-lines 12
   "Number of result lines that show inline.
@@ -194,38 +179,10 @@ it, and a block laid out on every redisplay costs what it holds: a
 (defvar-keymap overblock-rmd-result-map
   :doc "Keymap inside a chunk that shows a result, empty on purpose.
 overblock-rmd binds no keys; put your own here.
-`overblock-rmd-toggle-output' is the natural candidate:
+`overblock-run-toggle-output' is the natural candidate:
 
   (keymap-set overblock-rmd-result-map \"C-c C-o\"
-              #\\='overblock-rmd-toggle-output)")
-
-(defvar overblock-rmd--style
-  (list :keymap overblock-rmd-result-map
-        :buttons (lambda () overblock-rmd-result-buttons)
-        :fold #'overblock-rmd-toggle-output
-        :header-face 'overblock-rmd-header
-        :output-face 'overblock-rmd-output
-        :lines (lambda () overblock-rmd-max-lines)
-        :chars (lambda () overblock-rmd-max-line-length))
-  "How a result of this package looks, for `overblock-run-show'.
-The commentary of `overblock-run' lists the slots.  A plain variable and
-not a buffer-local one: a block can be drawn with no mode on, and the
-options it reads are looked up when it is drawn.")
-
-(defun overblock-rmd--show (beg end text runtime &optional state total)
-  "Show TEXT as the result of the chunk BEG..END.
-RUNTIME, STATE and TOTAL are what `overblock-run-show' takes."
-  (overblock-run-show overblock-rmd--style beg end text runtime state total))
-
-(defun overblock-rmd--update (block)
-  "Make the header and the body of the result BLOCK again, and show them."
-  (overblock-run-update overblock-rmd--style block))
-
-(defun overblock-rmd--output-head (from)
-  "Return as much of the running chunk's output after FROM as shows."
-  (overblock-run-output-head from overblock-rmd-max-lines
-                             overblock-rmd-max-line-length
-                             #'overblock-rmd--clean))
+              #\\='overblock-run-toggle-output)")
 
 (defun overblock-rmd--strip-prompt (text)
   "Return TEXT without the prompt R wrote when the chunk was done.
@@ -262,43 +219,6 @@ The prompt goes and the copy is cut loose from the shell; see
 `overblock-rmd--strip-prompt' and `overblock-repl-detach' for what each
 of those means.  Call this in the shell buffer."
   (overblock-repl-detach (overblock-rmd--strip-prompt text)))
-
-(defun overblock-rmd--result-at (event)
-  "Return the result block at point, or at the click in EVENT.
-Point first, then anywhere in the chunk around it.  Signals a
-`user-error' where the chunk has no result, which is the answer the
-commands that call it give their reader."
-  (overblock-goto-event event)
-  (or (overblock-at 'result)
-      (when-let* ((chunk (overblock-rmd--chunk-at)))
-        (car (overblock-in (nth 1 chunk) (nth 2 chunk) 'result)))
-      (user-error "No result here")))
-
-;;;###autoload
-(defun overblock-rmd-toggle-output (&optional event)
-  "Fold or unfold the result at point, or the one clicked in EVENT."
-  (interactive (list last-input-event))
-  (overblock-run-fold overblock-rmd--style (overblock-rmd--result-at event)))
-
-;;;###autoload
-(defun overblock-rmd-discard-output (&optional event)
-  "Discard the result at point, or the one clicked in EVENT."
-  (interactive (list last-input-event))
-  (overblock-delete (overblock-rmd--result-at event)))
-
-;;;###autoload
-(defun overblock-rmd-copy-output (&optional event)
-  "Copy the result at point, or the one clicked in EVENT.
-A chunk that is still running has only the lines that show, and this
-says so rather than handing over a fraction in silence."
-  (interactive (list last-input-event))
-  (let ((data (overblock-get (overblock-rmd--result-at event) :data)))
-    (when (eq (plist-get data :state) 'running)
-      (message "overblock-rmd: the chunk is still running, so this is only \
-what shows"))
-    (kill-new (plist-get data :text))
-    (message "overblock-rmd: result copied")))
-
 
 ;;;; The chunks
 
@@ -455,27 +375,6 @@ written."
     (mapc #'overblock-rmd--bar opens)
     (mapc #'overblock-rmd--hide-fence closes)))
 
-(defun overblock-rmd--redraw ()
-  "Draw what this mode builds for a window width again.
-The bars over the chunks, the frames the results are drawn in, and the
-prose: a rendering of `overblock-md-preview\' is filled to the width it
-is shown at."
-  (dolist (block (overblock-in (point-min) (point-max) 'result))
-    (overblock-rmd--update block))
-  (mapc #'overblock-bar-stale (overblock-bars))
-  (overblock-rmd--bars)
-  (overblock-width-follow 'md-preview))
-
-(defun overblock-rmd--rewidth ()
-  "Draw the bars again where the window has changed width.
-`overblock-bar-width-follow\' says why, and it is what compares."
-  (overblock-bar-width-follow #'overblock-rmd--redraw))
-
-(defun overblock-rmd--rescale ()
-  "Draw the bars again after the text scale changed.
-`overblock-bar-rescale\' says why."
-  (overblock-bar-rescale #'overblock-rmd--redraw))
-
 (defun overblock-rmd-render-buffer ()
   "Bar every chunk of the buffer and render the prose between them.
 Both on the one idle timer: `overblock-live-start' calls this when the
@@ -607,6 +506,18 @@ the walk goes on to the next rather than stopping there."
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))
     t))
 
+(defun overblock-rmd--region-at ()
+  "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
+From its opening fence, which is where `overblock-rmd--starts' marks a
+chunk, to the end of its code, where its result hangs."
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (cons (nth 0 chunk) (nth 2 chunk))))
+
+(defun overblock-rmd--starts ()
+  "Return a marker on the opening fence of every chunk, in order."
+  (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
+          (overblock-rmd-chunks)))
+
 (defun overblock-rmd--backend ()
   "Return what `overblock-run' needs to drive an inferior R.
 The commentary of `overblock-run' lists the slots.  There is no `:arm':
@@ -614,15 +525,24 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
 prompted, so nothing is ever waiting for one.  There is no `:done'
 either, because no buffer follows a running chunk."
   (list :name "overblock-rmd"
+        :unit "chunk"
         :process #'overblock-rmd--process
         :start #'overblock-rmd--start
         :send #'overblock-rmd--send
         :prompt-p #'overblock-rmd--prompt-p
         :clean #'overblock-rmd--clean
-        :head #'overblock-rmd--output-head
-        :show #'overblock-rmd--show
         :error-p #'overblock-rmd--error-p
-        :step #'overblock-rmd--step))
+        :step #'overblock-rmd--step
+        :region-at #'overblock-rmd--region-at
+        :starts #'overblock-rmd--starts
+        :redraw #'overblock-rmd--bars
+        :keymap overblock-rmd-result-map
+        :buttons 'overblock-rmd-result-buttons
+        :fold #'overblock-run-toggle-output
+        :header-face 'overblock-rmd-header
+        :output-face 'overblock-rmd-output
+        :lines 'overblock-rmd-max-lines
+        :chars 'overblock-rmd-max-line-length))
 
 
 ;;;; The commands
@@ -644,21 +564,6 @@ another one runs is refused, with a `user-error' from
   (interactive (list last-input-event))
   (let ((chunk (overblock-rmd--chunk-here event)))
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))))
-
-;;;###autoload
-(defun overblock-rmd-run-above (&optional event)
-  "Run every chunk above the one at point, or above the one EVENT clicked.
-The chunks run in order and the pass stops at the first error, or on
-`overblock-rmd-stop'.  R keeps what it has: it is
-`overblock-rmd-restart-and-run-all' that starts from nothing."
-  (interactive (list last-input-event))
-  (let* ((chunk (overblock-rmd--chunk-here event))
-         (open (nth 0 chunk))
-         (cells (mapcar (lambda (c) (copy-marker (nth 0 c)))
-                        (seq-take-while (lambda (c) (< (nth 0 c) open))
-                                        (overblock-rmd-chunks)))))
-    (unless cells (user-error "No chunk above this one"))
-    (overblock-run-cells cells "overblock-rmd: running the chunks above")))
 
 ;;;###autoload
 (defun overblock-rmd-restart ()
@@ -692,59 +597,22 @@ the same buffer is a case `inferior-ess' is written for."
 ;;;###autoload
 (defun overblock-rmd-restart-and-run-all ()
   "Restart R, then run every chunk of the buffer in order.
-The pass stops at the first error, or on `overblock-rmd-stop'."
+The pass stops at the first error, or on `overblock-run-stop'."
   (interactive)
   (overblock-rmd-restart)
-  (overblock-run-cells (mapcar (lambda (c) (copy-marker (nth 0 c)))
-                               (overblock-rmd-chunks))
+  (overblock-run-cells (overblock-rmd--starts)
                        "overblock-rmd: running every chunk"))
-
-;;;###autoload
-(defun overblock-rmd-stop (&optional event)
-  "Stop the pass after the chunk that is running now.
-The chunk already running runs to its end; `overblock-rmd-interrupt' is
-the harder stop.  EVENT is the click on a stop button, and names the
-buffer to act on."
-  (interactive (list last-input-event))
-  (overblock-goto-event event)
-  ;; What was queued says what to report: a stop pressed with nothing
-  ;; left to run said a pass had been stopped that was already over.
-  (let ((queued (length (overblock-run-queued))))
-    (overblock-run-queue-set nil)
-    (message (if (> queued 0)
-                 "overblock-rmd: the pass is stopped, %d chunks left unrun"
-               "overblock-rmd: nothing was queued")
-             queued)))
-
-;;;###autoload
-(defun overblock-rmd-interrupt ()
-  "Interrupt the chunk that R is running, and stop the pass.
-The interrupted chunk ends where it is: R answers an interrupt with
-nothing but a fresh prompt, so the result holds whatever the chunk had
-printed and no more.
-
-The pass goes with it, which is not what the Python notebook does — a
-cell interrupted there raises `KeyboardInterrupt', and the traceback is
-what stops the pass.  R leaves nothing behind to read, so the stop is
-asked for here instead of being deduced from output that does not
-exist."
-  (interactive)
-  (let ((proc (or (overblock-rmd--process)
-                  (user-error "No R process for this buffer"))))
-    (overblock-run-queue-set nil)
-    (interrupt-process proc)))
-
 
 ;;;; The mode
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
 overblock-rmd binds no keys; put your own here.
-`overblock-rmd-run-chunk' and `overblock-rmd-interrupt' are the natural
+`overblock-rmd-run-chunk' and `overblock-run-interrupt' are the natural
 candidates:
 
   (keymap-set overblock-rmd-mode-map \"C-c C-c\" #\\='overblock-rmd-run-chunk)
-  (keymap-set overblock-rmd-mode-map \"C-c C-k\" #\\='overblock-rmd-interrupt)")
+  (keymap-set overblock-rmd-mode-map \"C-c C-k\" #\\='overblock-run-interrupt)")
 
 ;;;###autoload
 (define-minor-mode overblock-rmd-mode
@@ -761,8 +629,6 @@ either way."
   :lighter " overblock-rmd"
   (if overblock-rmd-mode
       (progn
-        ;; What the runner reads to know this is a notebook it may draw
-        ;; in, and how to reach R.
         ;; Both modes render prose through the same live cycle and the
         ;; same kind of block, so two of them in one buffer would each
         ;; take the other's renderings down.  This one renders the prose
@@ -771,7 +637,9 @@ either way."
           (overblock-md-preview-mode -1)
           (message "overblock-rmd: overblock-md-preview-mode off, %s"
                    "this mode renders the prose itself"))
-        (setq-local overblock-run-backend (overblock-rmd--backend))
+        ;; What the runner reads to know this is a notebook it may draw
+        ;; in, and how to reach R.
+        (overblock-run-attach (overblock-rmd--backend))
         ;; ESS asks these of the buffer it starts a process for, and an
         ;; Rmd buffer is no ESS buffer: without them
         ;; `ess-force-buffer-current' would ask the reader which
@@ -782,19 +650,13 @@ either way."
         ;; rendered.
         (setq-local overblock-md-preview-regions-function
                     #'overblock-rmd--prose)
-        (add-hook 'window-configuration-change-hook
-                  #'overblock-rmd--rewidth nil t)
-        (add-hook 'text-scale-mode-hook #'overblock-rmd--rescale nil t)
         (overblock-live-start 'md-preview #'overblock-rmd-render-buffer
                               overblock-md-preview-idle))
     (overblock-live-stop)
-    (remove-hook 'window-configuration-change-hook
-                 #'overblock-rmd--rewidth t)
-    (remove-hook 'text-scale-mode-hook #'overblock-rmd--rescale t)
-    (kill-local-variable 'overblock-run-backend)
-    (kill-local-variable 'overblock-md-preview-regions-function)
-    (mapc #'delete-overlay (overblock-bars))
-    (overblock-clear)))
+    (overblock-run-detach)
+    (kill-local-variable 'ess-dialect)
+    (kill-local-variable 'ess-language)
+    (kill-local-variable 'overblock-md-preview-regions-function)))
 
 ;;;###autoload
 (defun overblock-rmd-mode-maybe ()

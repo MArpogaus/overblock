@@ -238,8 +238,13 @@ rendered line puts point there.
 `overblock-md-command' is what converts the markdown, and the mode does
 nothing where none of its candidates is installed."
   :lighter " MdPrev"
-  (overblock-width-watch 'md-preview 'overblock-md-preview-mode
-                         overblock-md-preview-mode)
+  ;; `overblock-rmd-mode' renders the prose of its buffer through this
+  ;; same live cycle, and turns this mode off as it goes on; turned on
+  ;; over it, this one would take that cycle over and leave the chunks
+  ;; with no bars, so it refuses.
+  (when (and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
+    (setq overblock-md-preview-mode nil)
+    (user-error "Turn overblock-rmd-mode off first: it renders this prose itself"))
   (if overblock-md-preview-mode
       (overblock-live-start 'md-preview
                             #'overblock-md-preview-render-buffer

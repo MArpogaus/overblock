@@ -209,7 +209,7 @@ in the global environment."
                    "[1] 42"))))
 
 (ert-deftest overblock-rmd-live-test-stop-works-while-the-last-chunk-runs ()
-  "`overblock-rmd-stop' during the last chunk leaves nothing queued.
+  "`overblock-run-stop' during the last chunk leaves nothing queued.
 The last chunk of a pass is sent with the queue already empty, and the
 running chunk runs to its end."
   (overblock-rmd-live-test--with-document
@@ -223,7 +223,7 @@ running chunk runs to its end."
                       (buffer-local-value 'overblock-run--state
                                           (process-buffer proc)))))
              60))
-    (overblock-rmd-stop)
+    (overblock-run-stop)
     (should-not (overblock-run-queued))
     (should (overblock-rmd-live-test--wait
              #'overblock-rmd-live-test--idle-p 60))

@@ -895,9 +895,11 @@ because the blank line that ends a block belongs to nothing."
   "Return the columns a rendering has, INDENT of them spent on indenting.
 Nil where no window shows this buffer, which leaves the filling to shr.
 One column is kept back: a row that fills the last one wraps, and a
-wrapped row is two."
-  (when-let* ((pixels (overblock-window-width)))
-    (max 20 (- (/ pixels (frame-char-width)) (or indent 0) 1))))
+wrapped row is two.  `overblock-window-columns\' counts them in the
+window\'s own font, so a buffer under `text-scale-adjust\' is filled to
+what it can show."
+  (when-let* ((columns (overblock-window-columns)))
+    (max 20 (- columns (or indent 0) 1))))
 
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.

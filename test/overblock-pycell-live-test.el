@@ -148,7 +148,7 @@ the shell stayed busy for the session."
                              (cadr (overblock-pycell-live-test--results)))))))
 
 (ert-deftest overblock-pycell-live-test-stop-works-while-the-last-cell-runs ()
-  "`overblock-pycell-stop' during the last cell of a pass leaves nothing queued.
+  "`overblock-run-stop' during the last cell of a pass leaves nothing queued.
 The last cell of a pass is sent with the queue already empty, and the
 reader watching a long run has their point anywhere at all — the stop
 must resolve the shell rather than fall over the buffer it is called
@@ -165,7 +165,7 @@ in.  The running cell runs to its end, and the pass ends clean."
                                           (process-buffer proc)))))
              60))
     ;; from another buffer, as a key bound in some other map would be
-    (with-temp-buffer (overblock-pycell-stop))
+    (with-temp-buffer (overblock-run-stop))
     (should-not (overblock-run-queued))
     (should (overblock-pycell-live-test--wait #'overblock-pycell-live-test--idle-p 60))
     (should-not (overblock-run-queued))

@@ -834,17 +834,26 @@ own idle cycle."
           (with-current-buffer buffer
             (insert "one\ntwo\nthree\n")
             (let ((block (overblock-show (point-min) (pos-eol 2)
-                                         :kind 'test :body "over")))
+                                         :kind 'test :body "over"))
+                  (redrawn 0))
+              ;; a live cycle of that kind, which is what drops them
+              (overblock-live-start 'test #'ignore)
+              (add-hook 'overblock-width-functions
+                        (lambda () (cl-incf redrawn)) nil t)
               ;; what the window says, which in a batch frame is a number
               (should (eql (overlay-get block 'overblock-columns)
                            (overblock-window-columns)))
-              ;; a width that is still the same drops nothing
-              (overblock-width-follow 'test)
+              ;; a width that is still the same drops nothing and
+              ;; redraws nothing
+              (overblock--width-changed)
               (should (overlay-buffer block))
-              ;; and one that is not takes the block down
+              (should (= redrawn 0))
+              ;; and one that is not takes the block down and redraws
               (overlay-put block 'overblock-columns 12)
-              (overblock-width-follow 'test)
-              (should-not (overblock-in (point-min) (point-max) 'test)))))
+              (setq overblock--columns 12)
+              (overblock--width-changed)
+              (should-not (overblock-in (point-min) (point-max) 'test))
+              (should (= redrawn 1)))))
       (set-window-buffer (selected-window) (other-buffer))
       (kill-buffer buffer))))
 

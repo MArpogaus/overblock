@@ -343,7 +343,7 @@ plt.show()
   ;; an output folded away to its bar
   (when-let* ((block (car (overblock-in (point-min) (point-max) 'result))))
     (goto-char (overlay-start block))
-    (overblock-pycell-toggle-output)
+    (overblock-run-toggle-output)
     (ob-gif-settle 0.3)
     (ob-gif-frame 350)))
 
@@ -427,7 +427,7 @@ head(cars, 4)
   ;; and one of the two folded away to its bar
   (when-let* ((block (car (overblock-in (point-min) (point-max) 'result))))
     (goto-char (overlay-start block))
-    (overblock-rmd-toggle-output)
+    (overblock-run-toggle-output)
     (goto-char (point-min))
     (ob-gif-settle 0.4)
     (ob-gif-frame 400)))

@@ -41,8 +41,8 @@ Those three steps are =overblock-run='s and not this package's: the
 loop is the same whatever language is at the other end, and this
 package answers it with a plist — how to reach the interpreter, how to
 send a cell, what a prompt of it looks like, how to clean what came
-back, and how to draw the result.  =overblock-pycell--backend= is that
-plist and =overblock-pycell--style= is the look of the block.  See
+back, and how the result looks.  =overblock-pycell--backend= is that
+plist.  See
 [[file:overblock.org][the layer's notes]] for the loop, and the
 commentary of =overblock-run.el= for the slots.
 
@@ -308,8 +308,7 @@ Markdown holds several hundred face runs in a line.  Source code
 holds a few.  Forty lines of plain output scroll as fast as none, and
 twelve lines with many face changes cost three times as much.
 
-=M-x overblock-pycell-md-unrender= gives the plain source and the speed back.
-=overblock-pycell-md-render-all= brings the blocks back.
+Turning the mode off gives the plain source and the speed back.
 
 
 * What the hot paths cost
@@ -353,8 +352,8 @@ nerd font the bars are drawn in:
 The layer's own share of that tick — the glyphs asked for once and
 kept, the pieces dealt off a walking list, the bounded read of a long
 output — is in [[file:overblock.org][its notes]].  The two rows above
-name this package's wrappers around =overblock-run-header= and
-=overblock-run-update=, which is where that work moved.
+name what =overblock-run-header= and =overblock-run-update= do, which
+is where that work moved.
 
 And what a keypress does, which is where the rest of the cost was:
 
