@@ -199,9 +199,9 @@ that stopped there with it would leave the last line on the screen."
            (cloaks (seq-filter (lambda (ov) (overlay-get ov 'overblock-cloak))
                                (overblock-get block :parts))))
       (should cloaks)
-      ;; up to the newline that ends the region, and not one line short
+      ;; through the newline that ends the region, and not one line short
       (should (= (apply #'max (mapcar #'overlay-end cloaks))
-                 (1- (point-max)))))))
+                 (point-max))))))
 
 (ert-deftest overblock-test-pieces-lose-no-line ()
   "The pieces together show the rendering, whole and in order.

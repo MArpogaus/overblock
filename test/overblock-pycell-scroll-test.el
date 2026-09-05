@@ -157,6 +157,16 @@ a short one after them, which is where redisplay changes lines."
           (python-mode)
           (code-cells-mode)
           (overblock-pycell-mode 1)
+          ;; The renderings are asked of a process and not waited for,
+          ;; which is the point of it; a test has to wait where a reader
+          ;; does not.
+          (let ((deadline (+ (float-time) 10)))
+            (while (and (seq-some (lambda (process)
+                                    (string-prefix-p "overblock-md"
+                                                     (process-name process)))
+                                  (process-list))
+                        (< (float-time) deadline))
+              (accept-process-output nil 0.05)))
           (redisplay t)
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
