@@ -649,23 +649,22 @@ The backend's `:done'.  The tail the run wrote there is raw: it carries
 the shell's prompts, and the last of it arrives after the closing one.
 The finished buffer holds what a result popped out after the fact would
 hold."
-  (progn
-    (with-current-buffer buffer
-      (let* ((inhibit-read-only t)
-             (end (point-max))
-             (at-end (= (point) end))
-             ;; Every window, not the buffer's point alone: `erase-buffer'
-             ;; puts them all at 1, and a reader watching in a window of
-             ;; its own was scrolled back to the top at the very moment
-             ;; the last of the output arrived.
-             (following (seq-filter (lambda (window)
-                                      (= (window-point window) end))
-                                    (get-buffer-window-list buffer nil t))))
-        (erase-buffer)
-        (overblock-pycell--insert-result text)
-        (goto-char (if at-end (point-max) (point-min)))
-        (dolist (window following)
-          (set-window-point window (point-max)))))))
+  (with-current-buffer buffer
+    (let* ((inhibit-read-only t)
+           (end (point-max))
+           (at-end (= (point) end))
+           ;; Every window, not the buffer's point alone: `erase-buffer'
+           ;; puts them all at 1, and a reader watching in a window of
+           ;; its own was scrolled back to the top at the very moment
+           ;; the last of the output arrived.
+           (following (seq-filter (lambda (window)
+                                    (= (window-point window) end))
+                                  (get-buffer-window-list buffer nil t))))
+      (erase-buffer)
+      (overblock-pycell--insert-result text)
+      (goto-char (if at-end (point-max) (point-min)))
+      (dolist (window following)
+        (set-window-point window (point-max))))))
 
 (defvar-local overblock-pycell--cell nil
   "Where the cell a popped-out result shows begins, as a marker.

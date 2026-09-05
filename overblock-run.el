@@ -112,17 +112,15 @@ nothing in silence."
   "Return the word this backend's messages carry."
   (or (plist-get overblock-run-backend :name) "overblock"))
 
-(defun overblock-run--style (style slot &optional default)
+(defun overblock-run--style (style slot)
   "Return SLOT of STYLE, called where it is a function.
-DEFAULT answers for a slot STYLE does not carry.  For the three slots
-whose value a caller may want looked up when the block is drawn rather
-than when the style was written: an option it reads, and the buttons
-its own `:set' replaces.  Every other slot is a plain `plist-get',
-because a face, a keymap or a command must not be called."
+For the three slots whose value a caller may want looked up when the
+block is drawn rather than when the style was written: an option it
+reads, and the buttons its own `:set' replaces.  Every other slot is a
+plain `plist-get', because a face, a keymap or a command must not be
+called."
   (let ((value (plist-get style slot)))
-    (cond ((functionp value) (funcall value))
-          (value)
-          (t default))))
+    (if (functionp value) (funcall value) value)))
 
 (defun overblock-run-shorten (line chars)
   "Return LINE cut to CHARS characters.
@@ -251,8 +249,8 @@ are and how many of them show, and the body is those that show."
          (text (plist-get data :text))
          (total (plist-get data :total)))
     (let* ((empty (string-empty-p text))
-           (max (overblock-run--style style :lines 12))
-           (chars (overblock-run--style style :chars 2000))
+           (max (overblock-run--style style :lines))
+           (chars (overblock-run--style style :chars))
            (lines (unless empty (overblock-repl-first-lines text max)))
            (shown (overblock-run-body-lines lines max chars))
            ;; The count is asked for once and kept: a finished result

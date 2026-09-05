@@ -86,8 +86,8 @@ Several candidates lead with one, and a space is always there, so
 asking the first character alone accepted every candidate."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
             ;; a frame with the space and two of the three arrows
-            ((symbol-function 'internal-char-font)
-             (lambda (_frame ch) (memq ch '(?\s ?▶ ?>)))))
+            ((symbol-function 'char-displayable-p)
+             (lambda (ch) (memq ch '(?\s ?▶ ?>)))))
     (should (equal (overblock-glyph " ▸" " ▶" " >") " ▶"))
     (should (equal (overblock-glyph " ▸" " ▴" " >") " >"))))
 

@@ -1109,14 +1109,11 @@ candidate never gets it."
 
 (defun overblock--glyph-drawn-p (candidate)
   "Return non-nil where this frame draws every character of CANDIDATE.
-A graphic frame answers from its font, one character at a time.  A
-terminal answers only where `overblock-terminal-glyphs' says its font
-carries the icons, and then from the coding system, which is all a
-terminal can be asked."
-  (seq-every-p (if (display-graphic-p)
-                   (lambda (ch) (internal-char-font nil ch))
-                 #'char-displayable-p)
-               candidate))
+`char-displayable-p' is the whole answer: on a graphic frame it asks
+the font for the character, and on a terminal it asks the coding
+system, which is all a terminal can be asked.  Whether a terminal may
+be asked at all is the question `overblock-glyph' answers, not this."
+  (seq-every-p #'char-displayable-p candidate))
 
 (defun overblock-glyph (&rest candidates)
   "Return the first of CANDIDATES this frame can draw.
@@ -1204,24 +1201,28 @@ they are not drawn at."
          (when overblock--pixel-width-takes-a-buffer
            (list (current-buffer)))))
 
-(defun overblock-window-width ()
-  "Return the pixel width of the narrowest window that shows this buffer.
-`window-max-chars-per-line' counts the line-number area and the
-margins, as `window-body-width' does not, and it is taken in the
-window's own font.  The narrowest, because one string is drawn in all
-of them at once and a label cut to fit a wide window still wrapped in a
-narrow one beside it; the wide one then loses a few characters of a
-label it could have shown whole.
+(defun overblock--window-min (measure)
+  "Return the smallest MEASURE of the windows that show this buffer.
+The narrowest, because one string is drawn in all of them at once and a
+label cut to fit a wide window still wrapped in a narrow one beside it;
+the wide one then loses a few characters of a label it could have shown
+whole.
 
-`visible' and not t: an invisible or iconified frame counts under t,
-and a notebook shown in the root window of a hidden 20 column frame
-had its header cut to that.
+`visible\' and not t: an invisible or iconified frame counts under t,
+and a notebook shown in the root window of a hidden 20 column frame had
+its header cut to that.
 
 Nil where no visible window shows the buffer.  A bar is then not cut at
 all — there is nothing to wrap in — and a caller that caches the width
-has nothing to compare."
+has nothing to compare.
+
+Never below zero: `window-max-chars-per-line\' answers with a negative
+count where the font is far larger than the window — measured, a 32
+column frame under `text-scale-set\' 10 said -22, and a width of -1430
+pixels put the bar through the branch for a window with no room at all
+and then wrapped it."
   (when-let* ((windows (get-buffer-window-list nil nil 'visible)))
-    ;; `save-excursion': both of these select the window they measure,
+    ;; `save-excursion': the measures select the window they measure,
     ;; which sets this buffer's point to that window's point, and
     ;; nothing puts it back when the buffer is not the selected
     ;; window's.  A caller that walks the buffer with point — the walk
@@ -1229,31 +1230,28 @@ has nothing to compare."
     ;; and drew for ever: measured at 99.5% of a core and 91 GB of
     ;; memory in a notebook edited while the reader looked elsewhere.
     (save-excursion
-      ;; Never below zero.  `window-max-chars-per-line' answers with a
-      ;; negative count where the font is far larger than the window —
-      ;; measured, a 32 column frame under `text-scale-set' 10 said -22,
-      ;; and a width of -1430 pixels put the bar through the branch for
-      ;; a window with no room at all and then wrapped it.
-      (max 0 (apply #'min (mapcar (lambda (window)
-                                    (* (window-max-chars-per-line window)
-                                       (window-font-width window)))
-                                  windows))))))
+      (max 0 (apply #'min (mapcar measure windows))))))
+
+(defun overblock-window-width ()
+  "Return the pixel width of the narrowest window that shows this buffer.
+`window-max-chars-per-line\' counts the line-number area and the
+margins, as `window-body-width\' does not, and it is taken in the
+window\'s own font.  Nil where no window shows the buffer; see
+`overblock--window-min\' for the rest."
+  (overblock--window-min (lambda (window)
+                           (* (window-max-chars-per-line window)
+                              (window-font-width window)))))
 
 (defun overblock-window-columns ()
   "Return the columns of the narrowest window that shows this buffer.
-Nil where no visible window shows it, as `overblock-window-width\'
-answers nil, and for the same reasons — see there for why the narrowest
-and why `visible\'.
-
-Columns and not pixels: what is measured here is how much text fits, and
-`window-max-chars-per-line\' answers that in the window\'s own font.
+Columns and not pixels: what is measured here is how much text fits,
+and `window-max-chars-per-line\' answers that in the window\'s own font.
 Dividing the pixel width by `frame-char-width\' is not the same
 question: under `text-scale-adjust\' the two fonts differ, and the
-quotient is the column count times the scale."
-  (when-let* ((windows (get-buffer-window-list nil nil 'visible)))
-    ;; `save-excursion' for the reason `overblock-window-width' gives.
-    (save-excursion
-      (max 0 (apply #'min (mapcar #'window-max-chars-per-line windows))))))
+quotient is the column count times the scale.
+
+Nil where no window shows the buffer; see `overblock--window-min\'."
+  (overblock--window-min #'window-max-chars-per-line))
 
 (defun overblock-width-follow (kind &optional frame)
   "Drop the blocks of KIND built for another width than they now have.
@@ -1511,7 +1509,7 @@ number of pixels at any size and the label's own width is not."
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
 Nil for nil as well: this answers a question about whatever a caller
-found, and `overblock-bar-at' finds nothing often."
+found, and `overblock-bar-in' finds nothing often."
   (and ov (overlay-get ov 'overblock-bar)))
 
 (defun overblock-bar-in (beg end)
