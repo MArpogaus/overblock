@@ -273,11 +273,13 @@ a display property are the layer's — [[file:overblock.org][its notes]] —
 and the converter that turns the markdown into the string is
 overblock-md's: [[file:overblock-md.org][its notes]].
 
-=overblock-pycell-md-render-all= takes a region, so a move renders the two
-cells that moved rather than every markdown cell in the buffer.  The
-whole buffer goes to the converter in one process, which is what
-=overblock-md-html-batch= is for: one call for fifty cells rather than
-fifty.
+The cells are rendered by the live cycle of the layer, as the prose of
+a Markdown file is: =overblock-pycell-md-render-all= renders whatever
+is not rendered yet and is not the cell point is in, and the whole
+buffer goes to the converter in one process that nothing waits for,
+which is what =overblock-md-render-regions= is for.  A moved cell is
+rendered at once, because point goes back into it and the cycle leaves
+the cell point is in alone.
 
 * Scrolling
 
@@ -362,9 +364,8 @@ And what a keypress does, which is where the rest of the cost was:
 | move one markdown cell among sixty       | 69 ms  | 18 ms  |
 | fold a result of 10000 lines, four times | 13 ms  | 0.6 ms |
 
-- =overblock-pycell-md-render-all= takes a region, and =overblock-pycell-move-cell-down=
-  passes the span of the two cells that moved rather than rendering every
-  markdown cell in the buffer.
+- A move renders the two cells that moved and nothing else, rather than
+  every markdown cell in the buffer.
 - A result counts its lines once and keeps the number in its record, so
   a fold reads it instead of scanning the output again.
 
