@@ -880,12 +880,15 @@ less the one the refusal had already taken off it."
 
 (defun overblock-run-region (start end)
   "Run START..END, starting the interpreter where there is none.
-A region sent while another one runs is refused, with a `user-error'
-from `overblock-run-send'.  Where the interpreter is only starting, the
-region waits for its first prompt and is sent then."
+A region sent while another one runs goes on the queue and runs when
+the shell is free, as a notebook takes a cell pressed early; the pass
+stops there if the running region fails.  Where the interpreter is only
+starting, the region waits for its first prompt and is sent then."
   (overblock-run--must)
   (if-let* ((proc (overblock-run--call :process)))
-      (overblock-run-send proc start end)
+      (if (buffer-local-value 'overblock-run--state (overblock-run-shell))
+          (overblock-run--enqueue start)
+        (overblock-run-send proc start end))
     ;; Mark the region here, while its buffer is still current:
     ;; `copy-marker' on a number answers for whatever buffer that is,
     ;; and the thunk below is called in the shell's.  Markers into the
@@ -896,6 +899,17 @@ region waits for its first prompt and is sent then."
           (overblock-run-send proc beg fin)
         (overblock-run--call :arm (overblock-run--sender beg fin))
         (message "%s: starting the interpreter…" (overblock-run--name))))))
+
+(defun overblock-run--enqueue (start)
+  "Put the region at START behind whatever the shell is running.
+Point comes back here when the queue runs out, unless a pass has said
+already where it is to come back to."
+  (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
+    (overblock-run-home-set (point-marker)))
+  (overblock-run-queue-set (append (overblock-run-queued)
+                                   (list (copy-marker start))))
+  (message "%s: queued behind the running %s"
+           (overblock-run--name) (overblock-run--unit)))
 
 (defun overblock-run--sender (beg fin)
   "Return a thunk that sends BEG..FIN once the interpreter has prompted.

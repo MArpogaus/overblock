@@ -422,6 +422,34 @@ face, which says nothing where the rendering runs with
     (should (memq 'bold (ensure-list (funcall faces "head"))))
     (should (memq 'overblock-md-code (ensure-list (funcall faces "code_here"))))))
 
+(ert-deftest overblock-md-test-a-wrapped-formula-keeps-its-row ()
+  "The converter's own line break inside a formula is no row of the rendering.
+pandoc wraps its HTML at 72 columns, in the middle of a formula where
+that is where the column falls, and the fragment then carries a newline
+of its own.  Hung on the fragment as it came, the image ended the row
+there and the full stop after the formula stood on a row of its own."
+  (skip-unless (overblock-md-program))
+  (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+            ((symbol-function 'overblock-md--latex-image)
+             (lambda (&rest _) '(image :type png :data "x"))))
+    (let* ((overblock-md-width 200)
+           (rendered (overblock-md-rendered
+                      "The cells are comments, so the file runs as a \
+script as well, and a markdown cell renders its math: \
+$\\sin^2 x + \\cos^2 x = 1$."))
+           (image (text-property-any 0 (length rendered) 'display
+                                     (get-text-property
+                                      (or (text-property-not-all
+                                           0 (length rendered) 'display nil
+                                           rendered)
+                                          0)
+                                      'display rendered)
+                                     rendered))
+           (after (next-single-property-change image 'display rendered)))
+      (should image)
+      ;; the full stop follows the image on its row
+      (should (eq (aref rendered after) ?.)))))
+
 (ert-deftest overblock-md-test-math-in-a-table-stays-text ()
   "A formula in a table cell keeps its text, so the columns hold.
 A preview image is never as wide as the text it replaces, and a table
