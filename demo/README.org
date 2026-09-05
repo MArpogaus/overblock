@@ -1,0 +1,82 @@
+#+TITLE: The animations, and how to record them again
+
+The animations in [[file:../README.org][the README]] come from a real
+Emacs session.  There is no screen recorder: Emacs exports its own
+frame with =x-export-frames=, which is why the pictures carry no mouse
+pointer and no window decoration.
+
+Everything the pictures were taken with is in this directory:
+
+| File           | What                                                    |
+|----------------+---------------------------------------------------------|
+| =init.el=      | the whole configuration — a built-in theme, one font    |
+| =record.el=    | the scenarios: what a reader does, and what is held     |
+| =assemble.sh=  | the frames into one animation                           |
+| =shapes.py=    | the doc strings of the =overblock-pydoc= animation      |
+| =notes.md=     | the markdown of the =overblock-md= animation            |
+| =demo.py=      | the notebook of the =overblock-pycell= animation        |
+| =report.Rmd=   | the R Markdown of the =overblock-rmd= animation         |
+| =scrolling.py= | the notebook the scroll measurements are taken on       |
+
+* What you need
+
+- An Emacs with X support and a display.  A machine without one can use
+  =Xvfb :99 -screen 0 1920x1080x24= and =DISPLAY=:99=.
+- =pandoc= for every rendering, and a LaTeX with =dvipng= for the math:
+  without it a formula stays as text, which is what
+  =overblock-md-forget-failed-previews= is about.
+- =code-cells= and =comint-mime= for the notebook, =ESS= and an =R= for
+  the chunks, =markdown-mode= for the prose.  =init.el= expects them
+  from a package archive and says so where one is missing.
+- IPython, numpy and matplotlib for the cells that make output.
+- =ffmpeg= and =gifsicle= to turn the frames into the animation.
+- A nerd font for the icons on the bars.  Without one the bars fall back
+  to plain characters, which is what a terminal without the font shows;
+  see =overblock-terminal-glyphs=.
+
+* How to record one
+
+#+begin_src shell
+  OB_GIF=md emacs -Q -l demo/init.el -l demo/record.el
+  sh demo/assemble.sh md
+#+end_src
+
+=OB_GIF= names the scenario: =md=, =pydoc=, =pycell=, =rmd=, or
+=family= for the tour of all four that stands at the top of the README.
+The frames and their hold times go to
+=$TMPDIR/overblock-demo/SCENARIO/=, or wherever =OB_GIF_OUT= says, and
+=assemble.sh= writes =SCENARIO.gif= beside them.  Emacs exits when the
+scenario ends.
+
+Each scenario asks for the frame it needs — the doc strings of a class
+run to two dozen rendered rows — so the animations share one width and
+differ in height.  The width is the width they are shown at, and the
+frames are written at it: text scaled by even a little is blurred text.
+
+A scenario photographs the frame after each step and says how long that
+picture is held, in hundredths of a second.  =assemble.sh= scales those
+holds, so =sh demo/assemble.sh md 0.6= makes a quicker animation of the
+same recording.
+
+* What each one shows
+
+- *md* — a markdown file rendered line by line, a click giving one
+  line's source back, and a heading typed and rendered as it is written.
+- *pydoc* — the doc strings of a module rendered with a bar of their
+  own, by both renderers in turn: =converter=, which lays
+  reStructuredText out with shr, and =fontify=, which paints the source
+  where the writer left it.  Then one doc string opened in its own
+  buffer, edited and put back.
+- *pycell* — a =# %%= notebook: a markdown cell rendered, a cell run
+  with its output under it, a matplotlib figure drawn in the buffer,
+  and an output folded to its bar.
+- *rmd* — an R Markdown file with its prose rendered, two R chunks run
+  in place, and one result folded to its bar.
+- *family* — all four in one session, every picture the same size.
+
+* Why the frame is asked for in pixels
+
+=set-frame-size= is a request, and a bare X server with no window
+manager can ignore a size given in characters.  Every animation is
+900 pixels wide because a README is read at that width, and the frame
+is asked for in pixels for the same reason.

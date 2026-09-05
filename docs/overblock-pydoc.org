@@ -1,0 +1,187 @@
+#+TITLE: How overblock-pydoc works
+#+OPTIONS: toc:2
+
+This document describes the implementation.  The
+[[file:../README.org][README]] tells you how to use the package.  Two
+packages of this repository carry what is not Python here: overblock
+puts a block on the screen — [[file:overblock.org][its notes]] — and
+overblock-md turns markup into a string a block can show —
+[[file:overblock-md.org][its notes]].
+
+=overblock-pydoc-mode= is =overblock-live-start= with three answers:
+which regions, what to render them with, and when.  What is left in
+this file is the first two, and the rows a rendering is drawn on.
+
+* Which strings are documentation
+
+Font lock has decided it already.  python.el paints the doc string of a
+module, a definition or an assignment with =font-lock-doc-face= and
+every other string with =font-lock-string-face=, which is what
+=python-info-docstring-p= answers for its own fontification.  Its
+tree-sitter fontifier paints the same face, so =python-mode= and
+=python-ts-mode= are served by one path and no grammar is needed.
+
+The face is asked for as a list, because a theme may paint its own
+beside font lock's.
+
+=font-lock-ensure= runs first: jit lock has painted only what has been
+on the screen, and a doc string below the window would otherwise be no
+doc string at all.
+
+** Where a doc string begins
+
+A region is rendered only where the string starts where the code of its
+line starts — blanks before it are allowed, and a string prefix, the
+=r= of a raw doc string and the rest, because font lock paints the
+string and not the letters that open it.
+
+What that rejects is what a mispaired quote run leaves behind.  A quote
+sequence inside the prose of one doc string ends it early, every string
+after it pairs the wrong way round, and font lock inherits the parse.
+Such a region begins in the middle of a line — measured, at column 71 of
+a line indented to four — and a rendering laid over it is prose drawn
+over code.  Left as source it is merely unrendered.
+
+** Where one ends
+
+The syntax scan answers it, not font lock and not =scan-sexps=.
+
+=parse-partial-sexp= told to stop at the end of a string walks from
+inside the doc string to just past its closing quotes.  The end of what
+font lock painted is shorter: an escape sequence in the prose wears a
+face of its own and breaks the run in two, measured in =python-mode=
+and in =python-ts-mode= alike.  =scan-sexps= reads the first two of
+three quotes as an empty string.
+
+The scan begins past the opening fence and not between its first two
+quotes, for the same reason: =python-mode= gives the first of three
+quotes the syntax of a plain string delimiter, so a scan begun there
+read those two as a string of nothing and every doc string came out two
+characters long.  Two quotes are added back at the end, because the
+scan stops at the first of the three closing ones, and the answer is
+clamped so that an unterminated doc string ends where the walk was told
+to stop.
+
+* What to render them with
+
+=overblock-pydoc-renderer= picks.  =converter= sends the buffer's doc
+strings through =overblock-md-html-batch-async= with
+=overblock-md-command= bound to =overblock-pydoc-command= — one process
+for the buffer, asked and not waited for — and =fontify= runs
+=overblock-md-fontified= with =overblock-pydoc-fontify-mode=, which
+costs no process and leaves every line where the writer put it.
+
+=overblock-pydoc-command= asks for reStructuredText first, because that
+is what Python's own tools read, and numpydoc and Sphinx with them.  It
+asks for no highlighting for the reason
+[[file:overblock-md.org][overblock-md's notes]] give.
+
+The quotes and the shared indentation come off before the text is
+rendered, because a doc string is written where the code stands and
+reads as prose one column from the left.  =overblock-pydoc-edit= hands
+that same plain text to an edit buffer, and the commit puts the quotes
+and the indentation back — the closing quotes on a line of their own
+where the doc string has more than one line, as PEP 257 writes it.
+
+* The rows a rendering is drawn on
+
+Every row begins at the column the opening quote itself stands at,
+measured there, and not at the indentation of that line: the first row
+of a rendering is the only one that hangs where the block does and it
+carries no padding of its own, so the two have to be the same column.
+A raw doc string begins one column in from its code, past the letter
+that prefixes its quotes, and the rendering of one stood a column out
+of line.
+
+** Padded with spaces, not with a stretch
+
+A row holds its label at the left and its buttons at the window's edge,
+and the space between them is real spaces rather than a
+=(space :align-to (- right ...))=.  What a block shows rides on a
+display property, and a display property inside a display string is
+swallowed — the same rule that keeps an image off one.  Measured on a
+frame, both a =:align-to= and a =(space :width (N))= drew nothing at
+all, and the rule the face draws ended with the text halfway across the
+window.
+
+The row is not padded to the window's full width either.  Its own
+columns are not the row's to fill: padded that way, the buttons of an
+indented doc string fell onto a row of their own, exactly as many
+columns over as the doc string was deep.  A column of slack is kept at
+the end, because a row that fills the last one wraps and a wrapped bar
+is two rows of almost nothing.
+
+Spaces are counted in columns, so a nerd glyph that draws wider than it
+counts leaves the rule a column or two short of the edge.  A row is
+built for the width of the moment, and a window of another width asks
+for it again: /The width one is built for/, below, says how.
+
+** The rules
+
+The rule above and the rule below are an =:overline= on
+=overblock-pydoc-header= and an =:underline= on
+=overblock-pydoc-footer=.  A rule a face draws runs the width of the
+row it is on: it begins where the row's own text begins, which is the
+column the doc string is indented to, and it ends where the row ends,
+which is the window's edge.  Nothing has to measure either.
+
+The footer row carries a rule and nothing else — the label and the
+buttons stand on the bar above, and saying both twice said nothing the
+second time.  It opens with a zero-width space, because
+=overblock--pieces= trims the blank lines off the ends of what it is
+given and a row of spaces is a blank line: the rule was trimmed away
+and the doc string had no footer at all.
+
+** One line, one row
+
+A doc string of one line takes one row: the prose where the label would
+stand, the buttons at the window's edge, and the bar's own face over
+it.  A bar above and a rule below would make three rows out of one line
+of prose, and a doc string of one line is the commonest of all.  Both
+rules on one row boxes it in, and a boxed line of prose among plain
+lines of code is a loud way to say very little.
+
+** The width one is built for
+
+A rendering is built for a width and keeps it: the prose is filled to
+it, and the rule of a bar is spaces up to the edge of it.  A window
+made narrower afterwards — a split, a side window, a frame resized —
+was left with rows too long for it and every bar took two of them; a
+wider one left every rule short of the edge.
+
+The prose has the columns of the narrowest window that shows the
+buffer, less the columns the doc string is indented by, less one so
+that a full row does not wrap.  =overblock-md-width= carries that
+number to the renderer; [[file:overblock-md.org][overblock-md's notes]]
+say what it does with it.
+
+Each block carries the width it was built for, and
+=overblock-pydoc--follow-width= compares that against the width of the
+moment on =window-size-change-functions= and
+=window-buffer-change-functions=.  The width of the moment alone is not
+enough: an edit committed from its own window renders the doc string
+while no window shows the buffer at all, and the width is nil then
+while the window's is what it always was.  So the buffer coming back
+into a window is what asks for that rendering again.
+
+Both hooks are global — they take a frame or a window, not a buffer —
+so they come off only when no buffer is left that wants them.
+
+** When a bar is drawn again
+
+=overblock-pydoc-buttons= and =overblock-pydoc-label= redraw the bars of
+every rendered doc string in every buffer when they are set with
+=setopt=.  Without that a changed button list waited for something else
+to render the doc string again — a window changing width, or the file
+opened afresh — and customizing them appeared to do nothing.
+
+Their =defcustom= forms take =custom-initialize-default=, because
+=custom-initialize-reset= calls the =:set= function as the option is
+defined and the drawing it asks for is defined further down the file.
+Nothing is drawn at that moment anyway.
+
+* The tests
+
+=test/overblock-pydoc-test.el= — which strings are documentation and
+which are data, the indentation taken off, both renderers, the bar and
+the rule, and the mode leaving nothing behind.

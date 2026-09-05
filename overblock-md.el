@@ -1,0 +1,1016 @@
+;;; overblock-md.el --- Markdown rendered for a block  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Marcel Arpogaus
+
+;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
+;; Assisted-by: Claude:claude-opus-5
+;; Version: 1.0
+;; Package-Requires: ((emacs "29.1") (overblock "1.0"))
+;; Assisted-by: Claude:claude-fable-5
+;; Keywords: convenience, tools
+;; URL: https://github.com/MArpogaus/overblock
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Markdown in, one propertized string out:
+;;
+;;     (overblock-md-rendered "# A heading\n\nwith $x^2$ in it.")
+;;
+;; An external program turns the markdown into HTML, shr renders the
+;; HTML, and LaTeX fragments become preview images by way of org.  What
+;; comes back is a string that a block can show, and nothing here shows
+;; anything itself.
+;;
+;; A rendered table is laid out in characters rather than pixels, so its
+;; columns line up over the fixed-pitch lines of a buffer, and a local
+;; image is drawn on the spot rather than fetched.
+;;
+;; Rendering a whole buffer of cells calls the program once, with
+;; `overblock-md-html-batch'.
+
+;;; Code:
+
+(require 'overblock)
+;; shr renders the HTML and dom reads the tags out of it: this file is
+;; the markdown renderer and has no use without them.
+(require 'shr)
+;; `url-copy-file' fetches the image a cell names by URL.
+(require 'url-handlers)
+(require 'dom)
+;; `xdg-cache-home' is where the LaTeX previews and the fetched images
+;; live.  It reads XDG_CACHE_HOME as the specification says to, which a
+;; bare `getenv' does not: a relative value there names no directory.
+(require 'xdg)
+(require 'cl-lib)
+(require 'seq)
+(require 'subr-x)
+
+;; Org supplies the LaTeX preview machinery.  It is loaded on demand, in
+;; `overblock-md--latex-image', so the symbols are declared rather than
+;; required.
+(declare-function org-create-formula-image "org"
+                  (string tofile options buffer &optional type))
+(declare-function org-combine-plists "org-macs" (&rest plists))
+(defvar org-preview-latex-default-process)
+(defvar org-preview-latex-process-alist)
+(defvar org-format-latex-options)
+
+;; New in Emacs 31, and bound while shr renders: declared so the file
+;; compiles on an Emacs that has never heard of it.
+(defvar shr-sliced-image-height)
+
+;; shr parses the converter's HTML with this, and an Emacs built
+;; without libxml2 does not have it; `overblock-md-program' answers nil
+;; there and no markdown cell is rendered at all.  Declared so the
+;; file still compiles on such a build.
+(declare-function libxml-parse-html-region "ext:xml.c"
+                  (start end &optional base-url discard-comments))
+
+(defgroup overblock-md nil
+  "Markdown rendered for a block."
+  :group 'overblock
+  :prefix "overblock-md-")
+
+(defface overblock-md-code '((t :inherit font-lock-constant-face))
+  "Face for inline code in a rendered markdown cell.
+shr draws code in a fixed pitch, and a rendered cell hangs on the
+lines of a Python buffer, which is fixed pitch throughout: a pitch
+says nothing there, so this face says it with a color.")
+
+(defcustom overblock-md-command
+  ;; In the order of what they can do, and each one told to leave the
+  ;; math alone.  Measured: `pandoc' on its own renders a formula itself
+  ;; — "$x_1 \\to x_2$" comes back as markup for "x1 → x2" — so nothing
+  ;; reaches the preview machinery and a notebook loses every inline
+  ;; formula; with `--mathjax' the fragment is passed through as
+  ;; "\\(x_1 \\to x_2\\)", which `overblock-md--math-regexp' reads.
+  ;; `markdown_py' without its extensions turns a table into one line of
+  ;; pipes and a fenced block into one line of words, and `cmark' and
+  ;; Perl `markdown' can do neither at all.
+  ;;
+  ;; `--no-highlight' because nothing here reads what the highlighting
+  ;; says: shr knows no CSS class, so the colours pandoc encodes in
+  ;; them are dropped and only the line anchors it hangs on every row
+  ;; survive, as links to nowhere.  Measured on a document of three
+  ;; fenced blocks, pandoc spent 785 milliseconds of which 720 were
+  ;; the syntax definitions it loaded to paint them.
+  '("pandoc --mathjax --no-highlight -f markdown-implicit_figures"
+    "markdown_py -x tables -x fenced_code"
+    "cmark-gfm -e table" "markdown" "cmark")
+  "How to turn Markdown into HTML.
+Either one shell command as a string, or a list of candidates, of
+which the first one found in the variable `exec-path' is used.  The
+program reads Markdown on standard input and writes HTML on standard
+output, so arguments are allowed: \"pandoc -f gfm -t html\".
+
+A caller shows the markdown as it stands while no candidate is
+installed.
+
+Leave the math alone when choosing arguments.  Pandoc, for one, turns
+simple formulas into text on its own and passes the rest through, and
+`overblock-md--stow-math' then takes what is left to org, which makes
+the preview images."
+  :type '(choice (string :tag "Shell command")
+                 (repeat (string :tag "Candidate command")))
+  :group 'overblock-md)
+
+(defcustom overblock-md-remote-images t
+  "Whether to fetch the images markdown names by URL.
+Text that opens with a badge names an image on the web, as the Colab
+badge of a notebook does.  shr fetches such an image
+with `url-queue-retrieve', which answers long after the rendering is
+over and into a buffer that is gone by then, so the badge stayed its alt
+text.  With this on, the file is fetched once, kept in the cache beside
+the LaTeX previews, and drawn from there like a local one; the link
+around it keeps its click either way.
+
+Nil renders such an image as its alt text and asks the network for
+nothing."
+  :type 'boolean
+  :group 'overblock-md)
+
+(defvar overblock-md--remote-failed (make-hash-table :test #'equal)
+  "The image URLs that could not be fetched in this session.
+A URL that failed is not asked for again: a caller renders the same
+text again and again, and a document that opens with a badge would
+otherwise wait for the network every time.")
+
+(defun overblock-md--fetchable-p (url)
+  "Return non-nil where URL is an image this session may go and get."
+  (and overblock-md-remote-images
+       ;; Only where an image can be drawn: a terminal shows the alt
+       ;; text whatever is fetched, and a batch session — the tests
+       ;; among them — must not reach the network at all.
+       (display-images-p)
+       (string-match-p "\\`https?://" url)
+       ;; One that failed is not asked for twice in a session.
+       (not (gethash url overblock-md--remote-failed))))
+
+(defun overblock-md--cache-name (url)
+  "Return the name the image at URL is cached under.
+The digest of the URL, and its own extension where it has a plain one:
+a name taken from the URL itself could be anything at all, and the
+extension is what tells Emacs which kind of image it holds."
+  (let ((extension (file-name-extension url)))
+    (concat (md5 url)
+            (if (and extension
+                     (string-match-p "\\`[a-zA-Z0-9]+\\'" extension))
+                (concat "." (downcase extension))
+              ".img"))))
+
+(defun overblock-md--remote-file (url)
+  "Return the local file the image URL was fetched into, or nil.
+The file is kept in the cache beside the LaTeX previews, named after the
+URL, so a badge is fetched once for the session and once for the
+machine.  See `overblock-md--fetchable-p' for what is fetched at all."
+  (when (overblock-md--fetchable-p url)
+    (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
+           (file (expand-file-name (overblock-md--cache-name url) dir)))
+      (if (file-readable-p file)
+          file
+        (condition-case error
+            (progn
+              (make-directory dir t)
+              ;; Three seconds: the fetch happens while the cell
+              ;; renders, so this is time the reader waits.  A fetch
+              ;; that times out leaves the alt text, and the URL is not
+              ;; asked for again in this session.
+              (with-timeout (3 (error "Timed out"))
+                (url-copy-file url file t))
+              ;; Not `image-supported-file-p': it answers from the
+              ;; name, and a URL with a query string caches as
+              ;; `<md5>.img'.  It said no on the fetch and the
+              ;; cache-hit path above never asked, so the same badge
+              ;; showed alt text once and a picture every time after.
+              ;; `create-image' identifies the file from its header.
+              (and (file-readable-p file) file))
+          (error (puthash url t overblock-md--remote-failed)
+                 (ignore-errors (delete-file file))
+                 (message "overblock-md: no image from %s (%s)"
+                          url (error-message-string error))
+                 nil))))))
+
+(defvar overblock-md--latex-warned nil
+  "Non-nil once a failed LaTeX preview was reported in this session.")
+
+(defvar overblock-md--latex-failed (make-hash-table :test #'equal)
+  "The previews LaTeX failed to make, keyed by image file name.
+What caches a preview is the image file, so a failure caches nothing
+and every render of the cell runs LaTeX again for the same fragment: a
+process per fragment per render, for an answer that is already known.
+`overblock-md-forget-failed-previews' empties this.")
+
+(defun overblock-md--latex-render (frag file fg)
+  "Render the LaTeX fragment FRAG into FILE, drawn in the colour FG.
+Nothing to do where the file is there already: the file is the cache.
+A run that failed is remembered, and a fragment that failed before
+signals at once rather than costing another process."
+  (unless (file-exists-p file)
+    ;; Asked only where the image is not there already, and keyed like
+    ;; the file — by content and colour — so a theme change asks again.
+    ;; A LaTeX run that failed is the one thing worth remembering: what
+    ;; caches a preview is the file, so without the memo a cell costs a
+    ;; process per fragment on every render.
+    (when (gethash file overblock-md--latex-failed)
+      (error "LaTeX failed for this fragment before"))
+    (let ((dir (file-name-directory file)))
+      (make-directory dir t)
+      (condition-case latex
+          ;; Org runs LaTeX in the directory it writes to: a LaTeX in a
+          ;; container reaches the home directory, but not the host's
+          ;; /tmp.
+          (let ((temporary-file-directory dir))
+            (org-create-formula-image
+             frag file
+             (org-combine-plists
+              org-format-latex-options
+              (list :foreground fg :background "Transparent"))
+             (current-buffer)))
+        (error (puthash file t overblock-md--latex-failed)
+               (signal (car latex) (cdr latex)))))
+    ;; Org does not always signal when its process leaves nothing
+    ;; behind, and `create-image' on a name reads the name: without
+    ;; this a spec pointing at no file went on the screen, and the memo
+    ;; never learnt anything.
+    (unless (file-exists-p file)
+      (puthash file t overblock-md--latex-failed)
+      (error "LaTeX produced no image"))))
+
+(defun overblock-md--latex-image (frag)
+  "Return a preview image for the LaTeX fragment FRAG, or nil.
+Org's formula machinery renders it.  The cache lives under ~/.cache,
+keyed by content and theme color.  Org runs LaTeX in that directory
+as well: a LaTeX in a container reaches the home directory, but not
+the host's /tmp."
+  (when (and (require 'org nil t) (fboundp 'org-create-formula-image))
+    ;; Everything below is inside the handler, the bindings included: the
+    ;; contract of this function is an image or nil, and a variable org
+    ;; had not defined yet would otherwise raise from the middle of
+    ;; shr's rendering.
+    (let* ((fg (face-attribute 'default :foreground))
+           (ext (or (plist-get
+                     (cdr (assq org-preview-latex-default-process
+                                org-preview-latex-process-alist))
+                     :image-output-type)
+                    "png"))
+           (dir (expand-file-name "overblock-math/" (xdg-cache-home)))
+           (file (expand-file-name
+                  (concat (md5 (concat fg frag)) "." ext) dir)))
+      (condition-case err
+          (progn
+            (overblock-md--latex-render frag file fg)
+            ;; Past the memo: a failure below is `create-image' or the
+            ;; file system, not LaTeX, and remembering it would keep a
+            ;; fragment as text with a good image sitting in the cache.
+            (apply #'create-image file nil nil :ascent 'center
+                   ;; Capped like the images of a result and of an
+                   ;; `![](file)': a display-math block can be taller
+                   ;; than the window, and a block the wheel cannot get
+                   ;; past is what `overblock-image-height' exists for.
+                   (when-let* ((limit (overblock-image-limit)))
+                     (list :max-height limit))))
+        ;; Report once: without a LaTeX installation, every fragment of
+        ;; every cell would report the same thing.  Org blames its own
+        ;; process alist for a LaTeX run that produced nothing, where
+        ;; the reason is in the log LaTeX left in DIR — a package the
+        ;; preamble asks for and the installation does not have, most
+        ;; often — so the message says where to look.
+        (error (unless overblock-md--latex-warned
+                 (setq overblock-md--latex-warned t)
+                 (message "overblock-md: no LaTeX preview (%s); \
+formulas stay as text, and LaTeX left its log in %s"
+                          (error-message-string err) dir))
+               nil)))))
+
+;;;###autoload
+(defun overblock-md-forget-failed-previews ()
+  "Ask LaTeX again for the fragments whose preview failed.
+A failure is remembered for the session, so that a cell costs one LaTeX
+run per fragment rather than one per render.  Install LaTeX, call this,
+and render the cells again."
+  (interactive)
+  (clrhash overblock-md--latex-failed)
+  (clrhash overblock-md--remote-failed)
+  (setq overblock-md--latex-warned nil))
+
+(defconst overblock-md--math-regexp
+  (rx (or (seq "$$" (+? anychar) "$$")
+          ;; No space just inside either delimiter, which is the rule
+          ;; CommonMark and GitHub use: guarding the opening one alone
+          ;; made a formula of the prose between two prices — "costs $100
+          ;; and that one $200" — and of "`$HOME` and then `$PATH`".  The
+          ;; `opt' is what keeps "$x$" matching.
+          ;; `in' rather than `any': the two are one rx form, and
+          ;; package-lint reads the `any' inside a `not' as the Emacs
+          ;; 31.1 function of that name, while `(not (or ...))' is a
+          ;; character set only from Emacs 30 — 29.1 answers "Bad
+          ;; character set: space" and compiles nothing in the file.
+          (seq "$" (not (in "$" space))
+               (opt (*? (not (in "$" "\n"))) (not (in "$" space)))
+               "$")
+          (seq "\\(" (+? anychar) "\\)")
+          (seq "\\[" (+? anychar) "\\]")))
+  "What a LaTeX fragment looks like in rendered markdown.
+Most converters leave the dollar delimiters alone.  Pandoc renders
+simple formulas as text and passes the rest through, either in dollars
+or, when told to use MathJax, in parentheses and brackets.")
+
+(defun overblock-md--bare-math (frag)
+  "Return FRAG with its MathJax delimiters taken off.
+A fragment that stays text is read as text, and pandoc with MathJax
+wrote \\(x_1\\): the parentheses say nothing to a reader.  Dollars are
+how a document writes a formula and read as themselves, so those stay.
+
+The text and not a display property: a piece hangs a whole row on one
+display property, and display properties do not nest — a property
+inside that string is never looked at.
+
+In a table the place the delimiters held is padded with spaces.  A
+table is padded to the width of its text, so a cell that lost four
+characters would pull the columns of its row out of line.
+
+A fragment with a line break in it is left alone.  Display math that
+stays text keeps its rows."
+  (if (or (string-search "\n" frag)
+          (not (or (string-prefix-p "\\(" frag)
+                   (string-prefix-p "\\[" frag))))
+      frag
+    (let ((bare (substring frag 2 -2)))
+      (if (get-text-property 0 'overblock-md--table frag)
+          (concat bare (make-string (- (length frag) (length bare)) ?\s))
+        bare))))
+
+(defconst overblock-md--math-mark ?\N{OBJECT REPLACEMENT CHARACTER}
+  "The character that stands in the HTML where a LaTeX fragment was.
+shr fills a paragraph and a formula is prose to it, so a fragment left
+in came back broken — measured, `\\(d = \\sqrt{w^2 + h^2}\\)\' with the
+line ending between the backslash and the parenthesis, which is a
+fragment nothing recognizes afterwards.
+
+A fragment is replaced by as many of these as its text is wide, so the
+fill still knows how much room it wants and wraps before it where it
+does not fit.  What the fill may still do is break the run itself, and
+`overblock-md--unstow-math\' reads a broken run as the one fragment it
+is.")
+
+(defun overblock-md--stow-math (page)
+  "Return PAGE with its LaTeX fragments taken out, and the fragments.
+The answer is (PAGE . FRAGMENTS), the fragments in the order the marks
+that stand for them appear in PAGE; `overblock-md--unstow-math' puts
+them back once shr has laid the text out.  Each is replaced by as many
+marks as its text is wide, so the fill knows how much room to leave."
+  (if (not (string-match-p "[$\\]" page))
+      (cons page nil)
+    (let (stowed)
+      (cons (replace-regexp-in-string
+             overblock-md--math-regexp
+             (lambda (frag)
+               (push frag stowed)
+               (make-string (max 1 (string-width frag))
+                            overblock-md--math-mark))
+             page t t)
+            (nreverse stowed)))))
+
+(defconst overblock-md--math-run
+  (let ((mark (regexp-quote (string overblock-md--math-mark))))
+    (concat mark "\\(?:[" (string overblock-md--math-mark) "\n]*" mark "\\)?"))
+  "What one stowed fragment looks like after the text has been laid out.
+A run of marks, which the fill may have broken over two rows: it is
+still the one fragment it was.")
+
+(defun overblock-md--unstow-math (text stowed)
+  "Return TEXT with each run of marks replaced by what STOWED holds.
+A fragment comes back as its preview image where one can be made and
+drawn, and as its own text where it cannot — with the MathJax
+delimiters off, since those say nothing to a reader.
+
+A run inside a table comes back as text of exactly the width the marks
+took: a table is laid out in columns of characters, and a preview image
+is never as wide as the text it replaces, so a formula in a cell would
+pull the columns of its row out of line."
+  (let ((rest stowed))
+    (replace-regexp-in-string
+     overblock-md--math-run
+     (lambda (marks)
+       (save-match-data
+         (let ((frag (or (pop rest) "")))
+           (if-let* (((display-images-p))
+                     ((not (get-text-property 0 'overblock-md--table marks)))
+                     (image (overblock-md--latex-image
+                             (overblock-md--one-line frag))))
+               ;; The fragment's own text under the image where the
+               ;; run is whole — what a reader copies out of a
+               ;; rendering is then the formula, not a row of marks.
+               ;; Inline math on one line: the converter wraps its
+               ;; HTML, and a line break of its own inside the
+               ;; fragment is no row of the rendering.  Measured, the
+               ;; full stop after a formula stood on a row of its own.
+               (overblock-md--place-image
+                (if (string-search "\n" marks) marks (overblock-md--as-text frag))
+                image)
+             (overblock-md--fit
+              (overblock-md--bare-math (overblock-md--as-text frag)) marks
+              ;; Padded inside a table and nowhere else: a table is laid
+              ;; out in columns of characters, and text shorter than the
+              ;; marks it replaces would pull the row out of line.  In
+              ;; prose the shorter text simply takes less room.
+              (get-text-property 0 'overblock-md--table marks))))))
+     text t t)))
+
+(defun overblock-md--as-text (frag)
+  "Return FRAG as the text a display without images shows.
+Inline math is joined: the converter wraps its own output, so a
+fragment carries whatever line breaks pandoc put in it, and a formula
+read as text reads better on one line than broken at a backslash.
+
+Display math keeps its rows — one equation to a line is what it was
+written for, and `overblock-md--verbatim-math\' went to some trouble to
+keep them."
+  (if (string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag)
+      frag
+    (overblock-md--one-line frag)))
+
+(defun overblock-md--fit (text marks &optional pad)
+  "Return TEXT laid out where MARKS stood, in the same number of rows.
+With PAD the text takes exactly the columns the marks took, which is
+what a table needs: it is laid out in columns of characters, and a
+shorter cell pulls the columns of its row out of line."
+  (let ((rows (1- (length (split-string marks "\n")))))
+    (concat (if pad
+                (truncate-string-to-width
+                 text (string-width marks) 0 ?\s)
+              text)
+            (make-string rows ?\n))))
+
+(defun overblock-md--one-line (frag)
+  "Return FRAG with the line breaks the fill left in it turned to spaces.
+LaTeX reads a formula the same either way, and the fragment that goes
+to it must be the whole formula: shr fills a paragraph before this
+sees it, and a formula wide enough is broken across two rows."
+  (subst-char-in-string
+   ?\N{NO-BREAK SPACE} ?\s
+   (if (string-search "\n" frag)
+       (replace-regexp-in-string "[ \t]*\n[ \t]*" " " frag)
+     frag)))
+
+(defun overblock-md--place-image (frag image)
+  "Return FRAG drawing IMAGE once, whatever line break the fill left in it.
+A display property is drawn once for every screen line the run it
+covers reaches, so an image hung on a fragment the fill had broken came
+out twice — measured on a paragraph whose formula straddled two rows,
+which showed the same preview at the end of one row and the start of
+the next.
+
+The image goes on the part before the first break and the rest of the
+fragment is dropped, the newlines excepted: the rows of the rendering
+stay the rows they were, and the formula is whole on the first of them.
+
+Dropped and not hidden.  A row of a block rides on a display property,
+and a display property inside a display string is never looked at — the
+same rule that keeps an image off one — so a `display' of the empty
+string over the rest left the raw LaTeX standing on the screen."
+  (if (not (string-search "\n" frag))
+      (propertize frag 'display image)
+    (let ((break (string-search "\n" frag)))
+      (concat (propertize (substring frag 0 break) 'display image)
+              ;; The newlines of the rest, and nothing else of it.
+              (make-string (cl-count ?\n frag :start break) ?\n)))))
+
+(defun overblock-md-program ()
+  "Return the markdown converter as a list of program and arguments.
+The first candidate of `overblock-md-command' that is installed
+wins; the result is nil when none of them is, and nil as well where
+this Emacs cannot read the HTML that comes back: shr parses it with
+`libxml-parse-html-region', which a build without libxml2 does not
+have."
+  (and (fboundp 'libxml-parse-html-region)
+       (seq-some (lambda (command)
+                   (let ((argv (split-string-shell-command command)))
+                     (and (executable-find (car argv)) argv)))
+                 (ensure-list overblock-md-command))))
+
+(defconst overblock-md--marker "overblockcellbreak8f2b1c"
+  "What stands between cells when they go to the converter together.
+A word of its own in a paragraph of its own: every converter passes
+that through as a paragraph, where anything with markup would be
+reshaped into something else.")
+
+(defun overblock-md--html (md)
+  "Return the HTML `overblock-md-command' makes of MD, or nil.
+Nil where no converter is installed and nil where the one that is
+exits non-zero: this is the one caller-visible answer that keeps a cell
+plain text rather than raising.  The check belongs here, where the
+program is called, and not in each caller: a caller renders from the
+body of a minor mode, and a signal from here left the mode on with
+nothing rendered and took the rest of the hook that turned it on with
+it.
+One wrong argument in `overblock-md-command' was enough."
+  (when-let* ((program (overblock-md-program)))
+    (let ((errors (make-temp-file "overblock-md-stderr")))
+      (unwind-protect
+          (with-temp-buffer
+            (insert md)
+            ;; Standard error to a file of its own: pandoc warns there
+            ;; about the math it will not convert, and that text would
+            ;; land in the HTML.  It is also the only place the reason
+            ;; for a failure lives, so a failure says its last line.
+            (let ((status (apply #'call-process-region
+                                 (point-min) (point-max) (car program)
+                                 t (list t errors) nil (cdr program))))
+              (if (eq status 0)
+                  (buffer-string)
+                (message "overblock-md: %s exited with status %s%s"
+                         (car program) status
+                         (let ((reason (with-temp-buffer
+                                         (ignore-errors
+                                           (insert-file-contents errors))
+                                         (string-trim (buffer-string)))))
+                           (if (string-empty-p reason)
+                               ""
+                             (concat ": " (car (last (split-string
+                                                      reason "\n" t)))))))
+                nil)))
+        (ignore-errors (delete-file errors))))))
+
+(defun overblock-md-html-batch (texts)
+  "Return the HTML of each of TEXTS, converted in one go.
+A caller often renders many pieces at once, and a converter
+process costs more than the markdown: 44 milliseconds a cell with
+`markdown_py', which is two seconds for fifty cells and nine for two
+hundred.  One process for the buffer costs that once.
+
+Nil when the marker does not come back once between every pair of
+cells, or when a cell holds it already; the caller then asks for one
+call per cell, as it always did."
+  (when-let* ((joined (overblock-md--batch-text texts)))
+    ;; Nil where the converter is missing or failed, which is what
+    ;; `overblock-md--html' answers and what this function's own
+    ;; docstring promises.
+    (overblock-md--batch-pieces (overblock-md--html joined) texts)))
+
+(defun overblock-md--batch-text (texts)
+  "Return TEXTS joined for one call of the converter, or nil.
+Nil where a text holds the marker that tells them apart, which is what
+`overblock-md-html-batch\' answers nil for."
+  (unless (seq-some (lambda (text) (string-search overblock-md--marker text))
+                    texts)
+    (string-join (mapcar #'overblock-md--verbatim-math texts)
+                 (format "\n\n%s\n\n" overblock-md--marker))))
+
+(defun overblock-md--batch-pieces (page texts)
+  "Return the HTML of each of TEXTS out of PAGE, or nil.
+Nil where the marker did not come back once between every pair, which
+is the one answer a caller has to be ready for."
+  (when-let* ((page)
+              (pieces (split-string
+                       page
+                       (format "<p>[ \t\n]*%s[ \t\n]*</p>"
+                               overblock-md--marker))))
+    (and (= (length pieces) (length texts)) pieces)))
+
+(defun overblock-md-html-batch-async (texts callback)
+  "Convert TEXTS in one process and hand the HTML of each to CALLBACK.
+CALLBACK is called with the list, in the order of TEXTS, or with nil
+where the converter is missing, failed, or answered without its marker
+between every pair — the same answers `overblock-md-html-batch\' gives,
+and a caller has to be ready for nil either way.
+
+The point of it is that nothing waits: a buffer of doc strings costs a
+process, and a process that is waited for is a frozen Emacs.  Measured
+with pandoc on eight doc strings, the call took 145 milliseconds of
+which the reader felt every one; asked for like this the reader feels
+none, and the renderings arrive a moment later.
+
+The process is killed where the buffer that asked dies first."
+  (if-let* ((program (overblock-md-program))
+            (joined (overblock-md--batch-text texts)))
+      (let* ((output (generate-new-buffer " *overblock-md*"))
+             (buffer (current-buffer))
+             (process
+              (make-process
+               :name "overblock-md"
+               :buffer output
+               :command program
+               :noquery t
+               :connection-type 'pipe
+               ;; Standard error to a pipe that throws it away.  Not
+               ;; `:stderr nil', which mixes it into the output: pandoc
+               ;; warns there about the math it leaves alone and about
+               ;; the arguments it means to retire, and one such line
+               ;; came back as the first paragraph of the rendering.
+               :stderr (make-pipe-process
+                        :name "overblock-md-stderr"
+                        :buffer nil
+                        :noquery t
+                        :filter #'ignore
+                        :sentinel #'ignore)
+               :sentinel
+               (lambda (process _event)
+                 (unless (process-live-p process)
+                   (let ((page (and (eq (process-exit-status process) 0)
+                                    (with-current-buffer output
+                                      (buffer-string)))))
+                     (kill-buffer output)
+                     (when (buffer-live-p buffer)
+                       (with-current-buffer buffer
+                         (funcall callback
+                                  (overblock-md--batch-pieces page
+                                                              texts))))))))))
+        (process-send-string process joined)
+        (process-send-eof process)
+        process)
+    (funcall callback nil)
+    nil))
+
+(defun overblock-md-render-regions (regions kind text show)
+  "Render the REGIONS that want a rendering of KIND, in one process.
+REGIONS are conses of buffer positions.  TEXT is called with the bounds
+of one and answers its markdown; SHOW is called with the bounds and the
+HTML of one and draws it, and takes nil for the HTML where the batch
+came back without its marker between every pair — it then converts on
+its own.  Nothing is waited for: the renderings arrive together a
+moment later, through `overblock-md-html-batch-async\'.
+
+`overblock-live-wanted-p\' says which regions want rendering, and says
+it again when the answer arrives: the reader has clicked, typed and
+moved on while the process ran.  Markers and not positions for the
+same reason — a paragraph typed above the regions while the converter
+ran moved every one of them, and the renderings landed a paragraph too
+high.  Nothing happens where no converter is installed."
+  (when-let* (((overblock-md-program))
+              (wanted (seq-filter (lambda (region)
+                                    (overblock-live-wanted-p (car region)
+                                                             (cdr region) kind))
+                                  regions))
+              (marked (mapcar (lambda (region)
+                                (cons (copy-marker (car region))
+                                      (copy-marker (cdr region) t)))
+                              wanted)))
+    (overblock-md-html-batch-async
+     (mapcar (lambda (region) (funcall text (car region) (cdr region))) marked)
+     (lambda (htmls)
+       (dolist (region marked)
+         (let ((html (pop htmls)))
+           (when (overblock-live-wanted-p (car region) (cdr region) kind)
+             (funcall show (car region) (cdr region) html)))
+         (set-marker (car region) nil)
+         (set-marker (cdr region) nil))))))
+
+(defun overblock-md--verbatim-math (md)
+  "Return MD with its display-math blocks wrapped in <pre>.
+A $$ block carries its line structure on purpose, one equation to a
+line, and shr fills a paragraph: math that stays text comes back as
+one rewrapped soup.  <pre> passes through every converter as raw HTML
+and shr keeps its lines.
+
+Whatever the display can draw, because a fragment stays text for more
+reasons than that: a display can draw images and still have no LaTeX
+to make one with, and a fragment LaTeX cannot compile stays text on
+any display.  The wrapping costs a preview nothing, since the block is
+matched across its lines and replaced whole."
+  ;; A cell without display math is the common one, and the replacement
+  ;; would copy it twice to find that out.
+  (if (not (string-search "$$" md))
+      md
+    (replace-regexp-in-string
+     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
+     "<pre>$$\n\\1$$</pre>"
+     md)))
+
+(defun overblock-md--tag-table (dom)
+  "Render the table DOM and mark the text it covers.
+`overblock-md--unstow-math' leaves marked text as text.  A table is
+padded to
+the width of its text, and a preview image is never as wide as the
+text it replaces, so a formula in a cell would pull the columns of its
+row out of line."
+  (let ((start (point)))
+    (shr-tag-table dom)
+    (put-text-property start (point) 'overblock-md--table t)))
+
+(defun overblock-md--image-file (src)
+  "Return the readable local image file that SRC names, or nil.
+Markdown writes `![a figure](figure.png)', and a path like that
+belongs to the directory of the buffer's own file.  An absolute path and a
+`file://' URL name the file directly; anything with another scheme is
+not ours to open."
+  (when-let* ((path (cond ((string-prefix-p "file://" src)
+                           (url-unhex-string (substring src 7)))
+                          ((not (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:"
+                                                src))
+                           src)))
+              ((not (string-empty-p path)))
+              (file (expand-file-name path))
+              ((file-readable-p file))
+              ((image-supported-file-p file)))
+    file))
+
+(defun overblock-md--tag-list (dom)
+  "Render the list DOM, and open a paragraph only where no list is open.
+A list nested in a list is one list to the reader, and shr opens a
+paragraph — a blank line — before and after every list: five source
+lines of a list with two nested items came back as seven, in three
+groups the writer never wrote, and the rendering stood taller than the
+text it covers.  `shr-list-mode' is what says a list is open already.
+
+Outside a list, shr's own handler and its blank lines: a list wants
+air between itself and the prose around it."
+  (let ((ordered (eq (dom-tag dom) 'ol)))
+    (if (not shr-list-mode)
+        (if ordered (shr-tag-ol dom) (shr-tag-ul dom))
+      (shr-ensure-newline)
+      (let ((shr-list-mode
+             (if ordered
+                 (max 1 (string-to-number (or (dom-attr dom 'start) "1")))
+               'ul)))
+        (shr-generic dom))
+      (shr-ensure-newline))))
+
+(defun overblock-md--tag-dd (dom)
+  "Render the definition DOM under its term, with no blank line between.
+Pandoc wraps the description of a definition in a paragraph and shr
+opens a paragraph with a blank line, so every entry of a numpydoc
+section came out three lines where its source is two: a rendered doc
+string stood half again as tall as the one the writer wrote, and the
+code below it was pushed that far down the screen.  Only the first
+paragraph is unwrapped — a description of two paragraphs still reads as
+two.
+
+Otherwise `shr-tag-dd', whose indentation this keeps: the description
+stands four columns in from its term, which is where numpydoc puts it
+in the source as well."
+  (shr-ensure-newline)
+  (let ((shr-indentation (+ shr-indentation
+                            (* 4 shr-table-separator-pixel-width)))
+        (opening t))
+    (dolist (child (dom-children dom))
+      (cond ((stringp child) (shr-insert child))
+            ((and opening (eq (dom-tag child) 'p))
+             (setq opening nil)
+             (shr-generic child))
+            (t (shr-descend child))))))
+
+(defun overblock-md--tag-img (dom)
+  "Draw the image DOM names when it is a file, and leave the rest to shr.
+shr fetches an image with `url-queue-retrieve', which answers long
+after the cell is rendered, so the rendering keeps the grey placeholder
+that shr leaves in the meantime: measured with a relative path, an
+absolute one and a `file://' URL alike, every local image stayed a
+placeholder.  A file on disk needs no fetching.
+
+The alt text carries the image, and the figure is capped like a
+result's.  Where the alt text is empty the file's name stands in, so a
+display that draws no image still says which figure is there; a terminal
+gets that label with no display property at all, since shr's own
+placeholder is an image and would swallow it."
+  (let* ((src (or (dom-attr dom 'src) ""))
+         (alt (dom-attr dom 'alt))
+         (file (or (overblock-md--image-file src)
+                   (overblock-md--remote-file src))))
+    (cond
+     (file
+      (let ((label (if (and alt (not (string-empty-p alt)))
+                       alt
+                     (format "[%s]" (file-name-nondirectory file))))
+            (limit (overblock-image-limit)))
+        (insert (if (display-images-p)
+                    (propertize label 'display
+                                (apply #'create-image file nil nil
+                                       (and limit (list :max-height limit))))
+                  ;; A terminal draws no image, and shr's placeholder is
+                  ;; itself an image: its display property would swallow
+                  ;; the label under it and leave a blank row.
+                  label))))
+     ;; A remote image this package did not fetch — the option is off,
+     ;; the display draws none, or the fetch failed before — stays its
+     ;; alt text.  Not handed to shr: `shr-tag-img' fetches it with
+     ;; `url-queue-retrieve' whatever this package decided, so the
+     ;; option that says to ask the network for nothing asked anyway,
+     ;; and the answer came long after the cell was rendered.
+     ((string-match-p "\\`https?://" src)
+      (insert (or alt "")))
+     (t (shr-tag-img dom)))))
+
+(defun overblock-md--shown-p (pos)
+  "Return non-nil where the text at POS is worth showing to a reader.
+Two markups say the same thing twice.  A run the mode marked
+`invisible\' is markup a markdown mode has already replaced with a
+face — that is how eglot renders documentation, and what it hides is
+the asterisks and the backticks.  The adornment under a
+reStructuredText section is the other: the face on the title says it is
+a title, and the row of dashes under it says it again."
+  (and (not (get-text-property pos 'invisible))
+       (not (memq 'rst-adornment
+                  (ensure-list (get-text-property pos 'face))))))
+
+(defun overblock-md-fontified (text mode)
+  "Return TEXT fontified by MODE, as a rendering of its markup.
+No process: MODE\'s own font lock is the renderer, which is how eldoc
+shows what a language server sends it — see `eglot--format-markup\'.
+`rst-mode\' knows a reStructuredText section and `gfm-view-mode\' the
+markup of markdown, and each leaves the text where the writer put it,
+so the rendering is exactly as tall as the source and no code below it
+moves.
+
+What a converter does better: it knows the markup it is given, lays a
+table out in columns and fills a paragraph to the window.  What this
+does better: it costs no process and keeps the lines as written."
+  (with-temp-buffer
+    (setq-local markdown-fontify-code-blocks-natively t)
+    (insert text)
+    (let ((inhibit-message t)
+          (message-log-max nil))
+      (ignore-errors (delay-mode-hooks (funcall mode)))
+      (font-lock-ensure))
+    (let ((pos (point-min))
+          (pieces nil))
+      (while (< pos (point-max))
+        (let ((next (or (next-property-change pos) (point-max))))
+          (when (overblock-md--shown-p pos)
+            (push (buffer-substring pos next) pieces))
+          (setq pos next)))
+      ;; The dropped adornment leaves the newline that followed it, and
+      ;; two newlines in a row read as a blank line the writer did not
+      ;; put there.
+      (replace-regexp-in-string
+       "\n\n\n+" "\n\n" (apply #'concat (nreverse pieces))))))
+
+(defvar overblock-md-width nil
+  "The number of columns a rendering is filled to, or nil for shr\'s own.
+A rendering happens in a temporary buffer, which no window shows, and
+shr fills to the width of the frame there.  A block is narrower than
+that in every case that matters — a window split in two, a doc string
+indented into a class — and the rows that overran were truncated at the
+window\'s edge, taking the end of a sentence with them.
+
+Bound by the mode that renders, which is the one that knows where its
+block sits; `overblock-window-width\' measures the room.")
+
+(defun overblock-md--background (face)
+  "Return the background FACE paints with, or nil where it paints none.
+FACE is what a text property holds: a named face, a plist, or a list of
+either."
+  (cond
+   ((null face) nil)
+   ((facep face)
+    (let ((background (face-attribute face :background nil t)))
+      (unless (memq background '(nil unspecified)) background)))
+   ((keywordp (car-safe face))
+    (or (let ((background (plist-get face :background)))
+          (unless (memq background '(nil unspecified)) background))
+        (overblock-md--background (plist-get face :inherit))))
+   ((consp face) (seq-some #'overblock-md--background face))))
+
+(defun overblock-md--rectangle (lines background)
+  "Return LINES painted BACKGROUND over their whole width.
+A fenced block of code and the rows of a table wear a background, and
+shr paints it exactly as far as the text of each row reaches: the block
+came out as a ragged patch of colour, one edge per line of code.  The
+rows are squared off to the longest of them, and the columns before the
+text — the indentation of a line of code — are painted as well."
+  (let ((width (apply #'max (mapcar #'string-width lines)))
+        (paint (list :background background)))
+    (mapcar (lambda (line)
+              ;; `truncate-string-to-width' pads to a display width and
+              ;; keeps the text properties of what it pads, which is
+              ;; what the row carries; `string-pad' measures with
+              ;; `length' and would leave a row of wide characters short.
+              (let ((padded (truncate-string-to-width line width 0 ?\s)))
+                ;; Under whatever each character already wears, so a bold
+                ;; header cell stays bold and only the bare columns gain
+                ;; a colour.
+                (add-face-text-property 0 (length padded) paint t padded)
+                padded))
+            lines)))
+
+(defun overblock-md--squared (text)
+  "Return TEXT with every run of painted rows squared off.
+A row is painted where its last character is: shr ends a table row and
+a line of code with the face the block wears, and a row it left short
+is a row of colour that stops in the middle of the block.
+
+A blank line wears no face and belongs to the run all the same where
+code stands on both sides of it — held back until a painted row follows,
+because the blank line that ends a block belongs to nothing."
+  (let (rows run background held)
+    (cl-flet ((flush ()
+                (when run
+                  (setq rows (nconc rows (overblock-md--rectangle
+                                          run background))
+                        run nil))
+                (setq rows (nconc rows held) held nil)))
+      (dolist (line (split-string text "\n"))
+        (let ((paint (and (> (length line) 0)
+                          (overblock-md--background
+                           (get-text-property (1- (length line))
+                                              'face line)))))
+          (cond
+           ((and paint (equal paint background))
+            (setq run (nconc run held (list line)) held nil))
+           (paint (flush) (setq background paint run (list line)))
+           ((and run (string-blank-p line))
+            (setq held (nconc held (list line))))
+           (t (flush)
+              (setq background nil rows (nconc rows (list line)))))))
+      (flush))
+    (string-join rows "\n")))
+
+(defun overblock-md-columns (&optional indent)
+  "Return the columns a rendering has, INDENT of them spent on indenting.
+Nil where no window shows this buffer, which leaves the filling to shr.
+One column is kept back: a row that fills the last one wraps, and a
+wrapped row is two.  `overblock-window-columns\' counts them in the
+window\'s own font, so a buffer under `text-scale-adjust\' is filled to
+what it can show."
+  (when-let* ((columns (overblock-window-columns)))
+    (max 20 (- columns (or indent 0) 1))))
+
+(defun overblock-md-rendered (md &optional html)
+  "Render the markdown MD to a propertized string.
+`overblock-md-command' produces HTML, shr renders it, and LaTeX
+fragments become preview images.  With HTML, that is rendered instead
+and MD is not converted again: `overblock-md-html-batch' converts a
+whole buffer of cells at once.
+
+shr renders without its font arithmetic here: a cell's text hangs on
+source lines at whatever indent the buffer wears, and only literal
+columns survive a move.  The `:align-to' specs shr leaves behind are
+flattened to real spaces for the same reason.
+
+The answer is nil where no converter is installed and no HTML is given.
+A caller leaves the markdown as it stands then, which is what a reader
+without a converter has to see."
+  ;; Only the converter's absence answers nil.  An empty cell converts to
+  ;; empty HTML, which parses to no document at all, and shr renders that
+  ;; as the empty string — a cell with a bar and nothing under it, which
+  ;; is what an empty cell has to be.
+  (when-let* ((page (or html (overblock-md--html
+                              (overblock-md--verbatim-math md)))))
+    (let* ((stowed (overblock-md--stow-math page))
+           (dom (with-temp-buffer
+                  ;; The math is taken out first: shr fills at the
+                  ;; spaces it finds, and a formula it breaks is a
+                  ;; formula nothing recognizes afterwards.
+                  (insert (car stowed))
+                  (libxml-parse-html-region (point-min) (point-max))))
+           (shr-use-fonts nil)
+           ;; In columns, because `shr-use-fonts' is off above.
+           (shr-width overblock-md-width)
+           ;; shr marks a list item with an asterisk, which is what the
+           ;; markdown under the rendering already says: a rendered list
+           ;; read exactly like its source.
+           (shr-bullet "• ")
+           ;; Emacs 31 slices an image taller than this into a row for
+           ;; each line of the window it is drawn in.  There is no window
+           ;; here — the rendering happens in a temporary buffer and is
+           ;; laid out over source lines afterwards — and a slice is
+           ;; measured against one, so the images come whole and
+           ;; `overblock-image-limit' caps them as it always did.
+           (shr-sliced-image-height nil)
+           ;; shr has no function for a =th=, so a header cell reads
+           ;; like any other row, and it draws code in a fixed pitch
+           ;; face, which says nothing in a buffer that is fixed pitch
+           ;; throughout: code came out as prose.
+           (shr-external-rendering-functions
+            `((th . ,(lambda (dom) (shr-fontize-dom dom 'bold)))
+              (code . ,(lambda (dom)
+                         (shr-fontize-dom dom 'overblock-md-code)))
+              (dd . overblock-md--tag-dd)
+              (ul . overblock-md--tag-list)
+              (ol . overblock-md--tag-list)
+              (img . overblock-md--tag-img)
+              (table . overblock-md--tag-table)
+              ,@shr-external-rendering-functions)))
+      (with-temp-buffer
+        (shr-insert-document dom)
+        (overblock--flatten-alignment)
+        ;; Trim whole blank lines, never a first line's indent: the
+        ;; columns are literal now, and a table that starts the cell
+        ;; must keep the indent its sister rows have.
+        ;; Capped here as well as in a result: shr draws a `data:' or a
+        ;; `cid:' image itself, and it knows nothing of
+        ;; `overblock-image-height' — such a figure came back at its own
+        ;; height, which is the block the wheel cannot get past.
+        (overblock-image-cap
+         (overblock-md--squared
+          (overblock-md--unstow-math
+           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")
+           (cdr stowed))))))))
+
+(provide 'overblock-md)
+;;; overblock-md.el ends here

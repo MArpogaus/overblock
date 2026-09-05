@@ -1,0 +1,411 @@
+#+TITLE: How overblock-pycell works
+#+OPTIONS: toc:2
+
+This document describes the implementation.  The [[file:../README.org][README]] tells you how
+to use the package.
+
+The text uses these terms:
+
+- *cell*: a piece of a Python file between two cell markers.
+  code-cells finds the markers.
+- *block*: what overblock-pycell shows over a region of the buffer, or after it.
+  A result is one, a rendered markdown cell is another.
+- *shell*: the inferior Python process that =python.el= starts.
+- *mirror*: the copy of the output that the block shows.
+
+Two packages of this repository carry what is not Python here.
+overblock puts a block on the screen and holds the run loop that both
+notebooks here share — [[file:overblock.org][its notes]] — and
+overblock-md turns markup into a string a block can show —
+[[file:overblock-md.org][its notes]].  What is in this document is the part
+that knows about Python.  The other notebook,
+[[file:overblock-rmd.org][overblock-rmd]], runs R chunks through the
+same loop.
+
+* How a result gets into the buffer
+
+=python-shell-send-string= puts the code into =__PYTHON_EL_eval=.
+This function returns the value of a trailing expression.  The value
+goes through the display hook of IPython, where comint-mime has its
+renderers.
+
+The output therefore goes into the REPL as before.  overblock-pycell only
+mirrors it:
+
+1. It puts a marker at =process-mark= before it sends the cell.
+2. It waits for the next prompt.
+3. It copies the region up to the prompt out of the REPL.  The copy
+   keeps the text properties, and therefore the images.
+
+Those three steps are =overblock-run='s and not this package's: the
+loop is the same whatever language is at the other end, and this
+package answers it with a plist — how to reach the interpreter, how to
+send a cell, what a prompt of it looks like, how to clean what came
+back, and how the result looks.  =overblock-pycell--backend= is that
+plist.  See
+[[file:overblock.org][the layer's notes]] for the loop, and the
+commentary of =overblock-run.el= for the slots.
+
+What the REPL shows is not what a copy of it shows, and two things
+have to change on the way out:
+
+- *The stretches.* comint-mime renders a DataFrame as a vtable, which
+  sets the width of a space in pixels measured for the window of the
+  REPL.  shr, in a markdown cell, says where a space ends instead.
+  Both land elsewhere in a block that is shown indented, so each
+  stretch becomes as many real spaces as it is characters wide.  A
+  vtable measures its header in its own face, so those widths are
+  fractions of a character and a header label can stand a column left
+  of its data.
+- *The bindings.* A vtable carries the keymap of a live table, and no
+  binding of it can find a table in a copy.  The =keymap=,
+  =local-map=, =mouse-face= and =help-echo= properties therefore go:
+  a block must not offer a click it cannot answer.
+
+** A table in a block, and a table in a buffer
+
+The copy of a vtable carries the table object in its =vtable= text
+property, and that object holds the columns and the rows.  overblock-pycell reads
+them and lays the table out again for the block: each column as wide as
+its widest cell, in characters, and the names of the columns in bold.
+Nothing in that layout can be moved by a face, which the stretches of
+the original could: a vtable measures a header cell in the face of a
+header, so a copy shown in another face had its header squashed and its
+rows apart.
+
+=overblock-pycell-pop-output= does not copy that text.  It calls =vtable-insert=
+with the table object, so the buffer holds a table that vtable drew for
+that window: sorting, narrowing and moving a column all work there.
+The block stays a fast, aligned, plain rendering; the buffer is where a
+reader sorts.
+
+The result rides the newline that ends the cell; the block layer below
+puts it there.
+
+overblock-pycell writes nothing into the buffer.  Files, LSP and undo see no
+change.  There is one exception: the last cell of a buffer gets a
+final newline if it has none, because the block needs that character.
+
+** The layer under it
+
+Results and rendered markdown cells are two callers of one layer,
+which knows nothing of Python, cells or markdown: a caller renders
+text and hands it over.  =overblock-show= takes the region and a
+plist, and the layer decides which slot each row of the block lands
+in and how a rendering is dealt over the source lines.  See
+[[file:overblock.org][the layer's notes]].
+
+What stays in =overblock-pycell.el= is the part that knows about Python: the
+cells, the process, the commands, and what a prompt of that shell
+looks like.
+
+One thing the layer asks of this package: a block hangs on the
+newline that ends its region, so the last cell of a buffer gets a
+final newline if it has none.  That is the one change overblock-pycell makes to
+the text.
+
+** The header bars
+
+=overblock-pycell-result-buttons= and =overblock-pycell-markdown-buttons= hold the buttons
+of the two bars — the shape that =overblock-button-type= asks
+customize for — and =overblock-buttons= walks a list of them.  A
+descriptor names the glyph candidates rather than one glyph, because a
+terminal draws differently from a graphic frame.
+
+The fold arrow and the spinner are not in those lists.  They are not
+buttons of the reader's choosing: they say what the result is doing.
+
+** The bar over a boundary line
+
+A cell carries a bar of its own, in place of its =# %%= line: the
+label is the name written after the marker, and the buttons are
+=overblock-pycell-cell-buttons=.  A rendered markdown cell has had one since it
+was rendered; the two are now drawn by one function, and the code
+cell's is put there by =overblock-pycell--cell-bars=.
+
+The overlay, the strings it hangs the bar on, the width it is cut to
+and what point does to it are the layer's: [[file:overblock.org][the layer's notes]].
+
+*** What draws them, and when
+
+Not =jit-lock=, which is where a decoration of this kind belongs.  One
+error in any other jit-lock function skips the rest of them, and a
+=python-ts-mode= buffer whose grammar does not match the mode signals
+from redisplay: measured in the author's own configuration, not one bar
+was ever drawn there.  So the bars are drawn once when the mode starts
+and again from =after-change-functions=, over the lines a change
+touched.
+
+A bar is rebuilt only when the line it stands on or the width of the
+window has changed.  Both are in the key the overlay carries, so the
+change hook costs a comparison for a line that only moved.
+
+Measured on a notebook of two hundred cells, in a graphical frame:
+
+| what                                    | cost     |
+|-----------------------------------------+----------|
+| the mode turning on, barring every cell | 52.3 ms  |
+| the change hook, one line               | 0.003 ms |
+| a keystroke, with the hook              | 2.170 ms |
+| a keystroke, with the hook taken off    | 2.180 ms |
+| a change of width, every bar again      | 38.7 ms  |
+| a change of anything else               | 0.618 ms |
+| point over a boundary line and back     | 0.003 ms |
+
+The two keystroke rows are the ones worth reading together: what a
+keystroke costs in that configuration is what it cost before the bars
+existed.  Two hundred cells hold two hundred bars and three other
+overlays at the end of that run, so nothing accumulates.
+
+*** One line, one bar
+
+Three things can want a bar on a boundary line: the pass over the
+buffer, the rendering of a markdown cell, which brings its own, and the
+pass again after an edit.  =overblock-pycell--sole-bar= is the rule — the bar that
+belongs to the line stays, every other one goes — and each kind of line
+says which kind belongs:
+
+| the line                          | the bar                        |
+|-----------------------------------+--------------------------------|
+| no longer a boundary              | none                           |
+| =# %% [markdown]=, rendered       | the block's own, =markdown=    |
+| =# %% [markdown]=, showing source | =source=, with a render button |
+| =# %%=                            | =code=                         |
+
+Without that rule three bars stood on the boundary line of one rendered
+cell: the first pass barred the cell before it was rendered, the
+rendering added its own, and a later walk added a third.
+
+A bar is looked for on its line and not at one position.  The overlay
+advances off the start of the line when text is inserted there — it must,
+or typing before the marker would be typing inside the bar — so a search
+at the start of the line found nothing, and a line that had stopped
+being a boundary kept a bar whose buttons then moved the cell that
+enclosed it.
+
+* Moving a cell
+
+=code-cells-mode= puts the cell boundaries into =outline-regexp=, so a
+cell is an outline subtree and =outline-move-subtree-down= moves it.
+It cuts the text out and puts it back, where
+=code-cells-move-cell-down= transposed two regions with
+=transpose-regions= — and a transpose leaves an overlay where the text
+used to be, so the result of one cell ended up under the other.  It
+also writes the final newline a last cell may lack, which a transpose
+does not: without it the two cells came back as =# omega# %%=, one
+cell where there were two.
+
+=overblock-pycell-move-cell-down= reads what both cells show, moves the text,
+and puts each block back on the cell it belongs to.  Point ends where
+the moved cell now begins, so the two new ranges are asked of the
+buffer rather than counted from the old positions and lengths.
+
+Three things the move has to know:
+
+- The move starts at the cell's own boundary line.  =code-cells-mode=
+  puts the major mode's headings into =outline-regexp= as well, so a
+  =def= inside a cell is an outline heading too: from inside one,
+  =outline-back-to-heading= finds the def and the move refuses with
+  "Cannot move past superior level".
+- =overblock-pycell--stale-when-edited= stands down while the move runs.  The text
+  lands at the first character of the cell the moved cell passes,
+  which is where that cell's anchor begins, so its
+  =insert-in-front-hooks= ran and took its result down — a cell with
+  nothing to do with the move lost its result on every move.
+- What is left of the moved cell's own blocks is swept: its text was
+  cut out, so its parts outlived the anchor that owned them.
+
+Point keeps its offset inside the cell that moved, so a repeated click
+on a header button keeps moving the same cell.  A rendered markdown
+cell is rendered again after the move, because its pieces hang on the
+source lines and those lines have moved.
+
+The command signals before it takes anything off: outline refuses to
+move the first cell up or the last one down, and a refused move leaves
+the buffer as it was.
+
+* The live mirror
+
+A ticker runs each 0.2 seconds while a cell runs.  It shows the output
+so far, a spinner and a stopwatch.  The ticker itself, and the bound
+that keeps it cheap, are the runner's:
+=overblock-run-output-head= reads the head of the output and
+=overblock-run-total= counts the lines as they arrive, and
+[[file:overblock.org][the layer's notes]] carry the measurements.
+
+What this package answers there is what a prompt of IPython looks like
+and how to clean it away: =overblock-pycell--output-head= hands
+=overblock-pycell-max-lines=, =overblock-pycell-max-line-length= and
+=overblock-pycell--clean= to that bounded read, and
+=overblock-pycell--clean= takes the prompts and the =Out[N]= labels off
+and cuts the copy loose from the shell.
+
+* Cells with IPython syntax
+
+A cell can hold syntax that only IPython reads: a magic such as
+=%matplotlib inline=, a shell escape such as =!ls=, or a help request
+such as =print?=.  jupytext files hold such cells.
+
+=overblock-pycell--ipython-syntax-p= reads the buffer with =syntax-ppss=.  Only
+a line at the top level counts.  A continuation line inside brackets
+can start with a modulo sign.  A comment can end with a question
+mark.  A cell of plain Python must not go down the IPython road,
+because a shell without IPython answers with a =NameError=.
+
+Such a cell goes to =get_ipython().run_cell=.  overblock-pycell sends the code
+as base64, because this keeps quotes and newlines safe.  Two things
+follow: the tracebacks count the lines from the top of the cell, and
+a shell without IPython reports that it does not know =get_ipython=.
+
+* Markdown cells
+
+A cell with the marker =# %% [markdown]= renders in place.
+
+The rendering hangs on the source lines, one piece to a line.  A cell
+therefore has a height in lines and moves as normal text.  An earlier
+version drew the whole cell as one display string, and the view then
+jumped by a whole cell.
+
+The cell keeps the height of its source, or it becomes shorter: a
+three line table can render as one line, and the spare lines then go
+under a cloak.  The cloak, the pieces and the image that cannot ride
+a display property are the layer's — [[file:overblock.org][its notes]] —
+and the converter that turns the markdown into the string is
+overblock-md's: [[file:overblock-md.org][its notes]].
+
+The cells are rendered by the live cycle of the layer, as the prose of
+a Markdown file is: =overblock-pycell-md-render-all= renders whatever
+is not rendered yet and is not the cell point is in, and the whole
+buffer goes to the converter in one process that nothing waits for,
+which is what =overblock-md-render-regions= is for.  A moved cell is
+rendered at once, because point goes back into it and the cycle leaves
+the cell point is in alone.
+
+* Scrolling
+
+A result block is one buffer line, because it is one display string.
+=next-line= and =previous-line= cross it in one step.  A block with an
+image is worse: the wheel does not cross it in a symmetric way and
+=scroll-up-line= does not cross it at all.  The measurements and the
+reason are the layer's: [[file:overblock.org][the layer's notes]].
+
+These commands do pass: =scroll-up= and =scroll-down=, which move a
+page, and =next-line=, which moves point.  A folded block also
+passes.  =overblock-pycell-pop-output= shows the figure in a buffer of its own.
+
+** The cost of a rendered markdown cell
+:PROPERTIES:
+:CUSTOM_ID: the-cost-of-a-rendered-markdown-cell
+:END:
+
+A rendered markdown cell makes each scroll event more expensive.
+Measured again on =demo/scrolling.py= in a window of 1032x700 pixels:
+1.5 ms for an event downwards and 2.5 ms upwards, against 1.0 ms and
+1.4 ms for the same file with the blocks off.  The code before the block
+layer measures the same on that machine, to the tenth of a millisecond.
+The numbers a reader gets depend on the machine; the ratio does not.
+
+The cost comes from the face runs, and not from the height.  Rendered
+Markdown holds several hundred face runs in a line.  Source code
+holds a few.  Forty lines of plain output scroll as fast as none, and
+twelve lines with many face changes cost three times as much.
+
+Turning the mode off gives the plain source and the speed back.
+
+
+* What the hot paths cost
+
+Three audits read this package with no history of it, and their findings
+were measured before and after on the same inputs.
+
+The output of a running cell, cleaned and shown five times a second:
+
+| what                              | before   | after   |
+|-----------------------------------+----------+---------|
+| clean 100000 characters, one line | 47.2 ms  | 3.3 ms  |
+| clean 10000 lines                 | 420.9 ms | 28.5 ms |
+| find the table in 10000 lines     | 637.9 ms | 0.0 ms  |
+| one tick over 100000 on one line  | 68.1 ms  | 1.1 ms  |
+
+A fourth audit measured the tick itself, in a graphic frame with the
+nerd font the bars are drawn in:
+
+| what                                   | before   | after    |
+|----------------------------------------+----------+----------|
+| =overblock-pycell--header=             | 0.338 ms | 0.231 ms |
+| =overblock-pycell--update=, whole tick | 0.378 ms | 0.298 ms |
+
+- The table is read off a text property that =overblock-repl-detach=
+  left on the text, instead of being searched for in the output.  A
+  popped-out result walks those runs and draws each table live, with
+  what the cell printed around them in its place.
+- =overblock-pycell--clean= copies through a temporary buffer only where the text
+  carries a display property, which is what a rendering leaves behind.
+  Its =replace-regexp-in-string= pass asks a search first, as the three
+  others in the package do, since that function copies its argument
+  twice whether it matches or not.
+- The head of the output is bounded in characters as well as in lines,
+  which is what took a tick from 68 milliseconds to one.  The bound holds
+  only where no escape sequence begins inside it: comint-mime sends an
+  image as one, and a cut inside it drops the figure — measured, a result
+  of no characters at all.  That bound now lives in
+  =overblock-run-output-head=, with the rest of the loop.
+
+The layer's own share of that tick — the glyphs asked for once and
+kept, the pieces dealt off a walking list, the bounded read of a long
+output — is in [[file:overblock.org][its notes]].  The two rows above
+name what =overblock-run-header= and =overblock-run-update= do, which
+is where that work moved.
+
+And what a keypress does, which is where the rest of the cost was:
+
+| what                                     | before | after  |
+|------------------------------------------+--------+--------|
+| move one markdown cell among sixty       | 69 ms  | 18 ms  |
+| fold a result of 10000 lines, four times | 13 ms  | 0.6 ms |
+
+- A move renders the two cells that moved and nothing else, rather than
+  every markdown cell in the buffer.
+- A result counts its lines once and keeps the number in its record, so
+  a fold reads it instead of scanning the output again.
+
+The scrolling was measured with bursts of wheel events shaped like a
+flick of a trackpad, over forty cells with results, figures and rendered
+markdown, under the author's own configuration:
+
+| what                      | ms an event      | a sweep to the end | reversals |
+|---------------------------+------------------+--------------------+-----------|
+| this package              | 2.1 down, 1.2 up | 1391 ms            |         0 |
+| the code before the layer | 2.7 down, 3.7 up | 1834 ms            |         0 |
+
+The two were measured one after the other, on the same notebook and the
+same frame.
+
+* The tests
+
+=make test= runs the batch suites, one to a file, and a test sits with
+the code it checks.  =test/overblock-pycell-test.el= is this package's: the clean
+of the output, the body lines, the cell markers, the folds, the edit
+buffers, the mirror, and moving a cell.  A test that names only what
+another package owns lives in that package's suite instead;
+[[file:overblock.org][the layer's notes]] and
+[[file:overblock-md.org][overblock-md's]] list those.
+
+=make test-live= sends real cells down a real IPython and reads back
+what the blocks show.  It exists because two faults — a read-only
+notebook wedging the pass, and a one-line result painted in comint's
+prompt face — survived every batch check: no batch test starts a
+process.  Where no ipython is installed the target says so and passes.
+
+=make scroll= needs a graphic display.  It builds a buffer with
+markdown cells and scrolls through it with
+=pixel-scroll-precision-scroll-up= and
+=pixel-scroll-precision-scroll-down=.  The test fails on three
+things:
+
+- The window moves against the direction of the scroll.
+- The scroll command signals in the middle of a cell.
+- The end of the buffer stays out of reach.
+
+The test uses the default values of the scroll options.  The package
+does not change these options.

@@ -1,0 +1,249 @@
+#+TITLE: How overblock-md works
+#+OPTIONS: toc:2
+
+This document describes the implementation.  The
+[[file:../README.org][README]] tells you how to use the package.  The
+block layer under it is another package of this repository:
+[[file:overblock.org][its notes]].
+
+The package is two files.  =overblock-md.el= turns markup into one
+propertized string and shows nothing itself; =overblock-md-preview.el=
+is a minor mode that shows a Markdown buffer over its own source, and
+is little more than the three answers the live cycle asks for.
+
+* Markup rendered
+
+=overblock-md-rendered= is markup in, one propertized string out.
+Nothing in it shows anything.
+
+** The converter
+
+=overblock-md-command= names the command that turns Markdown into
+HTML.  The candidates are =pandoc --mathjax --no-highlight -f
+markdown-implicit_figures=, =markdown_py -x tables -x fenced_code=,
+=cmark-gfm -e table=, =markdown= and =cmark=, in this order: the ones
+that can carry a table and a code fence first, and each one told to
+leave the math for the preview machinery.  Plain =pandoc= renders a
+formula itself, which left a document with no inline math at all.
+=markdown_py= without its extensions turns a table into one line of
+pipes and a fenced block into one line of words, and =cmark= and Perl
+=markdown= can do neither at all.
+
+=--no-highlight= because shr reads no CSS class, so the colours pandoc
+encodes in one are dropped and the only thing that survives its
+highlighting is the line anchor it hangs on each row of a code block.
+Measured on a document of 216 lines with three fenced blocks, pandoc
+spent 785 milliseconds of which 720 were the syntax definitions it
+loaded to paint them.  =overblock-pydoc-command= asks for the same for
+the same reason, with reStructuredText first, because that is what
+Python's own tools read; see [[file:overblock-pydoc.org][its notes]].
+
+=-f markdown-implicit_figures= because pandoc otherwise wraps an image
+that stands alone in a paragraph in a =figure= with a =figcaption=,
+which shr has no handler for: the alt text was drawn twice, once on the
+=img= and once as the caption.
+
+shr reads the HTML with libxml2.  Without libxml2 the markup stays
+plain text, and the mode reports which part is missing.
+
+=overblock-md-html-batch= sends many texts to the converter in one
+call.  It puts a marker between them and splits the HTML at that
+marker.  One process for a buffer is much faster than one for each
+region: 44 milliseconds a region with =markdown_py=, which is two
+seconds for fifty and nine for two hundred.  A caller falls back to one
+call apiece if the number of pieces does not match the number of texts.
+=overblock-md-html-batch-async= does not wait for the answer.
+
+A converter is a process that can fail, and the answer is nil where
+none is installed and nil where the one that is exits non-zero.  That
+check belongs where the program is called and not in each caller: a
+caller renders from the body of a minor mode, and a signal from here
+left the mode on with nothing rendered and took the rest of the hook
+that turned it on with it.
+
+** Font lock as the renderer
+
+=overblock-md-fontified= runs a major mode's own font lock over the
+text and keeps what it painted, which is how eldoc shows what a
+language server sends it.  =rst-mode= knows a reStructuredText section
+and =gfm-view-mode= the markup of Markdown, and each leaves the text
+where the writer put it, so the rendering is exactly as tall as the
+source and no line below it moves.
+
+What a converter does better: it knows the markup it is given, lays a
+table out in columns and fills a paragraph to the window.  What the
+font lock does better: it costs no process and keeps the lines as
+written.
+
+** Images
+
+shr fetches an image with =url-queue-retrieve=, which answers long after
+a rendering is done: a rendering made in a temporary buffer keeps the
+grey placeholder shr leaves in the meantime.  Measured with a relative
+path, an absolute one and a =file://= URL alike, every local image
+stayed a placeholder.
+
+=overblock-md--tag-img= therefore draws a file itself, through
+=shr-external-rendering-functions=.  The alt text carries the image, so
+a terminal still says what is there, and the figure is capped from the
+window.  An image named by URL — the Colab badge a notebook opens with
+— is fetched once into =~/.cache/overblock-images= and drawn from there
+like a local one; a URL that failed is not asked for again in the
+session.  Set =overblock-md-remote-images= to nil to leave such an
+image to shr.
+
+An image inside a link keeps the link: shr wraps whatever the renderer
+inserted, and =overblock-fill-props= writes the block's keymap only
+where the rendering has none of its own.
+
+A terminal draws no image, and shr's placeholder is itself an image:
+its display property swallows the text under it and leaves a blank row
+where a figure belongs.  So where images cannot be drawn the label goes
+in plainly — the alt text, or the file's name in brackets where there is
+none.
+
+Capping a figure to a share of the window is the layer's, because every
+caller of it wants the same cap: =overblock-image-cap= and
+=overblock-image-height=, in [[file:overblock.org][the layer's notes]].
+
+** Formulas
+
+A =$...$= or =$$...$$= fragment becomes a preview image.  The images
+live in =~/.cache/overblock-math=.
+
+The formulas take the shortest road.  What the converter renders stays
+text.  Only the rest becomes an image.  pandoc renders simple math as
+text by itself.
+
+A fragment that stays text is read as text, and pandoc with MathJax
+wrote =\(x_1\)=: the parentheses say nothing to a reader, so the
+delimiters come off and the dollars stay.
+
+A formula inside a table stays text as well.  A table is padded to the
+width of its text, and an image is never as wide as the text it
+replaces, so a row with a preview in it would stand out of line.  The
+table rendering marks the text it covers and the formula pass leaves
+marked text alone.
+
+A fragment whose preview fails stays text and the failure is remembered
+for the session: what caches a preview is the image file, so without
+that a rendering costs one LaTeX run per fragment every time.
+=overblock-md-forget-failed-previews= asks again.
+
+** Tables
+
+shr renders a table without rules, and it gives a header cell and
+inline code no face of its own: its answer for code is a fixed pitch,
+which says nothing in a buffer that is fixed pitch throughout.  The
+renderer draws =th= in bold and =code= in =overblock-md-code= through
+=shr-external-rendering-functions=.
+
+The rules are shr's to draw and it draws them badly here: a frame
+around a frame, one per cell, and a ragged end to every row.  The
+columns and the bold header carry the table instead.
+
+A rendered table is laid out in characters rather than pixels, so its
+columns line up over the fixed-pitch lines of a buffer.  Nothing in
+that layout can be moved by a face, which shr's own stretches could.
+
+** The width a rendering is filled to
+
+shr fills a paragraph to a width.  A rendering is made in a temporary
+buffer, which no window shows, and shr fills to the width of the frame
+there.  A block is narrower than that in every case that matters — a
+window split in two, a doc string indented into a class — and the rows
+that overran were truncated at the window's edge, taking the end of a
+sentence with them.
+
+So =overblock-md-width= is bound by the mode that renders, which is the
+one that knows where its block sits, and =overblock-md-columns=
+measures the room: the pixels =overblock-window-width= answers with,
+divided by the width of a character, less the columns the block is
+indented by.  One column is kept back, because a row that fills the
+last one wraps and a wrapped row is two.  Twenty columns is the floor:
+a rendering filled to five is a column of syllables.
+
+Nil is a legal answer, and it is what a buffer in no window gives.  The
+filling is then shr's own, and a caller that keeps its renderings makes
+them again when a window has the buffer:
+[[file:overblock-pydoc.org][overblock-pydoc's notes]] say how it
+follows the width.
+
+* The preview mode
+
+=overblock-md-preview-mode= is =overblock-live-start= with three
+answers: which regions, what to render them with, and when.  The
+showing, the hiding of the source under the rendering, and the edit
+that makes a rendering stale are the layer's.
+
+** Which regions
+
+The unit is the Markdown block and not the line, because a line of
+Markdown is often not Markdown at all.  Measured against pandoc: the
+three lines of a table render to a row apiece with the rule between
+them turned into empty cells, a line of a fenced block renders as a
+paragraph of code, and the lines of a list each render as a list of
+one.  The whole block reaches the converter and the rendering is dealt
+back over its lines, a piece to a line.
+
+A block is a fenced piece of code whole, and otherwise the run of lines
+between two blank ones.  =overblock-md-preview--fences= finds the fences
+first, and =overblock-md-preview--paragraphs= then walks the buffer with
+those bounds in hand: a fence is crossed in one jump, so a blank line
+inside one ends no paragraph.  Asked of every line instead, the
+question cost lines times fences — 64 milliseconds of every pass in a
+document of 900 lines with a dozen fences, and every pass is one the
+reader waits through.
+
+The walk starts at the top of the buffer whatever region it was asked
+about, because that is the only way to know whether the region begins
+inside a fence.  A fence that is never closed runs to the end of the
+buffer, which is what a reader sees while they are still typing it.
+
+Which regions is the one answer another mode may want to give itself,
+so it is a buffer-local variable: =overblock-md-preview-regions-function=
+is called with the bounds to look at and answers the regions in order.
+=overblock-rmd= sets it to the prose alone, because the fenced chunks
+of an Rmd file are R and are run rather than rendered.  The two walks
+are public for the same reason: =overblock-md-preview-fences= is where
+=overblock-rmd= takes its chunks from, and it is the walk that knows a
+fence from a line that looks like one.
+
+** When, and at what cost
+
+=overblock-md-preview-render-buffer= sends the whole buffer through one
+converter process and does not wait for it.  Measured on a document of
+216 lines, turning the mode on cost the reader 454 milliseconds of
+which the converter was 440; asked for asynchronously it costs 8 and
+the renderings arrive a moment later.  A block falls back to its own
+conversion where the answer comes back without the marker between every
+pair.
+
+=overblock-live-wanted-p= is asked twice: once to decide what to send,
+and again when the answer arrives, because the reader has clicked,
+typed and moved on while the process ran.
+
+A rendering also comes off an edit the mode did not see coming — a
+replacement over the buffer, a macro, an undo — through
+=overblock-stale-when-edited=.  The reader's own typing never reaches
+that hook: point landing on the line takes the rendering off first.
+
+A block that renders to nothing of its own, a lone HTML comment for
+one, is left as it is rather than blanked.
+
+* The tests
+
+- =test/overblock-md-test.el= — the converter, the batch of texts, the
+  math previews, the tables laid out in characters, and the images:
+  which paths name a file, that the file is drawn rather than shr's
+  placeholder, that a link on an image keeps the click, and that a
+  remote image stays shr's business.
+- =test/overblock-md-preview-test.el= — what counts as one Markdown
+  block, the fence inside a paragraph, the line at point showing its
+  source, the edit that drops a rendering, the answer of an
+  asynchronous conversion landing nowhere near point, and the mode
+  leaving nothing behind.
+
+A fifth of the whole suite renders markup and skips itself where no
+converter is installed.  =make test STRICT=1= makes that a failure
+instead, and the CI sets it.

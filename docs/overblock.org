@@ -1,0 +1,488 @@
+#+TITLE: How overblock works
+#+OPTIONS: toc:2
+
+This document describes the implementation.  The
+[[file:../README.org][README]] tells you how to use the package.  The four
+packages built on this layer have notes of their own:
+[[file:overblock-md.org][overblock-md]],
+[[file:overblock-pydoc.org][overblock-pydoc]],
+[[file:overblock-pycell.org][overblock-pycell]] and
+[[file:overblock-rmd.org][overblock-rmd]].
+
+The text uses these terms:
+
+- *block*: what the layer shows over a region of the buffer, or after
+  it.
+- *anchor*: the overlay that covers the region and holds the state.
+- *caller*: whatever renders the text.  The layer renders nothing.
+- *piece*: one line of a rendering, hung on one line of the source.
+- *notebook*: a buffer of regions and a shell to send them to.  Two of
+  the packages here are one; =overblock-run.el= is the loop they
+  share.
+
+* The block layer
+
+A caller renders text and hands it over:
+
+#+begin_src emacs-lisp
+  (overblock-show BEG END
+                  :kind 'result          ; whose block this is
+                  :data ANYTHING         ; what the caller keeps with it
+                  :over TEXT             ; shown instead of the region
+                  :body TEXT             ; shown after the region
+                  :header TEXT
+                  :hidden t              ; show nothing for now
+                  :keymap MAP :help-echo STRING
+                  :attached OVERLAYS)    ; the caller's own
+#+end_src
+
+An anchor overlay covers the region and holds those properties.  It
+stops before the newline that ends the region, so a window which starts
+at the next line keeps the block out of view; a second overlay covers
+that newline and carries what shows after it.
+
+=overblock-refresh= makes everything the block shows anew from the
+properties, so nothing has to be saved and given back — that is how a
+fold takes a rendering off the screen and gives it back with
+=:hidden=.
+
+The buffer text never changes.  Files, undo and a language server see
+nothing.  There is one thing a caller has to know: a block needs a
+newline to hang a body on, so a caller whose region is the last of the
+buffer has to write that character.
+
+** Where each row goes
+
+Decided by measurement, in a graphical frame:
+
+- The header is a string of its own.  A bar puts its icons at the
+  window edge with =(space :align-to (- right ...))=, and a display
+  property ignores that spec: the icons then sit beside the label.
+- A plain body rides the =display= property of the newline, which costs
+  least.
+- A body with an image cannot: display properties do not nest, so the
+  image is swallowed.  Such a body joins the header on the
+  =after-string= of the anchor.  The newline is never hidden: with the
+  rows of a figure on its after-string and the newline itself replaced
+  by an empty display string,
+  =pixel-scroll-precision-scroll-up= refused to pass the block — 280
+  refusals over six figures.
+- The first row takes a line break only where the newline it hangs on
+  does not already begin a line, so a region that ends in a blank line
+  gives that line to its header.
+
+** Text shown over a region
+
+Text shown =:over= a region hangs on its lines, a piece to a line, and
+lines with no piece left for them go under a cloak.  That is what makes
+a tall rendering scroll a line at a time.
+
+A cloak is an invisible overlay that starts at the newline of the line
+above.  An invisible run that starts inside a line, or a line of no
+height, stops =scroll-down= with a =beginning-of-buffer= error in the
+middle of the rendering.
+
+The rendering keeps the height of its source, or it becomes shorter.  A
+three line table can render as one line, and the spare lines then go
+under a cloak.
+
+A piece that holds an image cannot ride a display property, for the
+reason above.  Such a piece hides its line with a display string of
+nothing, which is not an invisible run, and rides the =before-string=,
+which draws images.  The before-string and not the after-string: a
+cloak begins where the piece ends, and Emacs leaves out an overlay
+string whose position is inside invisible text — measured by the pixels
+of the image itself, 0 on the after-string against 32 on the
+before-string.  The line keeps its own row, so a rendering with a
+preview in it scrolls a line at a time like any other.  An earlier
+version gave the whole region one string as soon as one image was in
+it, and a machine with LaTeX therefore scrolled markup worse than one
+without.
+
+** What an edit takes down
+
+=overblock-stale-when-edited= puts three hooks on a block and not one:
+=modification-hooks= runs for a change inside an overlay,
+=insert-in-front-hooks= for one at its first character and
+=insert-behind-hooks= for one at its end.  An anchor stops one
+character short of the newline that ends its region, so the blank line
+that ends the region — where =C-e= on the last line puts point — is an
+insertion at the end: with =modification-hooks= alone the block stayed
+behind, showing a rendering of text that had changed under it.
+
+=overblock-sweep-orphans= removes what is left when text is cut out
+from under a block: the pieces outlive the anchor that owned them.
+
+** The image cap
+
+=overblock-image-height= caps an inline figure at a share of the
+window, because a block taller than the window cannot be scrolled past.
+Measured in a 437 pixel text area, 25 pixels a step: a figure at 0.9 of
+the area bounced 40 times in 399 steps and never got past, one at 0.8
+went by in 94 steps without a single step backwards.
+
+The share is taken from the window that shows the buffer, or from the
+selected window where none does: a block can be drawn while its buffer
+is off screen, and no window at all would mean no cap.
+
+Emacs 31 slices an image taller than =shr-sliced-image-height= into a
+row for each line of the window it was rendered in, and a slice reads
+as =((slice X Y W H) IMAGE)=.  Slicing does not make an image smaller,
+so a figure sliced for a tall window and shown in a shorter one is
+exactly the block the wheel cannot get past.  Nor can the image be
+capped under the slice: the fractions were worked out against the height
+it had.  So a run of slices of one image becomes the whole image again,
+capped.
+
+* The header bars
+
+=overblock-buttons= walks a list of descriptors.  A descriptor names
+the glyph candidates rather than one glyph, because =overblock-glyph=
+asks the frame which of them it can draw and a terminal answers
+differently from a graphic frame.  Keep the plain candidates apart from
+each other: in a terminal that draws no arrows, =^= for the button that
+pops something out and =^= for the one that moves something up would be
+the same button to a reader.
+
+Emacs can ask a font what it holds and a terminal nothing, so a
+terminal is given the plain last candidate of every list.  A reader
+whose terminal does carry the icon font sets
+=overblock-terminal-glyphs=; the coding system is still asked, so a
+terminal that cannot encode a candidate never gets it.
+
+** A bar in place of a line
+
+=overblock-bar-over= makes the overlay and =overblock-bar-draw= draws
+on it.  All of the bar but its last character rides the
+=before-string=; the last character is the =display=, in place of the
+line's own text, and carries =cursor=.
+
+Both halves are forced.  The bar has to be a string on an overlay: a
+display property whose value is a string ignores =(space :align-to (-
+right ...))=, and the buttons would then sit beside the label instead of
+at the window edge.  And something has to be left for the caret to draw
+on: over a display of the empty string there is no glyph, so point could
+stand on the line with nothing to show it, and the line could not be
+folded from.  The stretch aligns to the window's right edge, so moving
+one character out of the string moves nothing.
+
+Never the =after-string=: a string after the overlay draws at the
+overlay's *end*, and a rendering's cloak covers that place.  A
+rendering at the top of a buffer is the worst of it — its cloak begins
+at the line's own newline — and the bar drew as one glyph and nothing
+else.
+
+A bar is rebuilt only when the line it stands on or the width of the
+window has changed.  Both are in the key the overlay carries, so a
+caller that draws from a change hook pays a comparison for a line that
+only moved: measured over two hundred bars, 0.003 ms for one line
+against 38.7 ms for a change of width, which rebuilds every one.
+
+** A column of slack
+
+=overblock-bar= holds the buttons one column short of the right edge in
+a graphic frame, as it always did two columns short in a terminal.
+Ending at the edge exactly leaves redisplay to decide whether the row
+wraps, and it decides differently at different moments: measured in one
+window at one width, the same bar drew all of its buttons when the
+buffer was opened and put the last one on a row of its own after the
+first command — same string, same specification, same window.
+
+A terminal keeps a third column for the ellipsis an outline fold hangs
+after the line.
+
+** Point on the line
+
+A bar stays where it is, whatever point does.  It used to give way to
+its line while point was on it, and that cost more than it paid: the
+buffer moved under the reader as point crossed the line, and a button
+went dead — a press moves point, the bar was gone before the release,
+and the release then landed on the text the bar had covered.
+
+The line is still there to be edited.  Point rests on it, the caret
+shows on the bar's last glyph, and the label follows what is written on
+the line.  Folding works from there.
+
+The commands hang off =<down-mouse-1>= with =<mouse-1>= bound to
+=ignore=, which is what the header line buttons of a side window have
+always done: the press is answered before anything can redraw under the
+pointer.
+
+** The width a bar is cut to
+
+=overblock-window-width= answers with the narrowest *visible* window
+that shows the buffer.  =visible= and not t: an invisible or iconified
+frame counts under t, and a buffer shown in the root window of a hidden
+20 column frame had its header cut to that.
+
+A buffer in no visible window is not cut at all.  There is nothing to
+wrap in, and the cut is baked into the string: measured, a long
+rendering built while the reader looked at another buffer had its header
+cut to the width of that buffer's window — down to " ▾…" — and the cut
+stayed there when the buffer came back into a window of 160 columns.
+
+The measurement saves point.  =window-max-chars-per-line= and its like
+select the window they measure, which sets this buffer's point to that
+window's point, and nothing puts it back when the buffer is not the
+selected window's.  A caller that walks the buffer with point was sent
+back to a line it had passed and drew for ever: measured at 99.5% of a
+core and 91 GB of memory in a buffer edited while the reader looked
+elsewhere.
+
+* The live cycle
+
+=overblock-live-start= is the whole of a mode that keeps a buffer
+rendered and editable.  The caller answers three questions: which
+regions, what to render them with, and when.
+
+The render function is called once at the start and then whenever the
+reader stops moving, after =IDLE= seconds of quiet.  It must leave
+alone what is rendered already and the region point is in — the reader
+is editing that one, and rendering it would take the text out from
+under them.
+
+A rendering comes off when the reader clicks it and when the text under
+it is edited.  Point arriving somewhere reveals nothing: a reader
+scrolls through a buffer, and a rendering that came off under the window
+made the text grow and shrink as they went.
+
+A mode that sends a whole buffer of regions through one converter does
+so from that one function, which is why the layer asks for a function
+of no arguments rather than one for each region.
+
+* The edit buffer
+
+=overblock-edit-in-buffer= opens the text under a block in a buffer of
+its own, as =org-edit-special= opens a source block.  The caller says
+what to call it, which mode it wears, how to read the text out and how
+to write it back.
+
+A buffer for each region and not one for the whole file: the text of the
+region opened second would otherwise land on top of the first, and an
+hour of writing with it.
+
+An edit of this very region that is already under way is the edit the
+reader wants back, not a fresh copy of what the file still says; org
+answers the same, by asking.  The same region and not merely the same
+name: a name carries a line number, and two regions can stand on that
+line at different times.  Keeping a stranger's pending edit committed
+one region's text into another, and throwing it away without a word
+would lose an hour of writing just as quietly, so the reader is asked.
+
+* The output of a shell
+
+=overblock-repl-detach= cuts a copy of shell output loose from the
+shell it came from.  Three things have to change on the way out:
+
+- *The stretches.* comint-mime renders a DataFrame as a vtable, which
+  sets the width of a space in pixels measured for the window of the
+  shell.  shr says where a space ends instead.  Both land elsewhere in
+  a block that is shown indented, so each stretch becomes as many real
+  spaces as it is characters wide.  A vtable measures its header in its
+  own face, so those widths are fractions of a character and a header
+  label can stand a column left of its data.
+- *The table.* The copy carries the table object in its =vtable= text
+  property, and that object holds the columns and the rows.  The layer
+  reads them and lays the table out again: each column as wide as its
+  widest cell, in characters, and the names of the columns in bold.
+  =overblock-repl-table-copy= gives a caller the object for another
+  buffer, where =vtable-insert= draws a live table and every binding of
+  vtable works.
+- *The keymap.* The copy carries the keymap of the shell, and a block
+  must not offer a click it cannot answer.
+
+=overblock-repl-first-lines= looks at the lines that will show and
+stops; =overblock-repl-count-lines= counts only where the number is not
+known yet.  A caller's own limit is a natnum, so zero is a legal value,
+and a scan that counts from one never met a limit of zero and read the
+whole result instead — measured, 18.6 milliseconds and a full copy over
+twenty thousand lines.
+
+* The run loop
+
+Send a region to a shell, watch what it prints, notice the prompt that
+says it is done, and show what came back under the region it came from.
+That loop is the same whatever language is at the other end, so it is
+one file: =overblock-run.el= holds the run state, the queue of a pass
+over the buffer, the ticker, the process filter and the result block.
+=overblock-pycell= drives an inferior Python with it and
+=overblock-rmd= an inferior R.  The loop lived in the notebook until
+there were two of them, wired to python.el at eleven points, and the
+second notebook would have had to copy all of it.
+
+Nothing here knows a language.  One plist says what one is: the
+*backend*, which is the shell, the regions, and the look of a result
+block.  The commentary of the file lists its slots.
+
+** Where the plist lives
+
+=overblock-run-backend= is buffer-local, because a notebook is a
+buffer: =overblock-run-attach= sets it for the mode and
+=overblock-run-detach= takes it away again, and the runner reads it to
+know whether the buffer is still a notebook it may draw in.  A send
+copies it into the shell buffer, because the filter and the ticker run
+there and have to reach the same answers — the head of a running
+output is read there, cut to the lines the notebook's options allow.
+
+Three slots name an option rather than hold a value — the buttons and
+the two limits — so one the reader has just customized is read when
+the block is drawn.  The other slots are never called: a face, a
+keymap and a command are values.  The look lived in a second plist,
+one to a package, on the grounds that a block could be drawn with no
+mode on; nothing ever did, and every command that acted on a result
+had to be written twice to hand the right plist over.
+
+** The queue lives with the shell
+
+The queue of a pass and the state of the running region are kept in the
+shell's buffer, beside each other.  A notebook with a shell of its own
+then has a queue of its own: one global list let a pass in one notebook
+discard another's regions and then feed its own down that notebook's
+interpreter.  =overblock-run-shell= answers with that buffer — this
+buffer where it is the shell, and the shell this notebook sends to
+otherwise — and every part of the runner reaches the queue through it.
+
+=overblock-run-next= is a loop and not a call back into the command
+that runs one region.  Recursion built a frame for every markdown cell
+in a row, a hundred of them reached =max-lisp-eval-depth=, and — worse
+— every frame ran its own tail on the way out, so the second one sent a
+code cell while the first was still running.  The send refused it from
+inside the process filter, and that cell, already off the queue, never
+ran at all.
+
+Each region of a pass goes to the top of every window that shows the
+notebook, so the whole of the code that is about to run is visible, and
+=overblock-run-go-home= gives point back when the queue runs out.  The
+home marker belongs to the shell's buffer as well, and it is set after
+the shell exists: the first pass of a session had none to put it in and
+never brought point back.
+
+** What the ticker reads
+
+A ticker runs five times a second while a region runs.  It reads only
+the head of the output, because that is all the block shows:
+=overblock-run-output-head= keeps the text as soon as every line that
+shows is there, and the ticks after that read nothing.
+=overblock-run-total= counts the new lines only and keeps the position
+it reached in the run state.  An earlier version read the whole output
+on each tick, and the cost grew with the region: a cell with 60000
+lines paid 25 ms for a tick at the start and 101 ms at the end, and one
+with 200000 lines did not finish.  The bounded mirror stays at 1 ms for
+both.  The finished region goes through one full read, so the result
+and the line count are exact.
+
+=overblock-run-follow= is the other reader: a buffer that follows a
+running region is written with what is new since the last look, for the
+same reason.  A backend's =:done= writes the whole of it once the
+region has ended.
+
+** When a prompt will never come
+
+=overblock-run-abort= ends the running region as a death: a death
+notice, with the exit status where there is one, after the output
+received so far.  It covers a dead interpreter, which the ticker finds,
+a killed shell buffer, and a restart, which reinitializes the major
+mode — hence =kill-buffer-hook= and =change-major-mode-hook= in the
+shell as well.  Without it a block kept a running header, spinner and
+stopwatch frozen where the ticker stopped, for the rest of the session.
+
+* Scrolling
+
+A body is one buffer line, because it is one display string.
+=next-line= and =previous-line= cross it in one step.  A window can
+start at a buffer position only.
+
+A body that holds an image is worse.  Display properties do not nest,
+so such a body rides on the after-string of the anchor, and a window
+cannot start inside an overlay string.  Three measurements on a buffer
+of forty regions with one such block:
+
+- The wheel does not cross the block in a symmetric way.  Twenty
+  crossings of six events of 25 pixels bring a block of plain text back
+  to the pixel.  A block with an image ends 26 characters and 69 pixels
+  lower.
+- A block that is taller than the window throws the wheel back.  See
+  [[#the-image-cap][the image cap]].
+- =scroll-up-line= does not pass such a block at all.  From the top of
+  the buffer it stopped after 119 commands, and the next 40 commands
+  changed nothing.  The same buffer without the block reaches the end
+  in 134 commands.
+
+These commands do pass: =scroll-up= and =scroll-down=, which move a
+page, and =next-line=, which moves point.  A folded block also passes.
+
+** The cost of a rendering
+
+A rendering makes each scroll event more expensive.  Measured in a
+window of 1032x700 pixels: 1.5 ms for an event downwards and 2.5 ms
+upwards, against 1.0 ms and 1.4 ms for the same buffer with the blocks
+off.  The numbers a reader gets depend on the machine; the ratio does
+not.
+
+The cost comes from the face runs, and not from the height.  Rendered
+markup holds several hundred face runs in a line.  Source code holds a
+few.  Forty lines of plain text scroll as fast as none, and twelve
+lines with many face changes cost three times as much.
+
+* What the hot paths cost
+
+Measured before and after, on the same inputs, in a graphic frame with
+the nerd font the bars are drawn in:
+
+| what              | before   | after    |
+|-------------------+----------+----------|
+| =overblock-glyph= | 0.010 ms | 0.001 ms |
+
+=overblock-glyph= asks =internal-char-font= once for every character of
+every candidate, and a header of six buttons asked it twenty times,
+five times a second, for an answer that cannot change while the frame
+keeps its font.  The answers are now kept in a table keyed by that font
+and the candidates.
+
+- =overblock--pieces= deals its rendered lines off a walking list
+  rather than with =seq-subseq= from the front, which was quadratic in
+  the lines of a region: 2.7 milliseconds at a thousand against 0.3 at
+  three hundred.
+- =overblock-fill-props= takes a plist and walks the rendering once,
+  where the code before it walked the rendering once for each property.
+- =overblock-show= keeps the block it has when only the data changed,
+  which is every tick of a caller that shows a growing text.
+- =overblock-repl-first-lines= and =-count-lines= are bounded, as
+  above.
+
+* The tests
+
+=make test= runs the batch suites, one to a file, and a test sits with
+the code it checks.  These two are this package's:
+
+- =test/overblock-test.el= — which slot each row lands in, the line
+  break the first row takes and the one it does not, a hidden block and
+  its return, blocks of two kinds in one region, what a delete takes
+  with it, the cloak that reaches the last line, the sweep of what lost
+  its anchor, the images capped and unsliced, and the bars, buttons and
+  glyphs.
+- =test/overblock-repl-test.el= — a copied table laid out again, its
+  getter, and the images capped.
+
+The runner has no suite of its own.  It is driven through the two
+notebooks: =test/overblock-pycell-test.el= and
+=test/overblock-rmd-test.el= name its functions directly, and
+=make test-live= sends real regions down a real interpreter for each of
+the two languages.
+
+=test/overblock-client-test.el= is a caller of a shape no package here
+ever wrote: it renders the math in a Python doc string over the lines
+of that doc string, with no process behind it and no mode.  It answers
+one question — does a caller of another shape need anything the layer
+does not have — and so far it needs nothing.  It borrows the renderer
+of overblock-md to have something to show.
+
+The suites of the other four packages are listed in their own notes:
+[[file:overblock-md.org][overblock-md]],
+[[file:overblock-pydoc.org][overblock-pydoc]],
+[[file:overblock-pycell.org][overblock-pycell]] and
+[[file:overblock-rmd.org][overblock-rmd]].
+
+A fifth of the whole suite renders markup and skips itself where no
+converter is installed.  =make test STRICT=1= makes that a failure
+instead, and the CI sets it.
