@@ -682,7 +682,12 @@ would lose an hour of writing just as quietly, so the reader is asked."
   "Put the edited text back where it came from."
   (interactive)
   (pcase-let ((`(,source ,beg ,end ,put) overblock-edit--source)
-              (text (string-trim-right (buffer-string))))
+              ;; Without the properties: the edit buffer's font lock
+              ;; marks its text fontified, and put back as it was, the
+              ;; source buffer's font lock took that word for it and
+              ;; left markdown faces standing in a Python file.
+              (text (string-trim-right
+                     (buffer-substring-no-properties (point-min) (point-max)))))
     (unless (and source (buffer-live-p source))
       (user-error "The buffer this text came from is gone"))
     (with-current-buffer source

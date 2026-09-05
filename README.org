@@ -706,7 +706,10 @@ rendering hangs on the commented source lines, one piece to a line.
 The bar of the cell says /markdown/, or the name you wrote after the
 tag, and carries the buttons of =overblock-pycell-markdown-buttons=:
 =✎= opens the cell in a buffer of its own, and the move pair follows.
-No button shows the source, because a click on the rendering does.
+No button shows the source, because a click on the rendering does: the
+cell shows its source while point is in it, and is rendered again once
+point has left — the same live cycle that keeps a Markdown file
+rendered.
 
 The cell moves as normal text, and an outline fold takes the whole
 cell with it.  The cell keeps the height of its source.  It becomes
@@ -737,7 +740,7 @@ the keyboard, once you bind it in =overblock-pycell-md-map=.
 =overblock-edit-abort= discards the edit; both belong in
 =overblock-edit-mode-map=.  Each cell has an edit buffer of its own, so
 you can open several cells at the same time.  =mouse-1= shows the plain
-source of one cell.
+source of one cell, to edit it where it stands.
 
 *** Commands
 
