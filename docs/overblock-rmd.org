@@ -295,7 +295,7 @@ printing, a table keeping its columns, a chunk of quotes and
 backslashes and newlines surviving the trip, an error reading as one, a
 pass stopping at it and carrying state between the chunks before it,
 the stop working while the last chunk runs, a restart forgetting what R
-knew, and a second chunk being refused while one runs.
+knew, and a second chunk queued while one runs.
 
 The run loop itself has no suite of its own; it is proved through the
 two notebooks.  See [[file:overblock.org][the layer's notes]].

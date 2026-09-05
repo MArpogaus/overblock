@@ -979,7 +979,7 @@ with a fresh prompt and nothing else, so the result holds what the
 chunk had printed and no more, and the pass stops with it.
 
 One chunk runs at a time.  A chunk sent while another one runs is
-refused.
+queued behind it, and point comes back when the queue is done.
 
 *** Prose
 
@@ -1110,7 +1110,7 @@ And for the two notebooks:
   with a cell that is still printing; =overblock-rmd= has no such
   buffer.
 - One region runs at a time for each inferior process.  A cell or a
-  chunk sent while another one runs is refused.
+  chunk sent while another one runs is queued behind it.
 - A block shows a copy of what the shell rendered, with the columns of
   a table made literal so that they survive the move.  A DataFrame
   comes out aligned, and the header of one can stand a column left of

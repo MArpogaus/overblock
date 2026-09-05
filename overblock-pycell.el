@@ -1385,11 +1385,7 @@ such a shell the shared one anyway, so that is what this answers."
 This matches the calling convention of
 `code-cells-eval-region-commands'.  A markdown cell renders instead.
 Without an interpreter, one starts and the cell follows on its first
-prompt.  A cell sent while another one runs is refused, with a
-`user-error' from `overblock-run-send'."
-  ;; ponytail: a second cell sent by hand is refused rather than
-  ;; queued; `overblock-run--queue' serves
-  ;; `overblock-pycell-restart-and-run-all' alone.
+prompt.  A cell sent while another one runs is queued behind it."
   (if (overblock-pycell--md-cell-start start)
       ;; Keep a running restart-and-run-all chain going — no prompt
       ;; will arrive to do it.

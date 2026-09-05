@@ -416,8 +416,13 @@ pull the columns of its row out of line."
                ;; The fragment's own text under the image where the
                ;; run is whole — what a reader copies out of a
                ;; rendering is then the formula, not a row of marks.
+               ;; Inline math on one line: the converter wraps its
+               ;; HTML, and a line break of its own inside the
+               ;; fragment is no row of the rendering.  Measured, the
+               ;; full stop after a formula stood on a row of its own.
                (overblock-md--place-image
-                (if (string-search "\n" marks) marks frag) image)
+                (if (string-search "\n" marks) marks (overblock-md--as-text frag))
+                image)
              (overblock-md--fit
               (overblock-md--bare-math (overblock-md--as-text frag)) marks
               ;; Padded inside a table and nowhere else: a table is laid

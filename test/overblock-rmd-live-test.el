@@ -246,20 +246,26 @@ running chunk runs to its end."
         "```{r b}\nexists(\"restart_witness\")\n```\n"
       (should (equal (overblock-rmd-live-test--run-first) "[1] FALSE")))))
 
-(ert-deftest overblock-rmd-live-test-a-second-chunk-is-refused ()
-  "A chunk sent while another one runs is refused, and says why."
+(ert-deftest overblock-rmd-live-test-a-second-chunk-waits-its-turn ()
+  "A chunk sent while another one runs is queued, and runs after it.
+Point comes back to where the second chunk was asked for."
   (overblock-rmd-live-test--with-document
       "```{r slow}\nSys.sleep(2)\n1\n```\n\n```{r other}\n2\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
       (overblock-run-region beg end))
+    (goto-char (point-max))
     (pcase-let ((`(,_open ,beg ,end) (cadr (overblock-rmd-chunks))))
-      (should-error (overblock-run-region beg end) :type 'user-error))
-    ;; and the first one still finishes
+      (overblock-run-region beg end)
+      (should (equal (mapcar #'marker-position (overblock-run-queued))
+                     (list beg))))
     (should (overblock-rmd-live-test--wait
-             #'overblock-rmd-live-test--idle-p 60))
-    (should (equal (overblock-rmd-live-test--text
-                    (car (overblock-rmd-live-test--results)))
-                   "[1] 1"))))
+             (lambda () (and (overblock-rmd-live-test--idle-p)
+                             (= (length (overblock-rmd-live-test--results)) 2)))
+             60))
+    (should (equal (mapcar #'overblock-rmd-live-test--text
+                           (overblock-rmd-live-test--results))
+                   '("[1] 1" "[1] 2")))
+    (should (= (point) (point-max)))))
 
 (provide 'overblock-rmd-live-test)
 ;;; overblock-rmd-live-test.el ends here

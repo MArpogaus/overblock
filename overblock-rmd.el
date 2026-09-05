@@ -559,8 +559,7 @@ commands give their reader."
 (defun overblock-rmd-run-chunk (&optional event)
   "Run the chunk at point, or the one whose button EVENT clicked.
 The result grows below the code while it runs.  A chunk sent while
-another one runs is refused, with a `user-error' from
-`overblock-run-send'."
+another one runs is queued behind it."
   (interactive (list last-input-event))
   (let ((chunk (overblock-rmd--chunk-here event)))
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))))
