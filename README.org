@@ -499,8 +499,7 @@ click.
 | =overblock-pydoc-idle=         | 0.2                                  | the quiet before one is rendered again |
 | =overblock-pydoc-label=        | ="doc"=                              | what the bar of a doc string calls it  |
 | =overblock-pydoc-buttons=      | one edit button                      | the buttons on that bar                |
-| =overblock-pydoc-header=       | =shadow= with an overline            | the face of the bar                    |
-| =overblock-pydoc-footer=       | =shadow= with an underline           | the face of the rule under it          |
+| =overblock-pydoc-footer=       | =shadow= with an underline           | the face of the rule under a doc string |
 
 =overblock-pydoc-renderer= picks between the two renderers.
 =converter= hands the text to =overblock-pydoc-command=, which asks for
@@ -669,7 +668,7 @@ where you asked for the pass when it ends.
 
 A table, a DataFrame among them, gets its columns laid out again for
 the block: literal columns that stand where they are whatever face the
-block wears.  =overblock-pycell-pop-output= gives you that table live,
+block wears.  =overblock-run-pop-output= gives you that table live,
 in its own buffer, where every binding of vtable works: =S= or a click
 on a column name sorts, ={= and =}= narrow and widen a column, and
 =M-left= and =M-right= move one.
@@ -677,10 +676,10 @@ on a column name sorts, ={= and =}= narrow and widen a column, and
 =overblock-run-interrupt= and =overblock-run-stop= work in such a
 buffer as they do in the notebook — the buffer remembers the shell it
 came from — so a run being watched can be stopped where you are
-watching it.  Bind them in =overblock-pycell-pop-map=; the buffer is
+watching it.  Bind them in =overblock-run-pop-map=; the buffer is
 read-only, so a plain key is free.
 
-=overblock-pycell-pop-output= on a cell that is still running keeps
+=overblock-run-pop-output= on a cell that is still running keeps
 writing there as the cell prints.  The block shows
 =overblock-pycell-max-lines= of the output; the buffer takes all of it,
 so a long run can be followed in a window of its own.  Point at the end
@@ -750,8 +749,8 @@ source of one cell, to edit it where it stands.
 | =overblock-pycell-mode-maybe=          | the same, in a Python buffer only, for =code-cells-mode-hook=      |
 | =overblock-run-toggle-output=          | fold or unfold the result at point                                 |
 | =overblock-run-copy-output=            | copy the result at point                                           |
-| =overblock-pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
-| =overblock-pycell-save-image=          | write the image of the result to a file                            |
+| =overblock-run-pop-output=             | show the result in its own buffer, and follow a running cell there |
+| =overblock-run-save-image=             | write the image of the result to a file                            |
 | =overblock-run-discard-output=         | remove the result at point                                         |
 | =overblock-run-clear-results=          | remove every result                                                |
 | =overblock-run-interrupt=              | send a KeyboardInterrupt to the cell, and stop the pass            |
@@ -775,7 +774,7 @@ into:
 | Map                           | Where it answers                        |
 |-------------------------------+-----------------------------------------|
 | =overblock-pycell-mode-map=   | the notebook, while the mode is on      |
-| =overblock-pycell-pop-map=    | a result popped out into its own buffer |
+| =overblock-run-pop-map=       | a result popped out into its own buffer |
 | =overblock-pycell-result-map= | inside a cell that shows a result       |
 | =overblock-pycell-md-map=     | a rendered markdown cell                |
 
@@ -788,7 +787,7 @@ interrupt and the stop, in the notebook and in the pop-out:
 #+begin_src emacs-lisp
   (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
   (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-run-stop)
-  (keymap-set overblock-pycell-pop-map "i" #'overblock-run-interrupt)
+  (keymap-set overblock-run-pop-map "i" #'overblock-run-interrupt)
 #+end_src
 
 Both commands resolve the shell of the buffer they are pressed in — a
@@ -812,8 +811,6 @@ of the cell needs, such as =TAB= for folding:
 | =overblock-pycell-markdown-buttons= | three buttons                     | the buttons on the header of a markdown cell     |
 | =overblock-pycell-cell-buttons=     | four buttons                      | the buttons on the bar of a code cell            |
 | =overblock-pycell-source-buttons=   | three buttons                     | the buttons on an unrendered markdown cell       |
-| =overblock-pycell-header=           | inherits =code-cells-header-line= | the face of the header bar                       |
-| =overblock-pycell-output=           | inherits =shadow=                 | the face of the result body                      |
 
 Zero is a legal value for both limits: =max-lines= of zero shows no
 output inline, and =max-line-length= of zero shows a line whole.
@@ -950,10 +947,13 @@ show, and how long the chunk took; a chunk that printed nothing keeps a
 header that says /no output/, so you can see which chunks ran.  The
 header shows =⚠= if R dies while a chunk runs.
 
-Text results only.  R draws to a graphics device and not to its
-terminal, so a chunk that plots runs and prints whatever it prints, and
-its figure goes to whatever device R has.  There is no save button and
-no pop-out buffer either: a result here is text.
+A chunk that plots answers with its figure, drawn under what it
+printed.  R draws to a graphics device and not to its terminal, so the
+chunk runs with a PNG device open, at =overblock-rmd-figure-size= —
+knitr's =fig.width= and =fig.height=, 7 by 5 inches by default — and
+each page it drew comes back into the result.  From there a figure is
+what it is in the Python notebook: capped to the window, saved with
+=↧=, shown whole in a pop-out, and named in a terminal.
 
 A chunk reaches R as one statement:
 
@@ -1010,6 +1010,8 @@ stays as it is; the chunks run either way.
 | =overblock-run-interrupt=           | interrupt the chunk R is running, and stop the pass       |
 | =overblock-run-toggle-output=       | fold or unfold the result at point                        |
 | =overblock-run-copy-output=         | copy the result at point                                  |
+| =overblock-run-pop-output=          | show the result in its own buffer, and follow a running chunk there |
+| =overblock-run-save-image=          | write the figure of the result to a file                  |
 | =overblock-run-discard-output=      | remove the result at point                                |
 | =overblock-run-clear-results=       | remove every result                                       |
 | =overblock-live-edit=               | show the source of the prose at point                     |
@@ -1028,10 +1030,9 @@ there, empty, so every key is free to bind:
 |---------------------------------+---------------------------+--------------------------------------------------|
 | =overblock-rmd-max-lines=       | 12                        | the result lines that show inline                |
 | =overblock-rmd-max-line-length= | 2000                      | the characters of a result line that show inline |
+| =overblock-rmd-figure-size=     | =(7 . 5)=                 | width and height of a figure, in inches          |
 | =overblock-rmd-chunk-buttons=   | two buttons               | the buttons on the bar of a chunk                |
-| =overblock-rmd-result-buttons=  | three buttons             | the buttons on the header of a result            |
-| =overblock-rmd-header=          | inherits =header-line=    | the face of the bar                              |
-| =overblock-rmd-output=          | inherits =shadow=         | the face of the result body                      |
+| =overblock-rmd-result-buttons=  | five buttons              | the buttons on the header of a result            |
 
 Zero is a legal value for both limits: =max-lines= of zero shows no
 output inline, and =max-line-length= of zero shows a line whole.
@@ -1068,9 +1069,7 @@ options shape what a block looks like.  Every caller shares them.
   =python3= shell gives text only, because comint-mime installs its
   renderers through IPython.
 - =overblock-rmd= needs [[https://ess.r-project.org/][ESS]], which
-  arrives as its dependency, and an R for ESS to start.  Its results
-  are text: R draws a figure to a graphics device, so no figure comes
-  into the buffer.
+  arrives as its dependency, and an R for ESS to start.
 - A nerd font for the icons on the bars, or nothing: every glyph has a
   plain character and a plain word behind it, and =overblock-glyph=
   asks the frame which it can draw.  A terminal takes the plain
@@ -1119,10 +1118,9 @@ And for the two notebooks:
   comes out aligned, and the header of one can stand a column left of
   its data.  A copy cannot be sorted: the buttons of the live table are
   gone rather than dead.
-- =overblock-rmd= shows text only.  A figure of R goes to a graphics
-  device, and there is no protocol to bring it back that does not
-  guess at the device options, the chunk's own =fig.width= and the
-  reader's =ess-r-package=.
+- A figure of R is drawn at =overblock-rmd-figure-size=, one size for
+  the file: the =fig.width= a chunk writes in its own header is not
+  read.
 
 The measurements behind all of this are in
 [[file:docs/overblock.org][docs/overblock.org]] and the documents beside

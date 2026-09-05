@@ -237,23 +237,28 @@ window is the same width and the label is cut in pixels, so a bar cut
 for the old font takes two rows.  =text-scale-mode-hook= forgets the
 width and asks for the redraw.
 
-* Text results only
+* Figures
 
-This is the first version's one real omission.  R draws to a graphics
-device rather than to its terminal, so a figure would need a =png()=
-capture protocol around every chunk — open a device, run, close it,
-read the file back — with the device options, the chunk's own
-=fig.width= and the reader's =ess-r-package= all having a say.
-comint-mime gives Python its figures for nothing; R has no such thing,
-and guessing at one would be worse than leaving it out.  A chunk that
-plots runs and prints whatever it prints, and its figure goes to
-whatever device R has.
+R draws to a graphics device rather than to its terminal, so a figure
+needs a capture protocol around the chunk: =overblock-rmd--send= opens
+a PNG device before the =source= and closes it on exit, whatever the
+chunk did, and the exit names every file the device wrote on a line of
+its own — =overblock-figure:= and the path.  =overblock-rmd--figures=
+reads those lines back in the shell buffer, as part of the clean, and
+each becomes what comint-mime hands the Python notebook: one space
+carrying the image with the file's bytes in it.  From there the two
+notebooks share everything — the cap to the window, the save button,
+the pop-out, the name a terminal shows — and the R side has no idea
+that any of it exists.
 
-Two buttons of the Python notebook are missing for the same reason.
-There is no save button, because there is no image to save.  And there
-is no pop-out: following a long run in a buffer of its own is the
-notebook's feature, so the backend has no =:done= and nothing follows a
-running chunk.
+The device is opened at =overblock-rmd-figure-size=, which is knitr's
+=fig.width= and =fig.height= with knitr's defaults, at 96 dots an inch.
+The =fig.width= a chunk writes in its own header is not read; one size
+for the file was the smallest protocol that shows a figure at all, and
+the cap keeps a large one inside the window.  The files are R's own
+temporary files and go with the session; they are read on every tick
+that shows them, which is what comint-mime's escape sequence costs the
+Python notebook as well.
 
 * What a clear has to sweep
 

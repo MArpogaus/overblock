@@ -212,6 +212,36 @@ end that literal and a newline would end the line comint sends."
     ;; nothing to take off
     (should (equal (overblock-rmd--clean "a\nb") "a\nb"))))
 
+(ert-deftest overblock-rmd-test-a-figure-line-becomes-an-image ()
+  "A line naming a PNG the chunk drew comes in as the image, bytes and all.
+The wrapper writes one such line for every page the chunk drew, and the
+result reads each back as comint-mime hands the Python notebook a
+figure: one space carrying the image with the file's bytes in it, which
+is what the save button writes and the pop-out draws.  The newline
+before the line goes with it, so the figure follows the text without a
+blank row."
+  (skip-unless (image-type-available-p 'png))
+  (let ((file (make-temp-file "overblock-rmd-test" nil ".png"))
+        (inferior-ess-primary-prompt "> "))
+    (unwind-protect
+        (progn
+          (with-temp-file file (set-buffer-multibyte nil) (insert "\x89PNG-bytes"))
+          (let* ((clean (overblock-rmd--clean
+                         (format "[1] 1\n\noverblock-figure:%s\n> " file)))
+                 (image (overblock-image-in clean)))
+            (should image)
+            (should (equal (plist-get (cdr image) :data) "\x89PNG-bytes"))
+            (should (equal (substring-no-properties clean) "[1] 1\n "))
+            ;; two pages, two images, no blank rows between them
+            (should (= 2 (cl-count ?\s (substring-no-properties
+                                        (overblock-rmd--clean
+                                         (format "\noverblock-figure:%s\n\noverblock-figure:%s\n> "
+                                                 file file))))))))
+      (delete-file file))
+    ;; a file that is gone is named, not drawn
+    (should (string-match-p "\\[figure /no/such\\.png\\]"
+                            (overblock-rmd--clean "overblock-figure:/no/such.png\n> ")))))
+
 (ert-deftest overblock-rmd-test-a-table-keeps-the-indent-of-its-header ()
   "The leading spaces of the first line of output are content.
 R prints its tables with the header indented and the numbers lined up
@@ -277,8 +307,9 @@ and nothing else, and every button on it was invisible."
     (let ((labels (overblock-rmd-test--bar-labels)))
       (should (= (length labels) 2))
       (should (string-match-p "setup" (car labels)))
-      ;; a chunk with no name of its own is called what it is
-      (should (string-match-p "chunk" (cadr labels))))))
+      ;; a chunk with no name of its own is called after its language,
+      ;; as a code cell of the Python notebook is called python
+      (should (string-match-p "R" (cadr labels))))))
 
 (ert-deftest overblock-rmd-test-a-bar-goes-with-the-header-that-had-it ()
   "A header line that stops being one loses its bar.

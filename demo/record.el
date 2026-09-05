@@ -377,6 +377,12 @@ summary(cars)
 ```{r head}
 head(cars, 4)
 ```
+
+A chunk that plots answers with its figure:
+
+```{r plot}
+plot(cars, pch = 19, col = \"steelblue\")
+```
 "))
   ;; Markdown for the prose, where it is installed; the mode itself does
   ;; not care which major mode a chunk sits in.
@@ -424,13 +430,25 @@ head(cars, 4)
   (ob-gif-settle 0.6)
   (goto-char (point-min))
   (ob-gif-frame 450)
-  ;; and one of the two folded away to its bar
+  ;; the first result folded away to its bar, which makes room
   (when-let* ((block (car (overblock-in (point-min) (point-max) 'result))))
     (goto-char (overlay-start block))
     (overblock-run-toggle-output)
     (goto-char (point-min))
     (ob-gif-settle 0.4)
-    (ob-gif-frame 400)))
+    (ob-gif-frame 400))
+  ;; and the chunk that plots: R draws to the PNG device the wrapper
+  ;; opened, and the figure comes back into the result
+  (goto-char (point-min))
+  (search-forward "plot(cars" nil t)
+  (call-interactively #'overblock-rmd-run-chunk)
+  (ob-gif-wait 150
+               (lambda ()
+                 (>= (length (overblock-in (point-min) (point-max) 'result))
+                     3)))
+  (ob-gif-settle 0.6)
+  (goto-char (point-min))
+  (ob-gif-frame 500))
 
 (defun ob-gif-family ()
   "All four modes in one session, for the animation on the front page.

@@ -105,17 +105,13 @@ strings names `gfm-view-mode\', which markdown-mode brings and which
 hides the markup it has painted."
   :type 'function)
 
-(defface overblock-pydoc-header '((t :inherit shadow :overline t))
-  "Face of the bar above a rendered doc string.
-The overline is the rule, and a rule a face draws runs the width of the
-row it is on: it begins where the bar's own text begins, which is the
-column the doc string is indented to, and it ends where the row ends,
-which is the window's edge.  Nothing has to measure either.")
-
 (defface overblock-pydoc-footer '((t :inherit shadow :underline t))
-  "Face of the bar below a rendered doc string.
-The underline closes what `overblock-pydoc-header' opened; see there for
-why neither rule is measured.")
+  "Face of the rule below a rendered doc string.
+The underline closes what the overline of `overblock-bar' opened above
+it.  A rule a face draws runs the width of the row it is on: it begins
+where the bar's own text begins, which is the column the doc string is
+indented to, and it ends where the row ends, which is the window's
+edge.  Nothing has to measure either.")
 
 (defcustom overblock-pydoc-buttons
   '((edit ("\uea73" "✎" "edit") "Edit this doc string in its own buffer"
@@ -336,15 +332,15 @@ the block so `overblock--width-changed\' can drop what no longer fits."
 (defun overblock-pydoc--bar (indent)
   "Return the bar above a rendered doc string, INDENT columns in.
 The label at the left, the buttons at the window's edge, and the rule
-of `overblock-pydoc-header\' over the whole row."
+of `overblock-bar\' over the whole row."
   (overblock-pydoc--row
-   (concat (overblock-glyph "󰈙" "≡" "")
+   (concat (overblock-glyph "" "◇" "doc")
            (if (string-empty-p overblock-pydoc-label)
                ""
              (concat " " overblock-pydoc-label))
            " ")
    (overblock-buttons overblock-pydoc-buttons)
-   'overblock-pydoc-header indent))
+   'overblock-bar indent))
 
 (defun overblock-pydoc--rule (indent)
   "Return the row that closes a rendered doc string, INDENT columns in.
@@ -372,7 +368,7 @@ a boxed line of prose among plain lines of code is a loud way to say
 very little."
   (overblock-pydoc--row (concat prose " ")
                         (overblock-buttons overblock-pydoc-buttons)
-                        'overblock-pydoc-header indent))
+                        'overblock-bar indent))
 
 (defun overblock-pydoc--dressed (prose indent)
   "Return PROSE with its bars, indented by INDENT.
