@@ -4,8 +4,8 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (overblock "0.1.0"))
+;; Version: 1.0
+;; Package-Requires: ((emacs "29.1") (overblock "1.0"))
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/overblock
