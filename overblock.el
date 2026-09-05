@@ -315,14 +315,28 @@ it, which works because the string answers the click."
   ov)
 
 (defun overblock--cloak (block beg end)
-  "Return an overlay of BLOCK that hides BEG..END and stays hidden.
-A cloak covers the lines that no piece was left for.  It has to start
-at the end of a visible line: `scroll-down' answers a run that begins
-a line with a beginning-of-buffer error, in the middle of the region."
+  "Return an overlay of BLOCK that shows BEG..END as one line break.
+A cloak covers the lines that no piece was left for, from the newline
+that ends the row above them through their own last newline, and draws
+one newline in their place: the row above ends where it did, the row
+below begins where it did, and the lines between take no room.
+
+A display of its own, and not `invisible', because the last of those
+newlines has to end the row above and the text\'s own display would
+have ended it: indent-bars writes a `display\' on the newline of every
+blank line — a bar as deep as the indentation — and a cloak that left
+that newline showing, so the row would end, drew the bar at the end of
+the rendered row.  Measured, a hairline of the bar\'s colour after every
+rendered doc string with a blank line in it.  An overlay\'s display
+outranks the text\'s.
+
+It has to start at the end of a visible line: `scroll-down\' answers a
+run that begins a line with a beginning-of-buffer error, in the middle
+of the region."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'overblock-part t)
-    (overlay-put ov 'invisible t)
+    (overlay-put ov 'display "\n")
     (overlay-put ov 'overblock-cloak t)
     (overblock--dress block ov)))
 
@@ -376,9 +390,9 @@ either way, which is what makes a region scroll a line at a time.
 
 The before-string and not the after-string: a cloak begins at the end
 of the piece before it, and Emacs leaves out an overlay string whose
-position is inside invisible text.  Measured on a frame, counting the
-pixels of the image itself: 0 for an after-string with a cloak at the
-piece's end, 32 for the same image on a before-string."
+position is inside text another overlay replaces.  Measured on a frame,
+counting the pixels of the image itself: 0 for an after-string with a
+cloak at the piece's end, 32 for the same image on a before-string."
   (let ((ov (make-overlay from to nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'overblock-part t)
@@ -479,12 +493,12 @@ region has anyway.  Those lines go under a cloak."
         (if (null chunk)
             (setq cloak-from (overblock--cloak-from cloak-from from))
           (when cloak-from
-            (push (overblock--cloak block cloak-from (1- from)) parts)
+            (push (overblock--cloak block cloak-from from) parts)
             (setq cloak-from nil))
           (push (overblock--piece block from to (string-join chunk "\n"))
                 parts))))
     (when cloak-from
-      (push (overblock--cloak block cloak-from (1- end)) parts))
+      (push (overblock--cloak block cloak-from end) parts))
     (nreverse parts)))
 
 (defun overblock--attach (block shown)

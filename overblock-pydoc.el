@@ -460,23 +460,11 @@ Measured, eight doc strings cost 145 milliseconds one process apiece
 and the reader felt every one; this way they cost 7 and the renderings
 arrive together a moment later.
 
-The callback renders each doc string that still wants it: the reader
-may have clicked one, edited one, or walked point into one while the
-process ran, and a rendering laid over point takes the text out from
-under them.  A batch that comes back without its marker between every
-pair says nothing about which HTML belongs where, and each doc string
-is then converted on its own."
+`overblock-md-render-regions' is the batch, and says what happens to
+a doc string the reader has reached while the process ran."
   (let ((overblock-md-command overblock-pydoc-command))
-    (when (overblock-md-program)
-      (overblock-md-html-batch-async
-       (mapcar (lambda (region)
-                 (overblock-pydoc--source (car region) (cdr region)))
-               regions)
-       (lambda (htmls)
-         (dolist (region regions)
-           (let ((html (pop htmls)))
-             (when (overblock-live-wanted-p (car region) (cdr region) 'pydoc)
-               (overblock-pydoc--show (car region) (cdr region) html)))))))))
+    (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
+                                 #'overblock-pydoc--show)))
 
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.

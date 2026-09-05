@@ -205,28 +205,12 @@ renderings arrive a moment later.  A block falls back to its own
 conversion where the answer comes back without the marker between
 every pair.
 
-`overblock-live-wanted-p' says which blocks want rendering, and says
-it again when the answer arrives: the reader has clicked, typed and
-moved on while the process ran.  This is what `overblock-live-start' is
-given, and it is called again whenever the reader stops."
+This is what `overblock-live-start' is given, and it is called again
+whenever the reader stops; `overblock-md-render-regions' is the batch."
   (interactive)
-  (when-let* (((overblock-md-program))
-              (blocks (seq-filter
-                       (lambda (block)
-                         (overblock-live-wanted-p (car block) (cdr block)
-                                                  'md-preview))
-                       (funcall overblock-md-preview-regions-function
-                                (point-min) (point-max)))))
-    (overblock-md-html-batch-async
-     (mapcar (lambda (block)
-               (buffer-substring-no-properties (car block) (cdr block)))
-             blocks)
-     (lambda (htmls)
-       (dolist (block blocks)
-         (let ((html (pop htmls)))
-           (when (overblock-live-wanted-p (car block) (cdr block)
-                                          'md-preview)
-             (overblock-md-preview--show (car block) (cdr block) html))))))))
+  (overblock-md-render-regions
+   (funcall overblock-md-preview-regions-function (point-min) (point-max))
+   'md-preview #'buffer-substring-no-properties #'overblock-md-preview--show))
 
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode

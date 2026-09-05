@@ -39,6 +39,22 @@
   (propertize " " 'display '(image :type png :data "x"))
   "A stand-in for what comint-mime inserts for an image.")
 
+(defun overblock-pycell-test--render-all (&optional beg end)
+  "Render the markdown cells between BEG and END, and wait for them.
+The conversion is asked of a process and not waited for, which is the
+point of it: a test has to wait where a reader does not."
+  (overblock-pycell-md-render-all beg end)
+  (overblock-pycell-test--settle))
+
+(defun overblock-pycell-test--settle ()
+  "Wait until no converter process is running."
+  (let ((deadline (+ (float-time) 10)))
+    (while (and (seq-some (lambda (process)
+                            (string-prefix-p "overblock-md" (process-name process)))
+                          (process-list))
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05))))
+
 (defmacro overblock-pycell-test--with-cells (&rest body)
   "Evaluate BODY in a Python buffer with two code cells."
   (declare (indent 0))
@@ -64,6 +80,7 @@ windows that show it, and a command that follows a click selects one."
      (set-window-buffer nil (current-buffer))
      (code-cells-mode)
      (overblock-pycell-mode)
+     (overblock-pycell-test--settle)
      (goto-char (point-min))
      (unwind-protect (progn ,@body)
        (overblock-pycell-mode -1))))
@@ -77,6 +94,7 @@ test of a fold needs the mode.  Off again afterwards, because
 take the advice down."
   (declare (indent 0))
   `(progn (overblock-pycell-mode 1)
+          (overblock-pycell-test--settle)
           (unwind-protect (progn ,@body)
             (overblock-pycell-mode -1))))
 
@@ -211,7 +229,7 @@ second bar beside it."
     (let ((bars (lambda ()
                   (seq-count (lambda (ov) (overlay-get ov 'overblock-pycell-main))
                              (overlays-in (point-min) (point-max))))))
-      (overblock-pycell-md-render-all)
+      (overblock-pycell-test--render-all)
       (should (= (funcall bars) 1))
       (pcase-let* ((block (car (overblock-in (point-min) (point-max)
                                              'markdown)))
@@ -421,7 +439,7 @@ and every scroll event would then lay the whole thing out again."
     (python-mode)
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (let* ((ov (car (overblock-in (point-min) (point-max) 'markdown)))
            (parts (overblock-get ov :parts)))
       (should (> (length parts) 1))
@@ -444,7 +462,7 @@ leave a line of no height, which stops scrolling up the same way."
     (python-mode)
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (let* ((ov (car (overblock-in (point-min) (point-max) 'markdown)))
            (parts (overblock-get ov :parts))
            (cloaks (seq-filter (lambda (p) (overlay-get p 'overblock-cloak)) parts)))
@@ -655,7 +673,7 @@ writes between cells belongs to it and has to be written back."
             (python-mode)
             (code-cells-mode)
             (setq-local overblock-run-backend (overblock-pycell--backend))
-            (overblock-pycell-md-render-all)
+            (overblock-pycell-test--render-all)
             (goto-char (point-min))
             (forward-line 1)
             (let ((prefix (format "*overblock-pycell md: %s:" (buffer-name))))
@@ -837,7 +855,7 @@ it into a bare #, so a commit that changed nothing changed the file."
             (python-mode)
             (code-cells-mode)
             (setq-local overblock-run-backend (overblock-pycell--backend))
-            (overblock-pycell-md-render-all)
+            (overblock-pycell-test--render-all)
             (goto-char (point-min))
             (forward-line 1)
             (let ((prefix (format "*overblock-pycell md: %s:" (buffer-name))))
@@ -874,7 +892,7 @@ the cell opened first, and unsaved writing went with it."
           (code-cells-mode)
           (setq-local overblock-run-backend (overblock-pycell--backend))
           (goto-char (point-min))
-          (overblock-pycell-md-render-all)
+          (overblock-pycell-test--render-all)
           (forward-line 1)
           (save-window-excursion (overblock-pycell-md-edit))
           (setq first (format "*overblock-pycell md: %s:2*" (buffer-name)))
@@ -994,13 +1012,13 @@ complete."
           (python-mode)
           (code-cells-mode)
           (setq-local overblock-run-backend (overblock-pycell--backend))
-          (overblock-pycell-md-render-all)
+          (overblock-pycell-test--render-all)
           (let ((batched (funcall displays)))
             (should (= (length batched) 3))
             (overblock-clear (point-min) (point-max) 'markdown)
             ;; the same buffer with the batch turned down
             (cl-letf (((symbol-function 'overblock-md-html-batch) (lambda (_texts) nil)))
-              (overblock-pycell-md-render-all))
+              (overblock-pycell-test--render-all))
             (should (equal batched (funcall displays)))))
       (kill-buffer buffer))))
 
@@ -1079,7 +1097,7 @@ Its pieces hang on its source lines, and the lines move under them."
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
     (goto-char (point-min))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     ;; the markdown cell is the second one; move it up
     (goto-char (point-min))
     (forward-line 4)
@@ -1368,7 +1386,7 @@ modified by the act of visiting it."
     (setq-local overblock-run-backend (overblock-pycell--backend))
     (goto-char (point-min))
     (let ((size (buffer-size)))
-      (overblock-pycell-md-render-all)
+      (overblock-pycell-test--render-all)
       (should (overblock-in (point-min) (point-max) 'markdown))
       ;; the render left the text alone
       (should (= (buffer-size) size))
@@ -1395,7 +1413,7 @@ checkout, or any file the reader cannot write."
     (setq-local overblock-run-backend (overblock-pycell--backend))
     (setq buffer-read-only t)
     (goto-char (point-min))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (should (overblock-in (point-min) (point-max) 'markdown))))
 
 (ert-deftest overblock-pycell-test-a-key-in-a-rendered-cell-reaches-the-cell ()
@@ -1412,7 +1430,7 @@ empty of keys — the reader's own binding is what has to arrive."
     (python-mode)
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (should (overblock-in (point-min) (point-max) 'markdown))
     ;; point on the rendered cell, where a reader would press the key
     (goto-char (point-min))
@@ -1439,7 +1457,7 @@ cell is asked for its links instead."
     (python-mode)
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (goto-char (point-min))
     (forward-line 1)
     (let* ((block (overblock-pycell--md-at nil))
@@ -1459,7 +1477,7 @@ cell is asked for its links instead."
     ;; and a cell with no link says so
     (erase-buffer)
     (insert "# %% [markdown]\n# No link here.\n\n# %%\nx = 1\n")
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (goto-char (point-min))
     (forward-line 1)
     (should-error (overblock-pycell-md-follow-link) :type 'user-error)))
@@ -1485,7 +1503,7 @@ one: `overblock-md--image-file' answers nil for every path there."
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
               ((symbol-function 'create-image)
                (lambda (f &rest _) (list 'image :type 'png :file f))))
-      (overblock-pycell-md-render-all))
+      (overblock-pycell-test--render-all))
     (goto-char (point-min))
     (forward-line 1)
     (should (equal (mapcar #'cdr (overblock-pycell--md-links (overblock-pycell--md-at nil)))
@@ -2197,7 +2215,7 @@ it: the label was read from the stale region, and the text beyond the
 overlay drew after the bar and took a second screen row."
   (skip-unless (overblock-md-program))
   (overblock-pycell-test--with-notebook "# %% [markdown] first\n# text\n"
-    (overblock-pycell-md-render-all)
+    (overblock-pycell-test--render-all)
     (let ((bar (save-excursion (goto-char (point-min))
                                (overblock-bar-on-line))))
       ;; The product under test, so `should': see the same question in

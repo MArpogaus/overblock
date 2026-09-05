@@ -389,14 +389,20 @@ its markdown was rendered."
 
 (defun overblock-pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
-STATE comes from `overblock-pycell--cell-state'.  A markdown cell is rendered by
-the caller, which does the whole buffer at once."
+STATE comes from `overblock-pycell--cell-state'.  A markdown cell is
+rendered here and now, and not by the live cycle: point goes back into
+the cell that moved, and the cycle leaves the cell point is in alone."
   ;; The record goes back whole: the region was cleared, so the block
   ;; `overblock-run-show' builds has no state of its own worth keeping.
   (when-let* ((record (car state))
               (block (overblock-run-show beg end "" 0.0)))
     (overblock-set block :data record)
-    (overblock-run-update block)))
+    (overblock-run-update block))
+  (when (cdr state)
+    (overblock-pycell--md-show (save-excursion (goto-char beg)
+                                               (forward-line 1)
+                                               (point))
+                               end)))
 
 (defun overblock-pycell--running-in-p (beg end)
   "Return non-nil where the cell the shell is running lies in BEG..END.
@@ -490,9 +496,6 @@ cell."
                  (`(,tbeg ,tend) (code-cells--neighbor-bounds (- arg))))
       (overblock-pycell--restore-cell mbeg mend mine)
       (overblock-pycell--restore-cell tbeg tend theirs)
-      (when (or (cdr mine) (cdr theirs))
-        ;; The two cells that moved, not every cell in the file.
-        (overblock-pycell-md-render-all (min mbeg tbeg) (max mend tend)))
       (goto-char (+ mbeg (min offset (- mend mbeg)))))))
 
 ;;;###autoload
@@ -912,28 +915,19 @@ cells changed says so: measured, one moved cell in a file of two hundred
 rendered every one of them, 436 milliseconds against 17.7 for the two
 that moved.
 
-Nothing happens without a converter; `overblock-pycell-mode' says so
-once when it goes on."
+One converter process for all of them, and nothing waits for it:
+measured in a notebook of thirty markdown cells, turning the mode on
+cost the reader 312 milliseconds with the batch waited for, and the
+renderings arrive a moment later when it is not.  Nothing happens
+without a converter; `overblock-pycell-mode' says so once when it goes
+on."
   (interactive)
-  (when-let* (((overblock-md-program))
-              (cells (seq-filter
-                      (lambda (cell)
-                        (overblock-live-wanted-p (car cell) (cdr cell)
-                                                 'markdown))
-                      (overblock-pycell--md-cells (or beg (point-min))
-                                                  (or end (point-max))))))
-    ;; One converter process for the buffer rather than one per cell.
-    ;; It answers nil where the marker between cells did not survive,
-    ;; and then each cell goes on its own, as before.
-    (let ((htmls (and (cdr cells)
-                      (overblock-md-html-batch
-                       (mapcar (lambda (cell)
-                                 (overblock-pycell--md-uncomment
-                                  (buffer-substring-no-properties
-                                   (car cell) (cdr cell))))
-                               cells)))))
-      (dolist (cell cells)
-        (overblock-pycell--md-show (car cell) (cdr cell) (pop htmls))))))
+  (overblock-md-render-regions
+   (overblock-pycell--md-cells (or beg (point-min)) (or end (point-max)))
+   'markdown
+   (lambda (from to)
+     (overblock-pycell--md-uncomment (buffer-substring-no-properties from to)))
+   #'overblock-pycell--md-show))
 
 (defun overblock-pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.

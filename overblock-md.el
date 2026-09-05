@@ -632,6 +632,40 @@ The process is killed where the buffer that asked dies first."
     (funcall callback nil)
     nil))
 
+(defun overblock-md-render-regions (regions kind text show)
+  "Render the REGIONS that want a rendering of KIND, in one process.
+REGIONS are conses of buffer positions.  TEXT is called with the bounds
+of one and answers its markdown; SHOW is called with the bounds and the
+HTML of one and draws it, and takes nil for the HTML where the batch
+came back without its marker between every pair — it then converts on
+its own.  Nothing is waited for: the renderings arrive together a
+moment later, through `overblock-md-html-batch-async\'.
+
+`overblock-live-wanted-p\' says which regions want rendering, and says
+it again when the answer arrives: the reader has clicked, typed and
+moved on while the process ran.  Markers and not positions for the
+same reason — a paragraph typed above the regions while the converter
+ran moved every one of them, and the renderings landed a paragraph too
+high.  Nothing happens where no converter is installed."
+  (when-let* (((overblock-md-program))
+              (wanted (seq-filter (lambda (region)
+                                    (overblock-live-wanted-p (car region)
+                                                             (cdr region) kind))
+                                  regions))
+              (marked (mapcar (lambda (region)
+                                (cons (copy-marker (car region))
+                                      (copy-marker (cdr region) t)))
+                              wanted)))
+    (overblock-md-html-batch-async
+     (mapcar (lambda (region) (funcall text (car region) (cdr region))) marked)
+     (lambda (htmls)
+       (dolist (region marked)
+         (let ((html (pop htmls)))
+           (when (overblock-live-wanted-p (car region) (cdr region) kind)
+             (funcall show (car region) (cdr region) html)))
+         (set-marker (car region) nil)
+         (set-marker (cdr region) nil))))))
+
 (defun overblock-md--verbatim-math (md)
   "Return MD with its display-math blocks wrapped in <pre>.
 A $$ block carries its line structure on purpose, one equation to a
