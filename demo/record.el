@@ -48,7 +48,7 @@ blurred.")
 (defconst ob-gif-height 470
   "The height of a picture, in pixels, where a scenario wants no other.")
 
-(defconst ob-gif-heights '(("pydoc" . 800) ("rmd" . 640) ("pycell" . 620)
+(defconst ob-gif-heights '(("pydoc" . 800) ("rmd" . 980) ("pycell" . 620)
                            ("md" . 560) ("family" . 640))
   "The height a named scenario wants, where the default is too short.
 The doc strings of a class are the tall case: a rendering of one runs
@@ -438,7 +438,13 @@ plot(cars, pch = 19, col = \"steelblue\")
     (ob-gif-settle 0.4)
     (ob-gif-frame 400))
   ;; and the chunk that plots: R draws to the PNG device the wrapper
-  ;; opened, and the figure comes back into the result
+  ;; opened, and the figure comes back into the result.  The second
+  ;; result folds too, so the figure has the room of the frame.
+  (when-let* ((block (cadr (sort (overblock-in (point-min) (point-max) 'result)
+                                 (lambda (a b) (< (overlay-start a)
+                                                  (overlay-start b)))))))
+    (goto-char (overlay-start block))
+    (overblock-run-toggle-output))
   (goto-char (point-min))
   (search-forward "plot(cars" nil t)
   (call-interactively #'overblock-rmd-run-chunk)
@@ -448,7 +454,7 @@ plot(cars, pch = 19, col = \"steelblue\")
                      3)))
   (ob-gif-settle 0.6)
   (goto-char (point-min))
-  (ob-gif-frame 500))
+  (ob-gif-frame 600))
 
 (defun ob-gif-family ()
   "All four modes in one session, for the animation on the front page.
