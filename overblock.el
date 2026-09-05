@@ -88,6 +88,24 @@ had."
   :type 'number
   :group 'overblock)
 
+(defface overblock-bar '((t :inherit (shadow default) :overline t :extend t))
+  "Face of a bar over a block: the rule above it and the text on it.
+One face for the whole family — the bar over a cell, a chunk, a result
+and a doc string — so a notebook of Python and a notebook of R read the
+same, and a reader who wants another rule changes it once.  The overline
+is the rule: a rule a face draws runs the width of the row it is on and
+needs no measuring.
+
+`default' after `shadow', for the background: what a display string
+shows wears the face of the text it stands on as well as its own, and
+the fence line of an Rmd chunk wears the background of
+`markdown-code-face' — measured, every bar of an Rmd file was a grey
+band where the bars of a notebook were a rule.  A background of its own
+paints over that.")
+
+(defface overblock-body '((t :inherit shadow :extend t))
+  "Face of the body of a result, under its bar.")
+
 (defun overblock-get (block prop)
   "Return the PROP of BLOCK."
   (plist-get (overlay-get block 'overblock) prop))

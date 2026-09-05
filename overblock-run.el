@@ -56,8 +56,6 @@
 ;;   :starts    () -> a marker on the start of every region, in order
 ;;   :redraw    () -> draw the mode's own bars again, for a new width or
 ;;              a new button list.  Optional
-;;   :done      (BUFFER TEXT) -> write the whole result into a follower's
-;;              buffer once the region has ended.  Optional
 ;;
 ;; And the look of a result block, which `overblock-run-show' draws:
 ;;
@@ -89,6 +87,7 @@
 (require 'subr-x)
 (require 'map)
 (require 'ansi-color)
+(require 'vtable)
 
 (defvar-local overblock-run-backend nil
   "What this buffer's shell is, as a plist, or nil for no notebook.
@@ -607,7 +606,7 @@ was reporting.  `overblock-run-abort' asks the same question."
                                       (and died 'died))
       (when-let* ((buffer (car-safe follow))
                   ((buffer-live-p buffer)))
-        (overblock-run--call :done buffer text))
+        (overblock-run--follow-done buffer text))
       ;; The markers of the run go: three of them live in the
       ;; shell, and a pass over a notebook of 200 regions left hundreds
       ;; of them there.
@@ -985,6 +984,143 @@ over a fraction in silence."
       (message "%s: the %s is still running, so this is only what shows"
                (overblock-run--name) (overblock-run--unit)))
     (plist-get data :text)))
+
+;;;###autoload
+(defun overblock-run-save-image (&optional event)
+  "Save the first image of the result at point, or of the one in EVENT.
+The file type comes from the image descriptor; `create-image' read it
+from the data's magic bytes."
+  (interactive (list last-input-event))
+  (let* ((text (overblock-run-result-text (overblock-run-result-at event)))
+         (img (or (overblock-image-in text)
+                  (user-error "No image in this result")))
+         (data (or (plist-get (cdr img) :data)
+                   (user-error "This image carries no data")))
+         (type (plist-get (cdr img) :type))
+         (file (read-file-name
+                "Save image to: " nil nil nil
+                (format "figure.%s" (if (eq type 'jpeg) "jpg" type)))))
+    (let ((coding-system-for-write 'no-conversion))
+      ;; Asks before it overwrites: the name comes from
+      ;; `read-file-name', which does not.
+      (write-region data nil file nil nil nil t))
+    (message "%s: image saved to %s" (overblock-run--name) file)))
+
+(defvar-keymap overblock-run-pop-map
+  :doc "Keymap in a buffer showing one result of its own, empty on purpose.
+The runner binds no keys; put your own here.  `overblock-run-interrupt'
+and `overblock-run-stop' are the natural candidates: both act on the
+shell the result came from, not on the buffer they are pressed in.  The
+buffer is read-only, so a plain key is free:
+
+  (keymap-set overblock-run-pop-map \"i\" #\\='overblock-run-interrupt)"
+  :parent special-mode-map)
+
+(defun overblock-run--insert-result (text)
+  "Insert TEXT as a popped-out result, in the current buffer.
+A table goes in live: every binding of vtable works here, and vtable
+aligns the columns for this window itself.  It goes in as a copy,
+because the table of the result belongs to the shell buffer that drew
+it.
+
+Only the table did, once, and the rest of the cell's output went
+missing — the six lines a cell printed before its DataFrame, and the
+lines a follower had already seen.  This buffer is the one that holds
+more than the block, so what is around a table goes in with it."
+  (let ((pos 0)
+        (len (length text))
+        (drawn nil))
+    (while (< pos len)
+      (let ((table (get-text-property pos 'overblock-repl-table text))
+            (next (or (next-single-property-change
+                       pos 'overblock-repl-table text)
+                      len)))
+        (cond
+         ;; `overblock-repl-detach' leaves the table on the text it laid
+         ;; out; the padding between its runs carries no property, so
+         ;; one table can arrive in several pieces and is drawn once.
+         ((and table (not (eq table drawn)))
+          (vtable-insert (overblock-repl-table-copy table))
+          ;; `vtable--insert' ends with point back at the row after the
+          ;; header, so the next chunk went in between the header and
+          ;; the rows: the table's body was pushed to the end of the
+          ;; buffer and what followed the table was glued into it.
+          (goto-char (point-max))
+          (setq drawn table))
+         (table nil)
+         (t
+          (let ((part (substring text pos next)))
+            ;; A figure is one space carrying an image: on a display
+            ;; that draws none, this buffer held that space and nothing
+            ;; else.
+            (insert (if (display-images-p) part
+                      (overblock-image-label part))))))
+        (setq pos next)))))
+
+(defun overblock-run--follow-done (buffer text)
+  "Put TEXT, the whole of what the region printed, into BUFFER.
+The tail the run wrote there is raw: it carries the shell's prompts, and
+the last of it arrives after the closing one.  The finished buffer holds
+what a result popped out after the fact would hold."
+  (with-current-buffer buffer
+    (let* ((inhibit-read-only t)
+           (end (point-max))
+           (at-end (= (point) end))
+           ;; Every window, not the buffer's point alone: `erase-buffer'
+           ;; puts them all at 1, and a reader watching in a window of
+           ;; its own was scrolled back to the top at the very moment
+           ;; the last of the output arrived.
+           (following (seq-filter (lambda (window)
+                                    (= (window-point window) end))
+                                  (get-buffer-window-list buffer nil t))))
+      (erase-buffer)
+      (overblock-run--insert-result text)
+      (goto-char (if at-end (point-max) (point-min)))
+      (dolist (window following)
+        (set-window-point window (point-max))))))
+
+;;;###autoload
+(defun overblock-run-pop-output (&optional event)
+  "Show the result at point, or the one clicked in EVENT, in a buffer.
+Each region gets one buffer, named after the notebook and the line the
+region begins on, so results are comparable side by side.
+
+A region that is still running keeps writing there: the whole of what
+it prints, where the block itself shows the lines the notebook's option
+allows, so a long run can be followed in a window of its own.  Point at
+the end of that buffer follows the output; anywhere else it stays where
+it is.  The buffer is written once more when the region ends, with the
+prompts taken off and a table laid out live."
+  (interactive (list last-input-event))
+  (let* ((ov (overblock-run-result-at event))
+         (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
+         ;; Not `overblock-run-result-text': that answers with the head
+         ;; the tick reads and says so.  A buffer that is about to
+         ;; follow the region wants everything printed so far instead.
+         (text (if runningp "" (overblock-run-result-text ov)))
+         (buffer (get-buffer-create
+                  (format "*%s: %s:%d*" (overblock-run--name) (buffer-name)
+                          (line-number-at-pos (overlay-start ov)))))
+         (shell (overblock-run-shell)))
+    (with-current-buffer buffer
+      (special-mode)
+      (use-local-map overblock-run-pop-map)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (overblock-run--insert-result text))
+      (goto-char (point-max))
+      ;; Set whether or not a shell answers: a pop-out whose shell is
+      ;; gone is still not a notebook, and `overblock-run-interrupt'
+      ;; there must not fall through to whatever shell the settings
+      ;; point at — that killed another notebook's running cell at a
+      ;; keystroke.
+      (setq overblock-run-follower
+            (cons shell (and runningp shell
+                             (plist-get (buffer-local-value
+                                         'overblock-run--state shell)
+                                        :beg)))))
+    (when runningp (overblock-run-follow buffer))
+    (pop-to-buffer buffer)))
 
 ;;;###autoload
 (defun overblock-run-toggle-output (&optional event)

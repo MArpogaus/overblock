@@ -11,3 +11,9 @@ summary(cars)
 ```{r head}
 head(cars, 4)
 ```
+
+A chunk that plots answers with its figure:
+
+```{r plot}
+plot(cars, pch = 19, col = "steelblue")
+```

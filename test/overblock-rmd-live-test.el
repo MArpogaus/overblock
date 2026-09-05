@@ -122,6 +122,20 @@ line of its own."
   (overblock-rmd-live-test--with-document "```{r one}\n40 + 2\n```\n"
     (should (equal (overblock-rmd-live-test--run-first) "[1] 42"))))
 
+(ert-deftest overblock-rmd-live-test-a-chunk-that-draws-comes-back-with-its-figure ()
+  "A chunk that plots answers with the figure, after what it printed.
+R drew to the PNG device the wrapper opened, and the file it wrote came
+back as an image in the result."
+  (skip-unless (image-type-available-p 'png))
+  (overblock-rmd-live-test--with-document
+      "```{r fig}\ncat(\"before\\n\")\nplot(1:3)\n```\n"
+    (let ((text (overblock-rmd-live-test--run-first)))
+      (should (string-prefix-p "before" text))
+      (should-not (string-search "overblock-figure" text))
+      (let ((results (overblock-rmd-live-test--results)))
+        (should (overblock-image-in
+                 (plist-get (overblock-get (car results) :data) :text)))))))
+
 (ert-deftest overblock-rmd-live-test-a-chunk-prints-every-statement ()
   "Every top level expression of a chunk prints, and no prompt is between.
 That is what the `source' wrapper buys.  Sent line by line R prompts

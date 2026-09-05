@@ -284,7 +284,7 @@ display property, which is the whole point of asking."
 (ert-deftest overblock-pycell-test-a-figure-is-named-in-a-terminal ()
   "A figure a terminal cannot draw is named, in the block and out of it.
 comint-mime sends one space carrying the image, and a display that
-draws none shows the space: the row was blank, and `overblock-pycell-pop-output'
+draws none shows the space: the row was blank, and `overblock-run-pop-output'
 gave a buffer holding that one space."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (overblock-pycell-test--with-cells
@@ -1223,8 +1223,8 @@ refuses to insert one vtable into a second buffer."
         (overblock-run-show beg end text 0.4))
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
         (goto-char (overlay-start ov))
-        (save-window-excursion (overblock-pycell-pop-output))
-        (with-current-buffer (overblock-pycell--cell-buffer-name nil (overlay-start ov))
+        (save-window-excursion (overblock-run-pop-output))
+        (with-current-buffer (format "*overblock-pycell: %s:%d*" (buffer-name) (line-number-at-pos (overlay-start ov)))
           ;; The table is in there with whatever the cell printed around
           ;; it, so it is looked for rather than assumed to start the
           ;; buffer.
@@ -1542,7 +1542,7 @@ writes the whole of it again with the prompts off."
                                          (cons gone (copy-marker 1))))
             (should-not (overblock-run-follow-tick)))
           ;; and the end writes the whole of it, cleaned
-          (overblock-pycell--follow-done out "one\ntwo\nthree")
+          (overblock-run--follow-done out "one\ntwo\nthree")
           (should (equal (with-current-buffer out (buffer-string))
                          "one\ntwo\nthree")))
       (kill-buffer shell)
@@ -1605,7 +1605,7 @@ buffer that is meant to hold more than the block."
                         (let ((comint-prompt-regexp "^In \\[[0-9]+\\]: "))
                           (overblock-pycell--clean (overblock-pycell-test--vtable-text)))
                         "\nafter the table")))
-      (overblock-pycell--insert-result text)
+      (overblock-run--insert-result text)
       (let ((shown (buffer-string)))
         ;; in the order the cell printed them, which is the point:
         ;; `vtable-insert' leaves point between the header and the rows,
@@ -1841,7 +1841,7 @@ A result with no image says so rather than writing an empty file."
               (overblock-run-show beg end (concat "a figure\n" png) 0.1))
             (cl-letf (((symbol-function 'read-file-name)
                        (lambda (_prompt &rest _) file)))
-              (overblock-pycell-save-image))
+              (overblock-run-save-image))
             (should (file-exists-p file))
             (should (equal (with-temp-buffer
                              (set-buffer-multibyte nil)
@@ -1855,13 +1855,13 @@ A result with no image says so rather than writing an empty file."
                          (lambda (_prompt _dir _default _mustmatch initial)
                            (setq offered initial)
                            file)))
-                (overblock-pycell-save-image))
+                (overblock-run-save-image))
               (should (equal offered "figure.png")))
             ;; and a result without an image is not a file
             (goto-char (point-max))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
               (overblock-run-show beg end "no figure here" 0.1))
-            (should-error (overblock-pycell-save-image) :type 'user-error))
+            (should-error (overblock-run-save-image) :type 'user-error))
         (when (file-exists-p file) (delete-file file))))))
 
 ;;;; The bar over a boundary line

@@ -64,15 +64,14 @@
 ;; background jobs and that long output escapes into the process
 ;; buffer.
 ;;
-;; Text results only, and this is the first version's one real
-;; omission.  R draws to a graphics device rather than to its terminal,
-;; so a figure would need a `png()' capture protocol around every chunk
-;; -- open a device, run, close it, read the file back -- with the
-;; device options, the chunk's own `fig.width' and the reader's
-;; `ess-r-package' all having a say.  `comint-mime' gives Python its
-;; figures for nothing; R has no such thing, and guessing at one would
-;; be worse than leaving it out.  A chunk that plots runs and prints
-;; whatever it prints; its figure goes to whatever device R has.
+;; A figure comes back the way knitr brings one in: R draws to a
+;; graphics device rather than to its terminal, so the wrapper opens a
+;; PNG device before the chunk, closes it after, and names each file it
+;; wrote on a line of its own.  The result reads those lines back as
+;; images, and from there a figure is what a figure is in the Python
+;; notebook: capped to the window, saved with its button, popped out,
+;; and named in a terminal.  `overblock-rmd-figure-size' is what knitr
+;; calls `fig.width' and `fig.height'.
 ;;
 ;; What draws a block on the screen is not here: `overblock' puts text
 ;; over a region of a buffer with a header above it, `overblock-md'
@@ -96,16 +95,14 @@
   :group 'ess
   :prefix "overblock-rmd-")
 
-(defface overblock-rmd-header '((t :inherit header-line))
-  "Face for the bar of a chunk and for the header of its result.")
-
-(defface overblock-rmd-output '((t :inherit shadow :extend t))
-  "Face for the body of a result.")
-
 (defcustom overblock-rmd-result-buttons
   '((stop ("" "□" "stop") "Stop the run after this chunk"
           overblock-run-stop running)
+    (save-image ("" "↧" "save") "Save the result's figure to a file"
+                overblock-run-save-image image)
     (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)
+    (pop ("" "↗" "pop") "Show this result in its own buffer"
+         overblock-run-pop-output lines)
     (discard ("" "✕" "drop") "Discard this result"
              overblock-run-discard-output t))
   "The buttons on the header of a result, left to right.
@@ -126,14 +123,14 @@ Each entry is (KEY GLYPHS HELP COMMAND WHEN):
   same row.
 - HELP is the tooltip.
 - COMMAND runs on a click.
-- WHEN says when the button shows: t always, `lines' only with
-  output, `running' only while the chunk runs.
+- WHEN says when the button shows: t always, `image' only with a
+  figure in the result, `lines' only with output, `running' only while
+  the chunk runs.
 
-No save button and no pop-out, where the Python notebook has both: a
-result here is text, so there is no image to save, and following a long
-run in a buffer of its own is the notebook's feature rather than a
-promise this package makes.  The fold arrow and the spinner are not
-buttons of this list: they say what the result is doing."
+The same five buttons as `overblock-pycell-result-buttons' carries, less
+the pair that moves a cell: a chunk sits inside prose that reads about
+it.  The fold arrow and the spinner are not buttons of this list: they
+say what the result is doing."
   :type overblock-button-type
   :set #'overblock-run-set-buttons)
 
@@ -162,6 +159,15 @@ how many lines there are in all where it shows fewer.
 
 See `overblock-rmd-max-line-length' for the width."
   :type 'natnum)
+
+(defcustom overblock-rmd-figure-size '(7 . 5)
+  "Width and height of a figure a chunk draws, in inches.
+What knitr calls `fig.width' and `fig.height', and the same default:
+the PNG device is opened at this size and 96 dots an inch, so a figure
+of 7 by 5 inches is 672 by 480 pixels.  `overblock-image-height' then
+caps what shows inline, and `overblock-run-save-image' writes the
+original."
+  :type '(cons (number :tag "Width") (number :tag "Height")))
 
 (defcustom overblock-rmd-max-line-length 2000
   "Number of characters of a result line that show inline.
@@ -213,12 +219,41 @@ result came back with a bare > on a line of its own."
       (setq text ""))
     text))
 
+(defun overblock-rmd--figures (text)
+  "Return TEXT with each figure line replaced by the image it names.
+The wrapper `overblock-rmd--send' puts around a chunk writes one line
+for every PNG the chunk drew, `overblock-figure:' and the path.  Each
+becomes what comint-mime hands the Python notebook: one space carrying
+the image, with the file's bytes in it, so the block, the save button
+and the pop-out read a figure of R as they read one of Python.  Where
+this Emacs draws no PNG the line names the file instead.
+
+The newline before the line goes with it, so a figure follows the text
+of the chunk without a blank row between them."
+  (if (not (string-search "overblock-figure:" text))
+      text
+    (replace-regexp-in-string
+     "\n?overblock-figure:.+"
+     (lambda (line)
+       (let ((file (substring line (1+ (string-search ":" line)))))
+         (if (and (image-type-available-p 'png) (file-readable-p file))
+             (propertize " " 'display
+                         (create-image (with-temp-buffer
+                                         (set-buffer-multibyte nil)
+                                         (insert-file-contents-literally file)
+                                         (buffer-string))
+                                       'png t))
+           (format "[figure %s]" file))))
+     text t t)))
+
 (defun overblock-rmd--clean (text)
   "Return TEXT as a result block can show it.
-The prompt goes and the copy is cut loose from the shell; see
-`overblock-rmd--strip-prompt' and `overblock-repl-detach' for what each
-of those means.  Call this in the shell buffer."
-  (overblock-repl-detach (overblock-rmd--strip-prompt text)))
+The prompt goes, the figures come in, and the copy is cut loose from
+the shell; see `overblock-rmd--strip-prompt', `overblock-rmd--figures'
+and `overblock-repl-detach' for what each of those means.  Call this in
+the shell buffer."
+  (overblock-repl-detach
+   (overblock-rmd--figures (overblock-rmd--strip-prompt text))))
 
 ;;;; The chunks
 
@@ -304,10 +339,10 @@ A bar already there is drawn again rather than replaced, so its own
 state — the label and the width it was cut for — is what
 `overblock-bar-draw' compares against.
 
-The glyph in front of the label is the codicon pair of braces, which is
-what the header of a chunk is written with.  Not the one the Python
-notebook draws over a code cell: that one is a snake, and it says
-Python to anyone who can read it."
+The glyph in front of the label is the R logo of the devicons, the
+family the Python notebook draws its snake and its markdown mark from;
+the label is the chunk's name, or the language where it has none, as a
+code cell is called python."
   (save-excursion
     (goto-char open)
     (let* ((bol (pos-bol))
@@ -323,9 +358,9 @@ Python to anyone who can read it."
       (overblock-bar-draw
        ov 'chunk
        (concat (overblock-glyph "" "◆" "R") " "
-               (or (overblock-rmd--chunk-name bol eol) "chunk"))
+               (or (overblock-rmd--chunk-name bol eol) "R"))
        (overblock-buttons overblock-rmd-chunk-buttons)
-       'overblock-rmd-header))))
+       'overblock-bar))))
 
 (defun overblock-rmd--hide-fence (close)
   "Hide the closing fence line that begins at CLOSE.
@@ -456,6 +491,14 @@ R print the value of every top level expression, as it does at its own
 prompt and as a notebook cell does.  The commentary of this file says
 why the lines cannot simply be sent.
 
+Around the `source' a PNG device, opened before the chunk at
+`overblock-rmd-figure-size' and closed after it whatever the chunk did:
+a chunk that draws leaves a file for each page, and the exit names each
+on a line of its own, which `overblock-rmd--figures' reads back.  Only
+where R can draw a PNG at all; a chunk that draws nothing leaves no
+file and names none.  The names are R's own temporary files, and go
+with the session.
+
 `ess-send-string' and not `ess-send-region': the region is not what
 goes down, and `ess-send-region' hands a chunk to ess-tracebug where
 that is on, which would wrap the wrapper.
@@ -466,7 +509,14 @@ to R 4.6 through a real pseudo terminal came back with the right answer
 and no continuation prompt."
   (ess-send-string
    proc
-   (format "source(exprs = parse(text = %s), print.eval = TRUE)"
+   (format "local({.f <- tempfile(\"overblock-\", fileext = \"-%%03d.png\"); \
+.png <- capabilities(\"png\"); \
+if (.png) png(.f, width = %s, height = %s, units = \"in\", res = 96); \
+on.exit({if (.png) invisible(dev.off()); \
+for (.p in Sys.glob(sub(\"%%03d\", \"*\", .f, fixed = TRUE))) \
+cat(\"\\noverblock-figure:\", .p, \"\\n\", sep = \"\")}); \
+source(exprs = parse(text = %s), print.eval = TRUE)})"
+           (car overblock-rmd-figure-size) (cdr overblock-rmd-figure-size)
            (overblock-rmd--r-string (buffer-substring-no-properties beg end)))
    nil))
 
@@ -539,8 +589,8 @@ either, because no buffer follows a running chunk."
         :keymap overblock-rmd-result-map
         :buttons 'overblock-rmd-result-buttons
         :fold #'overblock-run-toggle-output
-        :header-face 'overblock-rmd-header
-        :output-face 'overblock-rmd-output
+        :header-face 'overblock-bar
+        :output-face 'overblock-body
         :lines 'overblock-rmd-max-lines
         :chars 'overblock-rmd-max-line-length))
 
