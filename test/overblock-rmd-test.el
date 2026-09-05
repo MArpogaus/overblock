@@ -308,7 +308,7 @@ also the pass that has to take the stale ones down."
   "The result of a chunk shows after its code and before the closing fence."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (should (overblock-rmd--show beg end "[1] 1" 0.4))
+      (should (overblock-run-show beg end "[1] 1" 0.4))
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         (should block)
         ;; the header says what it holds, and the body shows it
@@ -322,13 +322,13 @@ also the pass that has to take the stale ones down."
   "The fold button hides the body and leaves the header."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-rmd--show beg end "one\ntwo" 0.1)
+      (overblock-run-show beg end "one\ntwo" 0.1)
       (goto-char beg)
-      (overblock-rmd-toggle-output)
+      (overblock-run-toggle-output)
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         (should-not (overblock-get block :body))
         (should (overblock-get block :header)))
-      (overblock-rmd-toggle-output)
+      (overblock-run-toggle-output)
       (should (overblock-get (car (overblock-in (point-min) (point-max)
                                                 'result))
                              :body)))))
@@ -337,25 +337,25 @@ also the pass that has to take the stale ones down."
   "The two buttons that take a result away and put it on the kill ring."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-rmd--show beg end "[1] 1" 0.1)
+      (overblock-run-show beg end "[1] 1" 0.1)
       (goto-char beg)
       (let ((kill-ring nil))
-        (overblock-rmd-copy-output)
+        (overblock-run-copy-output)
         (should (equal (substring-no-properties (current-kill 0)) "[1] 1")))
-      (overblock-rmd-discard-output)
+      (overblock-run-discard-output)
       (should-not (overblock-in (point-min) (point-max) 'result)))))
 
 (ert-deftest overblock-rmd-test-there-is-no-result-here ()
   "A command that wants a result says so where there is none."
   (overblock-rmd-test--with-mode "prose\n\n```{r a}\n1\n```\n"
     (goto-char (point-min))
-    (should-error (overblock-rmd-toggle-output) :type 'user-error)))
+    (should-error (overblock-run-toggle-output) :type 'user-error)))
 
 (ert-deftest overblock-rmd-test-an-edit-of-the-code-drops-the-result ()
   "A result stands for the code it was run from; editing that takes it down."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-rmd--show beg end "[1] 1" 0.1)
+      (overblock-run-show beg end "[1] 1" 0.1)
       (should (overblock-in (point-min) (point-max) 'result))
       (goto-char beg)
       (insert "2 + ")
@@ -369,13 +369,13 @@ also the pass that has to take the stale ones down."
   (overblock-rmd-test--with-mode "prose\n\n```{r a}\n1\n```\n"
     (goto-char (point-min))
     (should-error (overblock-rmd-run-chunk) :type 'user-error)
-    (should-error (overblock-rmd-run-above) :type 'user-error)))
+    (should-error (overblock-run-above) :type 'user-error)))
 
 (ert-deftest overblock-rmd-test-the-first-chunk-has-none-above-it ()
-  "`overblock-rmd-run-above' on the first chunk refuses rather than runs."
+  "`overblock-run-above' on the first chunk refuses rather than runs."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n\n```{r b}\n2\n```\n"
     (goto-char (point-min))
-    (should-error (overblock-rmd-run-above) :type 'user-error)))
+    (should-error (overblock-run-above) :type 'user-error)))
 
 (ert-deftest overblock-rmd-test-the-step-of-a-vanished-chunk-walks-on ()
   "A queued marker whose chunk the reader has deleted stops nothing.
@@ -408,7 +408,7 @@ nothing in silence."
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
       (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-        (overblock-rmd--show beg end "[1] 1" 0.1))
+        (overblock-run-show beg end "[1] 1" 0.1))
       (should (overblock-bars))
       (should (overblock-in (point-min) (point-max) 'result))
       (overblock-rmd-mode -1)

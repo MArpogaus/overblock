@@ -256,7 +256,7 @@ every `overblock-refresh'."
       (overlay-put block 'face 'default)
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, so
-      ;; `overblock-width-follow' can tell a block that is drawn for
+      ;; `overblock--width-changed' can tell a block that is drawn for
       ;; this window from one that is not.
       (overlay-put block 'overblock-columns (overblock-window-columns))
       ;; `modification-hooks' is left to the caller.  What an edit of the
@@ -781,13 +781,23 @@ which a mode binds to a click — and when the region under it is edited,
 which `overblock-stale-when-edited\' answers.  Point arriving somewhere
 reveals nothing: a reader scrolls through a buffer, and a rendering that
 came off under the window made the text grow and shrink as they went."
-  (setq overblock-live--spec (list kind render idle))
+  (setq overblock-live--spec (list kind render idle)
+        overblock--columns (overblock-window-columns))
   (add-hook 'post-command-hook #'overblock-live--settle nil t)
+  ;; The width, too: a rendering is built for the columns it is shown
+  ;; at, and `overblock--width-changed\' says what happens when they
+  ;; change.  Buffer-local, both of them: the first runs for every
+  ;; window showing this buffer whose frame changed, which is every
+  ;; change of width there is, and the second for this buffer\'s scale.
+  (add-hook 'window-configuration-change-hook #'overblock--width-changed nil t)
+  (add-hook 'text-scale-mode-hook #'overblock--width-changed nil t)
   (funcall render))
 
 (defun overblock-live-stop ()
   "Stop rendering this buffer, and take every rendering off it."
   (remove-hook 'post-command-hook #'overblock-live--settle t)
+  (remove-hook 'window-configuration-change-hook #'overblock--width-changed t)
+  (remove-hook 'text-scale-mode-hook #'overblock--width-changed t)
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer)
     (setq overblock-live--timer nil))
@@ -1253,100 +1263,55 @@ quotient is the column count times the scale.
 Nil where no window shows the buffer; see `overblock--window-min\'."
   (overblock--window-min #'window-max-chars-per-line))
 
-(defun overblock-width-follow (kind &optional frame)
-  "Drop the blocks of KIND built for another width than they now have.
-For `window-size-change-functions\' and `window-buffer-change-functions\',
-which hand over the frame whose windows changed; FRAME nil means the
-selected one, as those hooks never leave it out.
+(defvar-local overblock--columns nil
+  "The columns this buffer was last drawn at, or nil before the first look.
+`overblock--width-changed\' compares against it, so the hooks it serves
+— which run for every kind of change — redraw only when the width moved.")
 
-A rendering is built for the width it is shown at — prose is filled to
-it, and a rule that reaches the window\'s edge is spaces up to it — so a
-window made narrower leaves rows too long for it, and a wider one leaves
-every rule short.  What was built for another width is deleted, and the
-mode\'s own idle cycle renders it again: dropping rather than rendering
-here is what keeps a drag of the window edge from starting a converter
-at every column it passes through.
+(defvar-local overblock-width-functions nil
+  "Functions called with no arguments when this buffer changes width.
+Buffer-local, and run from `overblock--width-changed\' when a window
+showing the buffer has changed width, or its text scale — the two
+things that change how many columns a rendering has.  A mode that
+builds bars for a width adds what draws them again here; the blocks of
+the live cycle are dropped and rendered again without any help.
 
-The width each block was built for is on the block, written by
-`overblock-show\'."
-  (dolist (window (window-list frame 'no-mini))
-    (with-current-buffer (window-buffer window)
-      (when-let* ((columns (overblock-window-columns))
-                  (stale (seq-filter
-                          (lambda (block)
-                            (not (eql columns
-                                      (overlay-get block
-                                                   'overblock-columns))))
-                          (overblock-in (point-min) (point-max) kind))))
-        (mapc #'overblock-delete stale)))))
+`overblock-live-start\' watches the hooks that lead here, so this runs
+only while a live cycle is on.")
 
-(defvar-local overblock--bar-width nil
-  "The width the bars of this buffer were built for, in pixels.
-`overblock-bar\' cuts a label to the room the icons leave and the cut is
-in the string, so a window made narrower — a split, a side window, a
-frame resized — was left with a label too long for it and the bar took
-two rows; a wider one left the label cut short for nothing.
+(defun overblock--width-changed ()
+  "Follow a change of the width this buffer is drawn at.
+For the buffer-local `window-configuration-change-hook\', which runs for
+a split, a resize, a frame that changed size and a window that shows
+this buffer again after showing another, and for `text-scale-mode-hook\'.
+Measured in columns and not pixels, because the text scale changes the
+columns and leaves the pixels alone, and a rendering is filled to
+columns.
 
-Pixels and not columns: a label is cut against what it measures on the
-frame, and a glyph the frame draws from a fallback font is wider than a
-character cell.")
+What was built for another width goes: a rendering is filled to the
+width it is shown at — prose is filled to it, and a rule that reaches
+the window\'s edge is spaces up to it — so a window made narrower leaves
+rows too long for it, and a wider one leaves every rule short.  The
+blocks of the live cycle carry the width they were built for, written
+by `overblock-show\', and the ones built for another are dropped; the
+cycle then renders them anew once the reader stops.  Dropping rather
+than rendering here is what keeps a drag of the window edge from
+starting a converter at every column it passes through.
 
-(defun overblock-bar-width-follow (redraw)
-  "Call REDRAW where the width of this buffer\'s window has changed.
-For `window-configuration-change-hook\', which runs for every other kind
-of change as well: the width is remembered here and compared, so REDRAW
-is called only when it is the width that moved.
-
-REDRAW takes no arguments and draws whatever the caller builds for a
-width — its bars, and the blocks whose rows reach the window\'s edge."
-  (when-let* ((width (overblock-window-width)))
-    (unless (eql width overblock--bar-width)
-      (setq overblock--bar-width width)
-      (funcall redraw))))
-
-(defun overblock-bar-rescale (redraw)
-  "Call REDRAW after the text scale of this buffer changed.
-For `text-scale-mode-hook\'.  The room a label has did not change — the
-window is the same width — but the label was cut in pixels and the font
-is now a different size, so a bar cut for the old one took two rows.
-Measured at scale +6: a bar of 132 pixels on a line 64 pixels high.
-
-Every bar is marked stale first, because `overblock-bar-draw\' leaves a
-bar alone whose label and width it has seen before."
-  (setq overblock--bar-width nil)
-  (mapc #'overblock-bar-stale (overblock-bars))
-  (overblock-bar-width-follow redraw))
-
-(defvar overblock--width-watchers (make-hash-table :test #'eq)
-  "The function that follows the window width, one per kind of block.
-One object per kind, kept because a hook is removed by the function that
-was added to it and a fresh closure is a different function.")
-
-(defun overblock-width-watch (kind mode on)
-  "Follow the width of the windows showing the blocks of KIND.
-Call this from the body of a minor mode: MODE is the mode\'s own
-variable and ON says whether it has just gone on.  While it is on, a
-window that changes width — or that shows this buffer again after
-showing another — drops the blocks of KIND that were built for a
-different width, and the mode\'s idle cycle renders them anew.
-
-The hooks are global, because they are handed a frame and not a buffer,
-so they come off only with the last buffer that wanted them."
-  (let ((watcher (or (gethash kind overblock--width-watchers)
-                     (puthash kind
-                              (lambda (&optional frame)
-                                (overblock-width-follow kind frame))
-                              overblock--width-watchers))))
-    (if on
-        (progn (add-hook 'window-size-change-functions watcher)
-               (add-hook 'window-buffer-change-functions watcher))
-      (unless (seq-some (lambda (buffer)
-                          (and (not (eq buffer (current-buffer)))
-                               (buffer-local-boundp mode buffer)
-                               (buffer-local-value mode buffer)))
-                        (buffer-list))
-        (remove-hook 'window-size-change-functions watcher)
-        (remove-hook 'window-buffer-change-functions watcher)))))
+Every bar is marked stale: a bar is cut in pixels for the font of the
+moment, and `overblock-bar-draw\' leaves alone one whose label it has
+seen — measured at scale +6, a bar of 132 pixels on a line 64 pixels
+high, drawn again for nothing."
+  (when-let* ((columns (overblock-window-columns))
+              ((not (eql columns overblock--columns))))
+    (setq overblock--columns columns)
+    (when-let* ((kind (car overblock-live--spec)))
+      (dolist (block (overblock-in (point-min) (point-max) kind))
+        (unless (eql columns (overlay-get block 'overblock-columns))
+          (overblock-delete block)))
+      (overblock-live--settle))
+    (mapc #'overblock-bar-stale (overblock-bars))
+    (run-hooks 'overblock-width-functions)))
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
@@ -1464,10 +1429,11 @@ what this bar stands on, and `overblock-bar-kind' answers with it.
 Where nothing has changed the bar is left as it is: a caller draws from
 a change hook, and a walk over a long buffer would otherwise measure and
 build every bar it passes.  The text of the line is part of what is
-compared, because the label is usually written on it."
+compared, because the label is usually written on it.  The width is
+not: `overblock--width-changed\' marks every bar stale when it moves."
   (let ((state (list (buffer-substring-no-properties (overlay-start ov)
                                                      (overlay-end ov))
-                     label icons face (overblock-window-width))))
+                     label icons face)))
     (overlay-put ov 'overblock-bar kind)
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
@@ -1501,9 +1467,9 @@ character out of the string moves nothing: it draws where it drew."
 (defun overblock-bar-stale (ov)
   "Make OV forget what it was drawn from, so the next draw rebuilds it.
 `overblock-bar-draw' leaves a bar as it is where nothing it compares
-has changed.  A change it cannot see is the caller's to declare: the
-buffer's font size is one, because the room a label has is the same
-number of pixels at any size and the label's own width is not."
+has changed.  A change it cannot see is declared here: the width is
+one, and `overblock--width-changed' declares it; a button list the
+reader has customized is another, and the `:set' of that option does."
   (overlay-put ov 'overblock-bar-state nil))
 
 (defun overblock-bar-kind (ov)

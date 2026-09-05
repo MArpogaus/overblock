@@ -362,9 +362,9 @@ the doc string was deep."
 (ert-deftest overblock-pydoc-test-the-bars-follow-the-window-width ()
   "The mode watches the window width while it is on, and stops after.
 A rendering is built for the width it is shown at, so a window made
-narrower leaves rows too long for it.  `overblock-width-follow\' is what
-drops those, and the layer\'s own suite proves the dropping; this proves
-that the mode asks for it and that it stops asking."
+narrower leaves rows too long for it.  `overblock--width-changed\' is
+what drops those, and the layer\'s own suite proves the dropping; this
+proves that the mode asks for it and that it stops asking."
   (overblock-pydoc-test--with
     (goto-char (point-max))
     (overblock-pydoc-mode 1)
@@ -372,17 +372,15 @@ that the mode asks for it and that it stops asking."
         (progn
           ;; a buffer in no window has no width to build for
           (should (eql (overblock-window-columns) nil))
-          (let ((watcher (gethash 'pydoc overblock--width-watchers)))
-            (should watcher)
-            (should (memq watcher window-size-change-functions))
-            (should (memq watcher window-buffer-change-functions))
-            ;; and asking with no window to measure is not an error
-            (should-not (funcall watcher))))
+          (should (memq #'overblock--width-changed
+                        window-configuration-change-hook))
+          (should (memq #'overblock--width-changed text-scale-mode-hook))
+          ;; and asking with no window to measure is not an error
+          (should-not (overblock--width-changed)))
       (overblock-pydoc-mode -1))
-    ;; the hooks are global, so they come off with the last buffer
-    (let ((watcher (gethash 'pydoc overblock--width-watchers)))
-      (should-not (memq watcher window-size-change-functions))
-      (should-not (memq watcher window-buffer-change-functions)))))
+    (should-not (memq #'overblock--width-changed
+                      window-configuration-change-hook))
+    (should-not (memq #'overblock--width-changed text-scale-mode-hook))))
 
 (ert-deftest overblock-pydoc-test-point-inside-shows-the-source ()
   "The doc string point is in shows its source; leaving renders it again."

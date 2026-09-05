@@ -105,13 +105,11 @@ own."
     (should (equal (split-string clean "\n")
                    '("first  second" "1      one" "2      two")))))
 
-(ert-deftest overblock-repl-test-first-lines-of-nothing-is-nothing ()
-  "A limit of zero takes no lines, rather than the whole result.
-A caller's own limit is a natnum, so zero is a legal value, and the
-scan counts from one: it never met a limit of zero and read and copied
-everything instead."
-  (should-not (overblock-repl-first-lines "a\nb\nc\n" 0))
-  (should-not (overblock-repl-first-lines "a\nb\nc\n" -1))
+(ert-deftest overblock-repl-test-first-lines-of-zero-is-every-line ()
+  "A limit of zero takes every line, as the options that hand one mean it.
+The scan counts from one and never met a limit of zero: it answered no
+lines at all, and a result the reader asked to see whole showed nothing."
+  (should (equal (overblock-repl-first-lines "a\nb\nc\n" 0) '("a" "b" "c" "")))
   (should (equal (overblock-repl-first-lines "a\nb\nc\n" 2) '("a" "b"))))
 
 (ert-deftest overblock-repl-test-a-copy-keeps-what-the-columns-carry ()

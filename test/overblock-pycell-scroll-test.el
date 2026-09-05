@@ -194,10 +194,11 @@ is what says so."
           (dotimes (n 6) (insert (format "# %%%%\nplot(%d)\n\n" n)))
           (python-mode)
           (code-cells-mode)
+          (setq-local overblock-run-backend (overblock-pycell--backend))
           (goto-char (point-min))
           (while (< (point) (point-max))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-              (overblock-pycell--show beg end
+              (overblock-run-show beg end
                             (concat "a figure\n"
                                     (propertize " " 'display figure))
                             0.2)

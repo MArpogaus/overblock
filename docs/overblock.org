@@ -310,25 +310,27 @@ over the buffer, the ticker, the process filter and the result block.
 there were two of them, wired to python.el at eleven points, and the
 second notebook would have had to copy all of it.
 
-Nothing here knows a language.  Two plists say what one is: a
-*backend*, which is the shell, and a *style*, which is the look of a
-result block.  The commentary of the file lists their slots.
+Nothing here knows a language.  One plist says what one is: the
+*backend*, which is the shell, the regions, and the look of a result
+block.  The commentary of the file lists its slots.
 
-** Where each plist lives
+** Where the plist lives
 
 =overblock-run-backend= is buffer-local, because a notebook is a
-buffer: the mode sets it and takes it away again, and the runner reads
-it to know whether the buffer is still a notebook it may draw in.  A
-send copies it into the shell buffer, because the filter and the ticker
-run there and have to reach the same answers.
+buffer: =overblock-run-attach= sets it for the mode and
+=overblock-run-detach= takes it away again, and the runner reads it to
+know whether the buffer is still a notebook it may draw in.  A send
+copies it into the shell buffer, because the filter and the ticker run
+there and have to reach the same answers — the head of a running
+output is read there, cut to the lines the notebook's options allow.
 
-A style is a plain variable, one to a package.  A block can be drawn
-with no mode on at all — a result put back after the mode went off
-would sit in a buffer with no bars and no keys to fold it — and three
-of its slots may be functions, so an option the reader has just
-changed is read when the block is drawn rather than when the style was
-written.  The other slots are never called: a face, a keymap and a
-command are values.
+Three slots name an option rather than hold a value — the buttons and
+the two limits — so one the reader has just customized is read when
+the block is drawn.  The other slots are never called: a face, a
+keymap and a command are values.  The look lived in a second plist,
+one to a package, on the grounds that a block could be drawn with no
+mode on; nothing ever did, and every command that acted on a result
+had to be written twice to hand the right plist over.
 
 ** The queue lives with the shell
 

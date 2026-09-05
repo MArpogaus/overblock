@@ -252,20 +252,19 @@ it into the shell buffer, where the filter and the ticker read it:
 | =:send=     | send a region to the process                      |
 | =:prompt-p= | whether what the shell printed ends at a prompt   |
 | =:clean=    | the output as a block can show it                 |
-| =:head=     | as much of the output as shows inline             |
-| =:show=     | draw the result                                   |
 | =:error-p=  | whether the region failed, which stops a pass     |
 | =:step=     | run what is at point, and say whether to wait     |
+| =:region-at= | the region point is in, as =(BEG . END)=         |
+| =:starts=   | a marker on the start of every region, in order   |
+| =:redraw=   | draw the mode's own bars again                    |
 | =:done=     | write the whole result into a follower's buffer   |
 
-A *style* is the look of a result block, and =overblock-run-show=,
-=overblock-run-update= and =overblock-run-header= take one as their
-first argument: =:kind=, =:keymap=, =:buttons=, =:fold=,
-=:header-face=, =:output-face=, =:lines= and =:chars=.  One style to a
-package and not one to a buffer, so a block can be drawn with no mode
-turned on.  The buttons and the two limits may be functions, which are
-called when the block is drawn, so an option the reader has just
-changed is read then.
+The same plist carries the look of a result block: =:keymap=,
+=:buttons=, =:fold=, =:header-face=, =:output-face=, =:lines= and
+=:chars=.  The buttons and the two limits name an option rather than
+hold a value, so one the reader has just customized is read when the
+block is drawn.  =overblock-run-attach= makes a buffer a notebook with
+such a plist, and =overblock-run-detach= takes it back.
 
 | Function                         | What it does                                            |
 |----------------------------------+---------------------------------------------------------|
@@ -278,8 +277,11 @@ changed is read then.
 | =overblock-run-follow= / =-tick= | copy a running output into a buffer as it prints        |
 | =overblock-run-abort=            | end a run whose prompt will never come                  |
 
-The file has no options and no commands of its own.  Each package keeps
-its own buttons, faces, limits and commands; what they share is every
+The commands a reader presses on a result are here as well, the same
+in every notebook: =overblock-run-toggle-output=, =-copy-output=,
+=-discard-output=, =-clear-results=, =-above=, =-stop= and
+=-interrupt=.  Each package keeps its own buttons, faces and limits, and
+the commands that know its cells; what they share is every
 line below them.
 
 *** Commands and options
@@ -656,12 +658,12 @@ right, in the order of =overblock-pycell-result-buttons=:
 | =⌄=    | move this cell down                    |
 
 The stop button shows only while the cell runs.  It is
-=overblock-pycell-stop= as a click: the running cell runs to its end,
+=overblock-run-stop= as a click: the running cell runs to its end,
 and the cells queued after it do not start.
-=overblock-pycell-interrupt= is the harder stop.
+=overblock-run-interrupt= is the harder stop.
 
 A pass over several cells — =overblock-pycell-restart-and-run-all= or
-=overblock-pycell-run-above= — scrolls each cell it starts to the top
+=overblock-run-above= — scrolls each cell it starts to the top
 of the window, so the code that runs is visible.  Point comes back to
 where you asked for the pass when it ends.
 
@@ -672,7 +674,7 @@ in its own buffer, where every binding of vtable works: =S= or a click
 on a column name sorts, ={= and =}= narrow and widen a column, and
 =M-left= and =M-right= move one.
 
-=overblock-pycell-interrupt= and =overblock-pycell-stop= work in such a
+=overblock-run-interrupt= and =overblock-run-stop= work in such a
 buffer as they do in the notebook — the buffer remembers the shell it
 came from — so a run being watched can be stopped where you are
 watching it.  Bind them in =overblock-pycell-pop-map=; the buffer is
@@ -743,24 +745,23 @@ source of one cell.
 |----------------------------------------+--------------------------------------------------------------------|
 | =overblock-pycell-mode=                | turn the feature on or off for a buffer                            |
 | =overblock-pycell-mode-maybe=          | the same, in a Python buffer only, for =code-cells-mode-hook=      |
-| =overblock-pycell-toggle-output=       | fold or unfold the result at point                                 |
-| =overblock-pycell-copy-output=         | copy the result at point                                           |
+| =overblock-run-toggle-output=          | fold or unfold the result at point                                 |
+| =overblock-run-copy-output=            | copy the result at point                                           |
 | =overblock-pycell-pop-output=          | show the result in its own buffer, and follow a running cell there |
 | =overblock-pycell-save-image=          | write the image of the result to a file                            |
-| =overblock-pycell-discard-output=      | remove the result at point                                         |
-| =overblock-pycell-remove-blocks=       | remove every result and rendering                                  |
-| =overblock-pycell-interrupt=           | send a KeyboardInterrupt to the cell                               |
+| =overblock-run-discard-output=         | remove the result at point                                         |
+| =overblock-run-clear-results=          | remove every result                                                |
+| =overblock-run-interrupt=              | send a KeyboardInterrupt to the cell, and stop the pass            |
 | =overblock-pycell-restart=             | restart the interpreter, drop the results                          |
 | =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                               |
 | =overblock-pycell-run-cell=            | run the cell at point                                              |
-| =overblock-pycell-run-above=           | run every cell above the one at point                              |
-| =overblock-pycell-stop=                | stop the run of the cells after this one                           |
+| =overblock-run-above=                  | run every cell above the one at point                              |
+| =overblock-run-stop=                   | stop the run of the cells after this one                           |
 | =overblock-pycell-move-cell-up=        | move the cell at point up, with its result                         |
 | =overblock-pycell-move-cell-down=      | move the cell at point down, likewise                              |
-| =overblock-pycell-md-render-all=       | render each markdown cell                                          |
+| =overblock-pycell-md-render-all=       | render each markdown cell that is not rendered                     |
 | =overblock-pycell-md-render-cell=      | render the markdown cell at point                                  |
-| =overblock-pycell-md-unrender=         | show each markdown cell as source                                  |
-| =overblock-pycell-md-raw=              | show one markdown cell as source                                   |
+| =overblock-pycell-md-raw=              | show one markdown cell as source, until point leaves it            |
 | =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                           |
 | =overblock-pycell-md-follow-link=      | follow a link of the rendered cell                                 |
 
@@ -782,9 +783,9 @@ Bind the commands that you use.  The two to start with are the
 interrupt and the stop, in the notebook and in the pop-out:
 
 #+begin_src emacs-lisp
-  (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-pycell-interrupt)
-  (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-pycell-stop)
-  (keymap-set overblock-pycell-pop-map "i" #'overblock-pycell-interrupt)
+  (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
+  (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-run-stop)
+  (keymap-set overblock-pycell-pop-map "i" #'overblock-run-interrupt)
 #+end_src
 
 Both commands resolve the shell of the buffer they are pressed in — a
@@ -794,7 +795,7 @@ of the cell needs, such as =TAB= for folding:
 
 #+begin_src emacs-lisp
   (keymap-set overblock-pycell-result-map "TAB"
-              '(menu-item "" overblock-pycell-toggle-output
+              '(menu-item "" overblock-run-toggle-output
                           :filter overblock-pycell-tab-filter))
 #+end_src
 
@@ -835,7 +836,7 @@ glyph your font draws better:
 #+begin_src emacs-lisp
   ;; no discard button, and a plain arrow for the move
   (setopt overblock-pycell-result-buttons
-          '((copy ("◫" "≡") "Copy this result" overblock-pycell-copy-output lines)
+          '((copy ("◫" "≡") "Copy this result" overblock-run-copy-output lines)
             (move-up ("↑" "u") "Move this cell up" overblock-pycell-move-cell-up t)
             (move-down ("↓" "d") "Move this cell down"
                        overblock-pycell-move-cell-down t)))
@@ -966,14 +967,14 @@ thing follows for the reader: R parses the chunk out of a string, so a
 fault in the syntax of one names =<text>= and a line counted from the
 top of the chunk, rather than the file.
 
-=overblock-rmd-run-above= and =overblock-rmd-restart-and-run-all= run
+=overblock-run-above= and =overblock-rmd-restart-and-run-all= run
 several chunks in order.  Each chunk goes to the top of the window as
 it starts, so the code that runs is visible, and point comes back to
 where you asked for the pass when it ends.  The pass stops at the first
 chunk that fails.
 
-=overblock-rmd-stop= ends the pass after the chunk that is running now.
-=overblock-rmd-interrupt= is the harder stop: R answers an interrupt
+=overblock-run-stop= ends the pass after the chunk that is running now.
+=overblock-run-interrupt= is the harder stop: R answers an interrupt
 with a fresh prompt and nothing else, so the result holds what the
 chunk had printed and no more, and the pass stops with it.
 
@@ -999,14 +1000,15 @@ stays as it is; the chunks run either way.
 | =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
 | =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
 | =overblock-rmd-run-chunk=           | run the chunk at point                                    |
-| =overblock-rmd-run-above=           | run every chunk above the one at point                    |
+| =overblock-run-above=               | run every chunk above the one at point                    |
 | =overblock-rmd-restart=             | restart R, and drop the results                           |
 | =overblock-rmd-restart-and-run-all= | restart, then run each chunk in order                     |
-| =overblock-rmd-stop=                | stop the pass after the chunk that runs now               |
-| =overblock-rmd-interrupt=           | interrupt the chunk R is running                          |
-| =overblock-rmd-toggle-output=       | fold or unfold the result at point                        |
-| =overblock-rmd-copy-output=         | copy the result at point                                  |
-| =overblock-rmd-discard-output=      | remove the result at point                                |
+| =overblock-run-stop=                | stop the pass after the chunk that runs now               |
+| =overblock-run-interrupt=           | interrupt the chunk R is running, and stop the pass       |
+| =overblock-run-toggle-output=       | fold or unfold the result at point                        |
+| =overblock-run-copy-output=         | copy the result at point                                  |
+| =overblock-run-discard-output=      | remove the result at point                                |
+| =overblock-run-clear-results=       | remove every result                                       |
 | =overblock-live-edit=               | show the source of the prose at point                     |
 
 overblock-rmd binds no keys.  It binds the mouse on its bars and blocks
@@ -1016,7 +1018,7 @@ there, empty, so every key is free to bind:
 
 #+begin_src emacs-lisp
   (keymap-set overblock-rmd-mode-map "C-c C-c" #'overblock-rmd-run-chunk)
-  (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-rmd-interrupt)
+  (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
 #+end_src
 
 | Option                          | Default                   | Meaning                                          |
@@ -1094,8 +1096,8 @@ here.
   does a folded block.
 - A rendering makes each scroll event more expensive, because rendered
   markup holds many face runs in a line.  The cost comes from the face
-  runs and not from the height.  =M-x overblock-pycell-md-unrender=
-  gives the plain source and the speed back for a notebook.
+  runs and not from the height.  Turn the mode off to get the plain
+  source and the speed back.
 - A block needs a newline to hang a body on, so the last cell of a
   notebook gets a final newline if it has none.  That is the one change
   =overblock-pycell= makes to the text.

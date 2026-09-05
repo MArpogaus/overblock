@@ -322,9 +322,8 @@ halfway across the window.
 Spaces are counted in columns, so a nerd glyph that draws wider than it
 counts leaves the rule a column or two short of the edge.  The row is
 built for the width of the moment, and the layer writes that width on
-the block so `overblock-width-follow\' can drop what no longer fits."
-  (let* ((pixels (overblock-window-width))
-         (columns (and pixels (/ pixels (frame-char-width))))
+the block so `overblock--width-changed\' can drop what no longer fits."
+  (let* ((columns (overblock-window-columns))
          (text (concat left icons))
          ;; A column of slack: a row that fills the last one wraps, and
          ;; a wrapped bar is two rows of almost nothing.
@@ -553,7 +552,6 @@ reStructuredText and lays out a table, or the font lock of
 `overblock-pydoc-fontify-mode', which costs no process and leaves every
 line where the writer put it."
   :lighter " PyDoc"
-  (overblock-width-watch 'pydoc 'overblock-pydoc-mode overblock-pydoc-mode)
   (if overblock-pydoc-mode
       (overblock-live-start 'pydoc
                             #'overblock-pydoc-render-buffer

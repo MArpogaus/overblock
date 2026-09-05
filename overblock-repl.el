@@ -232,17 +232,14 @@ images, and the table object."
       copy)))
 
 (defun overblock-repl-first-lines (text limit)
-  "Return the first LIMIT lines of TEXT.
+  "Return the first LIMIT lines of TEXT, every line where LIMIT is zero.
 Only that much is looked at and only that much is copied: a result of
 ten thousand lines costs what a result of twelve costs, which is what a
-tick five times a second needs."
+tick five times a second needs.  Zero means all of them, as it does in
+the options that hand a limit here: a result the reader asked to see
+whole came out as no lines at all."
   (if (<= limit 0)
-      ;; A caller's own limit is a natnum, so zero is a legal value, and
-      ;; the scan below counts from one: it never met a limit of zero
-      ;; and read and copied the whole result instead — measured, 18.6
-      ;; milliseconds and a full copy over twenty thousand lines, five
-      ;; times a second while the cell runs.
-      nil
+      (split-string text "\n")
     (let ((pos 0) (count 0) (cut nil))
       (while (and (null cut)
                   (setq pos (string-search "\n" text pos)))
