@@ -296,16 +296,12 @@ the opening quote and already that far in, while every row after it
 begins at a line start.  Padding the first line as well put it two
 indents deep.
 
-`split-string\' keeps the faces of the pieces it cuts, so the rendering
-comes back indented and still rendered."
+`replace-regexp-in-string\' keeps the faces of what it copies, so the
+rendering comes back indented and still rendered."
   (if (zerop indent)
       text
-    (let ((pad (make-string indent ?\s))
-          (lines (split-string text "\n")))
-      (string-join (cons (car lines)
-                         (mapcar (lambda (line) (concat pad line))
-                                 (cdr lines)))
-                   "\n"))))
+    (replace-regexp-in-string "\n" (concat "\n" (make-string indent ?\s))
+                              text t t)))
 
 (defun overblock-pydoc--row (left icons face indent)
   "Return a row of LEFT, ICONS at the window's edge, all in FACE.
@@ -459,20 +455,6 @@ quotes, and the rendering of one stood a column out of line."
 
 ;;;; When
 
-(defun overblock-pydoc--pending (beg end)
-  "Return the doc strings between BEG and END that want rendering.
-`overblock-live-wanted-p' says which those are."
-  (seq-filter (lambda (region)
-                (overblock-live-wanted-p (car region) (cdr region) 'pydoc))
-              (overblock-pydoc--strings beg end)))
-
-(defun overblock-pydoc--render-fontified (regions)
-  "Render REGIONS with font lock.
-Nothing is waited for because nothing is started: the renderings are
-there when this returns."
-  (dolist (region regions)
-    (overblock-pydoc--show (car region) (cdr region))))
-
 (defun overblock-pydoc--render-converted (regions)
   "Render REGIONS with the converter, in one process, asked not awaited.
 Measured, eight doc strings cost 145 milliseconds one process apiece
@@ -503,9 +485,16 @@ is then converted on its own."
 `overblock-live-start' is given, and it is called again whenever the
 reader stops."
   (interactive)
-  (when-let* ((regions (overblock-pydoc--pending (point-min) (point-max))))
+  (when-let* ((regions (seq-filter
+                        (lambda (region)
+                          (overblock-live-wanted-p (car region) (cdr region)
+                                                   'pydoc))
+                        (overblock-pydoc--strings (point-min) (point-max)))))
     (if (eq overblock-pydoc-renderer 'fontify)
-        (overblock-pydoc--render-fontified regions)
+        ;; Nothing is waited for because nothing is started: the
+        ;; renderings are there when this returns.
+        (dolist (region regions)
+          (overblock-pydoc--show (car region) (cdr region)))
       (overblock-pydoc--render-converted regions))))
 
 (defun overblock-pydoc--put (beg end prose)
