@@ -468,36 +468,46 @@ image."
       (should-not (overblock-image-in in-table))
       (should (overblock-image-in outside)))))
 
-(ert-deftest overblock-md-test-a-failed-preview-is-asked-once ()
-  "A fragment whose preview failed does not run LaTeX again.
-Nothing caches a failure — what caches a preview is the image file —
-so every render used to spend a LaTeX process per fragment on an
-answer that was already known."
-  ;; org for real: stubbing `require' made the guard in
-  ;; `overblock-md--latex-image' lie, and the variables org defines were
-  ;; then void — which failed this test or not depending on whether
-  ;; another test had loaded org first.
+(ert-deftest overblock-md-test-a-preview-is-asked-for-once-and-arrives-later ()
+  "A fragment without a preview is asked for once, and shown as text meanwhile.
+Nothing waits for LaTeX: the first look answers `pending' and queues
+the job, a second look queues nothing more, and a child that leaves no
+file behind marks the fragment as failed, so no render asks again.
+Measured in a real configuration, five fresh formulas cost 3.2 seconds
+of LaTeX, which used to be 3.2 seconds of a frozen Emacs."
   (skip-unless (require 'org nil t))
   (let* ((cache (make-temp-file "overblock-cache" t))
          (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
                                     process-environment))
          (overblock-md--latex-warned nil)
          (overblock-md--latex-failed (make-hash-table :test #'equal))
-         (runs 0))
+         (overblock-md--latex-jobs nil)
+         (overblock-md--latex-process nil)
+         (started 0)
+         (make (symbol-function 'make-process)))
     (unwind-protect
-        (cl-letf (((symbol-function 'org-create-formula-image)
-                   (lambda (&rest _) (setq runs (1+ runs)) (error "No LaTeX"))))
-          (should-not (overblock-md--latex-image "$x$"))
-          (should-not (overblock-md--latex-image "$x$"))
-          (should-not (overblock-md--latex-image "$x$"))
-          (should (= runs 1))
-          ;; Keyed by the image file, which carries the fragment and the
-          ;; colour: a theme change asks again.
+        (cl-letf (((symbol-function 'run-with-idle-timer) #'ignore)
+                  ;; the child is `true': it ends at once and draws nothing
+                  ((symbol-function 'make-process)
+                   (lambda (&rest args)
+                     (setq started (1+ started))
+                     (apply make (plist-put args :command '("true"))))))
+          (should (eq (overblock-md--latex-image "$x$") 'pending))
+          (should (eq (overblock-md--latex-image "$x$") 'pending))
+          (should (= (length overblock-md--latex-jobs) 1))
+          ;; the child runs every job at once
+          (overblock-md--latex-run)
+          (should (= started 1))
+          (should-not overblock-md--latex-jobs)
+          (while (process-live-p overblock-md--latex-process)
+            (accept-process-output nil 0.05))
+          ;; and left nothing behind: the fragment is failed
           (should (= (hash-table-count overblock-md--latex-failed) 1))
-          ;; And the way back, for a reader who installs LaTeX.
-          (overblock-md-forget-failed-previews)
           (should-not (overblock-md--latex-image "$x$"))
-          (should (= runs 2)))
+          (should-not overblock-md--latex-jobs)
+          ;; and the way back, for a reader who installs LaTeX
+          (overblock-md-forget-failed-previews)
+          (should (eq (overblock-md--latex-image "$x$") 'pending)))
       (delete-directory cache t))))
 
 (ert-deftest overblock-md-test-a-price-is-not-a-formula ()
