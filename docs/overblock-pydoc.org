@@ -169,7 +169,7 @@ so they come off only when no buffer is left that wants them.
 
 ** When a bar is drawn again
 
-=overblock-pydoc-buttons= and =overblock-pydoc-label= redraw the bars of
+=overblock-pydoc-buttons= redraws the bars of
 every rendered doc string in every buffer when they are set with
 =setopt=.  Without that a changed button list waited for something else
 to render the doc string again — a window changing width, or the file

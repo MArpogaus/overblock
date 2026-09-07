@@ -259,27 +259,36 @@ column from the left."
               (should-not (string-match-p "----" shown)))))
       (overblock-pydoc-mode -1))))
 
-(ert-deftest overblock-pydoc-test-the-answer-lands-nowhere-near-point ()
-  "A doc string the reader walked into is left alone when the HTML lands.
-The pass asks for every doc string but the one point is in, and the
-answer comes back a moment later — by which time the reader may have
-clicked one, or walked point into it.  Rendering it then takes the text
-out from under them."
+(ert-deftest overblock-pydoc-test-a-doc-string-taken-down-stays-down-under-point ()
+  "Point moving into a doc string changes nothing; a click takes it down.
+A rendering is what the reader works in: the code around it is edited
+with the prose in view, and the answer of the converter lands whether
+point walked into the doc string or not.  Only the one the reader took
+down stays source, and only while point stays in it."
   (skip-unless (overblock-md-program))
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
     (unwind-protect
-        (progn
-          (goto-char (point-max))
-          (overblock-pydoc-render-buffer)
+        (let ((bounds (nth 1 (overblock-pydoc--strings (point-min)
+                                                       (point-max)))))
           ;; the reader walks into the second doc string while the
-          ;; converter runs; nothing has been answered yet, because
-          ;; nothing here has waited
-          (let ((bounds (nth 1 (overblock-pydoc--strings (point-min)
-                                                         (point-max)))))
-            (goto-char (1+ (car bounds)))
-            (should (= (overblock-pydoc-test--wait 3) 3))
-            (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))))
+          ;; converter runs, and it is rendered all the same
+          (goto-char (1+ (car bounds)))
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4))
+          (should (overblock-in (car bounds) (cdr bounds) 'pydoc))
+          ;; a click takes it down, and a render with point still in it
+          ;; leaves it down
+          (overblock-live-edit)
+          (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 3))
+          (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))
+          ;; and comes back once point has left
+          (goto-char (point-max))
+          (overblock-live--settle)
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4)))
       (overblock-pydoc-mode -1))))
 
 (ert-deftest overblock-pydoc-test-the-fontify-renderer-needs-no-process ()
@@ -330,13 +339,13 @@ nothing, since saying the same twice said nothing the second time."
   (let* ((dressed (overblock-pydoc--dressed "one\ntwo" 0))
          (lines (split-string dressed "\n")))
     (should (= (length lines) 4))
-    (should (string-match-p overblock-pydoc-label (car lines)))
+    (should (string-prefix-p (overblock-pydoc--glyph) (car lines)))
     (should (equal (nth 1 lines) "one"))
     (should (equal (nth 2 lines) "two"))
     ;; the rule has no label and no button of its own: spaces, and
     ;; the zero-width space that keeps the row from being read as a
     ;; blank line and trimmed away
-    (should-not (string-match-p overblock-pydoc-label (nth 3 lines)))
+    (should-not (string-search (overblock-pydoc--glyph) (nth 3 lines)))
     (should (string-match-p "\\`[\u200b[:blank:]]*\\'" (nth 3 lines)))))
 
 (ert-deftest overblock-pydoc-test-one-line-takes-one-row ()

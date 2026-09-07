@@ -806,7 +806,7 @@ bar of a cell that is showing its source."
 The cell is then editable in place, and is rendered again once point
 has left it; the button on its bar renders it at once."
   (interactive (list last-input-event))
-  (overblock-pycell--drop-rendering (overblock-pycell--md-at event)))
+  (overblock-take-down (overblock-pycell--md-at event)))
 
 (defun overblock-pycell--md-put (beg end md)
   "Write the edited MD back into the markdown cell BEG..END and render it.
@@ -1330,6 +1330,9 @@ run either way."
         ;; What the runner reads to know this is a notebook it may draw
         ;; in, and how to reach its interpreter.
         (overblock-run-attach (overblock-pycell--backend))
+        ;; A rendered cell is what the reader works in: point moving
+        ;; into one changes nothing, a click gives its source back.
+        (setq-local overblock-live-source-at-point nil)
         ;; One piece of advice for the session, put on by the first
         ;; notebook and taken off by the last.  Added while this file
         ;; loaded, it changed how `outline-flag-region' behaves in every
@@ -1357,6 +1360,7 @@ the converter's HTML with")))
         (overblock-live-start 'markdown #'overblock-pycell-md-render-all))
     (overblock-live-stop)
     (overblock-run-detach)
+    (kill-local-variable 'overblock-live-source-at-point)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
     ;; The last notebook takes the advice with it.  This buffer does not
     ;; count itself: the mode's own variable is already nil here.

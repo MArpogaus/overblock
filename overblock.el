@@ -614,7 +614,12 @@ of the buffer like any other."
 The `:stale\' function a caller gave `overblock-stale-when-edited\' is
 how that caller takes a block of its down with everything that belongs
 to it — a bar above a rendered cell, say — and a block taken down for
-any other reason goes the same way."
+any other reason goes the same way.  The region it covered is
+remembered as the one the reader is at, so the live cycle leaves it as
+source while point stays in it; see `overblock-live--open\'."
+  (when (overlay-buffer block)
+    (setq overblock-live--open (cons (copy-marker (overlay-start block))
+                                     (copy-marker (overlay-end block) t))))
   (funcall (or (overblock-get block :stale) #'overblock-delete) block))
 
 (defun overblock-stale-when-edited (block &optional function)
@@ -642,9 +647,12 @@ PUT is the function that writes the edited text back; see
 `overblock-edit-in-buffer\'.")
 
 (defvar-keymap overblock-edit-mode-map
-  :doc "Keymap of `overblock-edit-mode\', empty on purpose.
-This layer binds no keys; put your own here.  `overblock-edit-commit\'
-and `overblock-edit-abort\' are the natural candidates.")
+  :doc "Keymap of `overblock-edit-mode\'.
+The two keys `org-edit-special\' uses, and no other: the buffer is a
+transient one that ends with one of them, and a reader who has edited a
+source block in org knows them already."
+  "C-c C-c" #'overblock-edit-commit
+  "C-c C-k" #'overblock-edit-abort)
 
 (define-minor-mode overblock-edit-mode
   "Edit the text under a block, as `org-edit-special\' edits a source block."
@@ -760,6 +768,22 @@ away.")
 (defvar-local overblock-live--timer nil
   "The timer that renders what the reader has finished with.")
 
+(defvar-local overblock-live-source-at-point t
+  "Whether the region point is in shows its source, wherever point went.
+With t, the region point is in is never rendered: a reader who moves
+into a paragraph of a markdown file means to read or write it as
+source, and it renders again once they have left.  A mode sets this nil
+where a rendering is the thing the reader works in — a markdown cell of
+a notebook, a doc string among code — and then only a click, an edit or
+a marked region takes a rendering down, and the region it came off stays
+source until point has left it (see `overblock-live--open\').")
+
+(defvar-local overblock-live--open nil
+  "The region a rendering last came off, as (BEG . END) markers, or nil.
+While point stays in it the region is not rendered again, whatever
+`overblock-live-source-at-point\' says; `overblock-live--settle\' lets
+it go once point has left.")
+
 (defun overblock-live--settle (&rest _)
   "Render the buffer again once the reader has stopped.
 Point is never read here to *take* a rendering off — that is what
@@ -779,6 +803,12 @@ edited and left carries no rendering, and the timer puts it back."
     (mapc #'overblock-take-down
           (overblock-in (region-beginning) (region-end)
                         (car overblock-live--spec))))
+  (pcase overblock-live--open
+    (`(,from . ,to)
+     (unless (<= from (point) to)
+       (set-marker from nil)
+       (set-marker to nil)
+       (setq overblock-live--open nil))))
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
@@ -793,15 +823,20 @@ edited and left carries no rendering, and the timer puts it back."
 
 (defun overblock-live-wanted-p (beg end kind)
   "Return non-nil where the region BEG..END still wants a rendering of KIND.
-Three regions do not: one that carries a rendering already, the one
-point is in — the reader is editing that one, and rendering it would
-take the text out from under them — and one the active region reaches,
-which the reader is about to copy or cut as source.
+Three regions do not: one that carries a rendering already, one the
+active region reaches — the reader is about to copy or cut it as source
+— and the one the reader is at.  Which region that is depends on
+`overblock-live-source-at-point\': the region point is in, or only the
+one a rendering came off while point is still in it.
 
 Asked twice where the rendering is converted by a process: once to
 decide what to ask for, and again when the answer comes back, because
 the reader has clicked, typed and moved on in between."
-  (not (or (<= beg (point) end)
+  (not (or (if overblock-live-source-at-point
+               (<= beg (point) end)
+             (pcase overblock-live--open
+               (`(,from . ,to)
+                (and (<= from (point) to) (< beg to) (> end from)))))
            (and (use-region-p)
                 (< beg (region-end))
                 (> end (region-beginning)))
@@ -817,7 +852,7 @@ mode binds to the mouse."
   (when-let* ((kind (car overblock-live--spec))
               (block (or (overblock-at kind)
                          (car (overblock-in (pos-bol) (pos-eol) kind)))))
-    (overblock-delete block)))
+    (overblock-take-down block)))
 
 (defun overblock-live-start (kind render &optional idle)
   "Keep this buffer rendered, and let the reader edit what they click.
@@ -859,7 +894,8 @@ came off under the window made the text grow and shrink as they went."
     (setq overblock-live--timer nil))
   (when-let* ((kind (car overblock-live--spec)))
     (overblock-clear (point-min) (point-max) kind))
-  (setq overblock-live--spec nil))
+  (setq overblock-live--spec nil
+        overblock-live--open nil))
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
