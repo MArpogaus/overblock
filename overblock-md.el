@@ -353,6 +353,15 @@ cycle renders them again once the reader stops, from the cache now."
             (overblock-delete block)))))
     (overblock-live--settle)))
 
+(defun overblock-md--latex-cached (file)
+  "Return the preview image FILE holds.
+Capped like the images of a result and of an `![](file)': a
+display-math block can be taller than the window, and a block the
+wheel cannot get past is what `overblock-image-height' exists for."
+  (apply #'create-image file nil nil :ascent 'center
+         (when-let* ((limit (overblock-image-limit)))
+           (list :max-height limit))))
+
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
 Org's formula machinery renders it.  The cache lives under ~/.cache,
@@ -387,14 +396,7 @@ the caller shows the fragment as text meanwhile — see
       (cond
        ;; The file is the cache, keyed by content and colour, so a
        ;; theme change asks again.
-       ((file-exists-p file)
-        (apply #'create-image file nil nil :ascent 'center
-               ;; Capped like the images of a result and of an
-               ;; `![](file)': a display-math block can be taller
-               ;; than the window, and a block the wheel cannot get
-               ;; past is what `overblock-image-height' exists for.
-               (when-let* ((limit (overblock-image-limit)))
-                 (list :max-height limit))))
+       ((file-exists-p file) (overblock-md--latex-cached file))
        ;; A LaTeX run that failed is remembered: without the memo a
        ;; cell costs a process per fragment on every render, for an
        ;; answer that is already known.  Reported once: without a
