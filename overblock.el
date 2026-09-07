@@ -827,12 +827,16 @@ Three regions do not: one that carries a rendering already, one the
 active region reaches — the reader is about to copy or cut it as source
 — and the one the reader is at.  Which region that is depends on
 `overblock-live-source-at-point\': the region point is in, or only the
-one a rendering came off while point is still in it.
+one a rendering came off while point is still in it.  Nothing wants one
+where no live cycle of KIND is on any more.
 
 Asked twice where the rendering is converted by a process: once to
 decide what to ask for, and again when the answer comes back, because
-the reader has clicked, typed and moved on in between."
-  (not (or (if overblock-live-source-at-point
+the reader has clicked, typed and moved on in between — or turned the
+mode off, and a rendering that landed then stood in a buffer with no
+mode to take it down."
+  (not (or (not (eq (car overblock-live--spec) kind))
+           (if overblock-live-source-at-point
                (<= beg (point) end)
              (pcase overblock-live--open
                (`(,from . ,to)
