@@ -314,7 +314,7 @@ for while the child ran."
   (dolist (buffer (delete-dups (mapcar (lambda (job) (nth 3 job)) jobs)))
     (when (buffer-live-p buffer)
       (with-current-buffer buffer
-        (overblock-md--redraw-pending))))
+        (overblock-md--redraw 'overblock-md-pending))))
   (overblock-md--latex-run))
 
 (defun overblock-md--latex-run ()
@@ -338,20 +338,32 @@ made."
                          (unless (process-live-p process)
                            (overblock-md--latex-done jobs script))))))))
 
-(defun overblock-md--redraw-pending ()
-  "Drop the renderings of this buffer that stand in for a preview.
-Their text carries `overblock-md-pending\', put there when a formula
-was shown as text because its image was still being made.  The live
-cycle renders them again once the reader stops, from the cache now."
+(defun overblock-md--redraw (prop)
+  "Drop the renderings of this buffer whose text carries PROP.
+`overblock-md-pending\' marks a formula shown as text because its
+image was still being made; `overblock-md-math\' one drawn in the
+colour of the theme.  The live cycle renders them again once the
+reader stops — from the cache now, or from a fresh preview."
   (when overblock-live--specs
     (dolist (spec overblock-live--specs)
       (dolist (block (overblock-in (point-min) (point-max) (car spec)))
         (let ((over (overblock-get block :over)))
           (when (and (stringp over)
-                     (text-property-not-all 0 (length over)
-                                            'overblock-md-pending nil over))
+                     (text-property-not-all 0 (length over) prop nil over))
             (overblock-delete block)))))
     (overblock-live--settle)))
+
+(defun overblock-md--theme-changed (&rest _)
+  "Have every formula drawn again, in the colour of the new theme.
+A preview is drawn in the foreground of the theme that asked for it,
+and the cache is keyed by that colour: a theme change leaves every
+rendered formula in the old colour until it is rendered again."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (overblock-md--redraw 'overblock-md-math))))
+
+(add-hook 'enable-theme-functions #'overblock-md--theme-changed)
+(add-hook 'disable-theme-functions #'overblock-md--theme-changed)
 
 (defun overblock-md--latex-cached (file)
   "Return the preview image FILE holds.
@@ -555,19 +567,23 @@ pull the columns of its row out of line."
                           (overblock-md--bare-math (overblock-md--as-text frag))
                           marks table)
                          'overblock-md-pending t))
-            ((and image table)
-             (overblock-md--place-in-cell frag image marks))
             (image
-             ;; The fragment's own text under the image where the
-             ;; run is whole — what a reader copies out of a
-             ;; rendering is then the formula, not a row of marks.
-             ;; Inline math on one line: the converter wraps its
-             ;; HTML, and a line break of its own inside the
-             ;; fragment is no row of the rendering.  Measured, the
-             ;; full stop after a formula stood on a row of its own.
-             (overblock-md--place-image
-              (if (string-search "\n" marks) marks (overblock-md--as-text frag))
-              image))
+             ;; Marked as drawn in the theme's colour: a theme change
+             ;; has the rendering drawn again, from a fresh preview.
+             (propertize
+              (if table
+                  (overblock-md--place-in-cell frag image marks)
+                ;; The fragment's own text under the image where the
+                ;; run is whole — what a reader copies out of a
+                ;; rendering is then the formula, not a row of marks.
+                ;; Inline math on one line: the converter wraps its
+                ;; HTML, and a line break of its own inside the
+                ;; fragment is no row of the rendering.  Measured, the
+                ;; full stop after a formula stood on a row of its own.
+                (overblock-md--place-image
+                 (if (string-search "\n" marks) marks (overblock-md--as-text frag))
+                 image))
+              'overblock-md-math t))
             (t
              ;; Padded inside a table and nowhere else: a table is laid
              ;; out in columns of characters, and text shorter than the

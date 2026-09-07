@@ -612,6 +612,22 @@ never looked at."
     (let ((text "\\[\na = b\n\\]"))
       (should (equal (overblock-md-test--math text) text)))))
 
+(ert-deftest overblock-md-test-a-theme-change-draws-the-formulas-again ()
+  "A rendering that holds a preview comes down when the theme changes.
+The preview is drawn in the foreground of the theme, so the one on the
+screen is in the old colour until it is rendered again; a rendering
+without a formula is left alone."
+  (with-temp-buffer
+    (setq-local overblock-live--specs (list (list 'md-preview #'ignore 0)))
+    (insert "one\ntwo\n")
+    (overblock-show 1 4 :kind 'md-preview
+                    :over (propertize "x" 'overblock-md-math t))
+    (overblock-show 5 8 :kind 'md-preview :over "plain")
+    (overblock-md--theme-changed)
+    (should (equal (mapcar (lambda (b) (overblock-get b :over))
+                           (overblock-in (point-min) (point-max) 'md-preview))
+                   '("plain")))))
+
 (ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
   "With `overblock-md-remote-images' off, nothing reaches the network.
 `shr-tag-img' fetches with `url-queue-retrieve' whatever this package
