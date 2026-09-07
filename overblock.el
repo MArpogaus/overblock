@@ -806,9 +806,7 @@ edited and left carries no rendering, and the timer puts it back."
   (pcase overblock-live--open
     (`(,from . ,to)
      (unless (<= from (point) to)
-       (set-marker from nil)
-       (set-marker to nil)
-       (setq overblock-live--open nil))))
+       (overblock-live--close))))
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
@@ -820,6 +818,12 @@ edited and left carries no rendering, and the timer puts it back."
                (with-current-buffer buffer
                  (when-let* ((render (nth 1 overblock-live--spec)))
                    (funcall render)))))))))
+
+(defun overblock-live--close ()
+  "Forget the region a rendering last came off, and free its markers."
+  (pcase overblock-live--open
+    (`(,from . ,to) (set-marker from nil) (set-marker to nil)))
+  (setq overblock-live--open nil))
 
 (defun overblock-live-wanted-p (beg end kind)
   "Return non-nil where the region BEG..END still wants a rendering of KIND.
@@ -867,9 +871,9 @@ through one converter rather than one apiece.  IDLE is the quiet the
 buffer waits for before RENDER is called again, 0.2 seconds by default.
 
 RENDER is called once here and then whenever the reader stops moving.
-It must leave alone what is rendered already and the region point is
-in — the reader is editing that one, and rendering it would take the
-text out from under them.
+It must leave alone what `overblock-live-wanted-p\' says wants no
+rendering: what is rendered already, what the reader has marked, and
+the region the reader is at.
 
 A rendering comes off when the reader asks — `overblock-live-edit\',
 which a mode binds to a click — and when the region under it is edited,
@@ -898,8 +902,8 @@ came off under the window made the text grow and shrink as they went."
     (setq overblock-live--timer nil))
   (when-let* ((kind (car overblock-live--spec)))
     (overblock-clear (point-min) (point-max) kind))
-  (setq overblock-live--spec nil
-        overblock-live--open nil))
+  (overblock-live--close)
+  (setq overblock-live--spec nil))
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.

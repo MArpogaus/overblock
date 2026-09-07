@@ -212,7 +212,9 @@ not to the indentation of the line."
     (let ((overblock-pydoc-renderer 'fontify)
           (overblock-pydoc-fontify-mode #'rst-mode))
       (goto-char (point-max))
-      (overblock-pydoc-render-buffer))
+      ;; the mode and not the render alone: a rendering is wanted only
+      ;; where the live cycle of its kind is on
+      (overblock-pydoc-mode 1))
     (let* ((block (car (overblock-in (point-min) (point-max) 'pydoc)))
            (lines (split-string (substring-no-properties
                                  (overblock-get block :over))
@@ -229,7 +231,8 @@ not to the indentation of the line."
       ;; carry is the padding of the rows below
       (should-not (string-prefix-p "    " (car lines)))
       (dolist (line (cdr lines))
-        (should (string-prefix-p "    " line))))))
+        (should (string-prefix-p "    " line))))
+    (overblock-pydoc-mode -1)))
 
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
   "The quotes go, and the indentation the lines share with the code.
