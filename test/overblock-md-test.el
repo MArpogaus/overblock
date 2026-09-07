@@ -344,6 +344,44 @@ scrolling, and a terminal cannot even show it — so where
     (should (equal (overblock-md-test--math "before \\(x^2\\) after")
                    "before x^2 after"))))
 
+(ert-deftest overblock-md-test-a-fenced-block-wears-the-faces-of-its-language ()
+  "A block that opens with ```python wears the faces of `python-mode'.
+A block without a language wears none of them.
+The language stands in the class of the <pre> or its <code>, however
+the converter spells it, and `overblock-md-code-modes' set to nil turns
+the painting off."
+  (skip-unless (overblock-md-program))
+  (let* ((md "```python\ndef f():\n    pass\n```\n\n```\nplain\n```\n")
+         (faces (lambda (rendered word)
+                  (ensure-list (get-text-property (string-search word rendered)
+                                                  'face rendered)))))
+    (should (memq 'font-lock-keyword-face
+                  (funcall faces (overblock-md-rendered md) "def")))
+    (should-not (memq 'font-lock-keyword-face
+                      (funcall faces (overblock-md-rendered md) "plain")))
+    (let ((overblock-md-code-modes nil))
+      (should-not (memq 'font-lock-keyword-face
+                        (funcall faces (overblock-md-rendered md) "def"))))
+    ;; the three spellings of a language class
+    (dolist (html '("<pre class=\"python\"><code>x</code></pre>"
+                    "<pre><code class=\"language-python\">x</code></pre>"
+                    "<pre class=\"sourceCode python\"><code class=\"sourceCode python\">x</code></pre>"))
+      (should (eq (overblock-md--code-mode
+                   (with-temp-buffer
+                     (insert html)
+                     (dom-child-by-tag
+                      (dom-child-by-tag
+                       (libxml-parse-html-region (point-min) (point-max)) 'body)
+                      'pre)))
+                  (alist-get 'python-mode major-mode-remap-alist 'python-mode))))
+    (should-not (overblock-md--code-mode
+                 (with-temp-buffer
+                   (insert "<pre class=\"nosuchlanguage\"><code>x</code></pre>")
+                   (dom-child-by-tag
+                    (dom-child-by-tag
+                     (libxml-parse-html-region (point-min) (point-max)) 'body)
+                    'pre))))))
+
 (ert-deftest overblock-md-test-verbatim-math-keeps-lines ()
   "Display math keeps its line structure, whatever the display draws.
 shr fills paragraphs, so a $$ block is wrapped in <pre> before the

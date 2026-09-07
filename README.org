@@ -377,7 +377,9 @@ to ask the network for nothing.
 =overblock-md-preview-mode= shows a Markdown buffer as it will read and
 keeps it editable.  The text is rendered over its own source.  Click a
 rendering and its source comes back; move on and it is rendered again
-once you have stopped.
+once you have stopped.  Mark a region and the renderings it reaches show
+their source too, so what you see is what you copy or cut; they come
+back when the mark goes.
 
 The unit is the Markdown block: the run of lines between two blank
 ones, and a fenced piece of code whole.  A line of Markdown is often
@@ -412,8 +414,16 @@ and is otherwise empty, so every key is free to bind.
 |------------------------------+--------------------------------------------------+--------------------------------------------|
 | =overblock-md-command=       | a =pandoc= command, and four candidates after it | the shell command from Markdown to HTML    |
 | =overblock-md-remote-images= | =t=                                              | whether an image named by URL is fetched   |
+| =overblock-md-code-modes=    | eleven languages that do not spell their mode    | the mode that paints a fenced block; nil for none |
 | =overblock-md-preview-idle=  | 0.2                                              | the quiet before a block is rendered again |
 | =overblock-md-code=          | inherits =font-lock-constant-face=               | the face of inline code                    |
+
+A fenced block that names its language — =```python= — is painted by
+that language's major mode, as the editor paints the file:
+=overblock-md-code-modes= maps the names that do not spell their mode
+(=elisp=, =bash=, =r= …), and every other name is tried as
+=LANGUAGE-mode= through =major-mode-remap-alist=.  Set it to nil and
+every block wears =overblock-md-code=.
 
 =overblock-md-command= is one shell command, or a list of candidates of
 which the first one installed is used.  The default list is

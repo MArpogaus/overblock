@@ -607,7 +607,15 @@ of the buffer like any other."
             (not (and (equal (buffer-substring-no-properties beg end) "\n")
                       (= end (without-restriction (point-max)))))
           (/= beg end))
-    (funcall (or (overblock-get block :stale) #'overblock-delete) block)))
+    (overblock-take-down block)))
+
+(defun overblock-take-down (block)
+  "Take BLOCK down the way its maker asked, or delete it.
+The `:stale\' function a caller gave `overblock-stale-when-edited\' is
+how that caller takes a block of its down with everything that belongs
+to it — a bar above a rendered cell, say — and a block taken down for
+any other reason goes the same way."
+  (funcall (or (overblock-get block :stale) #'overblock-delete) block))
 
 (defun overblock-stale-when-edited (block &optional function)
   "Take BLOCK down on the next edit of the text it covers.
@@ -762,8 +770,15 @@ every `C-v' through a file of doc strings cost 350 milliseconds and the
 buffer grew and shrank under the window as the renderings came and
 went.
 
-What is left on the timer is the other half: a region the reader has
-edited and left carries no rendering, and this is what puts it back."
+An active region is the exception: the renderings it reaches come down,
+so what the reader marks is what they will copy or cut — the source, as
+a rendering is never in the buffer.  They come back once the mark is
+gone, which is the other half of this function: a region the reader has
+edited and left carries no rendering, and the timer puts it back."
+  (when (use-region-p)
+    (mapc #'overblock-take-down
+          (overblock-in (region-beginning) (region-end)
+                        (car overblock-live--spec))))
   (when (timerp overblock-live--timer)
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
@@ -778,14 +793,18 @@ edited and left carries no rendering, and this is what puts it back."
 
 (defun overblock-live-wanted-p (beg end kind)
   "Return non-nil where the region BEG..END still wants a rendering of KIND.
-Two regions do not: one that carries a rendering already, and the one
+Three regions do not: one that carries a rendering already, the one
 point is in — the reader is editing that one, and rendering it would
-take the text out from under them.
+take the text out from under them — and one the active region reaches,
+which the reader is about to copy or cut as source.
 
 Asked twice where the rendering is converted by a process: once to
 decide what to ask for, and again when the answer comes back, because
 the reader has clicked, typed and moved on in between."
   (not (or (<= beg (point) end)
+           (and (use-region-p)
+                (< beg (region-end))
+                (> end (region-beginning)))
            (overblock-in beg end kind))))
 
 (defun overblock-live-edit (&optional event)

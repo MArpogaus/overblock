@@ -129,6 +129,22 @@ the preview images."
                  (repeat (string :tag "Candidate command")))
   :group 'overblock-md)
 
+(defcustom overblock-md-code-modes
+  '(("elisp" . emacs-lisp-mode) ("emacs-lisp" . emacs-lisp-mode)
+    ("bash" . sh-mode) ("shell" . sh-mode) ("zsh" . sh-mode)
+    ("cpp" . c++-mode) ("c++" . c++-mode) ("r" . ess-r-mode)
+    ("R" . ess-r-mode) ("js" . js-mode) ("yml" . yaml-mode))
+  "The major mode that paints a fenced block, by the language it names.
+A fenced block that opens with a language — ```python — is drawn with
+the font lock of that language, as the editor would paint the file.  A
+language not in this list is tried as LANGUAGE-mode, through
+`major-mode-remap-alist\', so `python\' finds `python-mode\' or the
+tree-sitter mode a reader remapped it to; the list is for the names
+that do not spell their mode.  Nil turns the painting off, and every
+block wears `overblock-md-code\'."
+  :type '(alist :key-type (string :tag "Language") :value-type function)
+  :group 'overblock-md)
+
 (defcustom overblock-md-remote-images t
   "Whether to fetch the images markdown names by URL.
 Text that opens with a badge names an image on the web, as the Colab
@@ -893,6 +909,67 @@ placeholder is an image and would swallow it."
       (insert (or alt "")))
      (t (shr-tag-img dom)))))
 
+(defun overblock-md--code-mode (dom)
+  "Return the major mode that paints the fenced block DOM, or nil.
+The language stands in the class of the <pre> or of its <code>: pandoc
+writes `python\', markdown_py and cmark `language-python\'.
+`overblock-md-code-modes\' says which mode that is, and LANGUAGE-mode
+through `major-mode-remap-alist\' where the list is silent; a mode this
+Emacs does not have answers nil, and the block stays as shr draws it."
+  (when-let* ((overblock-md-code-modes)
+              (class (or (dom-attr dom 'class)
+                         (dom-attr (dom-child-by-tag dom 'code) 'class)))
+              (lang (seq-some (lambda (word)
+                                (and (not (member word '("sourceCode" "numberSource")))
+                                     (string-remove-prefix "language-" word)))
+                              (split-string class)))
+              (mode (or (cdr (assoc lang overblock-md-code-modes))
+                        (intern-soft (concat lang "-mode")))))
+    (setq mode (alist-get mode major-mode-remap-alist mode))
+    (and (fboundp mode) mode)))
+
+(defun overblock-md--text (dom)
+  "Return the text of DOM, its children's joined with nothing between.
+`dom-texts\' puts a space between them and is obsolete in Emacs 31;
+`dom-inner-text\' arrives there and not in 29.1, which is this
+package\'s floor."
+  (if (stringp dom)
+      dom
+    (mapconcat #'overblock-md--text (dom-children dom) "")))
+
+(defun overblock-md--tag-pre (dom)
+  "Render the fenced block DOM with the font lock of its language.
+The code goes through a buffer in that mode, as `overblock-md-fontified\'
+renders markup, and comes back wearing its faces; shr\'s own indentation
+stands before each line, so a block inside a list item keeps its place.
+A block that names no language this Emacs has is shr\'s to draw.
+
+Under the language\'s faces the background of `overblock-md-code\' where
+that face has one, and nothing else of it: the block stays the
+rectangle `overblock-md--squared\' makes of a painted block, and an
+identifier the language paints with no face keeps the default colour
+rather than the colour inline code wears."
+  (if-let* ((mode (overblock-md--code-mode dom)))
+      (let ((shr-folding-mode 'none)
+            (code (with-temp-buffer
+                    (insert (string-trim-right (overblock-md--text dom)))
+                    (let ((inhibit-message t)
+                          (message-log-max nil))
+                      (ignore-errors (delay-mode-hooks (funcall mode)))
+                      (font-lock-ensure))
+                    (let ((code (buffer-string)))
+                      (when-let* ((background (overblock-md--background
+                                               'overblock-md-code)))
+                        (overblock-faced code (list :background background
+                                                    :extend t)))
+                      code))))
+        (shr-ensure-newline)
+        (dolist (line (split-string code "\n"))
+          (shr-indent)
+          (insert line "\n"))
+        (shr-ensure-newline))
+    (shr-tag-pre dom)))
+
 (defun overblock-md--shown-p (pos)
   "Return non-nil where the text at POS is worth showing to a reader.
 Two markups say the same thing twice.  A run the mode marked
@@ -1082,6 +1159,7 @@ without a converter has to see."
               (ul . overblock-md--tag-list)
               (ol . overblock-md--tag-list)
               (img . overblock-md--tag-img)
+              (pre . overblock-md--tag-pre)
               (table . overblock-md--tag-table)
               ,@shr-external-rendering-functions)))
       (with-temp-buffer
