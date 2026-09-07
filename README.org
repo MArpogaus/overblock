@@ -949,8 +949,9 @@ header shows =⚠= if R dies while a chunk runs.
 
 A chunk that plots answers with its figure, drawn under what it
 printed.  R draws to a graphics device and not to its terminal, so the
-chunk runs with a PNG device open, at =overblock-rmd-figure-size= —
-knitr's =fig.width= and =fig.height=, 7 by 5 inches by default — and
+chunk runs with a PNG device open — at the =fig.width=, =fig.height=
+and =dpi= its header writes, as under knitr, or at
+=overblock-rmd-figure-size=, 7 by 5 inches, where it writes none — and
 each page it drew comes back into the result.  From there a figure is
 what it is in the Python notebook: capped to the window, saved with
 =↧=, shown whole in a pop-out, and named in a terminal.
@@ -1003,6 +1004,9 @@ stays as it is; the chunks run either way.
 | =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
 | =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
 | =overblock-rmd-run-chunk=           | run the chunk at point                                    |
+| =overblock-rmd-run-chunk-and-step=  | run the chunk at point and move to the next               |
+| =overblock-rmd-forward-chunk=       | move to the next chunk                                    |
+| =overblock-rmd-backward-chunk=      | move to the previous chunk                                |
 | =overblock-run-above=               | run every chunk above the one at point                    |
 | =overblock-rmd-restart=             | restart R, and drop the results                           |
 | =overblock-rmd-restart-and-run-all= | restart, then run each chunk in order                     |
@@ -1022,8 +1026,10 @@ only.  =overblock-rmd-mode-map= answers in the buffer and
 there, empty, so every key is free to bind:
 
 #+begin_src emacs-lisp
-  (keymap-set overblock-rmd-mode-map "C-c C-c" #'overblock-rmd-run-chunk)
+  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-rmd-run-chunk)
+  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-rmd-run-chunk-and-step)
   (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
+  (keymap-set overblock-rmd-mode-map "C-c C-q" #'overblock-run-stop)
 #+end_src
 
 | Option                          | Default                   | Meaning                                          |
@@ -1118,9 +1124,6 @@ And for the two notebooks:
   comes out aligned, and the header of one can stand a column left of
   its data.  A copy cannot be sorted: the buttons of the live table are
   gone rather than dead.
-- A figure of R is drawn at =overblock-rmd-figure-size=, one size for
-  the file: the =fig.width= a chunk writes in its own header is not
-  read.
 
 The measurements behind all of this are in
 [[file:docs/overblock.org][docs/overblock.org]] and the documents beside
