@@ -232,6 +232,7 @@ process per fragment per render, for an answer that is already known.
 `overblock-md-forget-failed-previews' empties this.")
 
 (defvar org-format-latex-header)
+(declare-function org-latex-color-format "org" (color-name))
 (defvar org-format-latex-options)
 (defvar org-latex-packages-alist)
 (defvar org-latex-default-packages-alist)
@@ -282,6 +283,10 @@ to, as the synchronous path did."
                         org-preview-latex-default-process ',org-preview-latex-default-process
                         temporary-file-directory ,dir
                         default-directory ,dir)
+                  ;; The colour arrives resolved, as "r,g,b": a batch
+                  ;; Emacs has no display to resolve one on, and org
+                  ;; would ask `color-values' for it.
+                  (fset 'org-latex-color-format #'identity)
                   (dolist (job ',(mapcar #'butlast jobs))
                     (ignore-errors
                       (org-create-formula-image
@@ -289,7 +294,10 @@ to, as the synchronous path did."
                        (org-combine-plists
                         ',org-format-latex-options
                         (list :foreground (nth 2 job) :background "Transparent"))
-                       nil))))
+                       ;; A buffer, any buffer: given none, org reads
+                       ;; the `:html-foreground' of the options — "Black"
+                       ;; — and not the colour it was handed.
+                       (current-buffer)))))
                (current-buffer))))
     script))
 
@@ -356,7 +364,18 @@ the host's /tmp.
 the caller shows the fragment as text meanwhile — see
 `overblock-md--latex-ask'."
   (when (and (require 'org nil t) (fboundp 'org-create-formula-image))
-    (let* ((fg (face-attribute 'default :foreground))
+    (let* (;; As LaTeX will be told it, "r,g,b" on a scale of one, and
+           ;; resolved here: the child Emacs that draws the preview runs
+           ;; in batch, where `color-values' knows eight colours and
+           ;; answered pure blue for the grey of a theme — measured,
+           ;; every formula came out blue, whatever the theme.  The key
+           ;; of the cache carries the same triple, so a preview drawn
+           ;; wrong under an earlier key is not shown again.
+           (fg (or (ignore-errors
+                     (org-latex-color-format (face-attribute 'default :foreground)))
+                   ;; a frame with no colours to resolve: batch, or a
+                   ;; terminal that draws no image anyway
+                   "0,0,0"))
            (ext (or (plist-get
                      (cdr (assq org-preview-latex-default-process
                                 org-preview-latex-process-alist))
@@ -478,10 +497,26 @@ marks as its text is wide, so the fill knows how much room to leave."
              overblock-md--math-regexp
              (lambda (frag)
                (push frag stowed)
-               (make-string (max 1 (string-width frag))
+               (make-string (max 1 (overblock-md--math-columns frag))
                             overblock-md--math-mark))
              page t t)
             (nreverse stowed)))))
+
+(defun overblock-md--math-columns (frag)
+  "Return how many columns the LaTeX fragment FRAG will take once shown.
+The columns of its preview image where one is in the cache already, and
+the width of its text otherwise — which is what a fragment still on its
+way, or one that stays text, will take.  The fill and the tables lay
+the text out for that width, so a formula drawn narrower than its
+source used to leave its column wide and its row short: measured, a
+cell of a table padded with a stretch of half its width after the
+image, and the full stop after an inline formula on a row of its own."
+  (let ((image (and (display-images-p)
+                    (overblock-md--latex-image (overblock-md--one-line frag)))))
+    (if-let* (((and image (not (eq image 'pending))))
+              (width (car (ignore-errors (image-size image t)))))
+        (ceiling width (frame-char-width))
+      (string-width frag))))
 
 (defconst overblock-md--math-run
   (let ((mark (regexp-quote (string overblock-md--math-mark))))

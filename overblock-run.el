@@ -413,9 +413,13 @@ had been scrolled to."
     (set-marker home nil)))
 
 (defun overblock-run-home-set (marker)
-  "Give the shell MARKER as the place its pass came from, or nil for none."
+  "Give the shell MARKER as the place its pass came from, or nil for none.
+A marker it held before is freed: comint adjusts every marker of the
+shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
-    (with-current-buffer shell (setq overblock-run--home marker))))
+    (with-current-buffer shell
+      (when (markerp overblock-run--home) (set-marker overblock-run--home nil))
+      (setq overblock-run--home marker))))
 
 (defun overblock-run-queue-set (cells)
   "Give the shell CELLS to run, and answer them."
@@ -1178,6 +1182,10 @@ result came from is stopped."
   ;; left to run said a pass had been stopped that was already over.
   (let ((queued (length (overblock-run-queued))))
     (overblock-run-queue-set nil)
+    ;; A pass the reader stopped does not take point home when its last
+    ;; region ends: they stopped it where they are, and a run-all
+    ;; stopped from its stop button jumped back to the top.
+    (overblock-run-home-set nil)
     (message "%s: %s" (overblock-run--name)
              (if (> queued 0)
                  (format "the pass is stopped, %d %s left unrun"
@@ -1218,6 +1226,9 @@ here instead of being deduced from output that does not exist."
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
     (with-current-buffer shell (setq overblock-run--queue nil))
+    ;; And the pass does not take point home as it ends: the reader
+    ;; stopped it where they are.
+    (overblock-run-home-set nil)
     (interrupt-process (or (get-buffer-process shell)
                            ;; `interrupt-process\' of nil takes the
                            ;; current buffer\'s process, which is not
