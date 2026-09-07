@@ -188,6 +188,24 @@ ends in text has not, and the row starts with a break."
       (should-not (overlay-buffer mine))
       (should-not (seq-some #'overlay-buffer parts)))))
 
+(ert-deftest overblock-test-a-cloak-is-invisible-not-a-display ()
+  "The lines a cloak hides are invisible text, never a display string.
+A run replaced by a display string is so many positions that all show
+one glyph: `next-line\' stood still for a step and the window start
+crept a character at a time, and the wheel bounced off it.  Invisible
+text is walked over.  Only the guard on the newline the cloak leaves
+draws, and it draws one newline."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\n")
+    (goto-char (point-min))
+    (let ((block (overblock-show 1 (point-max) :over "row one")))
+      (dolist (part (overblock-get block :parts))
+        (when (overlay-get part 'overblock-cloak)
+          (if (equal (overlay-get part 'display) "\n")
+              (should (= 1 (- (overlay-end part) (overlay-start part))))
+            (should (eq (overlay-get part 'invisible) t))
+            (should-not (overlay-get part 'display))))))))
+
 (ert-deftest overblock-test-covers-its-last-line ()
   "The pieces of a block reach the last line of its region.
 The anchor stops before the newline that ends the region, and a cloak
