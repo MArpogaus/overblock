@@ -1185,19 +1185,22 @@ result came from is stopped."
                "nothing was queued"))))
 
 ;;;###autoload
-(defun overblock-run-interrupt ()
+(defun overblock-run-interrupt (&optional event)
   "Interrupt the region the interpreter is running, and stop the pass.
 Works in a buffer that follows a result as well as in the notebook,
 which is where a reader watching a long run has their point.  There it
 interrupts the region that buffer shows and nothing else: a follower
 of a result that has ended, or of a shell since gone, says so rather
-than stop somebody else\'s run.
+than stop somebody else\'s run.  EVENT is the click on the stop button
+of a running result, and names the notebook to act on: a notebook
+stops a cell the way a notebook does, now.
 
 The pass goes with the interrupt, in R and in Python alike.  IPython
 prints a `KeyboardInterrupt\' that would stop it anyway; R answers an
 interrupt with nothing but a fresh prompt, so the stop is asked for
 here instead of being deduced from output that does not exist."
-  (interactive)
+  (interactive (list last-input-event))
+  (overblock-goto-event event)
   (let ((shell (or (overblock-run-shell)
                    (user-error "No interpreter for this buffer"))))
     (when (local-variable-p 'overblock-run-follower)

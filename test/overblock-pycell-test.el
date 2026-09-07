@@ -1332,7 +1332,7 @@ runs, and its click is `overblock-run-stop'."
                 (while (and (not found) (< pos len))
                   (when-let* ((map (get-text-property pos 'keymap header)))
                     (when (eq (keymap-lookup map "<down-mouse-1>")
-                              #'overblock-run-stop)
+                              #'overblock-run-interrupt)
                       (setq found t)))
                   (setq pos (1+ pos)))
                 found)))
