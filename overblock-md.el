@@ -783,10 +783,9 @@ matched across its lines and replaced whole."
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
 `overblock-md--unstow-math' leaves marked text as text.  A table is
-padded to
-the width of its text, and a preview image is never as wide as the
-text it replaces, so a formula in a cell would pull the columns of its
-row out of line."
+padded to the width of its text, and a preview image is never as wide
+as the text it replaces, so a formula in a cell would pull the columns
+of its row out of line."
   (let ((start (point)))
     (shr-tag-table dom)
     (put-text-property start (point) 'overblock-md--table t)))

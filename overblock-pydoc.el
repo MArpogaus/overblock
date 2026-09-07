@@ -259,7 +259,7 @@ and reads as prose one column from the left."
          (bare (replace-regexp-in-string
                 "\\(?:\"\"\"\\|'''\\)\\'" ""
                 (replace-regexp-in-string
-                 "\\`[rbuRBU]*\\(?:\"\"\"\\|'''\\)" "" text)))
+                 "\\`[rRbBuUfF]*\\(?:\"\"\"\\|'''\\)" "" text)))
          (lines (split-string bare "\n"))
          ;; The first line stands after the quotes and shares no
          ;; indentation with the rest, so the common indentation is
