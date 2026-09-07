@@ -257,7 +257,6 @@ it into the shell buffer, where the filter and the ticker read it:
 | =:region-at= | the region point is in, as =(BEG . END)=         |
 | =:starts=   | a marker on the start of every region, in order   |
 | =:redraw=   | draw the mode's own bars again                    |
-| =:done=     | write the whole result into a follower's buffer   |
 
 The same plist carries the look of a result block: =:keymap=,
 =:buttons=, =:fold=, =:header-face=, =:output-face=, =:lines= and

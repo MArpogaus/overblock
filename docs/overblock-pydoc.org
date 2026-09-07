@@ -118,9 +118,9 @@ for it again: /The width one is built for/, below, says how.
 
 ** The rules
 
-The rule above and the rule below are an =:overline= on
-=overblock-pydoc-header= and an =:underline= on
-=overblock-pydoc-footer=.  A rule a face draws runs the width of the
+The rule above and the rule below are the =:overline= of
+=overblock-bar=, the face every bar of the family wears, and an
+=:underline= on =overblock-pydoc-footer=.  A rule a face draws runs the width of the
 row it is on: it begins where the row's own text begins, which is the
 column the doc string is indented to, and it ends where the row ends,
 which is the window's edge.  Nothing has to measure either.
