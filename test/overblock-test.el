@@ -812,14 +812,15 @@ were ten pixels wide with twenty pixels of nothing between them."
 
 (provide 'overblock-test)
 (ert-deftest overblock-test-a-block-keeps-out-of-the-way-of-hl-line ()
-  "The plain paint of a block sits below `hl-line\', which draws at -50.
-The source under a block is painted plain so that the face of a newline
-does not run its background out to the window; with no priority at all
-that outranked the stripe of `hl-line', and the stripe disappeared
-wherever a block stood."
+  "The plain paint of a rendering sits below `hl-line\', which draws at -50.
+The source under a rendering is painted plain so that the face of a
+newline does not run its background out to the window; with no priority
+at all that outranked the stripe of `hl-line', and the stripe
+disappeared wherever a block stood."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
-    (let ((block (overblock-show (point-min) (pos-eol 2) :body "over")))
+    (goto-char (point-min))
+    (let ((block (overblock-show (point-min) (pos-eol 2) :over "over")))
       (should (eq (overlay-get block 'face) 'default))
       (should (< (overlay-get block 'priority) -50))
       (let ((newline (overblock-get block :newline)))
@@ -850,6 +851,19 @@ the buffer.  Once the mark is gone the region wants its rendering again."
         (goto-char (point-max))
         (should (overblock-live-wanted-p 1 end 'test))))
     (overblock-live-stop 'test)))
+
+(ert-deftest overblock-test-a-result-leaves-the-faces-of-its-region-alone ()
+  "Only a rendering paints the source under it plain.
+A result hangs below its region and leaves the code in view, and the
+same paint took every colour off a cell the moment it ran: an
+overlay's face outranks what font lock wrote, `default' included."
+  (with-temp-buffer
+    (insert "import os\nprint(1)\n")
+    (goto-char (point-min))
+    (let ((result (overblock-show 1 (pos-eol 1) :kind 'result :body "1"))
+          (rendering (overblock-show (pos-bol 2) (point-max) :kind 'md :over "one")))
+      (should-not (overlay-get result 'face))
+      (should (eq (overlay-get rendering 'face) 'default)))))
 
 (ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
   "A block carries the columns it was built for, and loses them to a change.

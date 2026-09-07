@@ -259,19 +259,25 @@ every `overblock-refresh'."
     (when block
       (overlay-put block 'evaporate t)
       (overlay-put block 'overblock-part t)
-      ;; The source under a block is painted plain, newlines and all.
-      ;; The face of a newline is drawn across the rest of its screen
-      ;; line, and the source keeps what font lock gave it: a rendered
-      ;; table row ended in a stripe of `markdown-table-face' running to
-      ;; the window and a fenced block in a stripe of
+      ;; The source under a rendering is painted plain, newlines and
+      ;; all.  The face of a newline is drawn across the rest of its
+      ;; screen line, and the source keeps what font lock gave it: a
+      ;; rendered table row ended in a stripe of `markdown-table-face'
+      ;; running to the window and a fenced block in a stripe of
       ;; `markdown-code-face', one ragged edge per row.  What a rendering
       ;; paints itself outranks this, so only the columns nothing claims
       ;; come out plain.
       ;;
+      ;; Only under a rendering.  A result hangs below its region and
+      ;; leaves the code in view, and the same paint took every colour
+      ;; off a cell the moment it ran: an overlay's face outranks what
+      ;; font lock wrote, `default' included.
+      ;;
       ;; Under `hl-line', which draws at -50: an overlay face with no
       ;; priority at all outranks it, and the stripe then disappeared
       ;; wherever a block stood.
-      (overlay-put block 'face 'default)
+      (when (plist-get props :over)
+        (overlay-put block 'face 'default))
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, so
       ;; `overblock--width-changed' can tell a block that is drawn for
