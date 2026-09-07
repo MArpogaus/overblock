@@ -136,16 +136,6 @@ twice."
          (set-default symbol value)
          (overblock-pydoc--redraw)))
 
-(defcustom overblock-pydoc-label "doc"
-  "What the bar of a rendered doc string calls it.
-The glyph before it comes from `overblock-glyph', so a terminal without
-the icon font reads the word alone."
-  :type 'string
-  :initialize #'custom-initialize-default
-  :set (lambda (symbol value)
-         (set-default symbol value)
-         (overblock-pydoc--redraw)))
-
 (defvar-keymap overblock-pydoc-map
   :doc "Keymap on a rendered doc string.
 A click shows the source of the doc string, which is what a reader
@@ -331,16 +321,16 @@ the block so `overblock--width-changed\' can drop what no longer fits."
 
 (defun overblock-pydoc--bar (indent)
   "Return the bar above a rendered doc string, INDENT columns in.
-The label at the left, the buttons at the window's edge, and the rule
-of `overblock-bar\' over the whole row."
-  (overblock-pydoc--row
-   (concat (overblock-glyph "" "◇" "doc")
-           (if (string-empty-p overblock-pydoc-label)
-               ""
-             (concat " " overblock-pydoc-label))
-           " ")
-   (overblock-buttons overblock-pydoc-buttons)
-   'overblock-bar indent))
+The glyph at the left, the buttons at the window's edge, and the rule of
+`overblock-bar\' over the whole row.  The glyph and no word: the prose
+under the bar says what it is."
+  (overblock-pydoc--row (concat (overblock-pydoc--glyph) " ")
+                        (overblock-buttons overblock-pydoc-buttons)
+                        'overblock-bar indent))
+
+(defun overblock-pydoc--glyph ()
+  "Return the glyph that marks a doc string, as this frame draws it."
+  (overblock-glyph "" "◇" "doc"))
 
 (defun overblock-pydoc--rule (indent)
   "Return the row that closes a rendered doc string, INDENT columns in.
@@ -366,7 +356,7 @@ window\'s edge as they do there, and the row wears the bar\'s own face —
 a rule over it and none under.  Both rules on one row boxes it in, and
 a boxed line of prose among plain lines of code is a loud way to say
 very little."
-  (overblock-pydoc--row (concat prose " ")
+  (overblock-pydoc--row (concat (overblock-pydoc--glyph) " " prose " ")
                         (overblock-buttons overblock-pydoc-buttons)
                         'overblock-bar indent))
 
@@ -528,8 +518,10 @@ indentation, in `overblock-pydoc-fontify-mode\'.
 ;;;###autoload
 (define-minor-mode overblock-pydoc-mode
   "Render the doc strings of this buffer as documentation.
-The doc string point is in shows its source, so it can be edited where
-it stands; the rest read as prose.  A click on one puts point in it.
+A click on a rendered doc string gives its source back, and it is
+rendered again once point has left it; point moving into one changes
+nothing, so the code around a doc string is edited with the prose in
+view.
 
 `overblock-pydoc-renderer' says how: a converter and shr, which knows
 reStructuredText and lays out a table, or the font lock of
@@ -537,10 +529,13 @@ reStructuredText and lays out a table, or the font lock of
 line where the writer put it."
   :lighter " PyDoc"
   (if overblock-pydoc-mode
-      (overblock-live-start 'pydoc
-                            #'overblock-pydoc-render-buffer
-                            overblock-pydoc-idle)
-    (overblock-live-stop)))
+      (progn
+        (setq-local overblock-live-source-at-point nil)
+        (overblock-live-start 'pydoc
+                              #'overblock-pydoc-render-buffer
+                              overblock-pydoc-idle))
+    (overblock-live-stop)
+    (kill-local-variable 'overblock-live-source-at-point)))
 
 (provide 'overblock-pydoc)
 ;;; overblock-pydoc.el ends here

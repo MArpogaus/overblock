@@ -199,8 +199,8 @@ that one.  A rendering comes off when the reader clicks it
 its own, as =org-edit-special= opens a source block.  The caller says
 what the buffer is called, which major mode it wears, how to read the
 plain text out and how to write it back.  =overblock-edit-commit= and
-=overblock-edit-abort= end the edit; they live in
-=overblock-edit-mode-map=, which is empty.
+=overblock-edit-abort= end the edit, on =C-c C-c= and =C-c C-k= in
+=overblock-edit-mode-map=, the keys of =org-edit-special=.
 
 Each region gets a buffer of its own, so several can be open at once.
 An edit of the same region that is already under way is offered back
@@ -441,10 +441,10 @@ one of them opened in a buffer of its own, edited and committed.
 
 =overblock-pydoc-mode= shows the doc strings of a Python buffer as the
 documentation they are: the triple quotes and the indentation go, the
-markup is rendered, and the code around them is untouched.  Move point
-into one and its source comes back to be edited; move away and it reads
-as documentation again.  A click puts point in it, which comes to the
-same thing.
+markup is rendered, and the code around them is untouched.  Click one
+and its source comes back to be edited; move away and it reads as
+documentation again.  Point moving into a rendered doc string changes
+nothing, so the code around it is edited with the prose in view.
 
 Which strings are documentation is what font lock has already decided.
 python.el paints the doc string of a module, a definition or an
@@ -468,11 +468,10 @@ file as prose.
 Every row of a rendering begins at the column the opening quote stands
 at, so the prose stands where the code stands.
 
-A doc string of more than one line wears a bar above it — the label
-=overblock-pydoc-label= and the buttons of =overblock-pydoc-buttons= —
-and a rule below it.  A doc string of one line takes one row instead:
-the prose where the label would be, the buttons at the window's edge,
-and the bar's own rule over it.  Two bars would make three rows out of
+A doc string of more than one line wears a bar above it — a glyph and
+the buttons of =overblock-pydoc-buttons= — and a rule below it.  A doc
+string of one line takes one row instead: the glyph, the prose, the
+buttons at the window's edge, and the bar's own rule over it.  Two bars would make three rows out of
 one line, and a doc string of one line is the commonest of all.
 
 A rendering is built for the width of the window it is shown in: the
@@ -506,7 +505,6 @@ click.
 | =overblock-pydoc-command=      | two =pandoc= candidates, =rst= first | the shell command for a doc string     |
 | =overblock-pydoc-fontify-mode= | =rst-mode=                           | the mode whose font lock renders one   |
 | =overblock-pydoc-idle=         | 0.2                                  | the quiet before one is rendered again |
-| =overblock-pydoc-label=        | ="doc"=                              | what the bar of a doc string calls it  |
 | =overblock-pydoc-buttons=      | one edit button                      | the buttons on that bar                |
 | =overblock-pydoc-footer=       | =shadow= with an underline           | the face of the rule under a doc string |
 
