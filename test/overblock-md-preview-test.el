@@ -38,6 +38,7 @@
   (declare (indent 1))
   `(with-temp-buffer
      (insert ,text)
+     (markdown-mode)
      (goto-char (point-min))
      (overblock-md-preview-mode 1)
      (unwind-protect (progn ,@body)
@@ -202,6 +203,7 @@ from under them."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# One\n\ntwo\n")
+    (markdown-mode)
     (let ((before (buffer-string)))
       (overblock-md-preview-mode 1)
       (goto-char (point-max))
@@ -211,7 +213,7 @@ from under them."
       (should-not (overblock-md-preview-test--blocks))
       ;; and the cycle the layer runs is stopped with it
       (should-not overblock-live--timer)
-      (should-not overblock-live--spec)
+      (should-not overblock-live--specs)
       (should (equal (buffer-string) before)))))
 
 (provide 'overblock-md-preview-test)

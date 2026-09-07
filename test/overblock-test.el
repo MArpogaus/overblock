@@ -199,7 +199,8 @@ that stopped there with it would leave the last line on the screen."
            (cloaks (seq-filter (lambda (ov) (overlay-get ov 'overblock-cloak))
                                (overblock-get block :parts))))
       (should cloaks)
-      ;; through the newline that ends the region, and not one line short
+      ;; through the newline that ends the region, and not one line
+      ;; short: the guard on that newline is the cloak's last part
       (should (= (apply #'max (mapcar #'overlay-end cloaks))
                  (point-max))))))
 
@@ -518,7 +519,8 @@ without moving."
       ;; is five lines, so the walk makes at most five rows and the parts
       ;; that come out of it cannot outnumber them.
       (overblock-refresh block)
-      (let ((parts (overblock-get block :parts)))
+      (let ((parts (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                               (overblock-get block :parts))))
         (should parts)
         (should (<= (length parts) 5)))
       (widen)
@@ -675,7 +677,9 @@ test can only report if the loop stops."
       (narrow-to-region 1 5)
       (overblock-refresh block)
       ;; Four lines in the region, so four rows at the most.
-      (should (<= (length (overblock-get block :parts)) 4))
+      (should (<= (length (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                                      (overblock-get block :parts)))
+                  4))
       (widen))))
 
 (ert-deftest overblock-test-orphans-go-and-the-living-stay ()
@@ -845,7 +849,7 @@ the buffer.  Once the mark is gone the region wants its rendering again."
       (let ((end (pos-eol 1)))
         (goto-char (point-max))
         (should (overblock-live-wanted-p 1 end 'test))))
-    (overblock-live-stop)))
+    (overblock-live-stop 'test)))
 
 (ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
   "A block carries the columns it was built for, and loses them to a change.

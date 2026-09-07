@@ -335,13 +335,14 @@ made."
 Their text carries `overblock-md-pending\', put there when a formula
 was shown as text because its image was still being made.  The live
 cycle renders them again once the reader stops, from the cache now."
-  (when-let* ((kind (car overblock-live--spec)))
-    (dolist (block (overblock-in (point-min) (point-max) kind))
-      (let ((over (overblock-get block :over)))
-        (when (and (stringp over)
-                   (text-property-not-all 0 (length over) 'overblock-md-pending
-                                          nil over))
-          (overblock-delete block))))
+  (when overblock-live--specs
+    (dolist (spec overblock-live--specs)
+      (dolist (block (overblock-in (point-min) (point-max) (car spec)))
+        (let ((over (overblock-get block :over)))
+          (when (and (stringp over)
+                     (text-property-not-all 0 (length over)
+                                            'overblock-md-pending nil over))
+            (overblock-delete block)))))
     (overblock-live--settle)))
 
 (defun overblock-md--latex-image (frag)
@@ -505,36 +506,60 @@ pull the columns of its row out of line."
      (lambda (marks)
        (save-match-data
          (let* ((frag (or (pop rest) ""))
+                (table (get-text-property 0 'overblock-md--table marks))
                 (image (and (display-images-p)
-                            (not (get-text-property 0 'overblock-md--table marks))
                             (overblock-md--latex-image
                              (overblock-md--one-line frag)))))
-           (if (and image (not (eq image 'pending)))
-               ;; The fragment's own text under the image where the
-               ;; run is whole — what a reader copies out of a
-               ;; rendering is then the formula, not a row of marks.
-               ;; Inline math on one line: the converter wraps its
-               ;; HTML, and a line break of its own inside the
-               ;; fragment is no row of the rendering.  Measured, the
-               ;; full stop after a formula stood on a row of its own.
-               (overblock-md--place-image
-                (if (string-search "\n" marks) marks (overblock-md--as-text frag))
-                image)
-             (let ((fallback
-                    (overblock-md--fit
-                     (overblock-md--bare-math (overblock-md--as-text frag)) marks
-                     ;; Padded inside a table and nowhere else: a table
-                     ;; is laid out in columns of characters, and text
-                     ;; shorter than the marks it replaces would pull
-                     ;; the row out of line.  In prose the shorter text
-                     ;; simply takes less room.
-                     (get-text-property 0 'overblock-md--table marks))))
-               ;; Standing in for a preview on its way: the rendering
-               ;; is drawn again when it arrives.
-               (if (eq image 'pending)
-                   (propertize fallback 'overblock-md-pending t)
-                 fallback))))))
+           (cond
+            ((eq image 'pending)
+             ;; Standing in for a preview on its way: the rendering is
+             ;; drawn again when it arrives.
+             (propertize (overblock-md--fit
+                          (overblock-md--bare-math (overblock-md--as-text frag))
+                          marks table)
+                         'overblock-md-pending t))
+            ((and image table)
+             (overblock-md--place-in-cell frag image marks))
+            (image
+             ;; The fragment's own text under the image where the
+             ;; run is whole — what a reader copies out of a
+             ;; rendering is then the formula, not a row of marks.
+             ;; Inline math on one line: the converter wraps its
+             ;; HTML, and a line break of its own inside the
+             ;; fragment is no row of the rendering.  Measured, the
+             ;; full stop after a formula stood on a row of its own.
+             (overblock-md--place-image
+              (if (string-search "\n" marks) marks (overblock-md--as-text frag))
+              image))
+            (t
+             ;; Padded inside a table and nowhere else: a table is laid
+             ;; out in columns of characters, and text shorter than the
+             ;; marks it replaces would pull the row out of line.  In
+             ;; prose the shorter text simply takes less room.
+             (overblock-md--fit
+              (overblock-md--bare-math (overblock-md--as-text frag)) marks
+              table))))))
      text t t)))
+
+(defun overblock-md--place-in-cell (frag image marks)
+  "Return FRAG drawing IMAGE in a table cell, as wide as MARKS were.
+A table is laid out in columns of characters, and an image is so many
+pixels: drawn as it is, a formula pulled the columns of its row out of
+line, which is why it used to stay text.  A stretch after the image
+makes up the width the marks took, so the row keeps its columns; a
+stretch inside a display string is not drawn, but a piece that holds an
+image rides a before-string, where it is.  Where the image cannot be
+measured — no frame to draw it on — the text stays, padded as before."
+  (let* ((room (* (string-width marks) (frame-char-width)))
+         (width (car (ignore-errors (image-size image t))))
+         (gap (and width (- room width))))
+    (if (not gap)
+        (overblock-md--fit (overblock-md--bare-math (overblock-md--as-text frag))
+                           marks t)
+      (concat (propertize (overblock-md--one-line frag) 'display image)
+              (if (> gap 0)
+                  (propertize " " 'display `(space :width (,gap)))
+                "")))))
 
 (defun overblock-md--as-text (frag)
   "Return FRAG as the text a display without images shows.
@@ -588,12 +613,19 @@ Dropped and not hidden.  A row of a block rides on a display property,
 and a display property inside a display string is never looked at — the
 same rule that keeps an image off one — so a `display' of the empty
 string over the rest left the raw LaTeX standing on the screen."
-  (if (not (string-search "\n" frag))
-      (propertize frag 'display image)
+  (cond
+   ((not (string-search "\n" frag))
+    (propertize frag 'display image))
+   ;; Display math keeps its rows as text; as an image it is one row,
+   ;; and the rows its source had would stand empty under the figure —
+   ;; measured, two blank lines after every displayed formula.
+   ((string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag)
+    (propertize (overblock-md--one-line frag) 'display image))
+   (t
     (let ((break (string-search "\n" frag)))
       (concat (propertize (substring frag 0 break) 'display image)
               ;; The newlines of the rest, and nothing else of it.
-              (make-string (cl-count ?\n frag :start break) ?\n)))))
+              (make-string (cl-count ?\n frag :start break) ?\n))))))
 
 (defun overblock-md-program ()
   "Return the markdown converter as a list of program and arguments.

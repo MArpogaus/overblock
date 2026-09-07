@@ -228,6 +228,8 @@ nothing where none of its candidates is installed."
   ;; with no bars, so it stays off.  A message and not an error: a
   ;; configuration that hooks both modes onto `markdown-mode-hook'
   ;; reaches this from the hook, whichever of the two runs first.
+  (when overblock-md-preview-mode
+    (overblock-only-in 'overblock-md-preview-mode 'markdown-mode))
   (when (and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
     (setq overblock-md-preview-mode nil)
     (message "overblock-md-preview: off, overblock-rmd-mode renders this prose"))
@@ -235,7 +237,7 @@ nothing where none of its candidates is installed."
       (overblock-live-start 'md-preview
                             #'overblock-md-preview-render-buffer
                             overblock-md-preview-idle)
-    (overblock-live-stop)))
+    (overblock-live-stop 'md-preview)))
 
 (provide 'overblock-md-preview)
 ;;; overblock-md-preview.el ends here
