@@ -1121,7 +1121,7 @@ plist saves is the call around each walk, not the walks."
 (defvar overblock--glyphs (make-hash-table :test #'equal)
   "What `overblock-glyph' answered, by display, font and candidates.
 The answer cannot change while a frame keeps its font, and the question
-is dear: `internal-char-font' asks the font backend once a character,
+is dear: `char-displayable-p' asks the font backend once a character,
 and one header of six icons asked it twenty times, five times a second.
 Measured over a running cell, the header cost 0.71 milliseconds a tick
 and 0.27 with this table.")
