@@ -246,41 +246,62 @@ Emacs on every document that opened with formulas it had not seen."
   (unless (process-live-p overblock-md--latex-process)
     (run-with-idle-timer 0 nil #'overblock-md--latex-run)))
 
+(defun overblock-md--latex-script (jobs)
+  "Write the program the child Emacs runs for JOBS, and return its file.
+It tells the child what this session\'s org knows about previews — the
+process, the header, the packages — and has it run
+`org-create-formula-image\' for each job in the directory the files go
+to, as the synchronous path did."
+  (let ((script (make-temp-file "overblock-latex" nil ".el"))
+        (dir (file-name-directory (nth 1 (car jobs)))))
+    (make-directory dir t)
+    (with-temp-file script
+      (let ((print-length nil) (print-level nil))
+        (prin1 `(progn
+                  (require 'org)
+                  (setq org-format-latex-header ,org-format-latex-header
+                        org-latex-packages-alist ',org-latex-packages-alist
+                        org-latex-default-packages-alist ',org-latex-default-packages-alist
+                        org-preview-latex-process-alist ',org-preview-latex-process-alist
+                        org-preview-latex-default-process ',org-preview-latex-default-process
+                        temporary-file-directory ,dir
+                        default-directory ,dir)
+                  (dolist (job ',(mapcar #'butlast jobs))
+                    (ignore-errors
+                      (org-create-formula-image
+                       (nth 0 job) (nth 1 job)
+                       (org-combine-plists
+                        ',org-format-latex-options
+                        (list :foreground (nth 2 job) :background "Transparent"))
+                       nil))))
+               (current-buffer))))
+    script))
+
+(defun overblock-md--latex-done (jobs script)
+  "Take in what the child Emacs left for JOBS, and drop SCRIPT.
+A file that is not there marks its fragment as failed, and every buffer
+that asked drops the renderings that stood in for a preview, so its
+live cycle draws them again from the cache.  Then whatever was asked
+for while the child ran."
+  (delete-file script)
+  (dolist (job jobs)
+    (unless (file-exists-p (nth 1 job))
+      (puthash (nth 1 job) t overblock-md--latex-failed)))
+  (dolist (buffer (delete-dups (mapcar (lambda (job) (nth 3 job)) jobs)))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (overblock-md--redraw-pending))))
+  (overblock-md--latex-run))
+
 (defun overblock-md--latex-run ()
   "Make every waiting preview in one child Emacs, and show them when done.
-The child is this Emacs with this org, told what this session\'s org
-knows about previews — the process, the header, the packages — and runs
-`org-create-formula-image\' for each job in the directory the file goes
-to, as the synchronous path did.  When it ends, a file that is not
-there marks its fragment as failed, and every buffer that asked drops
-the renderings that stood in for a preview, so its live cycle draws
-them again from the cache."
+The child is this Emacs with this org; `overblock-md--latex-script\'
+writes what it runs and `overblock-md--latex-done\' takes in what it
+made."
   (when-let* ((jobs overblock-md--latex-jobs)
               ((not (process-live-p overblock-md--latex-process))))
     (setq overblock-md--latex-jobs nil)
-    (let ((script (make-temp-file "overblock-latex" nil ".el"))
-          (dir (file-name-directory (nth 1 (car jobs)))))
-      (make-directory dir t)
-      (with-temp-file script
-        (let ((print-escape-newlines nil) (print-length nil) (print-level nil))
-          (prin1 `(progn
-                    (require 'org)
-                    (setq org-format-latex-header ,org-format-latex-header
-                          org-latex-packages-alist ',org-latex-packages-alist
-                          org-latex-default-packages-alist ',org-latex-default-packages-alist
-                          org-preview-latex-process-alist ',org-preview-latex-process-alist
-                          org-preview-latex-default-process ',org-preview-latex-default-process
-                          temporary-file-directory ,dir
-                          default-directory ,dir)
-                    (dolist (job ',(mapcar #'butlast jobs))
-                      (ignore-errors
-                        (org-create-formula-image
-                         (nth 0 job) (nth 1 job)
-                         (org-combine-plists
-                          ',org-format-latex-options
-                          (list :foreground (nth 2 job) :background "Transparent"))
-                         nil))))
-                 (current-buffer))))
+    (let ((script (overblock-md--latex-script jobs)))
       (setq overblock-md--latex-process
             (make-process
              :name "overblock-latex"
@@ -289,19 +310,9 @@ them again from the cache."
                             "-l" script)
              :noquery t
              :buffer nil
-             :sentinel
-             (lambda (process _event)
-               (unless (process-live-p process)
-                 (delete-file script)
-                 (dolist (job jobs)
-                   (unless (file-exists-p (nth 1 job))
-                     (puthash (nth 1 job) t overblock-md--latex-failed)))
-                 (dolist (buffer (delete-dups (mapcar (lambda (job) (nth 3 job)) jobs)))
-                   (when (buffer-live-p buffer)
-                     (with-current-buffer buffer
-                       (overblock-md--redraw-pending))))
-                 ;; what was asked for while this ran
-                 (overblock-md--latex-run))))))))
+             :sentinel (lambda (process _event)
+                         (unless (process-live-p process)
+                           (overblock-md--latex-done jobs script))))))))
 
 (defun overblock-md--redraw-pending ()
   "Drop the renderings of this buffer that stand in for a preview.
