@@ -397,9 +397,10 @@ fragment LaTeX cannot compile stays text anywhere."
 (ert-deftest overblock-md-test-a-wrapped-block-still-gets-its-preview ()
   "A block that keeps its lines is replaced by one preview, drawn once.
 The fragment is matched across its lines, so the wrapping in <pre>
-costs the preview nothing — and the image is hung on the first of those
-lines alone, because a display property is drawn once for every screen
-line its run reaches and one over the whole block came out once a row."
+costs the preview nothing — and the image takes one row, not the rows
+the source had: a display property is drawn once for every screen line
+its run reaches, and the rows left under a figure stood empty.
+Measured, two blank lines after every displayed formula."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image)
@@ -417,16 +418,8 @@ line its run reaches and one over the whole block came out once a row."
       ;; one image, and the prose beside it untouched
       (should (= runs 1))
       (should (string-match-p "prose" (substring-no-properties rendered)))
-      ;; the rows the block had are the rows it has
-      (should (= (length (split-string rendered "\n"))
-                 (length (split-string
-                          (let ((overblock-md--latex-failed
-                                 (make-hash-table :test #'equal)))
-                            (cl-letf (((symbol-function 'display-images-p)
-                                       #'ignore))
-                              (overblock-md-rendered
-                               "prose\n\n$$\na = b\n$$\n")))
-                          "\n")))))))
+      ;; the formula is one row, and the rows under it are gone
+      (should (= (length (split-string rendered "\n")) 3)))))
 
 (ert-deftest overblock-md-test-table-columns-are-literal ()
   "A rendered table aligns with real spaces, not display specs.

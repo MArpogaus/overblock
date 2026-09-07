@@ -427,7 +427,7 @@ proves that the mode asks for it and that it stops asking."
       (should (= (overblock-pydoc-test--wait 4) 4))
       (overblock-pydoc-mode -1)
       (should-not (overblock-in (point-min) (point-max) 'pydoc))
-      (should-not overblock-live--spec)
+      (should-not overblock-live--specs)
       (should (equal (buffer-string) before)))))
 
 (provide 'overblock-pydoc-test)

@@ -21,7 +21,7 @@ SANDBOX ?= .sandbox
 # way leaves the directory behind, and a directory target would then
 # count as made and the tools stay missing.
 STAMP   := $(SANDBOX)/.installed
-DEPS    ?= package-lint relint code-cells comint-mime ess
+DEPS    ?= package-lint relint code-cells comint-mime ess markdown-mode
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
 TEST := $(wildcard test/*.el)

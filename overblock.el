@@ -333,28 +333,41 @@ it, which works because the string answers the click."
   ov)
 
 (defun overblock--cloak (block beg end)
-  "Return an overlay of BLOCK that shows BEG..END as one line break.
+  "Return an overlay of BLOCK that hides BEG..END and stays hidden.
 A cloak covers the lines that no piece was left for, from the newline
-that ends the row above them through their own last newline, and draws
-one newline in their place: the row above ends where it did, the row
-below begins where it did, and the lines between take no room.
+that ends the row above them up to — not through — their own last
+newline, which stays to end that row.  It has to start at the end of a
+visible line: `scroll-down\' answers a run that begins a line with a
+beginning-of-buffer error, in the middle of the region.
 
-A display of its own, and not `invisible', because the last of those
-newlines has to end the row above and the text\'s own display would
-have ended it: indent-bars writes a `display\' on the newline of every
-blank line — a bar as deep as the indentation — and a cloak that left
-that newline showing, so the row would end, drew the bar at the end of
-the rendered row.  Measured, a hairline of the bar\'s colour after every
-rendered doc string with a blank line in it.  An overlay\'s display
-outranks the text\'s.
-
-It has to start at the end of a visible line: `scroll-down\' answers a
-run that begins a line with a beginning-of-buffer error, in the middle
-of the region."
+Invisible, and not replaced by a display of one newline: point walks
+over invisible text and never into it, where a run replaced by a
+display string is so many positions that all show the same glyph —
+measured with `next-line\' down a notebook, point stood still for a
+step at one cell and the window start crept a character at a time.
+The newline that stays gets `overblock--newline-guard\'."
   (let ((ov (make-overlay beg end nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'overblock-part t)
+    (overlay-put ov 'invisible t)
+    (overlay-put ov 'overblock-cloak t)
+    (overblock--dress block ov)))
+
+(defun overblock--newline-guard (block at)
+  "Return an overlay of BLOCK that draws the newline AT as a plain newline.
+The newline a cloak leaves to end the row above it keeps the text\'s own
+`display\', and indent-bars writes one on the newline of every blank
+line — a bar as deep as the indentation.  Measured, a hairline of the
+bar\'s colour after every rendered doc string with a blank line in it.
+An overlay\'s display outranks the text\'s, and a newline is what the
+row wanted there.  Below the body a result hangs on the same newline,
+so a body wins where there is one."
+  (let ((ov (make-overlay at (1+ at) nil t)))
+    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'overblock-part t)
     (overlay-put ov 'display "\n")
+    (overlay-put ov 'priority -60)
+    ;; Part of the cloak to every reader that tells cloaks from pieces.
     (overlay-put ov 'overblock-cloak t)
     (overblock--dress block ov)))
 
@@ -408,7 +421,7 @@ either way, which is what makes a region scroll a line at a time.
 
 The before-string and not the after-string: a cloak begins at the end
 of the piece before it, and Emacs leaves out an overlay string whose
-position is inside text another overlay replaces.  Measured on a frame,
+position is inside invisible text.  Measured on a frame,
 counting the pixels of the image itself: 0 for an after-string with a
 cloak at the piece's end, 32 for the same image on a before-string."
   (let ((ov (make-overlay from to nil t)))
@@ -511,12 +524,14 @@ region has anyway.  Those lines go under a cloak."
         (if (null chunk)
             (setq cloak-from (overblock--cloak-from cloak-from from))
           (when cloak-from
-            (push (overblock--cloak block cloak-from from) parts)
+            (push (overblock--cloak block cloak-from (1- from)) parts)
+            (push (overblock--newline-guard block (1- from)) parts)
             (setq cloak-from nil))
           (push (overblock--piece block from to (string-join chunk "\n"))
                 parts))))
     (when cloak-from
-      (push (overblock--cloak block cloak-from end) parts))
+      (push (overblock--cloak block cloak-from (1- end)) parts)
+      (push (overblock--newline-guard block (1- end)) parts))
     (nreverse parts)))
 
 (defun overblock--attach (block shown)
@@ -760,10 +775,23 @@ mouse calls before it asks `overblock-at\' what it was pointed at."
     (select-window window)
     (goto-char pos)))
 
-(defvar-local overblock-live--spec nil
-  "How this buffer renders itself, as (KIND RENDER IDLE).
-`overblock-live-start' puts it there and `overblock-live-stop' takes it
-away.")
+(defun overblock-only-in (mode &rest parents)
+  "Leave the minor mode MODE off unless the major mode derives from PARENTS.
+MODE is the mode's variable, which `define-minor-mode' has just set;
+this puts it back and says so.  A mode of the family reads a buffer of
+one kind — markdown, Python — and turned on elsewhere it would render
+what it does not understand."
+  (unless (seq-some #'derived-mode-p parents)
+    (set mode nil)
+    (user-error "%s is for %s buffers" mode
+                (mapconcat #'symbol-name parents " or "))))
+
+(defvar-local overblock-live--specs nil
+  "How this buffer renders itself: one (KIND RENDER IDLE) a live cycle.
+A buffer can carry several — a notebook renders its markdown cells and
+its doc strings, each through a mode of its own — and each renders the
+blocks of its kind.  `overblock-live-start' adds one and
+`overblock-live-stop' takes it away.")
 
 (defvar-local overblock-live--timer nil
   "The timer that renders what the reader has finished with.")
@@ -800,9 +828,9 @@ a rendering is never in the buffer.  They come back once the mark is
 gone, which is the other half of this function: a region the reader has
 edited and left carries no rendering, and the timer puts it back."
   (when (use-region-p)
-    (mapc #'overblock-take-down
-          (overblock-in (region-beginning) (region-end)
-                        (car overblock-live--spec))))
+    (dolist (spec overblock-live--specs)
+      (mapc #'overblock-take-down
+            (overblock-in (region-beginning) (region-end) (car spec)))))
   (pcase overblock-live--open
     (`(,from . ,to)
      (unless (<= from (point) to)
@@ -811,13 +839,16 @@ edited and left carries no rendering, and the timer puts it back."
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
         (run-with-idle-timer
-         (or (nth 2 overblock-live--spec) 0.2) nil
+         ;; the shortest quiet any cycle here asks for
+         (apply #'min 0.2 (mapcar (lambda (spec) (or (nth 2 spec) 0.2))
+                                  overblock-live--specs))
+         nil
          (let ((buffer (current-buffer)))
            (lambda ()
              (when (buffer-live-p buffer)
                (with-current-buffer buffer
-                 (when-let* ((render (nth 1 overblock-live--spec)))
-                   (funcall render)))))))))
+                 (dolist (spec overblock-live--specs)
+                   (funcall (nth 1 spec))))))))))
 
 (defun overblock-live--close ()
   "Forget the region a rendering last came off, and free its markers."
@@ -839,7 +870,7 @@ decide what to ask for, and again when the answer comes back, because
 the reader has clicked, typed and moved on in between — or turned the
 mode off, and a rendering that landed then stood in a buffer with no
 mode to take it down."
-  (not (or (not (eq (car overblock-live--spec) kind))
+  (not (or (not (assq kind overblock-live--specs))
            (if overblock-live-source-at-point
                (<= beg (point) end)
              (pcase overblock-live--open
@@ -857,9 +888,11 @@ rendered anew once they have moved on and stopped.  This is what a
 mode binds to the mouse."
   (interactive (list last-input-event))
   (overblock-goto-event event)
-  (when-let* ((kind (car overblock-live--spec))
-              (block (or (overblock-at kind)
-                         (car (overblock-in (pos-bol) (pos-eol) kind)))))
+  (when-let* ((block (seq-some (lambda (spec)
+                                 (or (overblock-at (car spec))
+                                     (car (overblock-in (pos-bol) (pos-eol)
+                                                        (car spec)))))
+                               overblock-live--specs)))
     (overblock-take-down block)))
 
 (defun overblock-live-start (kind render &optional idle)
@@ -880,8 +913,8 @@ which a mode binds to a click — and when the region under it is edited,
 which `overblock-stale-when-edited\' answers.  Point arriving somewhere
 reveals nothing: a reader scrolls through a buffer, and a rendering that
 came off under the window made the text grow and shrink as they went."
-  (setq overblock-live--spec (list kind render idle)
-        overblock--columns (overblock-window-columns))
+  (setf (alist-get kind overblock-live--specs) (list render idle))
+  (setq overblock--columns (overblock-window-columns))
   (add-hook 'post-command-hook #'overblock-live--settle nil t)
   ;; The width, too: a rendering is built for the columns it is shown
   ;; at, and `overblock--width-changed\' says what happens when they
@@ -892,18 +925,19 @@ came off under the window made the text grow and shrink as they went."
   (add-hook 'text-scale-mode-hook #'overblock--width-changed nil t)
   (funcall render))
 
-(defun overblock-live-stop ()
-  "Stop rendering this buffer, and take every rendering off it."
-  (remove-hook 'post-command-hook #'overblock-live--settle t)
-  (remove-hook 'window-configuration-change-hook #'overblock--width-changed t)
-  (remove-hook 'text-scale-mode-hook #'overblock--width-changed t)
-  (when (timerp overblock-live--timer)
-    (cancel-timer overblock-live--timer)
-    (setq overblock-live--timer nil))
-  (when-let* ((kind (car overblock-live--spec)))
-    (overblock-clear (point-min) (point-max) kind))
-  (overblock-live--close)
-  (setq overblock-live--spec nil))
+(defun overblock-live-stop (kind)
+  "Stop rendering the blocks of KIND in this buffer, and take them off.
+The hooks and the timer go with the last cycle of the buffer."
+  (setq overblock-live--specs (assq-delete-all kind overblock-live--specs))
+  (overblock-clear (point-min) (point-max) kind)
+  (unless overblock-live--specs
+    (remove-hook 'post-command-hook #'overblock-live--settle t)
+    (remove-hook 'window-configuration-change-hook #'overblock--width-changed t)
+    (remove-hook 'text-scale-mode-hook #'overblock--width-changed t)
+    (when (timerp overblock-live--timer)
+      (cancel-timer overblock-live--timer)
+      (setq overblock-live--timer nil))
+    (overblock-live--close)))
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.
@@ -1405,10 +1439,11 @@ high, drawn again for nothing."
   (when-let* ((columns (overblock-window-columns))
               ((not (eql columns overblock--columns))))
     (setq overblock--columns columns)
-    (when-let* ((kind (car overblock-live--spec)))
-      (dolist (block (overblock-in (point-min) (point-max) kind))
-        (unless (eql columns (overlay-get block 'overblock-columns))
-          (overblock-delete block)))
+    (when overblock-live--specs
+      (dolist (spec overblock-live--specs)
+        (dolist (block (overblock-in (point-min) (point-max) (car spec)))
+          (unless (eql columns (overlay-get block 'overblock-columns))
+            (overblock-delete block))))
       (overblock-live--settle))
     (mapc #'overblock-bar-stale (overblock-bars))
     (run-hooks 'overblock-width-functions)))

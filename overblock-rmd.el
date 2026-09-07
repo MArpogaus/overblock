@@ -745,6 +745,8 @@ and yours to fill.
 as it is where none of its candidates is installed; the chunks run
 either way."
   :lighter " overblock-rmd"
+  (when overblock-rmd-mode
+    (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
   (if overblock-rmd-mode
       (progn
         ;; Both modes render prose through the same live cycle and the
@@ -770,7 +772,7 @@ either way."
                     #'overblock-rmd--prose)
         (overblock-live-start 'md-preview #'overblock-rmd-render-buffer
                               overblock-md-preview-idle))
-    (overblock-live-stop)
+    (overblock-live-stop 'md-preview)
     (overblock-run-detach)
     (kill-local-variable 'ess-dialect)
     (kill-local-variable 'ess-language)

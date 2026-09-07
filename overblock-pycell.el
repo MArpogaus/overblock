@@ -1325,6 +1325,8 @@ run either way."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
   :lighter " overblock-pycell"
+  (when overblock-pycell-mode
+    (overblock-only-in 'overblock-pycell-mode 'python-base-mode))
   (if overblock-pycell-mode
       (progn
         ;; What the runner reads to know this is a notebook it may draw
@@ -1358,7 +1360,7 @@ run either way."
                      "this Emacs was built without libxml, which shr reads \
 the converter's HTML with")))
         (overblock-live-start 'markdown #'overblock-pycell-md-render-all))
-    (overblock-live-stop)
+    (overblock-live-stop 'markdown)
     (overblock-run-detach)
     (kill-local-variable 'overblock-live-source-at-point)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)

@@ -309,15 +309,23 @@ Spaces are counted in columns, so a nerd glyph that draws wider than it
 counts leaves the rule a column or two short of the edge.  The row is
 built for the width of the moment, and the layer writes that width on
 the block so `overblock--width-changed\' can drop what no longer fits."
-  (let* ((columns (overblock-window-columns))
-         (text (concat left icons))
-         ;; A column of slack: a row that fills the last one wraps, and
-         ;; a wrapped bar is two rows of almost nothing.
-         (pad (and columns (- columns indent (string-width text) 1))))
-    (overblock-faced (if (and pad (> pad 0))
-                         (concat left (make-string pad ?\s) icons)
-                       text)
-                     face)))
+  (let* ((width (overblock-window-width))
+         (text (overblock-faced (concat left icons) face))
+         (cell (frame-char-width))
+         ;; In pixels, as `overblock-bar\' measures: a glyph the frame
+         ;; draws from the icon font is wider than a character cell, and
+         ;; a row padded by columns overran the window by a few pixels
+         ;; and wrapped — measured, the buttons of a doc string's bar
+         ;; on the row below it, beside the first line of the prose.
+         ;; A column of slack, because a row that fills the last one
+         ;; wraps as well.
+         (pad (and width (floor (- width
+                                   (* (1+ indent) cell)
+                                   (overblock--pixel-width text))
+                                cell))))
+    (if (and pad (> pad 0))
+        (overblock-faced (concat left (make-string pad ?\s) icons) face)
+      text)))
 
 (defun overblock-pydoc--bar (indent)
   "Return the bar above a rendered doc string, INDENT columns in.
@@ -528,13 +536,15 @@ reStructuredText and lays out a table, or the font lock of
 `overblock-pydoc-fontify-mode', which costs no process and leaves every
 line where the writer put it."
   :lighter " PyDoc"
+  (when overblock-pydoc-mode
+    (overblock-only-in 'overblock-pydoc-mode 'python-base-mode))
   (if overblock-pydoc-mode
       (progn
         (setq-local overblock-live-source-at-point nil)
         (overblock-live-start 'pydoc
                               #'overblock-pydoc-render-buffer
                               overblock-pydoc-idle))
-    (overblock-live-stop)
+    (overblock-live-stop 'pydoc)
     (kill-local-variable 'overblock-live-source-at-point)))
 
 (provide 'overblock-pydoc)

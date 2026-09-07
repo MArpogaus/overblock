@@ -67,6 +67,7 @@ command that follows a click selects one."
   (declare (indent 1))
   `(with-temp-buffer
      (insert ,text)
+     (markdown-mode)
      (set-window-buffer nil (current-buffer))
      (goto-char (point-min))
      ,@body))
