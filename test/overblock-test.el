@@ -822,6 +822,31 @@ wherever a block stood."
         (should (eq (overlay-get newline 'face) 'default))
         (should (< (overlay-get newline 'priority) -50))))))
 
+(ert-deftest overblock-test-an-active-region-shows-its-source ()
+  "The renderings an active region reaches come down, and stay down while it lasts.
+What the reader marks is what they copy, and a rendering is never in
+the buffer.  Once the mark is gone the region wants its rendering again."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\n")
+    (transient-mark-mode 1)
+    (overblock-live-start 'test #'ignore)
+    (goto-char (point-min))
+    (let ((first (overblock-show 1 (pos-eol 1) :kind 'test :body "ONE"))
+          (last (overblock-show (pos-bol 4) (pos-eol 4) :kind 'test :body "FOUR")))
+      (should (and first last))
+      ;; a region over the first two lines
+      (push-mark (pos-eol 2) t t)
+      (should (use-region-p))
+      (overblock-live--settle)
+      (should-not (overlay-buffer first))
+      (should (overlay-buffer last))
+      (should-not (overblock-live-wanted-p 1 (pos-eol 1) 'test))
+      (deactivate-mark)
+      (let ((end (pos-eol 1)))
+        (goto-char (point-max))
+        (should (overblock-live-wanted-p 1 end 'test))))
+    (overblock-live-stop)))
+
 (ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
   "A block carries the columns it was built for, and loses them to a change.
 A rendering is filled to the width it is shown at, so one built for
