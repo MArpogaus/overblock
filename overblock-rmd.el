@@ -162,11 +162,13 @@ See `overblock-rmd-max-line-length' for the width."
 
 (defcustom overblock-rmd-figure-size '(7 . 5)
   "Width and height of a figure a chunk draws, in inches.
-What knitr calls `fig.width' and `fig.height', and the same default:
-the PNG device is opened at this size and 96 dots an inch, so a figure
-of 7 by 5 inches is 672 by 480 pixels.  `overblock-image-height' then
-caps what shows inline, and `overblock-run-save-image' writes the
-original."
+What knitr calls `fig.width' and `fig.height', and the same default,
+for a chunk whose header names neither: ```{r plot, fig.width=8,
+fig.height=3, dpi=120} draws at its own size, as it would under knitr.
+The PNG device is opened at 96 dots an inch unless the header says
+`dpi', so a figure of 7 by 5 inches is 672 by 480 pixels.
+`overblock-image-height' then caps what shows inline, and
+`overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
 (defcustom overblock-rmd-max-line-length 2000
@@ -317,6 +319,27 @@ to end at a comma or a brace: ```{r echo=FALSE} names no chunk."
                    "\\([^,}=[:blank:]]+\\)[[:blank:]]*[,}]")
            eol t)
       (match-string-no-properties 1))))
+
+(defun overblock-rmd--figure-size (open)
+  "Return (WIDTH HEIGHT DPI) for the chunk whose header begins at OPEN.
+knitr\'s `fig.width\', `fig.height\' and `dpi\' where the header writes
+them, and `overblock-rmd-figure-size\' with 96 dots an inch otherwise.
+A number and nothing else: knitr takes an expression there, and an
+expression is R\'s to evaluate, not this file\'s."
+  (save-excursion
+    (goto-char open)
+    (let ((eol (pos-eol)))
+      (mapcar (lambda (option)
+                (goto-char open)
+                (if (re-search-forward
+                     (concat "[,{[:blank:]]" (regexp-quote (car option))
+                             "[[:blank:]]*=[[:blank:]]*\\([0-9.]+\\)")
+                     eol t)
+                    (string-to-number (match-string 1))
+                  (cdr option)))
+              (list (cons "fig.width" (car overblock-rmd-figure-size))
+                    (cons "fig.height" (cdr overblock-rmd-figure-size))
+                    (cons "dpi" 96))))))
 
 (defun overblock-rmd--prose (beg end)
   "Return the prose blocks of the buffer between BEG and END, in order.
@@ -491,8 +514,9 @@ R print the value of every top level expression, as it does at its own
 prompt and as a notebook cell does.  The commentary of this file says
 why the lines cannot simply be sent.
 
-Around the `source' a PNG device, opened before the chunk at
-`overblock-rmd-figure-size' and closed after it whatever the chunk did:
+Around the `source' a PNG device, opened before the chunk at the size
+its header or `overblock-rmd-figure-size' says — see
+`overblock-rmd--figure-size' — and closed after it whatever the chunk did:
 a chunk that draws leaves a file for each page, and the exit names each
 on a line of its own, which `overblock-rmd--figures' reads back.  Only
 where R can draw a PNG at all; a chunk that draws nothing leaves no
@@ -507,18 +531,22 @@ A long chunk on one line is no trouble: R\'s console reads a line of
 any length, and 48 kilobytes of escaped chunk — 700 statements — sent
 to R 4.6 through a real pseudo terminal came back with the right answer
 and no continuation prompt."
-  (ess-send-string
-   proc
-   (format "local({.f <- tempfile(\"overblock-\", fileext = \"-%%03d.png\"); \
+  (pcase-let ((`(,width ,height ,dpi)
+               ;; the header is the line above the code
+               (overblock-rmd--figure-size
+                (save-excursion (goto-char beg) (forward-line -1) (point)))))
+    (ess-send-string
+     proc
+     (format "local({.f <- tempfile(\"overblock-\", fileext = \"-%%03d.png\"); \
 .png <- capabilities(\"png\"); \
-if (.png) png(.f, width = %s, height = %s, units = \"in\", res = 96); \
+if (.png) png(.f, width = %s, height = %s, units = \"in\", res = %s); \
 on.exit({if (.png) invisible(dev.off()); \
 for (.p in Sys.glob(sub(\"%%03d\", \"*\", .f, fixed = TRUE))) \
 cat(\"\\noverblock-figure:\", .p, \"\\n\", sep = \"\")}); \
 source(exprs = parse(text = %s), print.eval = TRUE)})"
-           (car overblock-rmd-figure-size) (cdr overblock-rmd-figure-size)
-           (overblock-rmd--r-string (buffer-substring-no-properties beg end)))
-   nil))
+             width height dpi
+             (overblock-rmd--r-string (buffer-substring-no-properties beg end)))
+     nil)))
 
 (defun overblock-rmd--prompt-p (tail)
   "Return non-nil where TAIL ends at R's prompt.
@@ -615,6 +643,39 @@ another one runs is queued behind it."
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))))
 
 ;;;###autoload
+(defun overblock-rmd-run-chunk-and-step ()
+  "Run the chunk at point and move to the next one.
+What `code-cells-eval-and-step' is to a cell.  The last chunk runs and
+point stays."
+  (interactive)
+  (overblock-rmd-run-chunk)
+  (condition-case nil (overblock-rmd-forward-chunk) (user-error nil)))
+
+;;;###autoload
+(defun overblock-rmd-forward-chunk (&optional arg)
+  "Move point to the code of the next chunk, ARG chunks on.
+A negative ARG moves back, which is all `overblock-rmd-backward-chunk'
+does.  Backwards, the code of the chunk point is in comes first, as
+`code-cells-backward-cell' goes to the start of its own cell first."
+  (interactive "p")
+  (let ((arg (or arg 1)))
+    (dotimes (_ (abs arg))
+      (let* ((chunks (overblock-rmd-chunks))
+             (chunk (if (> arg 0)
+                        (seq-find (lambda (c) (> (nth 1 c) (point))) chunks)
+                      (car (last (seq-filter (lambda (c) (< (nth 1 c) (point)))
+                                             chunks))))))
+        (unless chunk
+          (user-error "No chunk %s this one" (if (> arg 0) "below" "above")))
+        (goto-char (nth 1 chunk))))))
+
+;;;###autoload
+(defun overblock-rmd-backward-chunk (&optional arg)
+  "Move point to the code of the previous chunk, ARG chunks back."
+  (interactive "p")
+  (overblock-rmd-forward-chunk (- (or arg 1))))
+
+;;;###autoload
 (defun overblock-rmd-restart ()
   "Restart R, and remove every result of this buffer.
 The renderings of the prose stay: a rendering has nothing to do with
@@ -656,11 +717,14 @@ The pass stops at the first error, or on `overblock-run-stop'."
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
-overblock-rmd binds no keys; put your own here.
-`overblock-rmd-run-chunk' and `overblock-run-interrupt' are the natural
-candidates:
+overblock-rmd binds no keys; put your own here.  The keys of the Python
+notebook are the natural candidates, so a hand that knows one knows the
+other:
 
-  (keymap-set overblock-rmd-mode-map \"C-c C-c\" #\\='overblock-rmd-run-chunk)
+  (keymap-set overblock-rmd-mode-map \"C-<return>\"
+              #\\='overblock-rmd-run-chunk)
+  (keymap-set overblock-rmd-mode-map \"S-<return>\"
+              #\\='overblock-rmd-run-chunk-and-step)
   (keymap-set overblock-rmd-mode-map \"C-c C-k\" #\\='overblock-run-interrupt)")
 
 ;;;###autoload

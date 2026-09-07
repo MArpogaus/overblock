@@ -212,6 +212,42 @@ end that literal and a newline would end the line comint sends."
     ;; nothing to take off
     (should (equal (overblock-rmd--clean "a\nb") "a\nb"))))
 
+(ert-deftest overblock-rmd-test-a-chunk-draws-at-the-size-its-header-says ()
+  "The header's fig.width, fig.height and dpi are read, as under knitr.
+A header that names none draws at `overblock-rmd-figure-size' and 96
+dots an inch; an expression where a number would stand is R's to read,
+and the default stands."
+  (with-temp-buffer
+    (insert "```{r a, fig.width=8, fig.height = 3.5, dpi=120}\nx\n```\n"
+            "```{r b}\nx\n```\n"
+            "```{r c, fig.width=w*2}\nx\n```\n")
+    (let ((overblock-rmd-figure-size '(7 . 5)))
+      (should (equal (overblock-rmd--figure-size 1) '(8 3.5 120)))
+      (goto-char (point-min)) (forward-line 3)
+      (should (equal (overblock-rmd--figure-size (point)) '(7 5 96)))
+      (forward-line 3)
+      (should (equal (overblock-rmd--figure-size (point)) '(7 5 96))))))
+
+(ert-deftest overblock-rmd-test-the-chunks-are-walked-as-cells-are ()
+  "Forward goes to the code of the next chunk, backward to the previous.
+Backwards from inside a chunk comes to its own code first, as
+`code-cells-backward-cell' comes to the start of its own cell; the ends
+of the buffer say so rather than move."
+  (with-temp-buffer
+    (insert "prose\n\n```{r a}\n1\n```\n\n```{r b}\n2\n```\n")
+    (goto-char (point-min))
+    (overblock-rmd-forward-chunk)
+    (should (looking-at-p "1"))
+    (overblock-rmd-forward-chunk)
+    (should (looking-at-p "2"))
+    (should-error (overblock-rmd-forward-chunk) :type 'user-error)
+    (forward-char 1)
+    (overblock-rmd-backward-chunk)
+    (should (looking-at-p "2"))
+    (overblock-rmd-backward-chunk)
+    (should (looking-at-p "1"))
+    (should-error (overblock-rmd-backward-chunk) :type 'user-error)))
+
 (ert-deftest overblock-rmd-test-a-figure-line-becomes-an-image ()
   "A line naming a PNG the chunk drew comes in as the image, bytes and all.
 The wrapper writes one such line for every page the chunk drew, and the
