@@ -81,8 +81,8 @@
 (defgroup overblock-pycell nil "Inline results for Python code cells." :group 'python)
 
 (defcustom overblock-pycell-result-buttons
-  '((stop ("" "□" "stop") "Stop the run after this cell"
-          overblock-run-stop running)
+  '((stop ("" "□" "stop") "Interrupt this cell, and stop the pass"
+          overblock-run-interrupt running)
     (save-image ("" "↧" "save") "Save the result's image to a file"
                 overblock-run-save-image image)
     (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)

@@ -655,7 +655,7 @@ right, in the order of =overblock-pycell-result-buttons=:
 | Button | Action                                 |
 |--------+----------------------------------------|
 | =▾=    | fold or unfold the result              |
-| =□=    | stop the run after this cell           |
+| =□=    | interrupt this cell, and stop the pass |
 | =↧=    | save the image of the result to a file |
 | =◫=    | copy the result, with the images       |
 | =↗=    | show the full result in its own buffer |
@@ -664,9 +664,10 @@ right, in the order of =overblock-pycell-result-buttons=:
 | =⌄=    | move this cell down                    |
 
 The stop button shows only while the cell runs.  It is
-=overblock-run-stop= as a click: the running cell runs to its end,
-and the cells queued after it do not start.
-=overblock-run-interrupt= is the harder stop.
+=overblock-run-interrupt= as a click, which is what a notebook's stop
+does: the cell is interrupted and the cells queued after it do not
+start.  =overblock-run-stop= is the softer stop, from the keyboard: the
+running cell runs to its end and only the queue is emptied.
 
 A pass over several cells — =overblock-pycell-restart-and-run-all= or
 =overblock-run-above= — scrolls each cell it starts to the top
@@ -944,7 +945,7 @@ bar with a spinner, a stopwatch and the buttons of
 | Button | Action                         |
 |--------+--------------------------------|
 | =▾=    | fold or unfold the result      |
-| =□=    | stop the pass after this chunk |
+| =□=    | interrupt this chunk, and stop the pass |
 | =◫=    | copy the result                |
 | =✕=    | discard the result             |
 

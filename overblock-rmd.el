@@ -96,8 +96,8 @@
   :prefix "overblock-rmd-")
 
 (defcustom overblock-rmd-result-buttons
-  '((stop ("" "□" "stop") "Stop the run after this chunk"
-          overblock-run-stop running)
+  '((stop ("" "□" "stop") "Interrupt this chunk, and stop the pass"
+          overblock-run-interrupt running)
     (save-image ("" "↧" "save") "Save the result's figure to a file"
                 overblock-run-save-image image)
     (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)

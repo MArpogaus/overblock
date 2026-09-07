@@ -355,7 +355,7 @@ nothing, since saying the same twice said nothing the second time."
   "Prose of a single line shares its row with the buttons.
 A bar above and a rule below would make three rows of one line of
 prose, and a doc string of one line is the commonest of all."
-  (let ((dressed (overblock-pydoc--dressed "all of it" 0)))
+  (let ((dressed (overblock-pydoc--dressed "all of it" 0 t)))
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
 

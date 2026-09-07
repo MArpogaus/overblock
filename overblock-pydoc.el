@@ -368,8 +368,9 @@ very little."
                         (overblock-buttons overblock-pydoc-buttons)
                         'overblock-bar indent))
 
-(defun overblock-pydoc--dressed (prose indent)
+(defun overblock-pydoc--dressed (prose indent &optional sole)
   "Return PROSE with its bars, indented by INDENT.
+SOLE says the doc string is written on one line, and takes one row.
 A bar above and a bar below, and the one above is the first line of
 what the block shows, so it begins where the block does — the opening
 quote, already INDENT columns in — and the rule its face draws reaches
@@ -379,12 +380,16 @@ indentation itself; see `overblock-pydoc--indented\'.
 Prose of a single line takes a single row instead, its buttons beside
 it and both rules on it: two bars would make three rows out of one line
 of prose, and a doc string of one line is the commonest of all."
+  ;; The source decides, not the prose: two lines of source that the
+  ;; converter filled into one row still take a bar of their own —
+  ;; measured, such a doc string stood merged with its header where
+  ;; the one below it, of three lines, stood under one.
   (overblock-pydoc--indented
-   (if (string-search "\n" prose)
-       (string-join (list (overblock-pydoc--bar indent) prose
-                          (overblock-pydoc--rule indent))
-                    "\n")
-     (overblock-pydoc--sole prose indent))
+   (if (and sole (not (string-search "\n" prose)))
+       (overblock-pydoc--sole prose indent)
+     (string-join (list (overblock-pydoc--bar indent) prose
+                        (overblock-pydoc--rule indent))
+                  "\n"))
    indent))
 
 (defun overblock-pydoc--redraw ()
@@ -429,7 +434,9 @@ quotes, and the rendering of one stood a column out of line."
                         source overblock-pydoc-fontify-mode)
                      (overblock-md-rendered source html))
                    "\n+")
-                  indent)))
+                  indent
+                  ;; one line of source, one row
+                  (= (line-number-at-pos beg) (line-number-at-pos end)))))
               ((not (string-empty-p (string-trim rendered))))
               (block (overblock-show
                       beg end
