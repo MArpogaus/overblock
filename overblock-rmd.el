@@ -487,7 +487,13 @@ been.
 runs, asks where there are several, and starts one where there is none.
 It reads `ess-dialect', which the mode sets, because an Rmd buffer is
 not an ESS buffer and would otherwise be asked which language to run."
-  (ess-force-buffer-current "R process to use: ")
+  ;; The windows stay as they are: `inferior-ess' shows its console
+  ;; when it starts, and in a frame with no room for another window
+  ;; that took the Rmd file out of view — where the Python notebook
+  ;; starts its shell without showing it.  The console is a buffer away
+  ;; for a reader who wants it.
+  (save-window-excursion
+    (ess-force-buffer-current "R process to use: "))
   (overblock-rmd--process))
 
 (defun overblock-rmd--r-string (text)
