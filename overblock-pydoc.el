@@ -515,7 +515,7 @@ indentation, in `overblock-pydoc-fontify-mode\'.
   (if-let* ((block (overblock-at 'pydoc)))
       (overblock-edit-in-buffer
        (overlay-start block) (overlay-end block)
-       (list :name (format "*pydoc: %s:%d*" (buffer-name)
+       (list :name (format "*overblock-pydoc: %s:%d*" (buffer-name)
                            (line-number-at-pos (overlay-start block)))
              :label "doc string"
              :mode overblock-pydoc-fontify-mode
