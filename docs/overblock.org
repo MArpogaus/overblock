@@ -373,8 +373,7 @@ and the line count are exact.
 
 =overblock-run-follow= is the other reader: a buffer that follows a
 running region is written with what is new since the last look, for the
-same reason.  A backend's =:done= writes the whole of it once the
-region has ended.
+same reason, and the whole of it once the region has ended.
 
 ** When a prompt will never come
 

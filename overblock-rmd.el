@@ -606,8 +606,7 @@ chunk, to the end of its code, where its result hangs."
   "Return what `overblock-run' needs to drive an inferior R.
 The commentary of `overblock-run' lists the slots.  There is no `:arm':
 `overblock-rmd--start' answers with a process that has already
-prompted, so nothing is ever waiting for one.  There is no `:done'
-either, because no buffer follows a running chunk."
+prompted, so nothing is ever waiting for one."
   (list :name "overblock-rmd"
         :unit "chunk"
         :process #'overblock-rmd--process

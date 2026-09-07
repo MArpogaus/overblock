@@ -75,8 +75,6 @@
 (require 'outline)
 (require 'comint-mime)
 (require 'python)
-(require 'ansi-color)
-(require 'map)
 (require 'seq)
 (require 'subr-x)
 
