@@ -105,6 +105,10 @@
 (require 'seq)
 (require 'subr-x)
 
+;; polymode's slot, set by `overblock-rmd--stay-in-host'; declared so
+;; the compiler knows the name without polymode loaded.
+(eieio-declare-slots keep-in-mode)
+
 (defgroup overblock-rmd nil
   "Inline results for the R chunks of an Rmd file."
   :group 'ess

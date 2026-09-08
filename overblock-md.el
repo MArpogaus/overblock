@@ -78,6 +78,9 @@
 ;; without libxml2 does not have it; `overblock-md-program' answers nil
 ;; there and no markdown cell is rendered at all.  Declared so the
 ;; file still compiles on such a build.
+;; A build without image support has no `image-size'; the calls stand
+;; behind `display-images-p'.
+(declare-function image-size "image.c" (spec &optional pixels frame))
 (declare-function libxml-parse-html-region "ext:xml.c"
                   (start end &optional base-url discard-comments))
 
