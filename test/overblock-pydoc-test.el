@@ -31,6 +31,8 @@
 ;;; Code:
 
 (require 'ert)
+;; `text-scale-mode-hook' lives there
+(require 'face-remap)
 (require 'python)
 (require 'overblock-pydoc)
 
