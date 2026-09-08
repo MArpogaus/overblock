@@ -47,6 +47,18 @@ major mode: =overblock-rmd-mode-maybe= turns it on where the file ends
 and plain =markdown-mode= are served by one path — nothing here asks
 which mode a line is in.
 
+Under polymode the mode sets =keep-in-mode= to =host= on the buffer's
+own polymode object, and undoes it when it goes off.  polymode shows a
+chunk in an indirect buffer once point enters it and moves every
+overlay of the buffer it leaves into the one it shows; the bars and the
+blocks are overlays whose owners — the live cycle, the runner — stay in
+the base buffer, found their work gone, drew it again, and got the old
+set back when point left the chunk.  Measured before the slot was set:
+one walk down ten chunks left every paragraph rendered twice and five
+bars over each chunk.  Fontification and indentation of the chunks are
+polymode's still; ESS's own keymap inside a chunk is what goes, and the
+notebook's keys on =overblock-rmd-mode-map= reach every line instead.
+
 * One statement, one prompt
 
 A chunk reaches R like this:
