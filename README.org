@@ -909,7 +909,10 @@ ends =.Rmd= and does nothing in any other, so one hook serves every
 Markdown file.  The mode works under polymode
 (=poly-markdown+r-mode=) and under plain =markdown-mode= alike: the
 chunks are found in the text of the buffer, and no mode has to know
-that any of it is R.
+that any of it is R.  Under polymode the buffer stays in its host mode
+while the mode is on — the chunks are still fontified and indented as
+R, but point entering one no longer switches to an indirect buffer,
+which carried the bars and the results along and drew them twice.
 
 *** Chunks
 

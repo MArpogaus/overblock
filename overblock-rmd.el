@@ -73,6 +73,21 @@
 ;; and named in a terminal.  `overblock-rmd-figure-size' is what knitr
 ;; calls `fig.width' and `fig.height'.
 ;;
+;; Under polymode (`poly-markdown+r-mode') the buffer stays in its host
+;; mode while this mode is on.  polymode shows an R chunk in an indirect
+;; buffer of its own once point enters one, and carries every overlay
+;; of the buffer it leaves along to the one it shows.  The bars and the
+;; blocks of this mode are overlays, and their owner -- the live cycle,
+;; the runner -- lives in the base buffer: it found its work gone,
+;; drew it all again, and got the old set back on the way out.
+;; Measured, one walk down ten chunks left every prose paragraph
+;; rendered twice and five bars over each chunk.  polymode has a slot
+;; for exactly this, `keep-in-mode', and the mode sets it to `host' on
+;; the object of its own buffer; fontification and indentation of the
+;; chunks still come from polymode, and what is lost is ESS's own keymap
+;; inside a chunk -- which a notebook does not miss, its keys are on
+;; `overblock-rmd-mode-map' and reach every line of the file.
+;;
 ;; What draws a block on the screen is not here: `overblock' puts text
 ;; over a region of a buffer with a header above it, `overblock-md'
 ;; turns markdown into a string it can show, and `overblock-run' sends a
@@ -720,6 +735,19 @@ The pass stops at the first error, or on `overblock-run-stop'."
 
 ;;;; The mode
 
+(defun overblock-rmd--stay-in-host (&optional off)
+  "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
+The commentary of this file says why: polymode carries the overlays of
+the buffer along when it switches, and the bars and the blocks of this
+mode are overlays whose owner stays behind.  Nothing happens where
+polymode is not on in this buffer.
+
+Called when the mode goes on, and again from `polymode-init-host-hook':
+the mode is put on by `markdown-mode-hook', which polymode runs before
+it has set `pm/polymode' in the buffer."
+  (when (bound-and-true-p pm/polymode)
+    (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
+
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
 overblock-rmd binds no keys; put your own here.  The keys of the Python
@@ -743,7 +771,12 @@ and yours to fill.
 
 `overblock-md-command' is what renders the prose, and the prose stays
 as it is where none of its candidates is installed; the chunks run
-either way."
+either way.
+
+Under polymode the buffer stays in its host mode while this mode is on:
+polymode would otherwise show each chunk in an indirect buffer of its
+own and carry the bars and the results back and forth with it, which
+drew them twice.  The chunks are still fontified and indented as R."
   :lighter " overblock-rmd"
   (when overblock-rmd-mode
     (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
@@ -770,10 +803,14 @@ either way."
         ;; rendered.
         (setq-local overblock-md-preview-regions-function
                     #'overblock-rmd--prose)
+        (overblock-rmd--stay-in-host)
+        (add-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host nil t)
         (overblock-live-start 'md-preview #'overblock-rmd-render-buffer
                               overblock-md-preview-idle))
     (overblock-live-stop 'md-preview)
     (overblock-run-detach)
+    (remove-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host t)
+    (overblock-rmd--stay-in-host 'off)
     (kill-local-variable 'ess-dialect)
     (kill-local-variable 'ess-language)
     (kill-local-variable 'overblock-md-preview-regions-function)))
