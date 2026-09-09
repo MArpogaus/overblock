@@ -27,8 +27,16 @@
   (let ((failed 0) (passed 0) (skipped 0))
     ;; A fixed frame size, so the test sees the same geometry on every
     ;; machine: the reversal depends on how the blocks fill the window.
+    ;; The toolkit does the resizing and not the call, so the frame is
+    ;; that size only once it has answered: measured on the CI, a run
+    ;; that went straight on tested a frame of 672 by 612 — the frame
+    ;; Emacs starts with — and reported a reversal the geometry the
+    ;; tests are written for does not have.
     (set-frame-size (selected-frame) 1000 700 t)
-    (redisplay t)
+    (with-timeout (10 nil)
+      (while (or (< (frame-pixel-width) 1000) (< (frame-pixel-height) 700))
+        (redisplay t)
+        (sit-for 0.05)))
     (run-scroll--say "graphical=%s frame=%dx%d" (display-graphic-p)
                      (frame-pixel-width) (frame-pixel-height))
     (dolist (test (ert-select-tests "overblock-pycell-scroll-" t))
