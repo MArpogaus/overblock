@@ -52,8 +52,9 @@
 ;; `url-copy-file' fetches the image a cell names by URL.
 (require 'url-handlers)
 (require 'dom)
-;; `xdg-cache-home' is where the fetched images live.  It reads XDG_CACHE_HOME as the specification says to, which a
-;; bare `getenv' does not: a relative value there names no directory.
+;; `xdg-cache-home' is where the fetched images live.  It reads
+;; XDG_CACHE_HOME as the specification says to, which a bare `getenv'
+;; does not: a relative value there names no directory.
 (require 'xdg)
 (require 'cl-lib)
 (require 'seq)
