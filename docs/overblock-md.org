@@ -108,8 +108,20 @@ caller of it wants the same cap: =overblock-image-cap= and
 
 ** Formulas
 
-A =$...$= or =$$...$$= fragment becomes a preview image.  The images
-live in =~/.cache/overblock-math=.
+A =$...$= or =$$...$$= fragment becomes a preview image.
+[[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
+makes it: =latex= and =dvisvgm= in a process of its own, one compile per
+equation whatever asks for it, and a cache under
+=$XDG_CACHE_HOME/emacs/latex-to-svg/= addressed by the content of the
+equation.  Nothing waits — a fragment still compiling stands as its own
+text and is drawn when it arrives, which is what the
+=overblock-md-pending= property on a rendering marks.
+
+The SVG carries neither the colour nor the size.  Both are given to it
+when the image is built, from the buffer the rendering is for: a theme
+change and a =text-scale-adjust= cost no LaTeX at all, and a rendering
+made for a buffer that no window shows is compiled and sized later,
+when there is a window to size against.
 
 The formulas take the shortest road.  What the converter renders stays
 text.  Only the rest becomes an image.  pandoc renders simple math as
