@@ -553,8 +553,12 @@ cell."
                        (lambda (_proc beg end)
                          (setq sent (list (marker-buffer beg)
                                           (marker-buffer end))))))
+              ;; What the package armed, and not python.el's own two
+              ;; members of the hook: they talk to the interpreter, and
+              ;; this one is a pipe with a filter that ignores it, so on
+              ;; Emacs 29 the suite waited there for ever.
               (with-current-buffer shell
-                (run-hooks 'python-shell-first-prompt-hook)))
+                (mapc #'funcall (remq t python-shell-first-prompt-hook))))
             (should (equal sent (list notebook notebook)))))
       (delete-process proc)
       (kill-buffer shell))))
