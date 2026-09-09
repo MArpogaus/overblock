@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A hung suite otherwise runs into GitHub's six hour limit, and the
+    # log of a job killed there is thrown away with it.
+    timeout-minutes: 20
     continue-on-error: ${{ matrix.emacs-version == 'snapshot' }}
     strategy:
       fail-fast: false
@@ -37,6 +40,7 @@ jobs:
   # are pixels.
   scroll:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
     - name: Install Emacs, a display, a converter, IPython and R
