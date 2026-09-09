@@ -5,7 +5,7 @@
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
 ;; Version: 1.0
-;; Package-Requires: ((emacs "29.1") (overblock "1.0"))
+;; Package-Requires: ((emacs "29.1") (overblock "1.0") (latex-to-svg-backend "0.8"))
 ;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/overblock
@@ -52,23 +52,18 @@
 ;; `url-copy-file' fetches the image a cell names by URL.
 (require 'url-handlers)
 (require 'dom)
-;; `xdg-cache-home' is where the LaTeX previews and the fetched images
-;; live.  It reads XDG_CACHE_HOME as the specification says to, which a
+;; `xdg-cache-home' is where the fetched images live.  It reads XDG_CACHE_HOME as the specification says to, which a
 ;; bare `getenv' does not: a relative value there names no directory.
 (require 'xdg)
 (require 'cl-lib)
 (require 'seq)
 (require 'subr-x)
 
-;; Org supplies the LaTeX preview machinery.  It is loaded on demand, in
-;; `overblock-md--latex-image', so the symbols are declared rather than
-;; required.
-(declare-function org-create-formula-image "org"
-                  (string tofile options buffer &optional type))
-(declare-function org-combine-plists "org-macs" (&rest plists))
-(defvar org-preview-latex-default-process)
-(defvar org-preview-latex-process-alist)
-(defvar org-format-latex-options)
+;; What turns a LaTeX fragment into an image: it compiles with `latex'
+;; and `dvisvgm' in a process of its own, keeps one compile per equation
+;; whatever asks for it, and leaves the colour and the size to the
+;; moment the image is drawn.
+(require 'latex-to-svg-backend)
 
 ;; New in Emacs 31, and bound while shr renders: declared so the file
 ;; compiles on an Emacs that has never heard of it.
@@ -224,122 +219,10 @@ machine.  See `overblock-md--fetchable-p' for what is fetched at all."
                           url (error-message-string error))
                  nil))))))
 
-(defvar overblock-md--latex-warned nil
-  "Non-nil once a failed LaTeX preview was reported in this session.")
-
-(defvar overblock-md--latex-failed (make-hash-table :test #'equal)
-  "The previews LaTeX failed to make, keyed by image file name.
-What caches a preview is the image file, so a failure caches nothing
-and every render of the cell runs LaTeX again for the same fragment: a
-process per fragment per render, for an answer that is already known.
-`overblock-md-forget-failed-previews' empties this.")
-
-(defvar org-format-latex-header)
-(declare-function org-latex-color-format "org" (color-name))
-(defvar org-format-latex-options)
-(defvar org-latex-packages-alist)
-(defvar org-latex-default-packages-alist)
-(defvar org-preview-latex-process-alist)
-(defvar org-preview-latex-default-process)
-
 (defvar overblock-md--buffer nil
   "The buffer whose markdown `overblock-md-rendered\' is rendering.
 shr renders in a temporary buffer, so the current buffer says nothing;
 this is where a preview that arrives later has to be shown.")
-
-(defvar overblock-md--latex-jobs nil
-  "The previews asked for and not made yet: (FRAG FILE FG BUFFER) each.
-`overblock-md--latex-run\' takes them all to one child Emacs.")
-
-(defvar overblock-md--latex-process nil
-  "The child Emacs that is making previews now, or nil.")
-
-(defun overblock-md--latex-ask (frag file fg)
-  "Have the LaTeX fragment FRAG drawn into FILE in colour FG, later.
-Nothing waits: the job joins `overblock-md--latex-jobs\' and one child
-Emacs runs them all once the command that asked is over.  Measured in
-his configuration, five fresh formulas cost 3.2 seconds of LaTeX, and
-rendered where they were asked for that was 3.2 seconds of a frozen
-Emacs on every document that opened with formulas it had not seen."
-  (unless (assoc file (mapcar #'cdr overblock-md--latex-jobs))
-    (push (list frag file fg overblock-md--buffer) overblock-md--latex-jobs))
-  (unless (process-live-p overblock-md--latex-process)
-    (run-with-idle-timer 0 nil #'overblock-md--latex-run)))
-
-(defun overblock-md--latex-script (jobs)
-  "Write the program the child Emacs runs for JOBS, and return its file.
-It tells the child what this session\'s org knows about previews — the
-process, the header, the packages — and has it run
-`org-create-formula-image\' for each job in the directory the files go
-to, as the synchronous path did."
-  (let ((script (make-temp-file "overblock-latex" nil ".el"))
-        (dir (file-name-directory (nth 1 (car jobs)))))
-    (make-directory dir t)
-    (with-temp-file script
-      (let ((print-length nil) (print-level nil))
-        (prin1 `(progn
-                  (require 'org)
-                  (setq org-format-latex-header ,org-format-latex-header
-                        org-latex-packages-alist ',org-latex-packages-alist
-                        org-latex-default-packages-alist ',org-latex-default-packages-alist
-                        org-preview-latex-process-alist ',org-preview-latex-process-alist
-                        org-preview-latex-default-process ',org-preview-latex-default-process
-                        temporary-file-directory ,dir
-                        default-directory ,dir)
-                  ;; The colour arrives resolved, as "r,g,b": a batch
-                  ;; Emacs has no display to resolve one on, and org
-                  ;; would ask `color-values' for it.
-                  (fset 'org-latex-color-format #'identity)
-                  (dolist (job ',(mapcar #'butlast jobs))
-                    (ignore-errors
-                      (org-create-formula-image
-                       (nth 0 job) (nth 1 job)
-                       (org-combine-plists
-                        ',org-format-latex-options
-                        (list :foreground (nth 2 job) :background "Transparent"))
-                       ;; A buffer, any buffer: given none, org reads
-                       ;; the `:html-foreground' of the options — "Black"
-                       ;; — and not the colour it was handed.
-                       (current-buffer)))))
-               (current-buffer))))
-    script))
-
-(defun overblock-md--latex-done (jobs script)
-  "Take in what the child Emacs left for JOBS, and drop SCRIPT.
-A file that is not there marks its fragment as failed, and every buffer
-that asked drops the renderings that stood in for a preview, so its
-live cycle draws them again from the cache.  Then whatever was asked
-for while the child ran."
-  (delete-file script)
-  (dolist (job jobs)
-    (unless (file-exists-p (nth 1 job))
-      (puthash (nth 1 job) t overblock-md--latex-failed)))
-  (dolist (buffer (delete-dups (mapcar (lambda (job) (nth 3 job)) jobs)))
-    (when (buffer-live-p buffer)
-      (with-current-buffer buffer
-        (overblock-md--redraw 'overblock-md-pending))))
-  (overblock-md--latex-run))
-
-(defun overblock-md--latex-run ()
-  "Make every waiting preview in one child Emacs, and show them when done.
-The child is this Emacs with this org; `overblock-md--latex-script\'
-writes what it runs and `overblock-md--latex-done\' takes in what it
-made."
-  (when-let* ((jobs overblock-md--latex-jobs)
-              ((not (process-live-p overblock-md--latex-process))))
-    (setq overblock-md--latex-jobs nil)
-    (let ((script (overblock-md--latex-script jobs)))
-      (setq overblock-md--latex-process
-            (make-process
-             :name "overblock-latex"
-             :command (list (car command-line-args) "-Q" "--batch"
-                            "-L" (file-name-directory (locate-library "org"))
-                            "-l" script)
-             :noquery t
-             :buffer nil
-             :sentinel (lambda (process _event)
-                         (unless (process-live-p process)
-                           (overblock-md--latex-done jobs script))))))))
 
 (defun overblock-md--redraw (prop)
   "Drop the renderings of this buffer whose text carries PROP.
@@ -368,78 +251,100 @@ rendered formula in the old colour until it is rendered again."
 (add-hook 'enable-theme-functions #'overblock-md--theme-changed)
 (add-hook 'disable-theme-functions #'overblock-md--theme-changed)
 
-(defun overblock-md--latex-cached (file)
-  "Return the preview image FILE holds.
-Capped like the images of a result and of an `![](file)': a
-display-math block can be taller than the window, and a block the
-wheel cannot get past is what `overblock-image-height' exists for."
-  (apply #'create-image file nil nil :ascent 'center
-         (when-let* ((limit (overblock-image-limit)))
-           (list :max-height limit))))
+(defvar overblock-md--latex-arrivals nil
+  "The buffers whose previews have arrived and are not drawn yet.
+One redraw for all of them: the engine calls back once per equation,
+and a buffer of thirty new formulas would otherwise be rendered thirty
+times over.")
+
+(defvar overblock-md--latex-arrival-timer nil
+  "The timer that draws what `overblock-md--latex-arrivals\' holds.")
+
+(defun overblock-md--latex-arrived (buffer)
+  "Note that a preview for BUFFER has arrived, and have it drawn.
+The callback the engine is given.  It is called once per equation and
+from a process sentinel, where the current buffer is the engine\'s own
+and not the one that asked, so the buffer is carried here and the work
+is left to a timer."
+  (when (buffer-live-p buffer)
+    (cl-pushnew buffer overblock-md--latex-arrivals)
+    (unless (timerp overblock-md--latex-arrival-timer)
+      (setq overblock-md--latex-arrival-timer
+            (run-with-idle-timer
+             0.1 nil #'overblock-md--latex-draw-arrivals))))
+  nil)
+
+(defun overblock-md--latex-draw-arrivals ()
+  "Draw the buffers whose previews arrived while the reader waited."
+  (setq overblock-md--latex-arrival-timer nil)
+  (let ((buffers overblock-md--latex-arrivals))
+    (setq overblock-md--latex-arrivals nil)
+    (dolist (buffer buffers)
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (overblock-md--redraw 'overblock-md-pending))))))
+
+(defun overblock-md--font-height (buffer)
+  "Return the pixel height of the font BUFFER is shown in, or nil.
+The frame of a window showing it, and not the selected frame: a
+rendering asked for while the reader looks at another frame would
+otherwise be sized against that one.
+
+Nil where no window shows the buffer, which is what tells the engine to
+compile the equation and leave the sizing until there is a window to
+size against — it answers nil then, and the caller asks again when the
+buffer is displayed."
+  (when-let* (((buffer-live-p buffer))
+              (window (get-buffer-window buffer 'visible)))
+    (with-selected-frame (window-frame window)
+      (default-font-height))))
 
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
-Org's formula machinery renders it.  The cache lives under ~/.cache,
-keyed by content and theme color.  Org runs LaTeX in that directory
-as well: a LaTeX in a container reaches the home directory, but not
-the host's /tmp.
+`pending\' where the engine has none yet: it compiles the equation in a
+process of its own and calls back, and the caller shows the fragment as
+text meanwhile.  Nil where equations cannot be drawn at all — a
+terminal, or an Emacs without SVG — and the fragment then stays text.
 
-`pending' where the image is not made yet: it has been asked for, and
-the caller shows the fragment as text meanwhile — see
-`overblock-md--latex-ask'."
-  (when (and (require 'org nil t) (fboundp 'org-create-formula-image))
-    (let* (;; As LaTeX will be told it, "r,g,b" on a scale of one, and
-           ;; resolved here: the child Emacs that draws the preview runs
-           ;; in batch, where `color-values' knows eight colours and
-           ;; answered pure blue for the grey of a theme — measured,
-           ;; every formula came out blue, whatever the theme.  The key
-           ;; of the cache carries the same triple, so a preview drawn
-           ;; wrong under an earlier key is not shown again.
-           (fg (or (ignore-errors
-                     (org-latex-color-format (face-attribute 'default :foreground)))
-                   ;; a frame with no colours to resolve: batch, or a
-                   ;; terminal that draws no image anyway
-                   "0,0,0"))
-           (ext (or (plist-get
-                     (cdr (assq org-preview-latex-default-process
-                                org-preview-latex-process-alist))
-                     :image-output-type)
-                    "png"))
-           (dir (expand-file-name "overblock-math/" (xdg-cache-home)))
-           (file (expand-file-name
-                  (concat (md5 (concat fg frag)) "." ext) dir)))
+The colour and the font come from the buffer the rendering is for and
+are handed over.  The engine reads them from the current buffer when it
+is not told, and the current buffer here is the temporary one shr
+renders in: its foreground and its font are the frame\'s defaults, not
+the reader\'s.
+
+Capped like every other image of a block: a display-math block can be
+taller than the window, and a block the wheel cannot get past is what
+`overblock-image-height\' exists for."
+  (when (latex-to-svg-backend-available-p)
+    (let* ((buffer overblock-md--buffer)
+           (image (latex-to-svg-backend
+                   frag
+                   :color (when (buffer-live-p buffer)
+                            (with-current-buffer buffer
+                              (face-attribute 'default :foreground nil t)))
+                   :font-height (overblock-md--font-height buffer)
+                   :callback (lambda () (overblock-md--latex-arrived buffer))))
+           (limit (overblock-image-limit)))
       (cond
-       ;; The file is the cache, keyed by content and colour, so a
-       ;; theme change asks again.
-       ((file-exists-p file) (overblock-md--latex-cached file))
-       ;; A LaTeX run that failed is remembered: without the memo a
-       ;; cell costs a process per fragment on every render, for an
-       ;; answer that is already known.  Reported once: without a
-       ;; LaTeX installation every fragment of every cell would say the
-       ;; same thing, and the reason is in the log LaTeX left in DIR —
-       ;; a package the preamble asks for and the installation does
-       ;; not have, most often — so the message says where to look.
-       ((gethash file overblock-md--latex-failed)
-        (unless overblock-md--latex-warned
-          (setq overblock-md--latex-warned t)
-          (message "overblock-md: no LaTeX preview; formulas stay as text, \
-and LaTeX left its log in %s" dir))
-        nil)
-       ;; Not made yet: asked for, and `pending' says the text that
-       ;; stands in for it is to be drawn again when it arrives.
-       (t (overblock-md--latex-ask frag file fg)
-          'pending)))))
+       ((and image limit)
+        ;; A copy of the spec: the engine keeps the image it answered
+        ;; with, and a cap put on that one would be put on every
+        ;; caller\'s.
+        (cons 'image (append (list :max-height limit) (cdr image))))
+       (image)
+       (t 'pending)))))
 
-;;;###autoload
-(defun overblock-md-forget-failed-previews ()
-  "Ask LaTeX again for the fragments whose preview failed.
-A failure is remembered for the session, so that a cell costs one LaTeX
-run per fragment rather than one per render.  Install LaTeX, call this,
-and render the cells again."
+(defun overblock-md-forget-failed-images ()
+  "Fetch the images again whose URL could not be reached.
+A URL that failed is not asked for again in the session, so that a
+document opening with a badge does not wait for the network on every
+render.  This forgets those, and the next render asks again.
+
+A LaTeX preview that failed belongs to the engine that makes it: it
+reports the failure with the log LaTeX left, and
+`latex-to-svg-backend-invalidate\' forgets one equation."
   (interactive)
-  (clrhash overblock-md--latex-failed)
-  (clrhash overblock-md--remote-failed)
-  (setq overblock-md--latex-warned nil))
+  (clrhash overblock-md--remote-failed))
 
 (defconst overblock-md--math-regexp
   (rx (or (seq "$$" (+? anychar) "$$")
@@ -513,9 +418,17 @@ marks as its text is wide, so the fill knows how much room to leave."
       (cons (replace-regexp-in-string
              overblock-md--math-regexp
              (lambda (frag)
-               (push frag stowed)
-               (make-string (max 1 (overblock-md--math-columns frag))
-                            overblock-md--math-mark))
+               ;; `save-match-data': `replace-regexp-in-string' reads
+               ;; the match back after this returns, and asking how
+               ;; wide the preview is goes all the way into the engine,
+               ;; which searches on its own account.  Measured with the
+               ;; engine in place: the marks were inserted and the
+               ;; fragment left standing beside them, so every formula
+               ;; showed its image and its own LaTeX next to it.
+               (save-match-data
+                 (push frag stowed)
+                 (make-string (max 1 (overblock-md--math-columns frag))
+                              overblock-md--math-mark)))
              page t t)
             (nreverse stowed)))))
 

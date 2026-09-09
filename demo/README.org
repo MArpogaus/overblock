@@ -22,9 +22,9 @@ Everything the pictures were taken with is in this directory:
 
 - An Emacs with X support and a display.  A machine without one can use
   =Xvfb :99 -screen 0 1920x1080x24= and =DISPLAY=:99=.
-- =pandoc= for every rendering, and a LaTeX with =dvipng= for the math:
+- =pandoc= for every rendering, and =latex= with =dvisvgm= for the math:
   without it a formula stays as text, which is what
-  =overblock-md-forget-failed-previews= is about.
+  the engine reports with a link to the log LaTeX left.
 - =code-cells= and =comint-mime= for the notebook, =ESS= and an =R= for
   the chunks, =markdown-mode= for the prose.  =init.el= expects them
   from a package archive and says so where one is missing.

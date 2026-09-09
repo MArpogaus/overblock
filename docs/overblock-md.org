@@ -125,10 +125,10 @@ replaces, so a row with a preview in it would stand out of line.  The
 table rendering marks the text it covers and the formula pass leaves
 marked text alone.
 
-A fragment whose preview fails stays text and the failure is remembered
-for the session: what caches a preview is the image file, so without
-that a rendering costs one LaTeX run per fragment every time.
-=overblock-md-forget-failed-previews= asks again.
+A fragment whose preview fails stays text.  The engine remembers the
+failure with the log LaTeX left and reports it once, and
+=latex-to-svg-backend-invalidate= forgets one equation where a cached
+render has to be made again.
 
 ** Tables
 
