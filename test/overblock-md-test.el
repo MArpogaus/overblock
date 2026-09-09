@@ -499,47 +499,58 @@ image."
       (should-not (overblock-image-in in-table))
       (should (overblock-image-in outside)))))
 
-(ert-deftest overblock-md-test-a-preview-is-asked-for-once-and-arrives-later ()
-  "A fragment without a preview is asked for once, and shown as text meanwhile.
-Nothing waits for LaTeX: the first look answers `pending' and queues
-the job, a second look queues nothing more, and a child that leaves no
-file behind marks the fragment as failed, so no render asks again.
-Measured in a real configuration, five fresh formulas cost 3.2 seconds
-of LaTeX, which used to be 3.2 seconds of a frozen Emacs."
-  (skip-unless (require 'org nil t))
-  (let* ((cache (make-temp-file "overblock-cache" t))
-         (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
-                                    process-environment))
-         (overblock-md--latex-warned nil)
-         (overblock-md--latex-failed (make-hash-table :test #'equal))
-         (overblock-md--latex-jobs nil)
-         (overblock-md--latex-process nil)
-         (started 0)
-         (make (symbol-function 'make-process)))
+(ert-deftest overblock-md-test-a-preview-is-asked-for-and-arrives-later ()
+  "A fragment without a preview is asked for, and shown as text meanwhile.
+Nothing waits for LaTeX: the engine answers nil for an equation it has
+not compiled and calls back when it has, and the caller reads that as
+`pending\' and shows the fragment as text until then.  The buffer the
+rendering is for is carried into the callback, because the engine calls
+it from a sentinel where the current buffer is its own."
+  (let* ((buffer (generate-new-buffer "overblock-md-preview"))
+         (overblock-md--buffer buffer)
+         (overblock-md--latex-arrivals nil)
+         (overblock-md--latex-arrival-timer nil)
+         (asked nil)
+         (callback nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'run-with-idle-timer) #'ignore)
-                  ;; the child is `true': it ends at once and draws nothing
-                  ((symbol-function 'make-process)
-                   (lambda (&rest args)
-                     (setq started (1+ started))
-                     (apply make (plist-put args :command '("true"))))))
+        (cl-letf (((symbol-function 'latex-to-svg-backend-available-p)
+                   (lambda () t))
+                  ((symbol-function 'run-with-idle-timer)
+                   (lambda (&rest _) 'timer))
+                  ((symbol-function 'timerp) (lambda (x) (eq x 'timer)))
+                  ((symbol-function 'latex-to-svg-backend)
+                   (lambda (latex &rest keys)
+                     (push latex asked)
+                     (setq callback (plist-get keys :callback))
+                     ;; the colour and the font of the buffer that asked,
+                     ;; and not of the temporary one shr renders in
+                     (should (equal (plist-get keys :color)
+                                    (with-current-buffer buffer
+                                      (face-attribute 'default :foreground
+                                                      nil t))))
+                     nil)))
+          ;; no image yet: the fragment stands as text and a callback is left
           (should (eq (overblock-md--latex-image "$x$") 'pending))
-          (should (eq (overblock-md--latex-image "$x$") 'pending))
-          (should (= (length overblock-md--latex-jobs) 1))
-          ;; the child runs every job at once
-          (overblock-md--latex-run)
-          (should (= started 1))
-          (should-not overblock-md--latex-jobs)
-          (while (process-live-p overblock-md--latex-process)
-            (accept-process-output nil 0.05))
-          ;; and left nothing behind: the fragment is failed
-          (should (= (hash-table-count overblock-md--latex-failed) 1))
-          (should-not (overblock-md--latex-image "$x$"))
-          (should-not overblock-md--latex-jobs)
-          ;; and the way back, for a reader who installs LaTeX
-          (overblock-md-forget-failed-previews)
-          (should (eq (overblock-md--latex-image "$x$") 'pending)))
-      (delete-directory cache t))))
+          (should (equal asked '("$x$")))
+          (should (functionp callback))
+          ;; the callback notes the buffer rather than drawing there and then
+          (funcall callback)
+          (should (equal overblock-md--latex-arrivals (list buffer)))
+          ;; and an image, once there is one, comes back capped
+          (cl-letf (((symbol-function 'latex-to-svg-backend)
+                     (lambda (&rest _) '(image :type svg :data "x")))
+                    ((symbol-function 'overblock-image-limit) (lambda () 40)))
+            (let ((image (overblock-md--latex-image "$x$")))
+              (should (eq (car image) 'image))
+              (should (= (plist-get (cdr image) :max-height) 40)))))
+      (kill-buffer buffer))))
+
+(ert-deftest overblock-md-test-no-engine-no-preview ()
+  "Where equations cannot be drawn at all, a fragment stays text.
+A terminal and an Emacs without SVG both answer so, and neither is a
+failure to report: the reader sees the formula as it was written."
+  (cl-letf (((symbol-function 'latex-to-svg-backend-available-p) #'ignore))
+    (should-not (overblock-md--latex-image "$x$"))))
 
 (ert-deftest overblock-md-test-a-price-is-not-a-formula ()
   "Two prices in a sentence are not a LaTeX fragment.
@@ -713,5 +724,23 @@ rows, which is what it was written for."
            (shown (overblock-md--unstow-math (car display) (cdr display))))
       ;; the rows are the rows it was written with
       (should (= (length (split-string shown "\n")) 3)))))
+
+(ert-deftest overblock-md-test-a-fragment-is-replaced-not-doubled ()
+  "Taking a formula out of the HTML removes it and leaves its marks.
+Asking how wide the preview will be goes into the engine, which
+searches on its own account, and `replace-regexp-in-string\' reads the
+match back after the replacement returns: without `save-match-data\'
+the marks were inserted and the fragment left standing beside them, so
+every formula showed its image and its own LaTeX next to it."
+  (cl-letf (((symbol-function 'overblock-md--math-columns)
+             (lambda (frag)
+               ;; what the engine does to the match data on the way
+               (string-match "x+" "xxx")
+               (string-width frag))))
+    (let* ((page "<p>a <span>\\(\\varphi\\)</span> b</p>")
+           (out (overblock-md--stow-math page)))
+      (should (equal (cdr out) '("\\(\\varphi\\)")))
+      (should-not (string-search "varphi" (car out)))
+      (should (string-search (string overblock-md--math-mark) (car out))))))
 
 ;;; overblock-md-test.el ends here

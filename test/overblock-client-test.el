@@ -97,12 +97,10 @@ A docstring here is what lies between two lines of three quotes."
 No LaTeX runs: `overblock-md--latex-image' answers nil, so the client
 falls back to the face it names for a formula and these tests measure
 the same thing wherever they run.  Without the stub they passed only
-because LaTeX fails in a batch session; they wrote real images into the
-cache under `xdg-cache-home', and they left the two variables that
-remember a failed preview set for the rest of the session.  A test that
-wants an image stubs one of its own, and the inner binding wins."
-  `(let ((overblock-md--latex-warned nil)
-         (overblock-md--latex-failed (make-hash-table :test #'equal)))
+because a batch session draws no image, and they left compiles behind
+in the engine's cache.  A test that wants an image stubs one of its
+own, and the inner binding wins."
+  `(progn
      (cl-letf (((symbol-function 'overblock-md--latex-image)
                 (lambda (&rest _) nil)))
        (with-temp-buffer

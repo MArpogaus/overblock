@@ -58,7 +58,7 @@ and each recipe names that package's files.
 | Package            | What you get                                                | It needs                                |
 |--------------------+-------------------------------------------------------------+-----------------------------------------|
 | =overblock=        | the layer.  Nothing to turn on; a library for a caller.     | Emacs 29.1                              |
-| =overblock-md=     | markup to a propertized string, and a Markdown preview mode | =overblock=                             |
+| =overblock-md=     | markup to a propertized string, and a Markdown preview mode | =overblock=, latex-to-svg-backend       |
 | =overblock-pydoc=  | Python doc strings rendered in place                        | =overblock-md=                          |
 | =overblock-pycell= | inline results for =# %%= Python cells                      | =overblock-md=, code-cells, comint-mime |
 | =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file           | =overblock-md=, ess                     |
@@ -315,7 +315,9 @@ nothing itself:
 #+end_src
 
 =overblock-md-command= names the converter, shr renders the HTML, and
-LaTeX fragments become preview images by way of org.  A table is laid
+LaTeX fragments become preview images by way of
+[[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]],
+which the package depends on.  A table is laid
 out in characters rather than pixels, so its columns line up over the
 fixed-pitch lines of a buffer, and a local image is drawn on the spot
 rather than fetched.
@@ -362,11 +364,16 @@ A caller that keeps its renderings has to make them again when the
 window changes width, as =overblock-pydoc= does.
 
 A =$...$= or =$$...$$= fragment that the converter leaves alone becomes
-a preview image, capped by =overblock-image-height=.  The images live
-in =~/.cache/overblock-math=.  A fragment whose preview fails stays
-text, and the failure is remembered for the session: call
-=overblock-md-forget-failed-previews= after installing what was
-missing.
+a preview image, capped by =overblock-image-height=.
+[[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
+makes it: it compiles with =latex= and =dvisvgm= in a process of its
+own, so nothing waits, and keeps one compile per equation however many
+buffers ask for it.  The SVG carries neither the colour nor the size,
+which are given to it when it is drawn — a theme change and a
+=text-scale-adjust= cost no LaTeX at all.  A fragment still compiling
+stands as its own text and is drawn when it arrives; one that fails
+stays text, and the engine reports it with a link to the log LaTeX
+left.
 
 An image named by URL is fetched once and drawn from the file, kept in
 =~/.cache/overblock-images=.  Set =overblock-md-remote-images= to nil
@@ -404,7 +411,7 @@ installed.
 |---------------------------------------+----------------------------------------|
 | =overblock-md-preview-mode=           | turn the preview on or off             |
 | =overblock-md-preview-render-buffer=  | render what is not rendered yet        |
-| =overblock-md-forget-failed-previews= | ask again for the formulas that failed |
+| =overblock-md-forget-failed-images=   | fetch the images again that could not be reached |
 | =overblock-live-edit=                 | show the source of the region at point |
 
 =overblock-md-preview-map= answers on a rendering; it holds the click
@@ -1076,8 +1083,11 @@ options shape what a block looks like.  Every caller shares them.
   - An Emacs with libxml2, because shr reads the converter's HTML with
     it.  Without a converter or without libxml2 the text stays as it
     is.
-  - =latex= with =dvipng= or =dvisvgm= for the formulas the converter
-    leaves alone.  A fragment whose preview fails stays text.
+  - =latex= and =dvisvgm= for the formulas the converter leaves alone,
+    which is what
+    [[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
+    runs; it arrives with the package.  A fragment whose preview fails
+    stays text.
 - =overblock-pydoc= also loads =rst=, which Emacs ships.
 - =overblock-pycell= needs
   [[https://github.com/astoff/code-cells.el][code-cells]] and
