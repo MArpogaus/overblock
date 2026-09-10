@@ -34,10 +34,7 @@
 (require 'ert)
 (require 'outline)
 (require 'overblock-pycell)
-
-(defconst overblock-pycell-test--image
-  (propertize " " 'display '(image :type png :data "x"))
-  "A stand-in for what comint-mime inserts for an image.")
+(require 'overblock-test-common)
 
 (defun overblock-pycell-test--render-all (&optional beg end)
   "Render the markdown cells between BEG and END, and wait for them.
@@ -179,7 +176,7 @@ comint-mime renders an image as one space with a display property,
 and the run of whitespace before a prompt would take it along, which
 left a cell whose only output is a figure with an empty block."
   (let* ((comint-prompt-regexp "^\\(?:>>> \\|In \\[[0-9]+\\]: \\)")
-         (result (overblock-pycell--clean (concat overblock-pycell-test--image "\n\nIn [5]: "))))
+         (result (overblock-pycell--clean (concat overblock-test-common-image "\n\nIn [5]: "))))
     (should (= (length result) 1))
     (should (overblock-image-in result))
     ;; a prompt with nothing to show before it still goes
@@ -188,8 +185,8 @@ left a cell whose only output is a figure with an empty block."
 (ert-deftest overblock-pycell-test-clean-keeps-images ()
   "Whitespace that carries a display property is part of the result."
   (let* ((comint-prompt-regexp "^>>> ")
-         (result (overblock-pycell--clean (concat "plot\n" overblock-pycell-test--image "\n"))))
-    (should (equal result (concat "plot\n" overblock-pycell-test--image)))
+         (result (overblock-pycell--clean (concat "plot\n" overblock-test-common-image "\n"))))
+    (should (equal result (concat "plot\n" overblock-test-common-image)))
     (should (get-text-property (1- (length result)) 'display result))))
 
 ;;;; Tests
@@ -204,8 +201,8 @@ left a cell whose only output is a figure with an empty block."
   "Nothing after the first image line shows inline."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
     (let ((overblock-pycell-max-lines 10))
-      (should (equal (overblock-run-body-lines-of-pycell (list "text" overblock-pycell-test--image "more"))
-                     (list "text" overblock-pycell-test--image))))))
+      (should (equal (overblock-run-body-lines-of-pycell (list "text" overblock-test-common-image "more"))
+                     (list "text" overblock-test-common-image))))))
 
 (ert-deftest overblock-pycell-test-body-lines-run-on-without-images ()
   "A display that cannot draw an image has nothing to stop for.
@@ -216,7 +213,7 @@ reader could not tell it from a result with no output."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (let ((overblock-pycell-max-lines 10))
       (should (equal (overblock-run-body-lines-of-pycell
-                      (list "before" overblock-pycell-test--image "after"))
+                      (list "before" overblock-test-common-image "after"))
                      (list "before" "[figure]" "after"))))))
 
 (ert-deftest overblock-pycell-test-md-an-edit-takes-the-bar-with-it ()
@@ -280,7 +277,7 @@ display property, which is the whole point of asking."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end (concat "plot\n" overblock-pycell-test--image) 0.5)
+        (overblock-run-show beg end (concat "plot\n" overblock-test-common-image) 0.5)
         (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
                (nl (overblock-get block :newline)))
           (should (overblock-image-in (overlay-get block 'after-string)))
@@ -294,7 +291,7 @@ gave a buffer holding that one space."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end (concat "plot\n" overblock-pycell-test--image) 0.5)
+        (overblock-run-show beg end (concat "plot\n" overblock-test-common-image) 0.5)
         (let ((block (car (overblock-in (point-min) (point-max) 'result))))
           (should (string-match-p
                    "\\[figure\\]"
@@ -721,7 +718,7 @@ were a fifth of a second a wheel event."
     ;; sit past the cut.  Only where the display can draw one — in a
     ;; terminal it is a space like any other and the line is cut.
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
-      (let ((line (concat (make-string 30 ?x) overblock-pycell-test--image)))
+      (let ((line (concat (make-string 30 ?x) overblock-test-common-image)))
         (should (equal (overblock-run-body-lines-of-pycell (list line)) (list line))))))
   ;; zero cuts nothing
   (let ((overblock-pycell-max-lines 12)
@@ -1206,18 +1203,6 @@ and nothing is taken off before it has said it."
         (should (equal (overblock-run-result-text (car (overblock-in beg end 'result)))
                        "one"))))))
 
-(defun overblock-pycell-test--vtable-text ()
-  "Return the text of a vtable, as comint-mime leaves one in the shell."
-  (with-temp-buffer
-    (make-vtable
-     :use-header-line nil
-     :columns (mapcar (lambda (name) (list :name name
-                                           :min-width (length name)
-                                           :align 'right))
-                      '("alpha" "beta_longer" "gamma"))
-     :objects '(("1" "22" "333") ("4444" "5" "66") ("7" "888" "9999")))
-    (buffer-string)))
-
 (ert-deftest overblock-pycell-test-table-pops-as-a-live-table ()
   "The pop of a table gives a table that sorts, not a picture of one.
 A copy carries the table object, and vtable draws a table of its rows
@@ -1227,7 +1212,7 @@ refuses to insert one vtable into a second buffer."
   (skip-unless (fboundp 'make-vtable))
   (overblock-pycell-test--with-cells
     (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-           (text (overblock-pycell--clean (overblock-pycell-test--vtable-text))))
+           (text (overblock-pycell--clean (overblock-test-common-vtable-text))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (overblock-run-show beg end text 0.4))
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
@@ -1612,7 +1597,7 @@ buffer that is meant to hold more than the block."
   (with-temp-buffer
     (let ((text (concat "before the table\n"
                         (let ((comint-prompt-regexp "^In \\[[0-9]+\\]: "))
-                          (overblock-pycell--clean (overblock-pycell-test--vtable-text)))
+                          (overblock-pycell--clean (overblock-test-common-vtable-text)))
                         "\nafter the table")))
       (overblock-run--insert-result text)
       (let ((shown (buffer-string)))
@@ -1792,7 +1777,7 @@ in, and the commands select it."
           (in-the-first-cell nil))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (setq in-the-first-cell beg)
-        (overblock-run-show beg end (concat "a line\n" overblock-pycell-test--image) 0.1))
+        (overblock-run-show beg end (concat "a line\n" overblock-test-common-image) 0.1))
       ;; point in the other cell: the click decides which result is copied
       (goto-char (point-max))
       (overblock-run-copy-output (list 'mouse-1 (list (selected-window)

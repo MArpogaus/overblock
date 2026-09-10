@@ -48,43 +48,25 @@
 ;;; Code:
 
 (require 'ert)
+(require 'overblock-test-common)
 (require 'markdown-mode)
 (require 'overblock-rmd)
-
-(defun overblock-rmd-live-test--wait (predicate &optional seconds)
-  "Wait until PREDICATE answers non-nil and return that answer.
-Give up after SECONDS, thirty by default, and answer whatever the
-predicate says then."
-  (let ((deadline (+ (float-time) (or seconds 30))))
-    (while (and (not (funcall predicate)) (< (float-time) deadline))
-      (accept-process-output nil 0.05))
-    (funcall predicate)))
 
 (defun overblock-rmd-live-test--idle-p ()
   "Return non-nil while R is there and runs no chunk."
   (when-let* ((proc (overblock-rmd--process)))
     (not (buffer-local-value 'overblock-run--state (process-buffer proc)))))
 
-(defun overblock-rmd-live-test--results ()
-  "Return the result blocks of the buffer, in order."
-  (sort (overblock-in (point-min) (point-max) 'result)
-        (lambda (a b) (< (overlay-start a) (overlay-start b)))))
-
-(defun overblock-rmd-live-test--text (block)
-  "Return what the result BLOCK shows, without its properties."
-  (substring-no-properties
-   (or (plist-get (overblock-get block :data) :text) "")))
-
 (defun overblock-rmd-live-test--run-first ()
   "Run the first chunk of the buffer and wait for its result.
 Answers the text of that result."
   (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
     (overblock-run-region beg end))
-  (should (overblock-rmd-live-test--wait
+  (should (overblock-test-common-wait
            (lambda () (and (overblock-rmd-live-test--idle-p)
-                           (overblock-rmd-live-test--results)))
+                           (overblock-test-common-results)))
            60))
-  (overblock-rmd-live-test--text (car (overblock-rmd-live-test--results))))
+  (overblock-test-common-text (car (overblock-test-common-results))))
 
 (defmacro overblock-rmd-live-test--with-document (text &rest body)
   "Evaluate BODY in an Rmd buffer holding TEXT, wired for a real R.
@@ -136,7 +118,7 @@ back as an image in the result."
     (let ((text (overblock-rmd-live-test--run-first)))
       (should (string-prefix-p "before" text))
       (should-not (string-search "overblock-figure" text))
-      (let ((results (overblock-rmd-live-test--results)))
+      (let ((results (overblock-test-common-results)))
         (should (overblock-image-in
                  (plist-get (overblock-get (car results) :data) :text)))))))
 
@@ -192,18 +174,18 @@ would otherwise end that literal, the line, or both."
       "```{r a}\n\"first\"\n```\n\nprose\n\n```{r b}\nstop(\"boom\")\n```\n\n\
 ```{r c}\n\"never\"\n```\n"
     (overblock-rmd-restart-and-run-all)
-    (should (overblock-rmd-live-test--wait
+    (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
                              (null (overblock-run-queued))
-                             (= (length (overblock-rmd-live-test--results)) 2)))
+                             (= (length (overblock-test-common-results)) 2)))
              60))
-    (should (equal (overblock-rmd-live-test--text
-                    (car (overblock-rmd-live-test--results)))
+    (should (equal (overblock-test-common-text
+                    (car (overblock-test-common-results)))
                    "[1] \"first\""))
-    (should (string-match-p "boom" (overblock-rmd-live-test--text
-                                    (cadr (overblock-rmd-live-test--results)))))
+    (should (string-match-p "boom" (overblock-test-common-text
+                                    (cadr (overblock-test-common-results)))))
     ;; the third chunk was never sent
-    (should (= (length (overblock-rmd-live-test--results)) 2))))
+    (should (= (length (overblock-test-common-results)) 2))))
 
 (ert-deftest overblock-rmd-live-test-a-pass-carries-state-between-chunks ()
   "A later chunk sees what an earlier one defined.
@@ -213,17 +195,17 @@ in the global environment."
   (overblock-rmd-live-test--with-document
       "```{r set}\nlive_value <- 7\n```\n\n```{r use}\nlive_value * 6\n```\n"
     (overblock-rmd-restart-and-run-all)
-    (should (overblock-rmd-live-test--wait
+    (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
                              (null (overblock-run-queued))
-                             (= (length (overblock-rmd-live-test--results)) 2)))
+                             (= (length (overblock-test-common-results)) 2)))
              60))
     ;; the assignment printed nothing, and the chunk after it saw it
-    (should (equal (overblock-rmd-live-test--text
-                    (car (overblock-rmd-live-test--results)))
+    (should (equal (overblock-test-common-text
+                    (car (overblock-test-common-results)))
                    ""))
-    (should (equal (overblock-rmd-live-test--text
-                    (cadr (overblock-rmd-live-test--results)))
+    (should (equal (overblock-test-common-text
+                    (cadr (overblock-test-common-results)))
                    "[1] 42"))))
 
 (ert-deftest overblock-rmd-live-test-stop-works-while-the-last-chunk-runs ()
@@ -234,7 +216,7 @@ running chunk runs to its end."
       "```{r a}\n\"first\"\n```\n\n```{r b}\nSys.sleep(1)\n\"last\"\n```\n"
     (overblock-rmd-restart-and-run-all)
     ;; the last chunk is the one running: nothing queued, one chunk live
-    (should (overblock-rmd-live-test--wait
+    (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (overblock-rmd--process)))
                  (and (null (overblock-run-queued))
@@ -243,12 +225,12 @@ running chunk runs to its end."
              60))
     (overblock-run-stop)
     (should-not (overblock-run-queued))
-    (should (overblock-rmd-live-test--wait
+    (should (overblock-test-common-wait
              #'overblock-rmd-live-test--idle-p 60))
     ;; the running chunk was not cut short: both results arrived
-    (should (= (length (overblock-rmd-live-test--results)) 2))
-    (should (equal (overblock-rmd-live-test--text
-                    (cadr (overblock-rmd-live-test--results)))
+    (should (= (length (overblock-test-common-results)) 2))
+    (should (equal (overblock-test-common-text
+                    (cadr (overblock-test-common-results)))
                    "[1] \"last\""))))
 
 (ert-deftest overblock-rmd-live-test-a-restart-forgets-what-r-knew ()
@@ -257,7 +239,7 @@ running chunk runs to its end."
       "```{r a}\nrestart_witness <- 1\nexists(\"restart_witness\")\n```\n"
     (should (equal (overblock-rmd-live-test--run-first) "[1] TRUE"))
     (overblock-rmd-restart)
-    (should-not (overblock-rmd-live-test--results))
+    (should-not (overblock-test-common-results))
     (should (overblock-rmd--process))
     ;; the new R has never heard of it
     (overblock-rmd-live-test--with-document
@@ -276,12 +258,12 @@ Point comes back to where the second chunk was asked for."
       (overblock-run-region beg end)
       (should (equal (mapcar #'marker-position (overblock-run-queued))
                      (list beg))))
-    (should (overblock-rmd-live-test--wait
+    (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
-                             (= (length (overblock-rmd-live-test--results)) 2)))
+                             (= (length (overblock-test-common-results)) 2)))
              60))
-    (should (equal (mapcar #'overblock-rmd-live-test--text
-                           (overblock-rmd-live-test--results))
+    (should (equal (mapcar #'overblock-test-common-text
+                           (overblock-test-common-results))
                    '("[1] 1" "[1] 2")))
     (should (= (point) (point-max)))))
 
