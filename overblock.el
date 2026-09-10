@@ -1374,7 +1374,8 @@ RUNNINGP that it is still being written, which is what a WHEN of
 
 (defun overblock--buttons (descriptors imagep lines runningp)
   "Return the icon group DESCRIPTORS ask for, built afresh.
-`overblock-buttons' is this behind a table; the arguments are its."
+IMAGEP, LINES and RUNNINGP are `overblock-buttons''s, which is this
+function behind a table."
   (concat
    (string-join
     (seq-keep
