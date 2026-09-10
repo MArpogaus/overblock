@@ -337,11 +337,7 @@ The paragraphs, and not the fences: what a fence holds is code, and a
 chunk of R is run rather than rendered.  This is what
 `overblock-md-preview-regions-function' is set to, so the live cycle of
 `overblock-md-preview' renders the prose and leaves the chunks alone."
-  (seq-filter (lambda (region)
-                (and (< (car region) (cdr region))
-                     (<= beg (car region) end)))
-              (overblock-md-preview-paragraphs
-               end (overblock-md-preview-fences end))))
+  (overblock-md-preview--regions beg end 'prose-only))
 
 
 ;;;; The bar over a chunk header
