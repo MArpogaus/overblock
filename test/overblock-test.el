@@ -422,6 +422,29 @@ number characters."
     ;; nothing to say about a stretch of another kind
     (should-not (overblock--space-columns '(space :relative-width 2) 0))))
 
+(ert-deftest overblock-test-a-narrowed-stop-still-takes-every-block ()
+  "Turning a cycle off under a narrowing leaves nothing behind.
+`overblock-clear' reads the bounds a caller gives it in the caller's
+own view, so the bounds of a narrowed buffer left every block outside
+the accessible region standing — and the mode was gone, so nothing
+would ever take them down.  Among the strays are cloaks, which hold
+lines of the buffer invisible."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\nfour\nfive\nsix\n")
+    (overblock-live-start 'probe #'ignore 0.1)
+    (unwind-protect
+        (progn
+          (overblock-show 1 4 :kind 'probe :over "A")
+          (overblock-show 15 19 :kind 'probe :over "B")
+          (should (= (length (overblock-in (point-min) (point-max) 'probe)) 2))
+          (narrow-to-region 1 8)
+          (overblock-live-stop 'probe)
+          (widen)
+          (should-not (overblock-in (point-min) (point-max) 'probe))
+          (should-not (seq-filter (lambda (o) (overlay-get o 'overblock-part))
+                                  (overlays-in (point-min) (point-max)))))
+      (overblock-live-stop 'probe))))
+
 (ert-deftest overblock-test-buttons-come-from-their-descriptors ()
   "The header shows the buttons of the option, in its order.
 A descriptor whose WHEN is `image' or `lines' waits for those."

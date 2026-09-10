@@ -220,14 +220,19 @@ nothing where none of its candidates is installed."
   ;; reaches this from the hook, whichever of the two runs first.
   (when overblock-md-preview-mode
     (overblock-only-in 'overblock-md-preview-mode 'markdown-mode))
-  (when (and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
+  (cond
+   ;; Refused, and nothing else happens: the else branch below would
+   ;; stop the very cycle `overblock-rmd-mode' is running — the two
+   ;; share the kind — and leave that mode on with its lighter and its
+   ;; bars over prose that is never rendered again.
+   ((and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
     (setq overblock-md-preview-mode nil)
     (message "overblock-md-preview: off, overblock-rmd-mode renders this prose"))
-  (if overblock-md-preview-mode
-      (overblock-live-start 'md-preview
-                            #'overblock-md-preview-render-buffer
-                            overblock-md-preview-idle)
-    (overblock-live-stop 'md-preview)))
+   (overblock-md-preview-mode
+    (overblock-live-start 'md-preview
+                          #'overblock-md-preview-render-buffer
+                          overblock-md-preview-idle))
+   (t (overblock-live-stop 'md-preview))))
 
 (provide 'overblock-md-preview)
 ;;; overblock-md-preview.el ends here
