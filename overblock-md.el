@@ -522,12 +522,17 @@ pull the columns of its row out of line."
    overblock-md--math-run
    (lambda (marks)
      (save-match-data
-       (let* ((frag (or (get-text-property 0 'overblock-md--frag marks) ""))
+       (let* ((frag (get-text-property 0 'overblock-md--frag marks))
               (table (get-text-property 0 'overblock-md--table marks))
-              (image (and (display-images-p)
+              (image (and frag (display-images-p)
                           (overblock-md--latex-image
                            (overblock-md--one-line frag)))))
            (cond
+            ;; A mark the writer typed, or one a paste out of a word
+            ;; processor brought: it carries no fragment and stands
+            ;; for nothing.  Read as a stowed run, it was dropped and
+            ;; every formula after it came back one run late.
+            ((null frag) marks)
             ((eq image 'pending)
              ;; Standing in for a preview on its way: the rendering is
              ;; drawn again when it arrives.

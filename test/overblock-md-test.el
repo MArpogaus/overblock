@@ -828,4 +828,18 @@ every formula showed its image and its own LaTeX next to it."
                       'overblock-md--frag out)
                      "\\(\\varphi\\)")))))
 
+(ert-deftest overblock-md-test-a-mark-in-the-source-is-left-standing ()
+  "A mark the writer typed carries no fragment and stands for itself.
+An object replacement character is what a paste out of a word
+processor brings.  Read as a stowed formula, it was dropped and the
+formulas after it came back one run late."
+  (skip-unless (overblock-md-program))
+  (let ((rendered (overblock-md-rendered
+                   (concat "a " (string overblock-md--math-mark)
+                           " b $x+1$ c"))))
+    (should (string-search (string overblock-md--math-mark) rendered))
+    (should (string-search "x+1" rendered))
+    ;; and the prose is in the order it was written in
+    (should (string-match-p "a .* b .* c" rendered))))
+
 ;;; overblock-md-test.el ends here
