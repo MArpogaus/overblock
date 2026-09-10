@@ -247,6 +247,25 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
      icons (or (plist-get overblock-run-backend :header-face) 'overblock-bar))))
 
 ;;;###autoload
+(defun overblock-run-restart (reason restart)
+  "End what runs, drop the queue and the results, then call RESTART.
+REASON is what a region still running is told, through
+`overblock-run-abort': the interpreter it waits for is about to go,
+and its region can belong to another buffer on the same shell, whose
+block would otherwise keep a running header — spinner and stopwatch
+frozen where the ticker stopped — for the rest of the session.
+
+RESTART is called with the old process, or nil where there was none,
+and starts the new interpreter: what that takes is the notebook's
+business, and everything before it is not."
+  (let ((proc (overblock-run--call :process)))
+    (when proc
+      (with-current-buffer (process-buffer proc)
+        (overblock-run-abort reason)))
+    (overblock-run-queue-set nil)
+    (overblock-run-clear-results)
+    (funcall restart proc)))
+
 (defun overblock-run-clear-results ()
   "Take the results of this buffer down, and sweep what lost its anchor.
 Whatever else is rendered stays — the prose of an Rmd file, the markdown

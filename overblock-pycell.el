@@ -1208,22 +1208,12 @@ that stops — at an error, or on `overblock-run-stop' — leaves every cell
 after
 that point plain.  A rendering has nothing to do with the interpreter."
   (interactive)
-  (if-let* ((proc (python-shell-get-process)))
-      (progn
-        ;; End the running cell first, and as a death: the interpreter
-        ;; it waits for is about to go.  Its cell can belong to another
-        ;; notebook on the same shell, whose block would otherwise keep
-        ;; a running header — spinner and stopwatch frozen where the
-        ;; ticker stopped — for the rest of the session.  The block of
-        ;; this buffer goes with every other one, below.
-        (with-current-buffer (process-buffer proc)
-          (overblock-run-abort "The interpreter was restarted"))
-        (overblock-run-queue-set nil)
-        (overblock-run-clear-results)
-        (python-shell-restart))
-    (overblock-run-queue-set nil)
-    (overblock-run-clear-results)
-    (run-python nil (overblock-pycell--dedicated))))
+  (overblock-run-restart
+   "The interpreter was restarted"
+   (lambda (proc)
+     ;; `python-shell-restart' wants a shell to restart; without one
+     ;; there is nothing to restart and a new one is started instead.
+     (if proc (python-shell-restart) (overblock-pycell--start)))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
