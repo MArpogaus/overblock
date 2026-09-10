@@ -443,16 +443,18 @@ begins one column in from its code, past the letter that prefixes its
 quotes, and the rendering of one stood a column out of line."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
-              (overblock-md-command (overblock-pydoc-command-for-markup))
               (indent (save-excursion (goto-char beg) (current-column)))
               (rendered
                ;; The prose has the window less the columns it is
-               ;; indented by, and one to spare so a full row does not
-               ;; wrap.
-               ;; The prose has the window less the columns it is
                ;; indented by; nil where no window shows the buffer,
                ;; which leaves the filling to shr.
-               (let ((overblock-md-width (overblock-md-columns indent)))
+               ;; The command is bound here and not in the clause list
+               ;; above: as a clause, a nil `overblock-pydoc-command'
+               ;; would abort the render instead of leaving the
+               ;; rendering to shr with whatever `overblock-md-command'
+               ;; holds.
+               (let ((overblock-md-width (overblock-md-columns indent))
+                     (overblock-md-command (overblock-pydoc-command-for-markup)))
                  (overblock-pydoc--dressed
                   (string-trim-right
                    (if (eq overblock-pydoc-renderer 'fontify)
