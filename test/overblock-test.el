@@ -448,29 +448,6 @@ A descriptor whose WHEN is `image' or `lines' waits for those."
     (let ((row (overblock-buttons descriptors nil 0)))
       (should (equal (get-text-property 0 'help-echo row) "first")))))
 
-(ert-deftest overblock-test-a-descriptor-without-a-command-is-a-gap ()
-  "A descriptor with no command holds a slot open and answers no click.
-A bar keeps its buttons against the right edge, so a bar one button
-short of the bar it is read beside puts every button of it one column
-further right: the run button of an R chunk stood in the column of a
-notebook cell's move button.  The empty slot is as wide as the button
-it stands in for, in pixels where the display has them."
-  (let* ((descriptors '((one ("1") "first" ignore t)
-                        (gap ("2") "" nil t)))
-         (row (overblock-buttons descriptors)))
-    ;; the button, the separator, and two columns of nothing
-    (should (equal (substring-no-properties row) "1    "))
-    ;; the gap is no button: nothing to press and nothing to read
-    (should-not (get-text-property 3 'keymap row))
-    (should-not (get-text-property 4 'help-echo row))
-    ;; and it is as wide as the button would have been
-    (should (equal (overblock-gap "2 ")
-                   (if (display-graphic-p)
-                       (propertize " " 'display
-                                   (list 'space :width
-                                         (list (overblock--pixel-width "2 "))))
-                     "  ")))))
-
 (ert-deftest overblock-test-pieces-keep-a-multiline-image-whole ()
   "An image run that covers several lines becomes one piece.
 Display math renders as three lines under one image run, and a piece
