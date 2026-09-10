@@ -506,22 +506,39 @@ more than one line.
 =overblock-pydoc-map= answers on a rendering, and is empty but for the
 click.
 
-| Option                         | Default                              | Meaning                                |
-|--------------------------------+--------------------------------------+----------------------------------------|
-| =overblock-pydoc-renderer=     | =converter=                          | converter or font lock                 |
-| =overblock-pydoc-command=      | two =pandoc= candidates, =rst= first | the shell command for a doc string     |
-| =overblock-pydoc-fontify-mode= | =rst-mode=                           | the mode whose font lock renders one   |
-| =overblock-pydoc-idle=         | 0.2                                  | the quiet before one is rendered again |
-| =overblock-pydoc-buttons=      | one edit button                      | the buttons on that bar                |
-| =overblock-pydoc-footer=       | =shadow= with an underline           | the face of the rule under a doc string |
+| Option                     | Default                        | Meaning                                 |
+|----------------------------+--------------------------------+-----------------------------------------|
+| =overblock-pydoc-markup=   | =rst=                          | the markup the doc strings are written in |
+| =overblock-pydoc-renderer= | =converter=                    | converter or font lock                  |
+| =overblock-pydoc-command=  | a =pandoc= command per markup  | the shell command for a doc string      |
+| =overblock-pydoc-modes=    | =rst-mode=, =markdown-mode=    | the major mode that reads one, per markup |
+| =overblock-pydoc-idle=     | 0.2                            | the quiet before one is rendered again  |
+| =overblock-pydoc-buttons=  | one edit button                | the buttons on that bar                 |
+| =overblock-pydoc-footer=   | =shadow= with an underline     | the face of the rule under a doc string |
+
+=overblock-pydoc-markup= says what the doc strings of a buffer are
+written in, and everything else follows it: which command of
+=overblock-pydoc-command= renders them, and which mode of
+=overblock-pydoc-modes= the =fontify= renderer paints with and
+=overblock-pydoc-edit= opens.  reStructuredText is the default, because
+that is what Python's own tools read.  A project whose doc strings are
+Markdown says so once, per project:
+
+#+begin_src emacs-lisp
+  ;;; .dir-locals.el
+  ((python-base-mode . ((overblock-pydoc-markup . markdown))))
+#+end_src
+
+One doc string is one markup: given the other reader, a pipe table
+runs together into a paragraph of pipes, and a =:class:`x`= role stands
+in the prose as it is written.  Both mode entries are yours to change —
+name a =markdown-mode= derivative that hides its markup if you prefer a
+quieter rendering.
 
 =overblock-pydoc-renderer= picks between the two renderers.
-=converter= hands the text to =overblock-pydoc-command=, which asks for
-reStructuredText first, because that is what Python's own tools read.
-=fontify= runs =overblock-pydoc-fontify-mode= over the text and keeps
-what its font lock painted: no process, and no line below moves.  A
-project that writes Markdown in its doc strings puts a Markdown command
-first, or names =gfm-view-mode= here.
+=converter= hands the text to the command for the markup; =fontify=
+runs the mode for the markup over the text and keeps what its font
+lock painted: no process, and no line below moves.
 
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=.
 Drop a button you never press, put them in another order, or give one a

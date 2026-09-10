@@ -98,9 +98,30 @@ point of it: a test has to wait where a reader does not."
 For the reason `overblock-md-command' gives: shr reads no CSS class,
 so painting one costs the reader the syntax definitions pandoc loads
 and gives them nothing."
-  (dolist (command (ensure-list overblock-pydoc-command))
-    (when (string-prefix-p "pandoc" command)
-      (should (string-search "--no-highlight" command)))))
+  (pcase-dolist (`(,markup . ,commands) overblock-pydoc-command)
+    (should (memq markup '(rst markdown)))
+    (dolist (command (ensure-list commands))
+      (when (string-prefix-p "pandoc" command)
+        (should (string-search "--no-highlight" command))))))
+
+(ert-deftest overblock-pydoc-test-the-markup-picks-the-command-and-the-mode ()
+  "One option says the markup, and the renderer and the editor follow it.
+A doc string rendered as one markup and edited in the mode of another
+is what this is against: the two read the same option."
+  (let ((overblock-pydoc-markup 'rst))
+    (should (equal (overblock-pydoc-command-for-markup)
+                   (alist-get 'rst overblock-pydoc-command)))
+    (should (eq (overblock-pydoc-mode-for-markup) 'rst-mode)))
+  (let ((overblock-pydoc-markup 'markdown))
+    (should (equal (overblock-pydoc-command-for-markup)
+                   (alist-get 'markdown overblock-pydoc-command)))
+    (should (eq (overblock-pydoc-mode-for-markup) 'markdown-mode)))
+  ;; A markup the options say nothing about falls back rather than
+  ;; rendering with nothing at all.
+  (let ((overblock-pydoc-markup 'org)
+        (overblock-md-command "cat"))
+    (should (equal (overblock-pydoc-command-for-markup) "cat"))
+    (should (eq (overblock-pydoc-mode-for-markup) #'rst-mode))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-opens-its-line ()
   "Every doc string is found, and a string that is data is not one.
@@ -212,7 +233,7 @@ not to the indentation of the line."
     (insert "class A:\n    r\"\"\"Raw doc, with a \\alpha in it.\n\n    More.\n    \"\"\"\n")
     (python-mode)
     (let ((overblock-pydoc-renderer 'fontify)
-          (overblock-pydoc-fontify-mode #'rst-mode))
+          (overblock-pydoc-markup 'rst))
       (goto-char (point-max))
       ;; the mode and not the render alone: a rendering is wanted only
       ;; where the live cycle of its kind is on
@@ -303,7 +324,7 @@ there when the pass returns.  The lines stay as the writer wrote them,
 so the rendering is exactly as tall as its source."
   (overblock-pydoc-test--with
     (let ((overblock-pydoc-renderer 'fontify)
-          (overblock-pydoc-fontify-mode #'rst-mode))
+          (overblock-pydoc-markup 'rst))
       ;; out of the way first: the doc string point is in is the one
       ;; left alone, and the macro leaves point at the top of the file
       (goto-char (point-max))

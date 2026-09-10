@@ -61,22 +61,44 @@
 See `overblock-md-preview-idle', which this follows."
   :type 'number)
 
-(defcustom overblock-pydoc-command
-  '("pandoc --mathjax --no-highlight -f rst"
-    "pandoc --mathjax --no-highlight -f markdown")
-  "How to turn a doc string into HTML.
-Read as `overblock-md-command' is read — one shell command, or a list
-of candidates of which the first one installed is used — and it stands
-in its place while a doc string is rendered.
+(defcustom overblock-pydoc-markup 'rst
+  "The markup the doc strings of this buffer are written in.
+It says which command of `overblock-pydoc-command' renders them and
+which major mode of `overblock-pydoc-modes' reads them, so that the
+rendering and the buffer `overblock-pydoc-edit' opens agree.
 
-reStructuredText first, because that is what Python's own tools read,
-and numpydoc and Sphinx with them.  A project that writes Markdown in
-its doc strings puts a Markdown command first, or names one alone.
+reStructuredText is the default, because that is what Python's own
+tools read, and numpydoc and Sphinx with them.  A project whose doc
+strings are Markdown — a pipe table, a fenced block — sets this to
+`markdown', which is worth doing per project rather than globally:
+
+  ;;; .dir-locals.el
+  ((python-base-mode . ((overblock-pydoc-markup . markdown))))
+
+One doc string, one markup: a reader that is given the other one lays
+out what it does not know as prose.  Measured on a numpy doc string
+holding a pipe table, the reStructuredText reader ran the table
+together into a paragraph of pipes, and the Markdown reader laid it
+out in columns and left the Sphinx roles standing in the prose."
+  :type '(choice (const :tag "reStructuredText" rst)
+                 (const :tag "Markdown" markdown))
+  :safe #'symbolp)
+
+(defcustom overblock-pydoc-command
+  '((rst . "pandoc --mathjax --no-highlight -f rst")
+    (markdown . "pandoc --mathjax --no-highlight -f markdown"))
+  "How to turn a doc string into HTML, per markup.
+An alist of (MARKUP . COMMAND), where MARKUP is a value of
+`overblock-pydoc-markup' and COMMAND is read as `overblock-md-command'
+is read: one shell command, or a list of candidates of which the first
+one installed is used.  It stands in that variable's place while a doc
+string is rendered.
 
 No highlighting, for the reason `overblock-md-command' gives: shr
 reads no CSS class, so what pandoc spends on painting a code block is
 spent for nothing."
-  :type '(choice string (repeat string)))
+  :type '(alist :key-type symbol
+                :value-type (choice string (repeat string))))
 
 (defcustom overblock-pydoc-renderer 'converter
   "How a doc string is rendered.
@@ -87,7 +109,8 @@ in columns and fills a paragraph to the window, and the rendering is as
 tall as it needs to be.  One process for the buffer, asked and not
 waited for.
 
-`fontify\' runs `overblock-pydoc-fontify-mode\' over the doc string and
+`fontify\' runs the mode `overblock-pydoc-modes\' names over the doc
+string and
 keeps what its font lock painted — the way eldoc shows what a language
 server sends it.  No process at all, and the text stays where the
 writer put it, so the rendering is exactly as tall as the source and no
@@ -96,14 +119,36 @@ rather than replaced."
   :type '(choice (const :tag "A converter, rendered by shr" converter)
                  (const :tag "Fontified where it stands" fontify)))
 
-(defcustom overblock-pydoc-fontify-mode #'rst-mode
-  "Major mode whose font lock renders a doc string.
-Read where `overblock-pydoc-renderer\' is `fontify\'.  `rst-mode\' is
-built in and knows what Python\'s own tools read: a numpydoc section
-title comes back as a title.  A project that writes Markdown in its doc
-strings names `gfm-view-mode\', which markdown-mode brings and which
-hides the markup it has painted."
-  :type 'function)
+(defcustom overblock-pydoc-modes
+  '((rst . rst-mode)
+    (markdown . markdown-mode))
+  "The major mode that reads a doc string, per markup.
+An alist of (MARKUP . MODE), where MARKUP is a value of
+`overblock-pydoc-markup'.  The mode is used twice, and the two are the
+same on purpose: `overblock-pydoc-edit' opens the source of a doc
+string in it, and the `fontify' renderer of `overblock-pydoc-renderer'
+paints the rendering with its font lock.
+
+`rst-mode' is built in and knows what Python's own tools read: a
+numpydoc section title comes back as a title.  `markdown-mode' reads
+what a Markdown project writes.  Name another mode here where you
+prefer one — a `markdown-mode' derivative that hides its markup, say,
+which makes a quieter rendering and a stranger edit buffer."
+  :type '(alist :key-type symbol :value-type function))
+
+(defun overblock-pydoc-mode-for-markup ()
+  "Return the major mode that reads a doc string of this buffer.
+`overblock-pydoc-modes' says which, and `rst-mode' answers for a
+markup the option says nothing about."
+  (or (alist-get overblock-pydoc-markup overblock-pydoc-modes) #'rst-mode))
+
+(defun overblock-pydoc-command-for-markup ()
+  "Return the command that renders a doc string of this buffer.
+`overblock-pydoc-command' says which, read as `overblock-md-command'
+is read, and a markup the option says nothing about renders with
+whatever `overblock-md-command' holds."
+  (or (alist-get overblock-pydoc-markup overblock-pydoc-command)
+      overblock-md-command))
 
 (defface overblock-pydoc-footer '((t :inherit shadow :underline t))
   "Face of the rule below a rendered doc string.
@@ -376,7 +421,7 @@ begins one column in from its code, past the letter that prefixes its
 quotes, and the rendering of one stood a column out of line."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
-              (overblock-md-command overblock-pydoc-command)
+              (overblock-md-command (overblock-pydoc-command-for-markup))
               (indent (save-excursion (goto-char beg) (current-column)))
               (rendered
                ;; The prose has the window less the columns it is
@@ -390,7 +435,7 @@ quotes, and the rendering of one stood a column out of line."
                   (string-trim-right
                    (if (eq overblock-pydoc-renderer 'fontify)
                        (overblock-md-fontified
-                        source overblock-pydoc-fontify-mode)
+                        source (overblock-pydoc-mode-for-markup))
                      (overblock-md-rendered source html))
                    "\n+")
                   indent
@@ -422,7 +467,7 @@ arrive together a moment later.
 
 `overblock-md-render-regions' is the batch, and says what happens to
 a doc string the reader has reached while the process ran."
-  (let ((overblock-md-command overblock-pydoc-command))
+  (let ((overblock-md-command (overblock-pydoc-command-for-markup)))
     (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
                                  #'overblock-pydoc--show)))
 
@@ -471,7 +516,8 @@ string and what `overblock-pydoc--source\' took off."
 (defun overblock-pydoc-edit (&optional event)
   "Edit the doc string at point, or the one clicked in EVENT.
 The prose opens in its own buffer, without the quotes and without the
-indentation, in `overblock-pydoc-fontify-mode\'.
+indentation, in the mode `overblock-pydoc-modes\' names for the markup
+of this buffer.
 `overblock-edit-commit\' puts it back and renders it;
 `overblock-edit-abort\' discards the edit."
   (interactive (list last-input-event))
@@ -482,7 +528,7 @@ indentation, in `overblock-pydoc-fontify-mode\'.
        (list :name (format "*overblock-pydoc: %s:%d*" (buffer-name)
                            (line-number-at-pos (overlay-start block)))
              :label "doc string"
-             :mode overblock-pydoc-fontify-mode
+             :mode (overblock-pydoc-mode-for-markup)
              :text #'overblock-pydoc--source
              :put #'overblock-pydoc--put))
     (user-error "No rendered doc string here")))
@@ -499,7 +545,7 @@ view.
 
 `overblock-pydoc-renderer' says how: a converter and shr, which knows
 reStructuredText and lays out a table, or the font lock of
-`overblock-pydoc-fontify-mode', which costs no process and leaves every
+`overblock-pydoc-modes', which costs no process and leaves every
 line where the writer put it."
   :lighter " PyDoc"
   (when overblock-pydoc-mode

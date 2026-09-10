@@ -64,17 +64,32 @@ to stop.
 
 * What to render them with
 
-=overblock-pydoc-renderer= picks.  =converter= sends the buffer's doc
-strings through =overblock-md-html-batch-async= with
-=overblock-md-command= bound to =overblock-pydoc-command= — one process
-for the buffer, asked and not waited for — and =fontify= runs
-=overblock-md-fontified= with =overblock-pydoc-fontify-mode=, which
-costs no process and leaves every line where the writer put it.
+=overblock-pydoc-markup= says which markup a buffer's doc strings are
+written in, and two options are read through it:
+=overblock-pydoc-command= for the shell command and
+=overblock-pydoc-modes= for the major mode.  One option and not two,
+because a doc string rendered as one markup and edited in the mode of
+another is a trap the reader falls into once a session.
 
-=overblock-pydoc-command= asks for reStructuredText first, because that
-is what Python's own tools read, and numpydoc and Sphinx with them.  It
-asks for no highlighting for the reason
-[[file:overblock-md.org][overblock-md's notes]] give.
+=overblock-pydoc-renderer= picks the renderer.  =converter= sends the
+buffer's doc strings through =overblock-md-html-batch-async= with
+=overblock-md-command= bound to the command for the markup — one
+process for the buffer, asked and not waited for — and =fontify= runs
+=overblock-md-fontified= with the mode for the markup, which costs no
+process and leaves every line where the writer put it.  The mode is
+also what =overblock-pydoc-edit= opens the source in.
+
+reStructuredText is the default, because that is what Python's own
+tools read, and numpydoc and Sphinx with them.  Neither reader knows
+the other's markup: measured on a numpy doc string holding a GitHub
+pipe table, pandoc's reStructuredText reader ran the table together
+into one paragraph of pipes, and its Markdown reader laid the table
+out in columns and left the =:class:`x`= roles standing in the prose.
+There is no reader for both — =-f rst+pipe_tables= is refused, the
+reStructuredText reader has no table extension — so the option is a
+choice, and a project that writes Markdown makes it in
+=.dir-locals.el=.  Both readers are asked for no highlighting, for the
+reason [[file:overblock-md.org][overblock-md's notes]] give.
 
 The quotes and the shared indentation come off before the text is
 rendered, because a doc string is written where the code stands and
