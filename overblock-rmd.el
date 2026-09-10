@@ -640,13 +640,15 @@ A negative ARG moves back, which is all `overblock-rmd-backward-chunk'
 does.  Backwards, the code of the chunk point is in comes first, as
 `code-cells-backward-cell' goes to the start of its own cell first."
   (interactive "p")
-  (let ((arg (or arg 1)))
+  ;; The fences are found once, not once a repeat: `C-u 20' walked the
+  ;; whole buffer twenty times for a walk that answers them all.
+  (let* ((arg (or arg 1))
+         (chunks (overblock-rmd-chunks)))
     (dotimes (_ (abs arg))
-      (let* ((chunks (overblock-rmd-chunks))
-             (chunk (if (> arg 0)
-                        (seq-find (lambda (c) (> (nth 1 c) (point))) chunks)
-                      (car (last (seq-filter (lambda (c) (< (nth 1 c) (point)))
-                                             chunks))))))
+      (let ((chunk (if (> arg 0)
+                       (seq-find (lambda (c) (> (nth 1 c) (point))) chunks)
+                     (car (last (seq-filter (lambda (c) (< (nth 1 c) (point)))
+                                            chunks))))))
         (unless chunk
           (user-error "No chunk %s this one" (if (> arg 0) "below" "above")))
         (goto-char (nth 1 chunk))))))
