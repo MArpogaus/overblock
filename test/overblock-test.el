@@ -203,6 +203,20 @@ draws, and it draws one newline."
             (should (eq (overlay-get part 'invisible) t))
             (should-not (overlay-get part 'display))))))))
 
+(ert-deftest overblock-test-no-final-newline-draws-no-newline ()
+  "A file that ends without a newline gets no guard on its last line.
+The guard is put where the cloak leaves a newline standing.  Where
+there is none, the character there is the reader\'s own, and drawing
+it as a newline left a blank row under the last cell for good."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree")
+    (let ((block (overblock-show 1 (point-max) :over "row one")))
+      (should-not (seq-find (lambda (part)
+                              (and (equal (overlay-get part 'display) "\n")
+                                   (not (eq (char-after (overlay-start part))
+                                            ?\n))))
+                            (overblock-get block :parts))))))
+
 (ert-deftest overblock-test-covers-its-last-line ()
   "The pieces of a block reach the last line of its region.
 The anchor stops before the newline that ends the region, and a cloak
