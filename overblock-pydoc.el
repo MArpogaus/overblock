@@ -521,6 +521,7 @@ a doc string the reader has reached while the process ran."
     (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
                                  #'overblock-pydoc--show)))
 
+;;;###autoload
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.
 `overblock-pydoc-renderer' says with what.  This is what

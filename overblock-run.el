@@ -246,7 +246,6 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
      mark (string-join (delq nil (list label time)) " · ")
      icons (or (plist-get overblock-run-backend :header-face) 'overblock-bar))))
 
-;;;###autoload
 (defun overblock-run-restart (reason restart)
   "End what runs, drop the queue and the results, then call RESTART.
 REASON is what a region still running is told, through
@@ -266,6 +265,7 @@ business, and everything before it is not."
     (overblock-run-clear-results)
     (funcall restart proc)))
 
+;;;###autoload
 (defun overblock-run-clear-results ()
   "Take the results of this buffer down, and sweep what lost its anchor.
 Whatever else is rendered stays — the prose of an Rmd file, the markdown
@@ -420,6 +420,17 @@ starting never began."
           (with-current-buffer shell
             (setq-local overblock-run-backend backend))))
       shell)))
+
+(defun overblock-run-running-region ()
+  "Return the region the shell of this buffer runs, as (BEG . END).
+Markers in the buffer the region is in, which is not always this one:
+two notebooks may share a shell, and only one of them is running.  Nil
+where nothing runs.  Public because a caller that moves text has to
+know what may not move under it."
+  (when-let* ((shell (overblock-run-shell))
+              (state (buffer-local-value 'overblock-run--state shell))
+              (beg (plist-get state :beg)))
+    (cons beg (plist-get state :end))))
 
 (defvar-local overblock-run--home nil
   "Where point goes in the notebook when this shell's queue runs out.

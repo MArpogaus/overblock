@@ -148,7 +148,7 @@ already, and a blank line inside one ends no paragraph."
       (nreverse regions))))
 
 (defvar-local overblock-md-preview-regions-function
-  #'overblock-md-preview--regions
+  #'overblock-md-preview-regions
   "What answers which regions of this buffer to render, as a function.
 Called with the bounds to look at, and answers a list of conses in
 order.  The default renders every block of markdown, which is what a
@@ -158,8 +158,11 @@ A caller that reads some of the buffer as something else sets this: in
 an Rmd file the fenced chunks are R and are run rather than rendered,
 so `overblock-rmd' answers with the prose alone.")
 
-(defun overblock-md-preview--regions (beg end &optional prose-only)
+(defun overblock-md-preview-regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
+Public with its two siblings, `overblock-md-preview-fences\' and
+`overblock-md-preview-paragraphs\': a mode that reads part of its
+buffer as markdown wants the same walk.
 PROSE-ONLY leaves the fenced blocks out, which is what a caller whose
 fences hold code rather than markdown asks for: the chunks of an Rmd
 file go to R and are never rendered as prose.
@@ -210,6 +213,7 @@ line, which is what lets a tall block scroll like text."
 
 ;;;; When to render them
 
+;;;###autoload
 (defun overblock-md-preview-render-buffer ()
   "Render every block of the buffer that is not rendered yet.
 One converter process for the whole buffer rather than one for each

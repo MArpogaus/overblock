@@ -363,9 +363,8 @@ the cell that moved, and the cycle leaves the cell point is in alone."
   "Return non-nil where the cell the shell is running lies in BEG..END.
 Asked of this buffer alone: another notebook on the same shell may be
 the one running, and its cells are not moving."
-  (when-let* ((proc (python-shell-get-process))
-              (run (buffer-local-value 'overblock-run--state (process-buffer proc)))
-              (mark (plist-get run :beg))
+  (when-let* ((running (overblock-run-running-region))
+              (mark (car running))
               ((eq (marker-buffer mark) (current-buffer))))
     (<= beg mark end)))
 

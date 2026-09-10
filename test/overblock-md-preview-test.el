@@ -69,7 +69,7 @@ point of it: a test has to wait where a reader does not."
   "Return the text of every markdown block between BEG and END."
   (mapcar (lambda (region)
             (buffer-substring-no-properties (car region) (cdr region)))
-          (overblock-md-preview--regions beg end)))
+          (overblock-md-preview-regions beg end)))
 
 (ert-deftest overblock-md-preview-test-a-block-is-what-markdown-calls-one ()
   "The run of lines between two blank ones, and a fence whole.
@@ -106,7 +106,7 @@ back as a row of empty cells and every row as a paragraph of its own."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "| a | b |\n|---|---|\n| 1 | 2 |\n")
-    (let* ((region (car (overblock-md-preview--regions (point-min)
+    (let* ((region (car (overblock-md-preview-regions (point-min)
                                                        (point-max))))
            (block (overblock-md-preview--show (car region) (cdr region)))
            (shown (substring-no-properties (overblock-get block :over))))

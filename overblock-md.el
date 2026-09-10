@@ -238,14 +238,11 @@ which is what the settle asks for.
 image was still being made; `overblock-md-math\' one drawn in the
 colour of the theme.  The live cycle renders them again once the
 reader stops — from the cache now, or from a fresh preview."
-  (when overblock-live--specs
-    (dolist (spec overblock-live--specs)
-      (dolist (block (overblock-in (point-min) (point-max) (car spec)))
-        (let ((over (overblock-get block :over)))
-          (when (and (stringp over)
-                     (text-property-not-all 0 (length over) prop nil over))
-            (overblock-delete block)))))
-    (overblock-live--settle)))
+  (overblock-live-drop-if
+   (lambda (block)
+     (let ((over (overblock-get block :over)))
+       (and (stringp over)
+            (text-property-not-all 0 (length over) prop nil over))))))
 
 (defun overblock-md--theme-changed (&rest _)
   "Have every formula drawn again, in the colour of the new theme.
@@ -353,6 +350,7 @@ taller than the window, and a block the wheel cannot get past is what
        (image)
        (t 'pending)))))
 
+;;;###autoload
 (defun overblock-md-forget-failed-images ()
   "Fetch the images again whose URL could not be reached.
 A URL that failed is not asked for again in the session, so that a
@@ -1261,7 +1259,7 @@ without a converter has to see."
               ,@shr-external-rendering-functions)))
       (with-temp-buffer
         (shr-insert-document dom)
-        (overblock--flatten-alignment)
+        (overblock-flatten-alignment)
         ;; Trim whole blank lines, never a first line's indent: the
         ;; columns are literal now, and a table that starts the cell
         ;; must keep the indent its sister rows have.
