@@ -86,6 +86,19 @@ holds."
                      "```\ncode\n\nwith a blank\n```"
                      "- one\n- two")))))
 
+(ert-deftest overblock-md-preview-test-a-fence-closes-on-its-own-kind ()
+  "Only a fence of the same kind closes a block, and it may be longer.
+The classic way to show a fenced block is three backquotes inside a
+~~~ block; read as one kind, the inner fences cut the block in three."
+  (with-temp-buffer
+    (insert "~~~\n```\ncode\n```\n~~~\n\nafter\n")
+    (should (equal (overblock-md-preview-test--texts (point-min) (point-max))
+                   '("~~~\n```\ncode\n```\n~~~" "after"))))
+  (with-temp-buffer
+    (insert "```\ncode\n`````\n\nafter\n")
+    (should (equal (overblock-md-preview-test--texts (point-min) (point-max))
+                   '("```\ncode\n`````" "after")))))
+
 (ert-deftest overblock-md-preview-test-a-table-renders-as-a-table ()
   "A table reaches the converter whole, and comes back with its columns.
 Rendered a row at a time, the rule between the head and the body came

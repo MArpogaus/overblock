@@ -323,8 +323,13 @@ expression is R\'s to evaluate, not this file\'s."
       (mapcar (lambda (option)
                 (goto-char open)
                 (if (re-search-forward
+                     ;; Anchored at both ends: a number and nothing
+                     ;; else.  Unanchored, `fig.width=2*w' answered 2,
+                     ;; and an expression is knitr's to evaluate, not
+                     ;; this file's — the default stands for one.
                      (concat "[,{[:blank:]]" (regexp-quote (car option))
-                             "[[:blank:]]*=[[:blank:]]*\\([0-9.]+\\)")
+                             "[[:blank:]]*=[[:blank:]]*"
+                             "\\([0-9.]+\\)[[:blank:]]*\\(?:[,}]\\|$\\)")
                      eol t)
                     (string-to-number (match-string 1))
                   (cdr option)))

@@ -244,13 +244,17 @@ and the default stands."
   (with-temp-buffer
     (insert "```{r a, fig.width=8, fig.height = 3.5, dpi=120}\nx\n```\n"
             "```{r b}\nx\n```\n"
-            "```{r c, fig.width=w*2}\nx\n```\n")
+            "```{r c, fig.width=w*2}\nx\n```\n"
+            "```{r d, fig.width=2*w, fig.height=3}\nx\n```\n")
     (let ((overblock-rmd-figure-size '(7 . 5)))
       (should (equal (overblock-rmd--figure-size 1) '(8 3.5 120)))
       (goto-char (point-min)) (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 5 96)))
       (forward-line 3)
-      (should (equal (overblock-rmd--figure-size (point)) '(7 5 96))))))
+      (should (equal (overblock-rmd--figure-size (point)) '(7 5 96)))
+      ;; an expression that starts with a digit is still an expression
+      (forward-line 3)
+      (should (equal (overblock-rmd--figure-size (point)) '(7 3 96))))))
 
 (ert-deftest overblock-rmd-test-the-chunks-are-walked-as-cells-are ()
   "Forward goes to the code of the next chunk, backward to the previous.
