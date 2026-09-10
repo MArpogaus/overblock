@@ -176,26 +176,11 @@ line, which is what lets a tall block scroll like text."
   (when-let* ((source (string-trim (buffer-substring-no-properties beg end)))
               ((not (string-empty-p source)))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
-                          (overblock-md-rendered source html)))
-              ;; A line that renders to nothing of its own — a lone
-              ;; HTML comment — is left as it is rather than blanked.
-              ((not (string-empty-p (string-trim rendered)))))
-    (when-let* ((block
-                 (overblock-show
-                  beg end
-                  :kind 'md-preview
-                  :over (overblock-fill-props
-                         (overblock-faced rendered 'default)
-                         'keymap overblock-md-preview-map
-                         'help-echo "mouse-1: edit this text")
-                  :keymap overblock-md-preview-map
-                  :help-echo "mouse-1: edit this text")))
-      ;; An edit the mode did not see coming — a replacement over the
-      ;; buffer, a macro, an undo — leaves a rendering of text that has
-      ;; changed.  The reader's own typing never reaches this: point
-      ;; landing on the line takes the rendering off first.
-      (overblock-stale-when-edited block)
-      block)))
+                          (overblock-md-rendered source html))))
+    (overblock-show-rendering beg end rendered 'default
+                              :kind 'md-preview
+                              :keymap overblock-md-preview-map
+                              :help-echo "mouse-1: edit this text")))
 
 
 ;;;; When to render them

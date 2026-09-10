@@ -463,20 +463,11 @@ quotes, and the rendering of one stood a column out of line."
                   indent
                   ;; one line of source, one row
                   (= (line-number-at-pos beg) (line-number-at-pos end)))))
-              ((not (string-empty-p (string-trim rendered))))
-              (block (overblock-show
-                      beg end
+              (block (overblock-show-rendering
+                      beg end rendered 'font-lock-doc-face
                       :kind 'pydoc
-                      :over (overblock-fill-props
-                             (overblock-faced rendered 'font-lock-doc-face)
-                             'keymap overblock-pydoc-map
-                             'help-echo "mouse-1: edit this doc string")
                       :keymap overblock-pydoc-map
                       :help-echo "mouse-1: edit this doc string")))
-    ;; An edit the mode did not see coming leaves a rendering of prose
-    ;; that has changed; point entering the string takes it off first,
-    ;; so the reader's own typing never reaches this.
-    (overblock-stale-when-edited block)
     block))
 
 ;;;; When

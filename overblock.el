@@ -643,6 +643,31 @@ source while point stays in it; see `overblock-live--open\'."
                                      (copy-marker (overlay-end block) t))))
   (funcall (or (overblock-get block :stale) #'overblock-delete) block))
 
+(defun overblock-show-rendering (beg end rendered face &rest props)
+  "Show RENDERED over BEG..END in FACE, and return the block.
+PROPS is `overblock-show''s.  Its `:keymap' and `:help-echo' are put
+on the rendering as well, where it carries none of its own: shr writes
+a keymap on a link, and that one stays.
+
+Nil where RENDERED holds nothing to show — a line that renders to a
+lone HTML comment is left as it is rather than blanked.  The block is
+marked stale on an edit the mode did not see coming: a replacement
+over the buffer, a macro, an undo.  The reader's own typing never
+reaches that, because point landing in the region takes the rendering
+off first.
+
+Every mode here that renders text over its own source shows it
+through this."
+  (when-let* (((not (string-empty-p (string-trim rendered))))
+              (block (apply #'overblock-show beg end
+                            :over (overblock-fill-props
+                                   (overblock-faced rendered face)
+                                   'keymap (plist-get props :keymap)
+                                   'help-echo (plist-get props :help-echo))
+                            props)))
+    (overblock-stale-when-edited block)
+    block))
+
 (defun overblock-stale-when-edited (block &optional function)
   "Take BLOCK down on the next edit of the text it covers.
 FUNCTION is called with the block instead, where the caller has more to
