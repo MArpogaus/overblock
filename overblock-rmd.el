@@ -664,23 +664,17 @@ restart that asks the reader nothing — `ess-quit' runs `ess-cleanup',
 which offers to kill the buffers of the session — and starting again in
 the same buffer is a case `inferior-ess' is written for."
   (interactive)
-  (when-let* ((proc (overblock-rmd--process)))
-    ;; End the running chunk first, and as a death: the interpreter it
-    ;; waits for is about to go.  Its chunk can belong to another
-    ;; buffer on the same R, whose block would otherwise keep a running
-    ;; header — spinner and stopwatch frozen where the ticker stopped —
-    ;; for the rest of the session.
-    (with-current-buffer (process-buffer proc)
-      (overblock-run-abort "R was restarted"))
-    (overblock-run-queue-set nil)
-    (delete-process proc)
-    ;; ESS keeps the names of the processes it started in a list of its
-    ;; own, and reads that list to find a free one.  Asked to refresh it
-    ;; here, the dead process leaves its name behind and the new R takes
-    ;; the same name and the same buffer.
-    (update-ess-process-name-list))
-  (overblock-run-clear-results)
-  (overblock-rmd--start))
+  (overblock-run-restart
+   "R was restarted"
+   (lambda (proc)
+     (when proc
+       (delete-process proc)
+       ;; ESS keeps the names of the processes it started in a list of
+       ;; its own, and reads that list to find a free one.  Asked to
+       ;; refresh it here, the dead process leaves its name behind and
+       ;; the new R takes the same name and the same buffer.
+       (update-ess-process-name-list))
+     (overblock-rmd--start))))
 
 ;;;###autoload
 (defun overblock-rmd-restart-and-run-all ()
