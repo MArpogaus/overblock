@@ -81,48 +81,15 @@
 (defgroup overblock-pycell nil "Inline results for Python code cells." :group 'python)
 
 (defcustom overblock-pycell-result-buttons
-  '((stop ("" "□" "stop") "Interrupt this cell, and stop the pass"
-          overblock-run-interrupt running)
-    (save-image ("" "↧" "save") "Save the result's image to a file"
-                overblock-run-save-image image)
-    (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)
-    (pop ("" "↗" "pop") "Show this result in its own buffer"
-         overblock-run-pop-output lines)
-    (discard ("" "✕" "drop") "Discard this result" overblock-run-discard-output t)
-    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
-    (move-down ("" "⌄" "down") "Move this cell down" overblock-pycell-move-cell-down t))
+  (append (overblock-run-result-buttons "cell" "image")
+          '((move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
+            (move-down ("" "⌄" "down") "Move this cell down"
+                       overblock-pycell-move-cell-down t)))
   "The buttons on the header of a result, left to right.
-Each entry is (KEY GLYPHS HELP COMMAND WHEN):
-
-- KEY names the button for you, and nothing else reads it.
-- GLYPHS are the candidates for its label.  The first one the frame
-  can draw wins, and the last one always answers, so keep something
-  every display has at the end.  Three of them is the shape used here:
-  a nerd glyph, a character an ordinary monospace font has, and a short
-  word for the display that has neither — a word rather than a letter,
-  because `u' and `d' say nothing to a reader who has not read this
-  list.  Ask the font about the middle one before choosing it —
-  measured, `⏫' is in none of Source Code Pro, Liberation Mono or
-  FiraCode Nerd Font, so a frame without nerd glyphs fell all the way
-  to the last candidate for that button and to a symbol for every
-  other.
-
-  Every nerd glyph here is a codicon, the set whose names begin
-  nf-cod- and which VS Code draws its own buttons with.  One family,
-  because it is the one whose shapes share a single hairline weight
-  and a single visual size: sets mixed, the notebook drew a heavy
-  filled arrow beside a thin outlined page.  A glyph the reader's own
-  nerd font is too old to carry is skipped by `overblock-glyph', so
-  the row falls to the symbol rather than drawing a box of hex
-  digits.
-
-  A terminal takes the last candidate as well, unless
-  `overblock-terminal-glyphs' says its font carries the icons.
-- HELP is the tooltip.
-- COMMAND runs on a click.
-- WHEN says when the button shows: t always, `image' only with an
-  image in the result, `lines' only with output, `running' only while
-  the cell runs.
+An entry is the shape `overblock-buttons' reads, and the five that
+every result carries come from `overblock-run-result-buttons', so a
+glyph changed there changes the Rmd file's row too.  The pair that
+moves a cell is this notebook's own.
 
 Drop an entry you never press, reorder them, or give one a glyph your
 font draws better.  The fold arrow and the spinner are not buttons of
@@ -137,7 +104,7 @@ this list: they say what the result is doing."
     (move-down ("" "⌄" "down") "Move this cell down"
                overblock-pycell-move-cell-down t))
   "The buttons on the header of a rendered markdown cell.
-The entries read as in `overblock-pycell-result-buttons'.  A markdown cell has
+An entry is the shape `overblock-buttons' reads.  A markdown cell has
 no output, so `lines' and `image' say nothing here.
 
 No button for the source: a click on the rendering shows it, which is
@@ -153,14 +120,9 @@ more icon to read."
     (move-down ("" "⌄" "down") "Move this cell down"
                overblock-pycell-move-cell-down t))
   "The buttons on the bar of a markdown cell that shows its source.
-The entries read as in `overblock-pycell-result-buttons'.  Such a cell is one
+An entry is the shape `overblock-buttons' reads.  Such a cell is one
 just written, or one taken back to its source with `overblock-pycell-md-raw';
-the third button renders it.
-
-No candidate of a bar is the candidate of another button of that bar,
-or of a button that means something else on another kind of bar — in
-any of the three rows.  A frame draws whichever row it can, and a
-frame with a font but no nerd glyphs draws the second one."
+the third button renders it."
   :type overblock-button-type
   :set #'overblock-run-set-buttons)
 
@@ -172,7 +134,7 @@ frame with a font but no nerd glyphs draws the second one."
     (move-down ("" "⌄" "down") "Move this cell down"
                overblock-pycell-move-cell-down t))
   "The buttons on the bar of a code cell, left to right.
-The entries read as in `overblock-pycell-result-buttons'.  A cell bar is drawn
+An entry is the shape `overblock-buttons' reads.  A cell bar is drawn
 before the cell has run, so `lines' and `image' say nothing here.
 
 The two move buttons come last, as they do on every other bar.  The
@@ -1194,9 +1156,6 @@ The commentary of `overblock-run' lists the slots."
         :redraw (lambda () (mapc #'overblock-pycell--bar-redraw (overblock-bars)))
         :keymap overblock-pycell-result-map
         :buttons 'overblock-pycell-result-buttons
-        :fold #'overblock-run-toggle-output
-        :header-face 'overblock-bar
-        :output-face 'overblock-body
         :stale #'overblock-pycell--stale-when-edited
         :lines 'overblock-pycell-max-lines
         :chars 'overblock-pycell-max-line-length))
