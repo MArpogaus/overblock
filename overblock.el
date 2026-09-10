@@ -1267,7 +1267,14 @@ buttons change only when the option behind them, the image, the output
 or the running flag does; without this, every tick walked the
 descriptors, asked `overblock-glyph' for each candidate and built a
 button for each.  The descriptors are part of the key, so an option a
-reader sets answers for itself.")
+reader sets answers for itself.
+
+What `overblock-glyph' keys on is part of it too — the kind of
+display, the frame font and `overblock-terminal-glyphs' — because the
+row is made of what that function answers.  Without them a daemon
+serving a graphic frame and an `emacsclient -nw' frame drew one row in
+both, and a plain `setq' of the option changed nothing, since only
+`customize-set-variable' reaches the `:set' that empties this.")
 
 (defun overblock-bars-stale ()
   "Mark every bar of this buffer stale, so the next draw rebuilds it.
@@ -1409,7 +1416,9 @@ IMAGEP says the block holds an image, LINES how many lines it has and
 RUNNINGP that it is still being written, which is what a WHEN of
 `image', `lines' or `running' waits for."
   (with-memoization (gethash (list descriptors imagep (> (or lines 0) 0)
-                                   runningp)
+                                   runningp (display-graphic-p)
+                                   (frame-parameter nil 'font)
+                                   overblock-terminal-glyphs)
                              overblock--button-rows)
     (overblock--buttons descriptors imagep lines runningp)))
 

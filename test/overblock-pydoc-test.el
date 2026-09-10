@@ -382,6 +382,43 @@ prose, and a doc string of one line is the commonest of all."
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
 
+(ert-deftest overblock-pydoc-test-the-cache-does-not-outlive-a-narrowing ()
+  "A narrowing is a different question, and widening asks it again.
+The kept answer is for the whole buffer, and the guard read the
+bounds — which a narrowing makes equal to the accessible region.
+`buffer-chars-modified-tick' does not change when the buffer is
+widened, so the answer for one defun stood for the whole file and
+nothing outside it rendered again until the next edit."
+  (with-temp-buffer
+    (insert "def f():\n    \"\"\"One.\"\"\"\n\ndef g():\n    \"\"\"Two.\"\"\"\n")
+    (python-mode)
+    (font-lock-ensure)
+    (should (= (length (overblock-pydoc--strings (point-min) (point-max))) 2))
+    (narrow-to-region (point-min) 26)
+    (should (= (length (overblock-pydoc--strings (point-min) (point-max))) 1))
+    (widen)
+    (should (= (length (overblock-pydoc--strings (point-min) (point-max))) 2))))
+
+(ert-deftest overblock-pydoc-test-the-doc-strings-are-found-once ()
+  "The walk runs once while the buffer does not change.
+The live cycle re-arms from `post-command-hook', so a reader who only
+moves point asked the whole buffer again for an answer that cannot
+have changed."
+  (with-temp-buffer
+    (insert "def f():\n    \"\"\"One.\"\"\"\n\ndef g():\n    \"\"\"Two.\"\"\"\n")
+    (python-mode)
+    (font-lock-ensure)
+    (let ((walked 0))
+      (cl-letf* ((real (symbol-function 'overblock-pydoc--walk))
+                 ((symbol-function 'overblock-pydoc--walk)
+                  (lambda (&rest args) (setq walked (1+ walked)) (apply real args))))
+        (dotimes (_ 4) (overblock-pydoc--strings (point-min) (point-max)))
+        (should (= walked 1))
+        (goto-char (point-max))
+        (insert "# a comment\n")
+        (overblock-pydoc--strings (point-min) (point-max))
+        (should (= walked 2))))))
+
 (ert-deftest overblock-pydoc-test-a-unicode-blank-is-a-blank-line ()
   "A line of any kind of space is measured like any other line.
 `string-blank-p' reads [ \\t\\n\\r] and `[:blank:]' reads every space

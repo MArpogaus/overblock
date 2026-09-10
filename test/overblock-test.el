@@ -445,6 +445,45 @@ lines of the buffer invisible."
                                   (overlays-in (point-min) (point-max)))))
       (overblock-live-stop 'probe))))
 
+(ert-deftest overblock-test-a-button-row-is-kept-per-display ()
+  "The row a display draws is not the row another display draws.
+`overblock-glyph' answers by the kind of display, the frame font and
+`overblock-terminal-glyphs', so a row built from its answers is only
+good for those three.  Keyed without them, a daemon serving a graphic
+frame and an `emacsclient -nw' frame drew one row in both, and a
+plain `setq' of the option changed nothing — only
+`customize-set-variable' reaches the `:set' that empties the table."
+  (skip-unless (not (display-graphic-p)))
+  (let ((descriptors '((one ("\uEA76 " "x ") "first" ignore t))))
+    (overblock-forget-glyphs)
+    (let ((overblock-terminal-glyphs nil))
+      ;; a private use glyph is refused where the terminal is not
+      ;; trusted with the icons
+      (should (equal (substring-no-properties (overblock-buttons descriptors))
+                     "x  ")))
+    (let ((overblock-terminal-glyphs t))
+      (should (equal (substring-no-properties (overblock-buttons descriptors))
+                     "\uEA76  ")))
+    ;; and the first answer is still the first answer
+    (let ((overblock-terminal-glyphs nil))
+      (should (equal (substring-no-properties (overblock-buttons descriptors))
+                     "x  ")))))
+
+(ert-deftest overblock-test-a-button-row-is-built-once ()
+  "The row is built once for a question and read from the table after.
+The header of a running result asks five times a second."
+  (let ((descriptors '((one ("x ") "first" ignore t)))
+        (built 0))
+    (overblock-forget-glyphs)
+    (cl-letf* ((real (symbol-function 'overblock--buttons))
+               ((symbol-function 'overblock--buttons)
+                (lambda (&rest args) (setq built (1+ built)) (apply real args))))
+      (dotimes (_ 5) (overblock-buttons descriptors nil 3 t))
+      (should (= built 1))
+      ;; another question, another answer
+      (overblock-buttons descriptors nil 0 t)
+      (should (= built 2)))))
+
 (ert-deftest overblock-test-buttons-come-from-their-descriptors ()
   "The header shows the buttons of the option, in its order.
 A descriptor whose WHEN is `image' or `lines' waits for those."

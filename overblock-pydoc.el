@@ -276,8 +276,11 @@ has been on the screen, and a doc string below the window would
 otherwise be no doc string at all."
   ;; The whole buffer and nothing else is asked for by every caller
   ;; here, so that is what is kept.  A narrower question walks as it
-  ;; always did.
-  (if (and (= beg (point-min)) (= end (point-max)))
+  ;; always did — and a narrowing makes every question a narrow one,
+  ;; whatever the bounds say: `buffer-chars-modified-tick' does not
+  ;; change when the buffer is widened again, so the answer for one
+  ;; defun would have stood for the whole file.
+  (if (and (= beg (point-min)) (= end (point-max)) (not (buffer-narrowed-p)))
       (let ((tick (buffer-chars-modified-tick)))
         (unless (eql (car overblock-pydoc--strings-cache) tick)
           (setq overblock-pydoc--strings-cache
