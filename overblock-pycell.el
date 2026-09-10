@@ -80,11 +80,20 @@
 
 (defgroup overblock-pycell nil "Inline results for Python code cells." :group 'python)
 
+(defconst overblock-pycell--move-buttons
+  '((move-up ("" "⌃" "up") "Move this cell up"
+             overblock-pycell-move-cell-up t)
+    (move-down ("" "⌄" "down") "Move this cell down"
+               overblock-pycell-move-cell-down t))
+  "The pair that moves a cell, which every bar of a cell ends with.
+The trailing slots are the ones that fall in the same place whatever
+else a bar carries: measured, the pair leading sat at x=996 on a bar
+of four buttons and x=959 on one of five, and trailing it stands in
+one column down the window.")
+
 (defcustom overblock-pycell-result-buttons
   (append (overblock-run-result-buttons "cell" "image")
-          '((move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
-            (move-down ("" "⌄" "down") "Move this cell down"
-                       overblock-pycell-move-cell-down t)))
+          overblock-pycell--move-buttons)
   "The buttons on the header of a result, left to right.
 An entry is the shape `overblock-buttons' reads, and the five that
 every result carries come from `overblock-run-result-buttons', so a
@@ -98,11 +107,9 @@ this list: they say what the result is doing."
   :set #'overblock-run-set-buttons)
 
 (defcustom overblock-pycell-markdown-buttons
-  '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
-          overblock-pycell-md-edit t)
-    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
-    (move-down ("" "⌄" "down") "Move this cell down"
-               overblock-pycell-move-cell-down t))
+  (append '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
+          overblock-pycell-md-edit t))
+          overblock-pycell--move-buttons)
   "The buttons on the header of a rendered markdown cell.
 An entry is the shape `overblock-buttons' reads.  A markdown cell has
 no output, so `lines' and `image' say nothing here.
@@ -114,11 +121,9 @@ more icon to read."
   :set #'overblock-run-set-buttons)
 
 (defcustom overblock-pycell-source-buttons
-  '((render ("" "⟳" "render") "Render this markdown cell"
-            overblock-pycell-md-render-cell t)
-    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
-    (move-down ("" "⌄" "down") "Move this cell down"
-               overblock-pycell-move-cell-down t))
+  (append '((render ("" "⟳" "render") "Render this markdown cell"
+            overblock-pycell-md-render-cell t))
+          overblock-pycell--move-buttons)
   "The buttons on the bar of a markdown cell that shows its source.
 An entry is the shape `overblock-buttons' reads.  Such a cell is one
 just written, or one taken back to its source with `overblock-pycell-md-raw';
@@ -127,12 +132,10 @@ the third button renders it."
   :set #'overblock-run-set-buttons)
 
 (defcustom overblock-pycell-cell-buttons
-  '((run-above ("" "⇈" "above") "Run every cell above this one"
+  (append '((run-above ("" "⇈" "above") "Run every cell above this one"
                overblock-run-above t)
-    (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t)
-    (move-up ("" "⌃" "up") "Move this cell up" overblock-pycell-move-cell-up t)
-    (move-down ("" "⌄" "down") "Move this cell down"
-               overblock-pycell-move-cell-down t))
+    (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t))
+          overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
 An entry is the shape `overblock-buttons' reads.  A cell bar is drawn
 before the cell has run, so `lines' and `image' say nothing here.
