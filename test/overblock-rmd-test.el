@@ -163,6 +163,35 @@ the closing brace."
     (overblock-rmd-test--with-document (car case)
       (should (= (length (overblock-rmd-chunks)) (cdr case))))))
 
+(ert-deftest overblock-rmd-test-an-unclosed-chunk-keeps-the-next-header ()
+  "A chunk left unclosed does not swallow the chunk below it.
+The header of the next chunk is a fence too, and it was taken for the
+closing one: that line was hidden and its chunk had no bar and no way
+to run.  A closing fence says nothing after the backquotes, so a
+header can only open."
+  (overblock-rmd-test--with-mode
+      "```{r a}\n1\n\n```{r b}\n2\n```\n"
+    (let ((chunks (overblock-rmd-chunks)))
+      ;; both chunks are there, and neither line of source is hidden
+      (should (= (length chunks) 2))
+      (should (equal (mapcar (lambda (chunk)
+                               (line-number-at-pos (nth 0 chunk)))
+                             chunks)
+                     '(1 4)))
+      ;; the header of the second chunk is still on the screen; the
+      ;; fence that does close it is the one that is hidden
+      (should-not (seq-find (lambda (ov) (overlay-get ov 'invisible))
+                            (overlays-at (nth 0 (cadr chunks))))))))
+
+(ert-deftest overblock-rmd-test-a-chunk-still-being-typed-is-a-chunk ()
+  "An unclosed chunk at the end of the buffer has its code and a bar.
+The last line was read as the closing fence, so a file whose last line
+has no newline after it gave no chunk at all — nothing to run and
+nothing to run it from."
+  (overblock-rmd-test--with-document "```{r a}\nmean(x)"
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+      (should (equal (buffer-substring-no-properties beg end) "mean(x)")))))
+
 (ert-deftest overblock-rmd-test-a-chunk-name-is-the-word-knitr-reads ()
   "The word after the engine, where a comma or a brace ends it.
 An option written where a name would stand names nothing: knitr reads

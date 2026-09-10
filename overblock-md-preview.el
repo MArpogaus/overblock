@@ -73,6 +73,13 @@ a rendering they mean to edit."
 
 ;;;; Which regions
 
+(defconst overblock-md-preview-closing-fence-regexp
+  "^[[:blank:]]*\\(?:```+\\|~~~+\\)[[:blank:]]*$"
+  "What a line that closes a fenced block looks like.
+The fence alone: CommonMark lets an opening fence name its language
+and lets no closing fence say anything at all.  A caller that hides
+the fence of a block asks this before it hides a line.")
+
 (defun overblock-md-preview-fences (end)
   "Return the bounds of every fenced code block up to END.
 Each is a cons of the start of the opening fence line and the end of
@@ -80,26 +87,35 @@ the closing one.  Public because a caller that treats the fences as
 something other than markdown needs the same walk: `overblock-rmd'
 takes the R chunks of an Rmd file from it and runs them.
 
-A fence opens a block and the next fence of the same kind closes it,
-whatever blank lines stand between them, so the code inside is never
-cut in two — and the classic way to show a fenced block, three
-backquotes inside a ~~~ block, stays one block rather than three
-wrong ones.  A fence that is never closed runs to the end of the
-buffer, which is what a reader sees while they are still typing it."
+A fence opens a block and the next fence closes it, whatever blank
+lines stand between them, so the code inside is never cut in two.  The
+closing one is of the same kind and at least as long, as CommonMark
+has it, so the classic way to show a fenced block — three backquotes
+inside a ~~~ one, or inside a longer run of backquotes — stays one
+block rather than three wrong ones.
+
+A fence that names a language opens a block and closes none, and a
+line that opens one while a block of the same kind stands open ends
+that block where it is: an Rmd chunk left unclosed took the header of
+the chunk below it for its own closing fence, which hid that line and
+left its chunk with no bar and no way to run.  A fence that is never
+closed runs to the end of the buffer, which is what a reader sees
+while they are still typing it."
   (save-excursion
     (goto-char (point-min))
-    (let (regions open kind)
+    (let (regions open fence)
       (while (re-search-forward "^[[:blank:]]*\\(```+\\|~~~+\\)" end t)
-        (let ((this (match-string-no-properties 1)))
-          (cond ((null open)
-                 (setq open (pos-bol)
-                       ;; The kind and not the length: a closing fence
-                       ;; may be longer than the one that opened the
-                       ;; block, which CommonMark allows.
-                       kind (substring this 0 1)))
-                ((equal (substring this 0 1) kind)
-                 (push (cons open (pos-eol)) regions)
-                 (setq open nil kind nil)))))
+        (let ((this (match-string-no-properties 1))
+              (bare (looking-at-p "[[:blank:]]*$")))
+          (cond ((null open) (setq open (pos-bol) fence this))
+                ;; Of another kind, or shorter than the fence that
+                ;; opened the block: a line of what the block holds.
+                ((or (not (eq (aref this 0) (aref fence 0)))
+                     (< (length this) (length fence))))
+                (bare (push (cons open (pos-eol)) regions)
+                      (setq open nil fence nil))
+                (t (push (cons open (1- (pos-bol))) regions)
+                   (setq open (pos-bol) fence this)))))
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 

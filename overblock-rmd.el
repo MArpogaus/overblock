@@ -276,7 +276,21 @@ from a line that looks like one."
         (when (looking-at-p overblock-rmd-chunk-regexp)
           (forward-line 1)
           (let ((code-beg (point))
-                (code-end (save-excursion (goto-char (cdr fence)) (pos-bol))))
+                (code-end
+                 (save-excursion
+                   (goto-char (cdr fence))
+                   ;; The closing fence line is not code; where there
+                   ;; is none the code runs to the end of the buffer.
+                   ;; Taking the last line for a fence gave no chunk
+                   ;; at all — no bar and no way to run it — for the
+                   ;; chunk a reader is in the middle of writing when
+                   ;; the file ends without a newline.
+                   (if (save-excursion
+                         (goto-char (pos-bol))
+                         (looking-at-p
+                          overblock-md-preview-closing-fence-regexp))
+                       (pos-bol)
+                     (point)))))
             (when (< code-beg code-end)
               (push (list (car fence) code-beg code-end) chunks))))))
     (nreverse chunks)))
@@ -382,16 +396,20 @@ The overlay is one of this mode\'s bars, so `overblock-rmd--bars\' sweeps
 it away with the rest when the chunk it closes is gone."
   (save-excursion
     (goto-char close)
-    (let* ((bol (pos-bol))
-           (end (min (point-max) (1+ (pos-eol))))
-           (there (overblock-bar-in bol end))
-           (ov (if (eq (overblock-bar-kind there) 'chunk-end)
-                   there
-                 (make-overlay bol end nil t))))
-      (overlay-put ov 'evaporate t)
-      (overlay-put ov 'overblock-bar 'chunk-end)
-      (overlay-put ov 'invisible t)
-      (move-overlay ov bol end))))
+    ;; Only a line that is a fence and nothing else: a chunk left
+    ;; unclosed ends at the end of the buffer, and the reader's last
+    ;; line of code is not a fence to hide.
+    (when (looking-at-p overblock-md-preview-closing-fence-regexp)
+      (let* ((bol (pos-bol))
+             (end (min (point-max) (1+ (pos-eol))))
+             (there (overblock-bar-in bol end))
+             (ov (if (eq (overblock-bar-kind there) 'chunk-end)
+                     there
+                   (make-overlay bol end nil t))))
+        (overlay-put ov 'evaporate t)
+        (overlay-put ov 'overblock-bar 'chunk-end)
+        (overlay-put ov 'invisible t)
+        (move-overlay ov bol end)))))
 
 (defun overblock-rmd--bars ()
   "Bar the header of every R chunk, and drop the bars of what is not one.
