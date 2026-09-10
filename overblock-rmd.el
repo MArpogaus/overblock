@@ -100,6 +100,7 @@
 (require 'overblock-repl)
 (require 'overblock-md)
 (require 'overblock-md-preview)
+(require 'eieio)                        ; `eieio-declare-slots', `eieio-oset'
 (require 'ess-inf)
 (require 'ess-r-mode)
 (require 'seq)

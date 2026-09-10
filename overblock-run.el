@@ -1004,7 +1004,7 @@ was already open appeared to do nothing at all."
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
       (when overblock-run-backend
-        (mapc #'overblock-bar-stale (overblock-bars))
+        (overblock-bars-stale)
         (overblock-run-redraw)))))
 
 (defun overblock-run-result-at (event)
