@@ -79,18 +79,27 @@ Each is a cons of the start of the opening fence line and the end of
 the closing one.  Public because a caller that treats the fences as
 something other than markdown needs the same walk: `overblock-rmd'
 takes the R chunks of an Rmd file from it and runs them.
-A fence opens a block and the next one closes it, whatever blank lines
-stand between them, so the code inside is never cut in two.  A fence
-that is never closed runs to the end of the buffer, which is what a
-reader sees while they are still typing it."
+
+A fence opens a block and the next fence of the same kind closes it,
+whatever blank lines stand between them, so the code inside is never
+cut in two — and the classic way to show a fenced block, three
+backquotes inside a ~~~ block, stays one block rather than three
+wrong ones.  A fence that is never closed runs to the end of the
+buffer, which is what a reader sees while they are still typing it."
   (save-excursion
     (goto-char (point-min))
-    (let (regions open)
-      (while (re-search-forward "^[[:blank:]]*\\(```\\|~~~\\)" end t)
-        (if open
-            (progn (push (cons open (pos-eol)) regions)
-                   (setq open nil))
-          (setq open (pos-bol))))
+    (let (regions open kind)
+      (while (re-search-forward "^[[:blank:]]*\\(```+\\|~~~+\\)" end t)
+        (let ((this (match-string-no-properties 1)))
+          (cond ((null open)
+                 (setq open (pos-bol)
+                       ;; The kind and not the length: a closing fence
+                       ;; may be longer than the one that opened the
+                       ;; block, which CommonMark allows.
+                       kind (substring this 0 1)))
+                ((equal (substring this 0 1) kind)
+                 (push (cons open (pos-eol)) regions)
+                 (setq open nil kind nil)))))
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
