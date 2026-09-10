@@ -115,41 +115,14 @@
   :prefix "overblock-rmd-")
 
 (defcustom overblock-rmd-result-buttons
-  '((stop ("" "□" "stop") "Interrupt this chunk, and stop the pass"
-          overblock-run-interrupt running)
-    (save-image ("" "↧" "save") "Save the result's figure to a file"
-                overblock-run-save-image image)
-    (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)
-    (pop ("" "↗" "pop") "Show this result in its own buffer"
-         overblock-run-pop-output lines)
-    (discard ("" "✕" "drop") "Discard this result"
-             overblock-run-discard-output t))
+  (overblock-run-result-buttons "chunk" "figure")
   "The buttons on the header of a result, left to right.
-Each entry is (KEY GLYPHS HELP COMMAND WHEN):
-
-- KEY names the button for you, and nothing else reads it.
-- GLYPHS are the candidates for its label.  The first one the frame
-  can draw wins, and the last one always answers, so keep something
-  every display has at the end.  Three of them is the shape used
-  across this repository: a nerd glyph, a character an ordinary
-  monospace font has, and a short word for the display that has
-  neither.
-
-  Every nerd glyph here is a codicon, the set whose names begin
-  nf-cod- and which VS Code draws its own buttons with, and each one
-  means here what it means in `overblock-pycell-result-buttons': a
-  reader who moves between a `.py' notebook and an Rmd file reads the
-  same row.
-- HELP is the tooltip.
-- COMMAND runs on a click.
-- WHEN says when the button shows: t always, `image' only with a
-  figure in the result, `lines' only with output, `running' only while
-  the chunk runs.
-
-The same five buttons as `overblock-pycell-result-buttons' carries, less
-the pair that moves a cell: a chunk sits inside prose that reads about
-it.  The fold arrow and the spinner are not buttons of this list: they
-say what the result is doing."
+An entry is the shape `overblock-buttons' reads, and the five are
+`overblock-run-result-buttons', worded for a chunk: the row a reader
+sees here is the row the `.py' notebook shows, less the pair that
+moves a cell — a chunk sits inside prose that reads about it.  The
+fold arrow and the spinner are not buttons of this list: they say
+what the result is doing."
   :type overblock-button-type
   :set #'overblock-run-set-buttons)
 
@@ -158,7 +131,7 @@ say what the result is doing."
                overblock-run-above t)
     (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t))
   "The buttons on the bar of an R chunk, left to right.
-The entries read as in `overblock-rmd-result-buttons'.  A chunk bar is
+An entry is the shape `overblock-buttons' reads.  A chunk bar is
 drawn before the chunk has run, so `lines' says nothing here.
 
 Both glyphs are the ones `overblock-pycell-cell-buttons' uses for the
@@ -628,9 +601,6 @@ prompted, so nothing is ever waiting for one."
         :redraw #'overblock-rmd--bars
         :keymap overblock-rmd-result-map
         :buttons 'overblock-rmd-result-buttons
-        :fold #'overblock-run-toggle-output
-        :header-face 'overblock-bar
-        :output-face 'overblock-body
         :lines 'overblock-rmd-max-lines
         :chars 'overblock-rmd-max-line-length))
 

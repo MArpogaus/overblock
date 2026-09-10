@@ -61,9 +61,10 @@
 ;;
 ;;   :keymap       the keymap on it
 ;;   :buttons      the option that holds the button descriptors, a symbol
-;;   :fold         the command the fold mark runs
-;;   :header-face  the face of the bar
-;;   :output-face  the face of the body
+;;   :fold         the command the fold mark runs, `overblock-run-toggle-output'
+;;                 where the backend names none
+;;   :header-face  the face of the bar, `overblock-bar' where it names none
+;;   :output-face  the face of the body, `overblock-body' where it names none
 ;;   :lines        the option that says how many lines show, a symbol
 ;;   :chars        the option that says how long a line may be, a symbol
 ;;   :stale        what to do with the block when its region is edited,
@@ -200,9 +201,30 @@ the region printed nothing at all.  FOLDED, TOTAL, RUNTIME and STATE are
                                (overblock-glyph " " " ▸" " >")
                              (overblock-glyph " " " ▾" " v"))
                            "Fold or unfold this result"
-                           (plist-get overblock-run-backend :fold)))
+                           (or (plist-get overblock-run-backend :fold)
+                               #'overblock-run-toggle-output)))
         ;; nothing printed: every other case is above
         (t (overblock-glyph " " " ✓" " ."))))
+
+(defun overblock-run-result-buttons (unit picture)
+  "Return the five buttons every result header carries.
+UNIT is what a region is called in a tooltip — a cell, a chunk — and
+PICTURE what a picture in a result is called: an image, a figure.
+
+Both notebooks draw these five, in this order, from here.  A reader
+who moves between a `.py' file and an Rmd reads the same row, and a
+glyph changed here changes both; a notebook adds what only it has, as
+the pair that moves a cell, after them.  The shape of an entry is the
+one `overblock-buttons' reads."
+  `((stop ("" "□" "stop") ,(format "Interrupt this %s, and stop the pass" unit)
+          overblock-run-interrupt running)
+    (save-image ("" "↧" "save") ,(format "Save the result's %s to a file" picture)
+                overblock-run-save-image image)
+    (copy ("" "◫" "copy") "Copy this result" overblock-run-copy-output lines)
+    (pop ("" "↗" "pop") "Show this result in its own buffer"
+         overblock-run-pop-output lines)
+    (discard ("" "✕" "drop") "Discard this result"
+             overblock-run-discard-output t)))
 
 (defun overblock-run-header (folded total shown runtime state imagep)
   "Return the header bar of a result, drawn as this buffer's backend says.
@@ -222,7 +244,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
          (time (format "%.1fs" runtime)))
     (overblock-bar
      mark (string-join (delq nil (list label time)) " · ")
-     icons (or (plist-get overblock-run-backend :header-face) 'default))))
+     icons (or (plist-get overblock-run-backend :header-face) 'overblock-bar))))
 
 ;;;###autoload
 (defun overblock-run-clear-results ()
@@ -270,7 +292,7 @@ are and how many of them show, and the body is those that show."
                        (overblock-faced
                         (string-join shown "\n")
                         (or (plist-get overblock-run-backend :output-face)
-                            'default))))
+                            'overblock-body))))
       (overblock-refresh block))))
 
 (defun overblock-run-show (beg end text runtime &optional state total)

@@ -1308,10 +1308,45 @@ A left click calls COMMAND, and HELP becomes the tooltip."
 (defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.
 Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), the shape
-`overblock-button-type' asks customize for.  IMAGEP says the block
-holds an image, LINES how many lines it has and RUNNINGP that it is
-still being written; a descriptor whose WHEN is `image', `lines' or
-`running' waits for those."
+`overblock-button-type' asks customize for and every button option of
+every package here is written in:
+
+- KEY names the button for you, and nothing else reads it.
+- GLYPHS are the candidates for its label.  The first one the frame
+  can draw wins, and the last one always answers, so keep something
+  every display has at the end.  Three of them is the shape used
+  across this repository: a nerd glyph, a character an ordinary
+  monospace font has, and a short word for the display that has
+  neither — a word rather than a letter, because `u' and `d' say
+  nothing to a reader who has not read the list.  Ask the font about
+  the middle one before choosing it: measured, `⏫' is in none of
+  Source Code Pro, Liberation Mono or FiraCode Nerd Font, so a frame
+  without nerd glyphs fell all the way to the last candidate for that
+  button and to a symbol for every other.
+
+  Every nerd glyph here is a codicon, the set whose names begin
+  nf-cod- and which VS Code draws its own buttons with.  One family,
+  because it is the one whose shapes share a single hairline weight
+  and a single visual size: sets mixed, the notebook drew a heavy
+  filled arrow beside a thin outlined page.  A glyph the reader's own
+  nerd font is too old to carry is skipped by `overblock-glyph', so
+  the row falls to the symbol rather than drawing a box of hex digits.
+  No candidate of a bar is the candidate of another button of that
+  bar, or of a button that means something else on another bar: a
+  frame draws whichever row it can, and two buttons that came out the
+  same character would be one button to a reader.
+
+  A terminal takes the last candidate as well, unless
+  `overblock-terminal-glyphs' says its font carries the icons.
+- HELP is the tooltip.
+- COMMAND runs on a click.
+- WHEN says when the button shows: t always, `image' only with a
+  picture in the result, `lines' only with output, `running' only
+  while the region runs.
+
+IMAGEP says the block holds an image, LINES how many lines it has and
+RUNNINGP that it is still being written, which is what a WHEN of
+`image', `lines' or `running' waits for."
   (concat
    (string-join
     (seq-keep

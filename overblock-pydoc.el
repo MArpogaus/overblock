@@ -117,10 +117,7 @@ edge.  Nothing has to measure either.")
   '((edit ("\uea73" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
   "The buttons on the bar of a rendered doc string, left to right.
-Each entry is (KEY GLYPHS HELP COMMAND WHEN), the shape
-`overblock-buttons' reads: a key that names the button for you, the
-glyph candidates for its label, the tooltip, the command a click runs,
-and when it shows — t always.
+An entry is the shape `overblock-buttons' reads.
 
 One button, and a codicon like every other glyph of the layer: a
 click on the rendering already gives the source back where it stands,
