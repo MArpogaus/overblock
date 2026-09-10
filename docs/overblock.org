@@ -144,6 +144,16 @@ each other: in a terminal that draws no arrows, =^= for the button that
 pops something out and =^= for the one that moves something up would be
 the same button to a reader.
 
+A descriptor with no command is a slot and not a button:
+=overblock-gap= draws it as wide as the button would have been, in
+pixels where the display has them.  The buttons of a bar are held
+against its right edge, so a bar one button short of the bar a reader
+reads it beside puts every button of it one column further right — the
+run button of an R chunk stood in the column of a notebook cell's move
+button.  =overblock-rmd-chunk-buttons= and
+=overblock-rmd-result-buttons= therefore end in the two slots the
+notebook fills with its move buttons.
+
 Emacs can ask a font what it holds and a terminal nothing, so a
 terminal is given the plain last candidate of every list.  A reader
 whose terminal does carry the icon font sets
