@@ -131,3 +131,14 @@ $RECYCLE.BIN/
 ### This project ###
 # tool sandbox created by the Makefile
 /.sandbox/
+
+# report the scrolling test runner writes
+/scroll-report.txt
+/sweep.txt
+
+# Handed to the next worker, not kept here
+/findings.md
+/report.md
+
+# agent scratch: worktrees and session files
+/.claude/
