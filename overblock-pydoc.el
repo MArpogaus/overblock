@@ -304,16 +304,38 @@ otherwise be no doc string at all."
 
 ;;;; What to render them with
 
+(defconst overblock-pydoc--opening
+  "\\`\\([rRbBuUfF]*\\)\\(\"\"\"\\|'''\\|\"\\|'\\)"
+  "What opens a doc string: the letters that prefix it and its quotes.
+A doc string is written four ways — three double quotes, three single
+ones, or one of either — and any of them may carry `r', `b', `u' or
+`f' in either case.")
+
+(defun overblock-pydoc--opened-with (text)
+  "Return (PREFIX QUOTES) of the doc string TEXT, or nil for neither.
+What TEXT opens with is what it closes with and what a commit has to
+write back.  A commit that wrote three double quotes over an r-string
+turned a raw doc string into an ordinary one, where a backslash means
+something else: measured, an unchanged commit of a doc string reading
+r\"\"\"Match \\d+ digits.\"\"\" gave back a string with an invalid escape
+in it, and \\n, \\t and \\b in such a doc string become control
+characters."
+  (when (string-match overblock-pydoc--opening text)
+    (list (match-string 1 text) (match-string 2 text))))
+
 (defun overblock-pydoc--source (beg end)
   "Return the prose of the doc string BEG..END.
 The quotes go, and so does the indentation every line shares with the
 definition it belongs to: a doc string is written where the code stands
 and reads as prose one column from the left."
   (let* ((text (buffer-substring-no-properties beg end))
-         (bare (replace-regexp-in-string
-                "\\(?:\"\"\"\\|'''\\)\\'" ""
-                (replace-regexp-in-string
-                 "\\`[rRbBuUfF]*\\(?:\"\"\"\\|'''\\)" "" text)))
+         (quotes (nth 1 (overblock-pydoc--opened-with text)))
+         (bare (if quotes
+                   (string-remove-suffix
+                    quotes
+                    (substring text (+ (string-match (regexp-quote quotes) text)
+                                       (length quotes))))
+                 text))
          (lines (split-string bare "\n"))
          ;; The first line stands after the quotes and shares no
          ;; indentation with the rest, so the common indentation is
@@ -509,7 +531,11 @@ reader stops."
 The quotes go back on and every line but the first is indented to where
 the doc string stood, which is what Python\'s own tools expect of a doc
 string and what `overblock-pydoc--source\' took off."
-  (let* ((indent (save-excursion (goto-char beg) (current-indentation)))
+  (let* ((text (buffer-substring-no-properties beg end))
+         (opened (or (overblock-pydoc--opened-with text) '("" "\"\"\"")))
+         (prefix (nth 0 opened))
+         (quotes (nth 1 opened))
+         (indent (save-excursion (goto-char beg) (current-indentation)))
          (pad (make-string indent ?\s))
          (lines (split-string (string-trim-right prose) "\n"))
          (body (string-join (cons (car lines)
@@ -521,10 +547,19 @@ string and what `overblock-pydoc--source\' took off."
                             "\n")))
     (goto-char beg)
     (delete-region beg end)
+    ;; What the doc string opened with is what it gets back: the `r' of
+    ;; a raw string is part of the string and not decoration, and a
+    ;; commit that dropped it changed what every backslash in the prose
+    ;; means.
+    ;;
     ;; The closing quotes go on a line of their own where the doc
-    ;; string has more than one, which is how PEP 257 writes one.
-    (insert "\"\"\"" body
-            (if (cdr lines) (concat "\n" pad "\"\"\"") "\"\"\""))
+    ;; string has more than one, which is how PEP 257 writes one — and
+    ;; only for the triple quotes, because a one-quote string cannot
+    ;; hold a newline at all.
+    (insert prefix quotes body
+            (if (and (cdr lines) (= (length quotes) 3))
+                (concat "\n" pad quotes)
+              quotes))
     (overblock-pydoc--show beg (point))))
 
 ;;;###autoload
