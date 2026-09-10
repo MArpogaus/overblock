@@ -112,6 +112,12 @@ customize for — and =overblock-buttons= walks a list of them.  A
 descriptor names the glyph candidates rather than one glyph, because a
 terminal draws differently from a graphic frame.
 
+The five a result carries are not written here: they are
+=overblock-run-result-buttons=, worded for the unit the backend names,
+which is how a chunk of an Rmd file shows the same row.  The pair that
+moves a cell is this notebook's own, and every one of its four lists
+ends with it.
+
 The fold arrow and the spinner are not in those lists.  They are not
 buttons of the reader's choosing: they say what the result is doing.
 
