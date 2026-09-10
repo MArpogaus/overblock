@@ -216,6 +216,23 @@ reader could not tell it from a result with no output."
                       (list "before" overblock-test-common-image "after"))
                      (list "before" "[figure]" "after"))))))
 
+(ert-deftest overblock-pycell-test-md-an-empty-cell-renders-nothing ()
+  "A markdown cell with no body signals nothing and leaves nothing.
+A `# %% [markdown]' line with the next boundary under it is a cell
+just inserted.  `overblock-show' answers nil for a region of no
+length, and the caller went on to set a property on that nil: a
+signal from the idle timer, or from the comint filter where the
+backend's `:step' runs, which took the rest of the filters with it —
+and the bar overlay it had already made stayed on the line, with no
+render button and nothing able to sweep it."
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# %%\nprint(1)\n")
+    (python-mode)
+    (code-cells-mode)
+    (should-not (overblock-pycell--md-show 17 17))
+    (should-not (seq-filter #'overblock-bar-kind
+                            (overlays-in (point-min) (point-max))))))
+
 (ert-deftest overblock-pycell-test-md-an-edit-takes-the-bar-with-it ()
   "An edit of a rendered cell removes the rendering and its bar.
 The block evaporates with the text it covers, and the bar sits on the

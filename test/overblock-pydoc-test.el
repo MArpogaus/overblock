@@ -382,6 +382,26 @@ prose, and a doc string of one line is the commonest of all."
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
 
+(ert-deftest overblock-pydoc-test-a-unicode-blank-is-a-blank-line ()
+  "A line of any kind of space is measured like any other line.
+`string-blank-p' reads [ \\t\\n\\r] and `[:blank:]' reads every space
+Unicode has, so a line holding one non-breaking space passed the
+filter that drops blank lines and then answered nil to the question
+about its indentation — and the `min' over that nil signalled, out of
+mode-on, out of the idle timer, and out of the converter's process
+sentinel, which takes the rest of the sentinels with it.  A line
+pasted out of a browser is how a reader gets one."
+  (dolist (blank '("" " " "    " "\t" " " " " "　"))
+    (with-temp-buffer
+      (insert (format "def f():\n    \"\"\"Head.\n%s\n    Tail.\n    \"\"\"\n" blank))
+      (python-mode)
+      (font-lock-ensure)
+      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings (point-min)
+                                                                 (point-max)))))
+        (let ((source (overblock-pydoc--source beg end)))
+          (should (string-prefix-p "Head." source))
+          (should (string-suffix-p "Tail." source)))))))
+
 (ert-deftest overblock-pydoc-test-a-commit-keeps-the-quotes-it-found ()
   "An unchanged commit leaves the source exactly as it was.
 Every way of writing a doc string, prefix letters and all: the `r' of

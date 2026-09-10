@@ -340,13 +340,17 @@ and reads as prose one column from the left."
          ;; The first line stands after the quotes and shares no
          ;; indentation with the rest, so the common indentation is
          ;; measured on the lines that follow it.
-         (rest (seq-remove #'string-blank-p (cdr lines)))
-         (indent (if rest
-                     (apply #'min (mapcar (lambda (line)
-                                            (string-match-p "[^[:blank:]]"
-                                                            line))
-                                          rest))
-                   0)))
+         ;; One question, asked once: `string-blank-p' reads
+         ;; [ \t\n\r] and `[:blank:]' reads every space Unicode
+         ;; has, so a line of one non-breaking space passed the
+         ;; filter and then answered nil to the match — and `min'
+         ;; over a nil signalled, from mode-on, from the idle timer
+         ;; and from the converter's sentinel.  A line pasted out of
+         ;; a browser is how one gets there.
+         (indents (seq-keep (lambda (line)
+                              (string-match-p "[^[:blank:]]" line))
+                            (cdr lines)))
+         (indent (if indents (apply #'min indents) 0)))
     (string-trim-right
      (string-join (cons (string-trim (car lines))
                         (mapcar (lambda (line)

@@ -618,6 +618,17 @@ Only the word =markdown= of the boundary line carries the header, so
               ;; the boundary in the notebook meanwhile reached
               ;; `overblock-pycell--md-block' with no start for its bar.
               ((overblock-pycell--md-cell-start beg))
+              ;; A cell with nothing in it — one just inserted, a
+              ;; `# %% [markdown]' line with the next boundary under
+              ;; it — has no region to hang a block on, and
+              ;; `overblock-show' rightly answers nil for one.  It used
+              ;; to get here all the same, because an empty rendering
+              ;; is the empty string and not nil, and `--md-block' then
+              ;; asked the layer to set a property on nothing: a signal
+              ;; out of the idle timer, or out of the comint filter
+              ;; where the backend's `:step' runs, which took the rest
+              ;; of the filters with it and left the bar behind.
+              ((< beg end))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
                           (overblock-md-rendered
                            (overblock-pycell--md-uncomment
