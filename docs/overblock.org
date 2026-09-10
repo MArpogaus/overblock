@@ -138,7 +138,7 @@ capped.
 
 Every bar of every package here is one shape and one path: an icon, a
 space, a word for what the bar stands on, and the buttons at the right
-edge with one space between them.  =overblock-bar-left= puts the icon
+edge with one space between them.  =overblock--bar-left= puts the icon
 and the word together, =overblock-buttons= renders the buttons, and
 =overblock-bar= makes the row.  A bar that stands on a line of the
 buffer — a notebook cell's boundary line, an R chunk's header — goes

@@ -73,7 +73,7 @@ the original could: a vtable measures a header cell in the face of a
 header, so a copy shown in another face had its header squashed and its
 rows apart.
 
-=overblock-pycell-pop-output= does not copy that text.  It calls =vtable-insert=
+=overblock-run-pop-output= does not copy that text.  It calls =vtable-insert=
 with the table object, so the buffer holds a table that vtable drew for
 that window: sorting, narrowing and moving a column all work there.
 The block stays a fast, aligned, plain rendering; the buffer is where a
@@ -240,7 +240,7 @@ that keeps it cheap, are the runner's:
 [[file:overblock.org][the layer's notes]] carry the measurements.
 
 What this package answers there is what a prompt of IPython looks like
-and how to clean it away: =overblock-pycell--output-head= hands
+and how to clean it away: =overblock-run-output-head= hands
 =overblock-pycell-max-lines=, =overblock-pycell-max-line-length= and
 =overblock-pycell--clean= to that bounded read, and
 =overblock-pycell--clean= takes the prompts and the =Out[N]= labels off
@@ -297,7 +297,7 @@ reason are the layer's: [[file:overblock.org][the layer's notes]].
 
 These commands do pass: =scroll-up= and =scroll-down=, which move a
 page, and =next-line=, which moves point.  A folded block also
-passes.  =overblock-pycell-pop-output= shows the figure in a buffer of its own.
+passes.  =overblock-run-pop-output= shows the figure in a buffer of its own.
 
 ** The cost of a rendered markdown cell
 :PROPERTIES:
@@ -338,8 +338,8 @@ nerd font the bars are drawn in:
 
 | what                                   | before   | after    |
 |----------------------------------------+----------+----------|
-| =overblock-pycell--header=             | 0.338 ms | 0.231 ms |
-| =overblock-pycell--update=, whole tick | 0.378 ms | 0.298 ms |
+| drawing the bar of a cell              | 0.338 ms | 0.231 ms |
+| the whole tick                         | 0.378 ms | 0.298 ms |
 
 - The table is read off a text property that =overblock-repl-detach=
   left on the text, instead of being searched for in the output.  A

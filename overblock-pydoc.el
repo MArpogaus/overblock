@@ -61,6 +61,7 @@
 See `overblock-md-preview-idle', which this follows."
   :type 'number)
 
+;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)
 (defcustom overblock-pydoc-markup 'rst
   "The markup the doc strings of this buffer are written in.
 It says which command of `overblock-pydoc-command' renders them and

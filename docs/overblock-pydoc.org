@@ -171,16 +171,14 @@ number to the renderer; [[file:overblock-md.org][overblock-md's notes]]
 say what it does with it.
 
 Each block carries the width it was built for, and
-=overblock-pydoc--follow-width= compares that against the width of the
-moment on =window-size-change-functions= and
-=window-buffer-change-functions=.  The width of the moment alone is not
-enough: an edit committed from its own window renders the doc string
-while no window shows the buffer at all, and the width is nil then
-while the window's is what it always was.  So the buffer coming back
-into a window is what asks for that rendering again.
-
-Both hooks are global — they take a frame or a window, not a buffer —
-so they come off only when no buffer is left that wants them.
+=overblock--width-changed= compares that against the width of the
+moment on =window-configuration-change-hook= and
+=text-scale-mode-hook=; the layer keeps that watch for every package
+here.  The width of the moment alone is not enough: an edit committed
+from its own window renders the doc string while no window shows the
+buffer at all, and the width is nil then while the window's is what it
+always was.  So the buffer coming back into a window is what asks for
+that rendering again.
 
 ** When a bar is drawn again
 
