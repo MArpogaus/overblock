@@ -134,6 +134,7 @@ $RECYCLE.BIN/
 
 # report the scrolling test runner writes
 /scroll-report.txt
+/sweep.txt
 
 # agent scratch: worktrees and session files
 /.claude/
