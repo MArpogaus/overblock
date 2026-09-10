@@ -33,22 +33,7 @@
 
 (require 'ert)
 (require 'overblock-repl)
-
-(defconst overblock-repl-test--image
-  (propertize " " 'display '(image :type png :data "x"))
-  "A stand-in for what comint-mime inserts for an image.")
-
-(defun overblock-repl-test--vtable-text ()
-  "Return the text of a vtable, as comint-mime leaves one in the shell."
-  (with-temp-buffer
-    (make-vtable
-     :use-header-line nil
-     :columns (mapcar (lambda (name) (list :name name
-                                           :min-width (length name)
-                                           :align 'right))
-                      '("alpha" "beta_longer" "gamma"))
-     :objects '(("1" "22" "333") ("4444" "5" "66") ("7" "888" "9999")))
-    (buffer-string)))
+(require 'overblock-test-common)
 
 (ert-deftest overblock-repl-test-detach-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
@@ -74,7 +59,7 @@ A vtable aligns with stretches of pixels measured in the window that
 drew it, and it measures a header cell in the face of a header: a copy
 shown in another face had the header squashed and the rows apart."
   (skip-unless (fboundp 'make-vtable))
-  (let* ((clean (overblock-repl-detach (overblock-repl-test--vtable-text)))
+  (let* ((clean (overblock-repl-detach (overblock-test-common-vtable-text)))
          (lines (split-string (substring-no-properties clean) "\n")))
     ;; the header and one column start at the same place on every row
     (should (= (length lines) 4))

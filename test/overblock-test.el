@@ -33,10 +33,7 @@
 
 (require 'ert)
 (require 'overblock)
-
-(defconst overblock-test--image
-  (propertize " " 'display '(image :type png :data "x"))
-  "A stand-in for what comint-mime inserts for an image.")
+(require 'overblock-test-common)
 
 (defun overblock-test--pieces (beg end text)
   "Return the pieces a block hangs TEXT on over the region BEG..END."
@@ -44,7 +41,7 @@
 
 (ert-deftest overblock-test-image-in-finds-the-first-one ()
   "The first image of a result is found, and plain text has none."
-  (should (eq (car-safe (overblock-image-in (concat "a\n" overblock-test--image))) 'image))
+  (should (eq (car-safe (overblock-image-in (concat "a\n" overblock-test-common-image))) 'image))
   (should-not (overblock-image-in "just text")))
 
 (ert-deftest overblock-test-glyph-falls-back-to-the-last-candidate ()
@@ -112,7 +109,7 @@ swallows an image."
       ;; a body with an image moves off the display property and joins
       ;; the header on the anchor, where an image draws; the newline keeps
       ;; its own character, which is what lets a wheel pass the block
-      (overblock-set block :body (concat "B" overblock-test--image))
+      (overblock-set block :body (concat "B" overblock-test-common-image))
       (overblock-refresh block)
       (should-not (overlay-get nl 'display))
       (should (overblock-image-in (overlay-get block 'after-string))))))
@@ -737,7 +734,7 @@ and cannot be scrolled past at all."
     (unwind-protect
         (with-current-buffer buffer
           (set-window-buffer (selected-window) buffer)
-          (let ((line (concat "x" overblock-test--image)))
+          (let ((line (concat "x" overblock-test-common-image)))
             (let* ((overblock-image-height 0.5)
                    (fitted (overblock-image-cap line)))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
@@ -764,7 +761,7 @@ block the wheel cannot get past."
           (set-window-buffer (selected-window) elsewhere)
           (with-current-buffer offscreen
             (let* ((overblock-image-height 0.5)
-                   (line (concat "x" overblock-test--image))
+                   (line (concat "x" overblock-test-common-image))
                    (fitted (overblock-image-cap line)))
               (should-not (get-buffer-window offscreen t))
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)

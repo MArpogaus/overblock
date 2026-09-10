@@ -39,31 +39,13 @@
 ;;; Code:
 
 (require 'ert)
+(require 'overblock-test-common)
 (require 'overblock-pycell)
-
-(defun overblock-pycell-live-test--wait (predicate &optional seconds)
-  "Wait until PREDICATE answers non-nil and return that answer.
-Give up after SECONDS, thirty by default, and answer whatever the
-predicate says then."
-  (let ((deadline (+ (float-time) (or seconds 30))))
-    (while (and (not (funcall predicate)) (< (float-time) deadline))
-      (accept-process-output nil 0.05))
-    (funcall predicate)))
 
 (defun overblock-pycell-live-test--idle-p ()
   "Return non-nil while the shell is there and runs no cell."
   (when-let* ((proc (python-shell-get-process)))
     (not (buffer-local-value 'overblock-run--state (process-buffer proc)))))
-
-(defun overblock-pycell-live-test--results ()
-  "Return the result blocks of the buffer, in order."
-  (sort (overblock-in (point-min) (point-max) 'result)
-        (lambda (a b) (< (overlay-start a) (overlay-start b)))))
-
-(defun overblock-pycell-live-test--text (block)
-  "Return what the result BLOCK shows, without its properties."
-  (substring-no-properties
-   (or (plist-get (overblock-get block :data) :text) "")))
 
 (defmacro overblock-pycell-live-test--with-notebook (text &rest body)
   "Evaluate BODY in a notebook holding TEXT, wired for a real IPython.
@@ -98,11 +80,11 @@ exactly one such chunk: the commonest result of all read as a prompt."
   (overblock-pycell-live-test--with-notebook "# %%\nprint('one')\n"
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (overblock-pycell-eval-region beg end))
-    (should (overblock-pycell-live-test--wait
+    (should (overblock-test-common-wait
              (lambda () (and (overblock-pycell-live-test--idle-p)
-                             (overblock-pycell-live-test--results)))
+                             (overblock-test-common-results)))
              60))
-    (let* ((block (car (overblock-pycell-live-test--results)))
+    (let* ((block (car (overblock-test-common-results)))
            (text (plist-get (overblock-get block :data) :text)))
       (should (equal (substring-no-properties text) "one"))
       (dotimes (i (length text))
@@ -121,12 +103,12 @@ the shell stayed busy for the session."
     (let ((size (buffer-size)))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (overblock-pycell-eval-region beg end))
-      (should (overblock-pycell-live-test--wait
+      (should (overblock-test-common-wait
                (lambda () (and (overblock-pycell-live-test--idle-p)
-                               (overblock-pycell-live-test--results)))
+                               (overblock-test-common-results)))
                60))
-      (should (equal (overblock-pycell-live-test--text
-                      (car (overblock-pycell-live-test--results)))
+      (should (equal (overblock-test-common-text
+                      (car (overblock-test-common-results)))
                      "ro"))
       ;; the buffer was not written to
       (should (= (buffer-size) size)))))
@@ -136,16 +118,16 @@ the shell stayed busy for the session."
   (overblock-pycell-live-test--with-notebook
       "# %%\nprint('a')\n\n# %%\nraise ValueError('boom')\n\n# %%\nprint('never')\n"
     (overblock-pycell-restart-and-run-all)
-    (should (overblock-pycell-live-test--wait
+    (should (overblock-test-common-wait
              (lambda () (and (overblock-pycell-live-test--idle-p)
                              (null (overblock-run-queued))
-                             (= (length (overblock-pycell-live-test--results)) 2)))
+                             (= (length (overblock-test-common-results)) 2)))
              60))
-    (should (equal (overblock-pycell-live-test--text (car (overblock-pycell-live-test--results)))
+    (should (equal (overblock-test-common-text (car (overblock-test-common-results)))
                    "a"))
     (should (string-match-p "ValueError"
-                            (overblock-pycell-live-test--text
-                             (cadr (overblock-pycell-live-test--results)))))))
+                            (overblock-test-common-text
+                             (cadr (overblock-test-common-results)))))))
 
 (ert-deftest overblock-pycell-live-test-stop-works-while-the-last-cell-runs ()
   "`overblock-run-stop' during the last cell of a pass leaves nothing queued.
@@ -157,7 +139,7 @@ in.  The running cell runs to its end, and the pass ends clean."
       "# %%\nprint('a')\n\n# %%\nimport time; time.sleep(1)\n"
     (overblock-pycell-restart-and-run-all)
     ;; the last cell is the one running: nothing queued, one cell live
-    (should (overblock-pycell-live-test--wait
+    (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (python-shell-get-process)))
                  (and (null (overblock-run-queued))
@@ -167,10 +149,10 @@ in.  The running cell runs to its end, and the pass ends clean."
     ;; from another buffer, as a key bound in some other map would be
     (with-temp-buffer (overblock-run-stop))
     (should-not (overblock-run-queued))
-    (should (overblock-pycell-live-test--wait #'overblock-pycell-live-test--idle-p 60))
+    (should (overblock-test-common-wait #'overblock-pycell-live-test--idle-p 60))
     (should-not (overblock-run-queued))
     ;; the running cell was not cut short: both results arrived
-    (should (= (length (overblock-pycell-live-test--results)) 2))))
+    (should (= (length (overblock-test-common-results)) 2))))
 
 (provide 'overblock-pycell-live-test)
 ;;; overblock-pycell-live-test.el ends here
