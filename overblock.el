@@ -361,6 +361,8 @@ The newline that stays gets `overblock--newline-guard\'."
 
 (defun overblock--newline-guard (block at)
   "Return an overlay of BLOCK that draws the newline AT as a plain newline.
+Nil where AT is no newline: a file that ends without one has the
+reader\'s own last character there.
 The newline a cloak leaves to end the row above it keeps the text\'s own
 `display\', and indent-bars writes one on the newline of every blank
 line — a bar as deep as the indentation.  Measured, a hairline of the
@@ -368,14 +370,18 @@ bar\'s colour after every rendered doc string with a blank line in it.
 An overlay\'s display outranks the text\'s, and a newline is what the
 row wanted there.  Below the body a result hangs on the same newline,
 so a body wins where there is one."
-  (let ((ov (make-overlay at (1+ at) nil t)))
-    (overlay-put ov 'evaporate t)
-    (overlay-put ov 'overblock-part t)
-    (overlay-put ov 'display "\n")
-    (overlay-put ov 'priority -60)
-    ;; Part of the cloak to every reader that tells cloaks from pieces.
-    (overlay-put ov 'overblock-cloak t)
-    (overblock--dress block ov)))
+  ;; Only where a newline is: the last row of a buffer that ends
+  ;; without one is a character of the reader's text, and drawing that
+  ;; as a newline left a blank row under the last cell for good.
+  (when (eq (char-after at) ?\n)
+    (let ((ov (make-overlay at (1+ at) nil t)))
+      (overlay-put ov 'evaporate t)
+      (overlay-put ov 'overblock-part t)
+      (overlay-put ov 'display "\n")
+      (overlay-put ov 'priority -60)
+      ;; Part of the cloak to every reader that tells cloaks from pieces.
+      (overlay-put ov 'overblock-cloak t)
+      (overblock--dress block ov))))
 
 (defun overblock--lines (text)
   "Split TEXT into the lines that can stand on a row of their own.
@@ -538,7 +544,8 @@ region has anyway.  Those lines go under a cloak."
     (when cloak-from
       (push (overblock--cloak block cloak-from (1- end)) parts)
       (push (overblock--newline-guard block (1- end)) parts))
-    (nreverse parts)))
+    ;; Nils where a guard found no newline to draw.
+    (nreverse (delq nil parts))))
 
 (defun overblock--attach (block shown)
   "Show the header and the body of SHOWN after BLOCK.
