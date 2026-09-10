@@ -897,7 +897,8 @@ where it shows its source: its boundary line is left out here, and a
 bar left over from before the line said =[markdown]= goes."
   (save-excursion
     (let ((from (progn (goto-char (min start end)) (pos-bol)))
-          (to (progn (goto-char (max start end)) (pos-eol))))
+          (to (progn (goto-char (max start end)) (pos-eol)))
+          done)
       ;; The lines that carry a bar already: one of them may have
       ;; stopped being a boundary line, and its bar has to come down.
       ;; A question about the few lines with bars, not about every line
@@ -907,6 +908,7 @@ bar left over from before the line said =[markdown]= goes."
         (when-let* ((pos (overlay-start bar)))
           (goto-char pos)
           (forward-line 0)
+          (push (point) done)
           (overblock-pycell--bar-this-line)))
       ;; And the boundary lines themselves, searched for rather than
       ;; walked to: a `revert-buffer' or a jupytext round trip reports
@@ -919,7 +921,11 @@ bar left over from before the line said =[markdown]= goes."
       (while (and (< (point) to)
                   (re-search-forward code-cells-boundary-regexp to t))
         (forward-line 0)
-        (overblock-pycell--bar-this-line)
+        ;; Not a second time: a boundary line that already carried a
+        ;; bar was drawn by the loop above, and every call costs two
+        ;; more `overlays-in' queries and a label rebuilt.
+        (unless (memq (point) done)
+          (overblock-pycell--bar-this-line))
         (forward-line 1)))))
 
 (defun overblock-pycell--sole-bar (bol eol kinds)
