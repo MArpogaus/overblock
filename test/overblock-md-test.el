@@ -710,6 +710,30 @@ on the part before the break, and the rest is drawn as nothing."
     ;; the fragment that goes to LaTeX is the whole formula
     (should (equal (overblock-md--one-line "\\(x +\n  y\\)") "\\(x + y\\)"))))
 
+(ert-deftest overblock-md-test-two-display-formulas-both-arrive ()
+  "Two display formulas with a blank line between them are two formulas.
+The run of marks a fragment leaves may be broken over two rows by the
+fill, so a run crosses a newline — but only with marks on both sides
+of it.  The class that held the mark and the newline together was
+greedy and read both formulas as one run: the second was popped off
+nothing, dropped, and every fragment after it in the text came back as
+the one before it."
+  (skip-unless (overblock-md-program))
+  (let ((rendered (overblock-md-rendered "$$a+1$$\n\n$$b+2$$")))
+    (dolist (formula '("a+1" "b+2"))
+      (should (string-match-p (regexp-quote formula) rendered))))
+  ;; and three of them, which is where the shift showed
+  (let ((rendered (overblock-md-rendered "$$a+1$$\n\n$$b+2$$\n\n$$c+3$$")))
+    (dolist (formula '("a+1" "b+2" "c+3"))
+      (should (string-match-p (regexp-quote formula) rendered))))
+  ;; the run itself: marks on both sides of a newline are one fragment,
+  ;; marks with a blank line between them are two
+  (let ((mark (string overblock-md--math-mark)))
+    (should (string-match-p (concat "\\`" overblock-md--math-run "\\'")
+                            (concat mark mark "\n" mark)))
+    (should-not (string-match-p (concat "\\`" overblock-md--math-run "\\'")
+                                (concat mark "\n\n" mark)))))
+
 (ert-deftest overblock-md-test-a-terminal-reads-inline-math-on-one-line ()
   "A display without images gets inline math joined and undelimited.
 The converter wraps its own output, so a fragment carries whatever line
