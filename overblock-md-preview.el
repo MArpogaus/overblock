@@ -133,8 +133,11 @@ A caller that reads some of the buffer as something else sets this: in
 an Rmd file the fenced chunks are R and are run rather than rendered,
 so `overblock-rmd' answers with the prose alone.")
 
-(defun overblock-md-preview--regions (beg end)
+(defun overblock-md-preview--regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
+PROSE-ONLY leaves the fenced blocks out, which is what a caller whose
+fences hold code rather than markdown asks for: the chunks of an Rmd
+file go to R and are never rendered as prose.
 Each is a cons of where the block starts and where it ends.  A block is
 what markdown calls one: a fenced piece of code whole, and otherwise
 the run of lines between two blank ones.
@@ -149,16 +152,18 @@ the converter and the rendering is dealt back over its lines by
 
 Read from the top of the buffer whatever BEG says, because that is the
 only way to know whether BEG stands inside a fence."
-  (let ((fences (overblock-md-preview-fences end)))
+  (let* ((fences (overblock-md-preview-fences end))
+         (paragraphs (overblock-md-preview-paragraphs end fences)))
     (seq-filter (lambda (region)
                   (and (< (car region) (cdr region))
                        (<= beg (car region) end)))
-                ;; Two arguments and not `:key': the keyword form of
-                ;; `sort' is Emacs 30 and later, and this package asks
-                ;; for 29.1 — where it fails to compile at all.
-                (sort (append fences
-                              (overblock-md-preview-paragraphs end fences))
-                      (lambda (a b) (< (car a) (car b)))))))
+                (if prose-only
+                    paragraphs
+                  ;; Two arguments and not `:key': the keyword form of
+                  ;; `sort' is Emacs 30 and later, and this package asks
+                  ;; for 29.1 — where it fails to compile at all.
+                  (sort (append fences paragraphs)
+                        (lambda (a b) (< (car a) (car b))))))))
 
 ;;;; What to render them with
 
