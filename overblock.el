@@ -1183,9 +1183,7 @@ See `overblock--flatten-alignment' for why a copy needs them literal."
     (list (symbol :tag "Key")
           (repeat :tag "Glyph candidates" string)
           (string :tag "Tooltip")
-          (choice :tag "Command"
-                  (const :tag "An empty slot, nothing to press" nil)
-                  (function :tag "Command"))
+          (function :tag "Command")
           (choice :tag "Shows"
                   (const :tag "Always" t)
                   (const :tag "With an image" image)
@@ -1328,28 +1326,10 @@ still being written; a descriptor whose WHEN is `image', `lines' or
            ;; place a reader can press is two columns wide rather than
            ;; one: measured in a window of 1554 pixels, the boxes were
            ;; ten pixels wide with twenty pixels of nothing between them.
-           (let ((label (concat (apply #'overblock-glyph glyphs) " ")))
-             (if command
-                 (overblock-button label help command)
-               (overblock-gap label))))))
+           (overblock-button (concat (apply #'overblock-glyph glyphs) " ")
+                             help command))))
      descriptors)
     " ")))
-
-(defun overblock-gap (label)
-  "Return an empty slot as wide as LABEL would be drawn.
-A descriptor with no command is a slot and not a button: it holds the
-place of a button another bar has and this one has not, so that the
-same command sits in the same column on both.  The bars are held
-against the right edge, so a bar one button short of its sibling put
-every button of it one column further right.
-
-As wide as the label is drawn and not as wide as its characters count:
-an icon glyph is wider than a space in a graphic frame, and the slot
-would be too narrow by a few pixels a button."
-  (if (display-graphic-p)
-      (propertize " " 'display
-                  (list 'space :width (list (overblock--pixel-width label))))
-    (make-string (string-width label) ?\s)))
 
 (defconst overblock--pixel-width-takes-a-buffer
   (> (cdr (func-arity #'string-pixel-width)) 1)

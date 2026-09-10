@@ -123,14 +123,7 @@
     (pop ("" "↗" "pop") "Show this result in its own buffer"
          overblock-run-pop-output lines)
     (discard ("" "✕" "drop") "Discard this result"
-             overblock-run-discard-output t)
-    ;; Two empty slots where a notebook has its move buttons.  A bar
-    ;; holds its buttons against the right edge, so a bar two buttons
-    ;; short of its sibling put every button of it two columns further
-    ;; right: the run button of a chunk stood where the move button of
-    ;; a cell stands, and the two rows read as different rows.
-    (gap-move-up ("" "⌃" "up") "" nil t)
-    (gap-move-down ("" "⌄" "down") "" nil t))
+             overblock-run-discard-output t))
   "The buttons on the header of a result, left to right.
 Each entry is (KEY GLYPHS HELP COMMAND WHEN):
 
@@ -163,12 +156,7 @@ say what the result is doing."
 (defcustom overblock-rmd-chunk-buttons
   '((run-above ("" "⇈" "above") "Run every chunk above this one"
                overblock-run-above t)
-    (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t)
-    ;; The empty slots of `overblock-rmd-result-buttons', for the same
-    ;; reason: a chunk bar and a cell bar put the same command in the
-    ;; same column.
-    (gap-move-up ("" "⌃" "up") "" nil t)
-    (gap-move-down ("" "⌄" "down") "" nil t))
+    (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t))
   "The buttons on the bar of an R chunk, left to right.
 The entries read as in `overblock-rmd-result-buttons'.  A chunk bar is
 drawn before the chunk has run, so `lines' says nothing here.
@@ -177,9 +165,7 @@ Both glyphs are the ones `overblock-pycell-cell-buttons' uses for the
 same two commands.  A chunk has no move buttons: the cells of a `.py'
 notebook are its top level structure and moving one is an ordinary
 edit, while a chunk sits inside prose that reads about it, and moving
-the code away from its paragraph is not what the reader meant.  Their
-slots are kept empty all the same, so that the two notebooks draw the
-buttons they share in the same columns."
+the code away from its paragraph is not what the reader meant."
   :type overblock-button-type
   :set #'overblock-run-set-buttons)
 
