@@ -165,6 +165,11 @@ A URL that failed is not asked for again: a caller renders the same
 text again and again, and a document that opens with a badge would
 otherwise wait for the network every time.")
 
+(defconst overblock-md--url-regexp "\\`https?://"
+  "What an image source that names the network looks like.
+A relative path, an absolute one and a `file://' URL are all files to
+draw; only these are fetched, and only where the reader allows it.")
+
 (defun overblock-md--fetchable-p (url)
   "Return non-nil where URL is an image this session may go and get."
   (and overblock-md-remote-images
@@ -172,7 +177,7 @@ otherwise wait for the network every time.")
        ;; text whatever is fetched, and a batch session — the tests
        ;; among them — must not reach the network at all.
        (display-images-p)
-       (string-match-p "\\`https?://" url)
+       (string-match-p overblock-md--url-regexp url)
        ;; One that failed is not asked for twice in a session.
        (not (gethash url overblock-md--remote-failed))))
 
@@ -907,7 +912,7 @@ placeholder is an image and would swallow it."
      ;; `url-queue-retrieve' whatever this package decided, so the
      ;; option that says to ask the network for nothing asked anyway,
      ;; and the answer came long after the cell was rendered.
-     ((string-match-p "\\`https?://" src)
+     ((string-match-p overblock-md--url-regexp src)
       (insert (or alt "")))
      (t (shr-tag-img dom)))))
 
