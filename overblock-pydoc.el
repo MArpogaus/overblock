@@ -229,6 +229,7 @@ which is exactly what a block is supposed not to leave behind."
 
 (defun overblock-pydoc--string-end (start limit)
   "Return where the string that opens at START ends, at most LIMIT.
+Nil when it never ends: an unterminated doc string is not rendered.
 The syntax scan answers it: `parse-partial-sexp\' told to stop at the
 end of a string walks from inside this one to just past its closing
 quotes.  Not the end of what font lock painted, which is shorter — an
@@ -246,15 +247,19 @@ empty string."
     (let* ((fence (if (looking-at-p "\"\"\"\\|'''") 3 1))
            (inside (min limit (+ start fence)))
            (state (syntax-ppss inside)))
-      (if (nth 3 state)
-          (progn (parse-partial-sexp inside limit nil nil state 'syntax-table)
-                 ;; And two quotes more for a fence of three: the scan
-                 ;; ends the string at the first of the three closing
-                 ;; quotes, which is the same syntax the opening fence
-                 ;; is given.  Clamped, so an unterminated doc string
-                 ;; ends where the walk was told to stop.
-                 (min limit (+ (point) (1- fence))))
-        inside))))
+      (when (nth 3 state)
+        (let ((done (parse-partial-sexp inside limit nil nil state
+                                        'syntax-table)))
+          ;; Still in the string where the walk stopped: the closing
+          ;; quotes are not there, and a doc string that ends nowhere
+          ;; is not one to render.  Answered `limit' before, and the
+          ;; block was drawn over the rest of the file — the two lines
+          ;; under a half-typed """ among them.
+          (unless (nth 3 done)
+            ;; And two quotes more for a fence of three: the scan ends
+            ;; the string at the first of the three closing quotes,
+            ;; which is the same syntax the opening fence is given.
+            (min limit (+ (point) (1- fence)))))))))
 
 (defvar-local overblock-pydoc--strings-cache nil
   "The doc strings of this buffer and the tick they were found at.
@@ -297,10 +302,10 @@ otherwise be no doc string at all."
       (while (< pos end)
         (if (and (overblock-pydoc--doc-face-p pos)
                  (overblock-pydoc--opens-a-line-p pos))
-            (let ((finish (overblock-pydoc--string-end pos end))
-                  (start (overblock-pydoc--with-prefix pos)))
-              (push (cons start finish) found)
-              (setq pos (max finish (1+ pos))))
+            (let ((finish (overblock-pydoc--string-end pos end)))
+              (when finish
+                (push (cons (overblock-pydoc--with-prefix pos) finish) found))
+              (setq pos (max (or finish 0) (1+ pos))))
           (setq pos (or (next-single-property-change pos 'face nil end)
                         end))))
       (nreverse found))))

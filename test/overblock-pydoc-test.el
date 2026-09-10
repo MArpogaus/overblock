@@ -142,6 +142,22 @@ start reads the first two as an empty string."
       (should (equal (buffer-substring-no-properties (car first) (cdr first))
                      "\"\"\"The module.\"\"\"")))))
 
+(ert-deftest overblock-pydoc-test-an-unterminated-doc-string-is-left-alone ()
+  "A doc string whose closing quotes are missing is not rendered.
+Its bounds ran to the end of the buffer, so the code under a
+half-typed \"\"\" — the one the reader is still writing — went under one
+block of prose."
+  (with-temp-buffer
+    (insert "def f():\n    \"\"\"Whole.\"\"\"\n    return 1\n\n"
+            "def g():\n    \"\"\"Half a doc string.\n    return 2\n")
+    (python-mode)
+    ;; the sound one is found and the half-typed one is not
+    (should (equal (mapcar (lambda (region)
+                             (buffer-substring-no-properties
+                              (car region) (cdr region)))
+                           (overblock-pydoc--strings (point-min) (point-max)))
+                   '("\"\"\"Whole.\"\"\"")))))
+
 (defconst overblock-pydoc-test--mispaired
   "class A:
     \"\"\"A term's behavior, with a raw string r\"\"\"raw\"\"\" in the prose.
