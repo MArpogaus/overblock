@@ -623,6 +623,19 @@ never looked at."
     (let ((text "\\[\na = b\n\\]"))
       (should (equal (overblock-md-test--math text) text)))))
 
+(ert-deftest overblock-md-test-the-theme-hooks-wait-for-a-rendering ()
+  "Loading the file installs no hook; the first rendering installs two.
+A package of this repository does not change how Emacs behaves by
+being loaded, which the two notebook modes promise in their own
+docstrings, and a buffer that renders nothing needs no theme watch."
+  (let ((overblock-md--watching-themes nil)
+        (enable-theme-functions nil)
+        (disable-theme-functions nil))
+    (should-not (memq #'overblock-md--theme-changed enable-theme-functions))
+    (overblock-md--watch-themes)
+    (should (memq #'overblock-md--theme-changed enable-theme-functions))
+    (should (memq #'overblock-md--theme-changed disable-theme-functions))))
+
 (ert-deftest overblock-md-test-a-theme-change-draws-the-formulas-again ()
   "A rendering that holds a preview comes down when the theme changes.
 The preview is drawn in the foreground of the theme, so the one on the

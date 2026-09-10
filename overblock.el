@@ -1263,6 +1263,12 @@ descriptors, asked `overblock-glyph' for each candidate and built a
 button for each.  The descriptors are part of the key, so an option a
 reader sets answers for itself.")
 
+(defun overblock-bars-stale ()
+  "Mark every bar of this buffer stale, so the next draw rebuilds it.
+What a change that no bar can see for itself calls: another glyph,
+another list of buttons, a window of another width."
+  (mapc #'overblock-bar-stale (overblock-bars)))
+
 (defun overblock-forget-glyphs (&rest _)
   "Forget the glyphs answered so far, and draw the bars again.
 The rows of buttons built from those glyphs go too.
@@ -1273,7 +1279,7 @@ in a lambda that calls `set-default' first.  The ignored arguments are
 for a caller that hands it a hook's."
   (clrhash overblock--glyphs)
   (clrhash overblock--button-rows)
-  (mapc #'overblock-bar-stale (overblock-bars)))
+  (overblock-bars-stale))
 
 (defcustom overblock-terminal-glyphs nil
   "Whether this terminal draws the glyphs a graphic frame draws.
@@ -1544,7 +1550,7 @@ high, drawn again for nothing."
           (unless (eql columns (overlay-get block 'overblock-columns))
             (overblock-delete block))))
       (overblock-live--settle))
-    (mapc #'overblock-bar-stale (overblock-bars))
+    (overblock-bars-stale)
     (run-hooks 'overblock-width-functions)))
 
 (defun overblock--cut (text face room)
