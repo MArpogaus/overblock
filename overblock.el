@@ -1470,7 +1470,7 @@ comes off at a time."
       (setq cut (concat (substring cut 0 -2) "…")))
     cut))
 
-(defun overblock-bar-left (glyph label)
+(defun overblock--bar-left (glyph label)
   "Return the left of a bar: GLYPH, a space, LABEL.
 The one shape every bar of every package here is written in — an icon,
 a space, and a word for what the bar stands on.  A part that is empty
@@ -1513,8 +1513,11 @@ what no longer fits."
         (overblock-faced (concat left (make-string pad ?\s) icons) face)
       text)))
 
-(defun overblock-bar (left icons face &optional indent)
-  "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
+(defun overblock-bar (glyph label icons face &optional indent)
+  "Return a header line: GLYPH, LABEL, and ICONS at the right window edge.
+All of it in FACE.  GLYPH and LABEL are the one shape every bar here
+is written in and `overblock--bar-left' puts them together; ICONS is
+what `overblock-buttons' rendered.
 INDENT makes it a row of a rendering instead, drawn by
 `overblock--bar-padded': see there for why such a row is spaced with
 spaces and where the indent comes from.
@@ -1540,9 +1543,10 @@ while the reader looked at another buffer had its header cut to the
 width of that buffer's window — down to \" ▾…\" — and the cut stayed
 there when the notebook came back into a window of 160 columns, because
 nothing rebuilds the header after the cell has ended."
-  (if indent
-      (overblock--bar-padded left icons face indent)
-    (overblock--bar-stretched left icons face)))
+  (let ((left (overblock--bar-left glyph label)))
+    (if indent
+        (overblock--bar-padded left icons face indent)
+      (overblock--bar-stretched left icons face))))
 
 (defun overblock--bar-stretched (left icons face)
   "Return LEFT and ICONS in FACE, held apart by a stretch to the edge."
@@ -1618,7 +1622,7 @@ and the icons then sit beside the label instead of at the window edge."
   "Draw the bar of KIND on OV: GLYPH, LABEL, and ICONS at the edge.
 OV comes from `overblock-bar-over'.  KIND is the caller's own word for
 what this bar stands on, and `overblock-bar-kind' answers with it.
-GLYPH and LABEL are put together by `overblock-bar-left', and FACE
+GLYPH and LABEL are put together by `overblock--bar-left', and FACE
 defaults to `overblock-bar', which is what every bar here wears.
 
 Where nothing has changed the bar is left as it is: a caller draws from
@@ -1627,14 +1631,14 @@ build every bar it passes.  The text of the line is part of what is
 compared, because the label is usually written on it.  The width is
 not: `overblock--width-changed\' marks every bar stale when it moves."
   (let* ((face (or face 'overblock-bar))
-         (left (overblock-bar-left glyph label))
          (state (list (buffer-substring-no-properties (overlay-start ov)
                                                       (overlay-end ov))
-                      left icons face)))
+                      glyph label icons face)))
     (overlay-put ov 'overblock-bar kind)
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
-      (overlay-put ov 'overblock-bar-text (overblock-bar left icons face))
+      (overlay-put ov 'overblock-bar-text
+                   (overblock-bar glyph label icons face))
       (overblock--bar-wear ov (overlay-get ov 'overblock-bar-text)))))
 
 (defun overblock-bar-line (bol eol kind glyph label icons &optional face)

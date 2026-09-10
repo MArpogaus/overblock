@@ -82,7 +82,7 @@ A docstring here is what lies between two lines of three quotes."
      beg end
      :kind 'docmath
      :over (docmath--render (buffer-substring-no-properties beg end))
-     :header (overblock-bar "docstring" "" 'shadow)
+     :header (overblock-bar "" "docstring" "" 'shadow)
      :keymap (define-keymap "q" #'docmath-plain))))
 
 (defun docmath-plain ()

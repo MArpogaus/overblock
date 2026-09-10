@@ -303,7 +303,7 @@ the final icon wraps onto a line of its own.  The third column is for
 the ellipsis an outline fold hangs after the line: with `truncate-lines'
 off, which is Emacs's own default, every folded bar took two rows."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
-    (let* ((bar (overblock-bar "label" "^  x " 'shadow))
+    (let* ((bar (overblock-bar "" "label" "^  x " 'shadow))
            (spec (get-text-property
                   (next-single-property-change 0 'display bar)
                   'display bar)))
@@ -321,7 +321,7 @@ whether the row wraps: measured in one window at one width, the same bar
 drew all its icons when the buffer was opened and put the last one on
 a row of its own after the first command."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
-    (let* ((bar (overblock-bar "label" "^  x " 'shadow))
+    (let* ((bar (overblock-bar "" "label" "^  x " 'shadow))
            (spec (get-text-property
                   (next-single-property-change 0 'display bar)
                   'display bar))
@@ -350,7 +350,7 @@ room exactly still put the last icon on a row of its own."
                              (frame-char-width))
                     1))
            (bar (substring-no-properties
-                 (overblock-bar (make-string (* 4 room) ?x) icons 'default))))
+                 (overblock-bar "" (make-string (* 4 room) ?x) icons 'default))))
       ;; the icons are still there, the label is cut, and to the room
       (should (string-suffix-p icons bar))
       (should (string-search "…" bar))
@@ -359,7 +359,7 @@ room exactly still put the last icon on a row of its own."
       ;; a label that fits is left whole
       (should (string-prefix-p
                "ok" (substring-no-properties
-                     (overblock-bar "ok" icons 'default)))))))
+                     (overblock-bar "" "ok" icons 'default)))))))
 
 (ert-deftest overblock-test-a-bar-for-no-window-is-not-cut ()
   "A buffer in no window has its label left whole.
@@ -372,7 +372,7 @@ when the buffer came back."
       (should-not (get-buffer-window-list nil nil 'visible))
       (should (string-prefix-p
                label (substring-no-properties
-                      (overblock-bar label "uu" 'default)))))))
+                      (overblock-bar "" label "uu" 'default)))))))
 
 (ert-deftest overblock-test-pieces-carry-an-image ()
   "A piece with an image rides the before-string, the others a display.
@@ -802,14 +802,14 @@ own: measured in a terminal, a bar of four buttons took two rows at 16
 columns and one at 20.  A wrapped bar is two rows of almost nothing."
   (cl-letf (((symbol-function 'overblock-window-width) (lambda () 12)))
     (let ((bar (substring-no-properties
-                (overblock-bar "a long label indeed" "u  d  a  r " 'default))))
+                (overblock-bar "" "a long label indeed" "u  d  a  r " 'default))))
       (should (string-prefix-p "…" (string-trim bar)))
       (should-not (string-search "u" bar))
       (should-not (string-search "r" bar))))
   ;; and where they do fit, they are all there
   (cl-letf (((symbol-function 'overblock-window-width) (lambda () 400)))
     (let ((bar (substring-no-properties
-                (overblock-bar "label" "u  d  a  r " 'default))))
+                (overblock-bar "" "label" "u  d  a  r " 'default))))
       (should (string-search "u  d  a  r" bar))
       (should (string-prefix-p "label" bar)))))
 
