@@ -1265,8 +1265,12 @@ reader sets answers for itself.")
 
 (defun overblock-forget-glyphs (&rest _)
   "Forget the glyphs answered so far, and draw the bars again.
-A `:set' function for an option the answer depends on.  The rows of
-buttons built from those glyphs go too."
+The rows of buttons built from those glyphs go too.
+
+What an option that changes the answers calls, after setting itself:
+this sets nothing, which is why `overblock-terminal-glyphs' wraps it
+in a lambda that calls `set-default' first.  The ignored arguments are
+for a caller that hands it a hook's."
   (clrhash overblock--glyphs)
   (clrhash overblock--button-rows)
   (mapc #'overblock-bar-stale (overblock-bars)))
@@ -1612,9 +1616,11 @@ INDENT makes it a row of a rendering instead, drawn by
 spaces and where the indent comes from.
 The alignment is pixel-exact: icon glyphs render wider than
 `string-width' counts, and (N) in the display spec means N pixels.  A
-terminal gets two columns of slack there: a bar that runs into the last
-column makes the line a continuation, and the final icon wraps onto a
-line of its own.
+A terminal gets three columns of slack there and a graphic frame one
+character cell: a bar that runs into the last column makes the line a
+continuation and the final icon wraps onto a row of its own, and a
+terminal keeps one column more for the ellipsis an outline fold hangs
+after the line.  The stretch below says which and why.
 
 LEFT is cut where the icons leave no room for it, in pixels, because
 that is how it is drawn.  The stretch between the two collapses to
@@ -1622,9 +1628,9 @@ nothing once the label has passed its target, so a label of 48 columns
 in a window of 42 ran into the first icon and put the last two on a row
 of their own.
 
-The room is what `overblock-window-width' measures, less the icons and
-two columns of slack: one keeps the icons off the right edge, and one
-keeps the label off the icons.
+The room is what `overblock-window-width' measures, less the icons,
+the slack above and one character cell more, which keeps the label off
+the icons.
 
 A buffer in no visible window is not cut at all.  There is nothing to wrap
 in, and the cut is baked into the string: measured, a long cell running

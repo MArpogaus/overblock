@@ -4,9 +4,9 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
+;; Assisted-by: Claude:claude-fable-5
 ;; Version: 1.0
 ;; Package-Requires: ((emacs "29.1") (overblock "1.0") (latex-to-svg-backend "0.8"))
-;; Assisted-by: Claude:claude-fable-5
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/overblock
 
@@ -230,8 +230,10 @@ machine.  See `overblock-md--fetchable-p' for what is fetched at all."
 shr renders in a temporary buffer, so the current buffer says nothing;
 this is where a preview that arrives later has to be shown.")
 
-(defun overblock-md--redraw (prop)
-  "Drop the renderings of this buffer whose text carries PROP.
+(defun overblock-md--drop-and-settle (prop)
+  "Drop the renderings of this buffer whose text carries PROP, and settle.
+Nothing is drawn here — the live cycle draws, once the reader stops,
+which is what the settle asks for.
 `overblock-md-pending\' marks a formula shown as text because its
 image was still being made; `overblock-md-math\' one drawn in the
 colour of the theme.  The live cycle renders them again once the
@@ -252,7 +254,7 @@ and the cache is keyed by that colour: a theme change leaves every
 rendered formula in the old colour until it is rendered again."
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
-      (overblock-md--redraw 'overblock-md-math))))
+      (overblock-md--drop-and-settle 'overblock-md-math))))
 
 (add-hook 'enable-theme-functions #'overblock-md--theme-changed)
 (add-hook 'disable-theme-functions #'overblock-md--theme-changed)
@@ -288,7 +290,7 @@ is left to a timer."
     (dolist (buffer buffers)
       (when (buffer-live-p buffer)
         (with-current-buffer buffer
-          (overblock-md--redraw 'overblock-md-pending))))))
+          (overblock-md--drop-and-settle 'overblock-md-pending))))))
 
 (defun overblock-md--font-height (buffer)
   "Return the pixel height of the font BUFFER is shown in, or nil.

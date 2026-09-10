@@ -667,8 +667,19 @@ See `overblock-pycell--md-show', which renders and calls this."
          ;; on those lines, and the bar above them is not part of it.
          (block (overblock-show beg end
                                 :kind 'markdown
-                                ;; the bounds of the source, which
-                                ;; the block itself does not cover
+                                ;; Where the source of the cell is, for
+                                ;; the editor.  Markers and not
+                                ;; positions: an edit above the cell
+                                ;; moves the text without touching the
+                                ;; block, and the editor would then
+                                ;; open the wrong lines.
+                                ;; They outlive the block on purpose:
+                                ;; the click that opens the editor
+                                ;; takes the rendering down first, and
+                                ;; the editor reads them after that.
+                                ;; Freeing them with the block was
+                                ;; measured against the suite and
+                                ;; broke three of its tests.
                                 :data (cons (copy-marker beg)
                                             (copy-marker end t))
                                 :over text
