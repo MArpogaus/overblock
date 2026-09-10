@@ -56,7 +56,7 @@
 
 (require 'seq)
 (require 'subr-x)
-;; `overblock--flatten-alignment' reads a match with `prop-match-value'.
+;; `overblock-flatten-alignment' reads a match with `prop-match-value'.
 ;; `text-property-search-forward' is autoloaded and its accessors are
 ;; not, so the file otherwise compiles clean only when something else
 ;; has pulled the library in first.
@@ -850,6 +850,20 @@ While point stays in it the region is not rendered again, whatever
 `overblock-live-source-at-point\' says; `overblock-live--settle\' lets
 it go once point has left.")
 
+(defun overblock-live-drop-if (pred)
+  "Take down every live block of this buffer that PRED answers to.
+PRED is called with a block.  Nothing is drawn here: the live cycle
+draws once the reader has stopped, and that is what this asks for
+afterwards.  Public because a package that has a reason of its own to
+render again — a theme change, a preview that arrived — needs no view
+of the live cycle\'s own state to do it."
+  (when overblock-live--specs
+    (dolist (spec overblock-live--specs)
+      (dolist (block (overblock-in (point-min) (point-max) (car spec)))
+        (when (funcall pred block)
+          (overblock-delete block))))
+    (overblock-live--settle)))
+
 (defun overblock-live--settle (&rest _)
   "Render the buffer again once the reader has stopped.
 Point is never read here to *take* a rendering off — that is what
@@ -919,6 +933,7 @@ mode to take it down."
                 (> end (region-beginning)))
            (overblock-in beg end kind))))
 
+;;;###autoload
 (defun overblock-live-edit (&optional event)
   "Show the source of the region at point, or of the one EVENT clicked.
 The rendering comes down and the text is the reader\'s again; it is
@@ -1173,8 +1188,11 @@ number; a terminal's pixel is a column, a graphic frame's is
           ((and width (funcall chars width))
            (max 0 (funcall chars width))))))
 
-(defun overblock--flatten-alignment ()
+(defun overblock-flatten-alignment ()
   "Turn the space stretches of this buffer into real spaces.
+Public: a package that lays a rendering out for itself wants the
+columns literal too, and `overblock-flattened\' is only the string
+form of this.
 shr aligns table columns with `(space :align-to (N))' display specs,
 and vtable, which is how comint-mime shows a DataFrame, with
 `(space :width (N))'.  Both count from the window they were measured
@@ -1203,10 +1221,10 @@ it."
 
 (defun overblock-flattened (text)
   "Return TEXT with its space stretches as real spaces.
-See `overblock--flatten-alignment' for why a copy needs them literal."
+See `overblock-flatten-alignment' for why a copy needs them literal."
   (with-temp-buffer
     (insert text)
-    (overblock--flatten-alignment)
+    (overblock-flatten-alignment)
     (buffer-string)))
 
 ;;;; Bars, buttons and glyphs
