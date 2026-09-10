@@ -263,6 +263,36 @@ line came back as the first paragraph of every rendering."
         (accept-process-output nil 0.05)))
     (should (equal answered '("<p>the whole answer</p>")))))
 
+(ert-deftest overblock-md-test-an-answer-for-changed-text-is-dropped ()
+  "A rendering that came back after the reader typed is thrown away.
+The region moves with its markers, so the answer landed on the text
+the reader had just changed — and it stayed there, because nothing
+renders a region that carries a rendering already."
+  (skip-unless (executable-find "sh"))
+  (with-temp-buffer
+    (insert "one\n\ntwo\n")
+    (let ((overblock-md-command "sh -c cat")
+          (overblock-live-source-at-point nil)
+          (shown nil))
+      (unwind-protect
+          (progn
+            (overblock-live-start 'md-test #'ignore)
+            (overblock-md-render-regions
+             '((1 . 4) (6 . 9)) 'md-test
+             (lambda (beg end) (buffer-substring-no-properties beg end))
+             (lambda (beg end _html) (push (buffer-substring-no-properties
+                                            beg end)
+                                           shown)))
+            ;; the reader types in the first region while it converts
+            (goto-char 2)
+            (insert "X")
+            (let ((deadline (+ (float-time) 10)))
+              (while (and (null shown) (< (float-time) deadline))
+                (accept-process-output nil 0.05)))
+            ;; the region they left alone is rendered and theirs is not
+            (should (equal shown '("two"))))
+        (overblock-live-stop 'md-test)))))
+
 (ert-deftest overblock-md-test-a-nested-list-is-one-list ()
   "A list with a nested one in it renders as tall as its source.
 shr opens a paragraph — a blank line — before and after every list,

@@ -810,7 +810,10 @@ moment later, through `overblock-md-html-batch-async\'.
 
 `overblock-live-wanted-p\' says which regions want rendering, and says
 it again when the answer arrives: the reader has clicked, typed and
-moved on while the process ran.  Markers and not positions for the
+moved on while the process ran.  What they typed is looked at too —
+a region whose markdown is no longer what was sent keeps its text,
+since a rendering of the line before the edit would have stood there
+until the reader took it down by hand.  Markers and not positions for the
 same reason — a paragraph typed above the regions while the converter
 ran moved every one of them, and the renderings landed a paragraph too
 high.  Nothing happens where no converter is installed."
@@ -823,15 +826,27 @@ high.  Nothing happens where no converter is installed."
                                 (cons (copy-marker (car region))
                                       (copy-marker (cdr region) t)))
                               wanted)))
-    (overblock-md-html-batch-async
-     (mapcar (lambda (region) (funcall text (car region) (cdr region))) marked)
-     (lambda (htmls)
-       (dolist (region marked)
-         (let ((html (pop htmls)))
-           (when (overblock-live-wanted-p (car region) (cdr region) kind)
-             (funcall show (car region) (cdr region) html)))
-         (set-marker (car region) nil)
-         (set-marker (cdr region) nil))))))
+    (let ((sources (mapcar (lambda (region)
+                             (funcall text (car region) (cdr region)))
+                           marked)))
+      (overblock-md-html-batch-async
+       sources
+       (lambda (htmls)
+         (dolist (region marked)
+           (let ((html (pop htmls))
+                 (source (pop sources)))
+             (when (and (overblock-live-wanted-p (car region) (cdr region)
+                                                 kind)
+                        ;; And the text is the text that was sent: an
+                        ;; edit inside the region while the converter
+                        ;; ran left a rendering of what the reader had
+                        ;; just changed, and it stayed — nothing looks
+                        ;; at a region that carries a rendering again.
+                        (equal source
+                               (funcall text (car region) (cdr region))))
+               (funcall show (car region) (cdr region) html)))
+           (set-marker (car region) nil)
+           (set-marker (cdr region) nil)))))))
 
 (defun overblock-md--verbatim-math (md)
   "Return MD with its display-math blocks wrapped in <pre>.
