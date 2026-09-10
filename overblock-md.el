@@ -1085,13 +1085,21 @@ is a row of colour that stops in the middle of the block.
 A blank line wears no face and belongs to the run all the same where
 code stands on both sides of it — held back until a painted row follows,
 because the blank line that ends a block belongs to nothing."
+  ;; The three lists are built by `push' and turned round where they
+  ;; are read: grown from the head with `nconc', every line walked the
+  ;; whole accumulator, which is a rendering of 300 lines paying some
+  ;; 45000 needless steps on every render of every block.
   (let (rows run background held)
+    ;; The rows are padded to the widest of them, which does not care
+    ;; what order they are in, so a reversed run squares off to a
+    ;; reversed rectangle and nothing is turned round but the whole at
+    ;; the end.
     (cl-flet ((flush ()
                 (when run
-                  (setq rows (nconc rows (overblock-md--rectangle
-                                          run background))
+                  (setq rows (nconc (overblock-md--rectangle run background)
+                                    rows)
                         run nil))
-                (setq rows (nconc rows held) held nil)))
+                (setq rows (nconc held rows) held nil)))
       (dolist (line (split-string text "\n"))
         (let ((paint (and (> (length line) 0)
                           (overblock-md--background
@@ -1099,14 +1107,15 @@ because the blank line that ends a block belongs to nothing."
                                               'face line)))))
           (cond
            ((and paint (equal paint background))
-            (setq run (nconc run held (list line)) held nil))
+            (setq run (cons line (nconc held run)) held nil))
            (paint (flush) (setq background paint run (list line)))
            ((and run (string-blank-p line))
-            (setq held (nconc held (list line))))
+            (push line held))
            (t (flush)
-              (setq background nil rows (nconc rows (list line)))))))
+              (setq background nil)
+              (push line rows)))))
       (flush))
-    (string-join rows "\n")))
+    (string-join (nreverse rows) "\n")))
 
 (defun overblock-md-columns (&optional indent)
   "Return the columns a rendering has, INDENT of them spent on indenting.
