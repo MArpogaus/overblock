@@ -456,10 +456,17 @@ image, and the full stop after an inline formula on a row of its own."
 
 (defconst overblock-md--math-run
   (let ((mark (regexp-quote (string overblock-md--math-mark))))
-    (concat mark "\\(?:[" (string overblock-md--math-mark) "\n]*" mark "\\)?"))
+    (concat mark "+\\(?:\n" mark "+\\)*"))
   "What one stowed fragment looks like after the text has been laid out.
 A run of marks, which the fill may have broken over two rows: it is
-still the one fragment it was.")
+still the one fragment it was.
+
+A newline is part of the run only with marks on both sides of it.  The
+class that held the mark and the newline together was greedy, so it
+read two display formulas with a blank line between them as one run:
+measured, \"$$a+1$$\\n\\n$$b+2$$\" rendered as \"a+1\" and the second
+formula was dropped, and every fragment after it in that text came
+back as the one before it.")
 
 (defun overblock-md--unstow-math (text stowed)
   "Return TEXT with each run of marks replaced by what STOWED holds.
