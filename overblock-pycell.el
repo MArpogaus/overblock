@@ -237,8 +237,7 @@ variable has its value."
                 (> (match-end 0) 0)
                 (not (text-property-not-all 0 (match-end 0) 'display nil text)))
       (setq text (substring text (match-end 0))))
-    (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
-      (setq text (substring text 0 (match-beginning 0))))
+    (setq text (overblock-repl-strip-trailing-prompt text comint-prompt-regexp))
     ;; A plain python3 shell leaves a prompt on the same line after a
     ;; `sys.stdout.write' without a newline.  Take that one off.
     (when (string-match (concat "\\(?:" (string-remove-prefix

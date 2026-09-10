@@ -161,6 +161,22 @@ nothing that a face can move."
     (setcar lines (propertize (car lines) 'face 'bold))
     (string-join lines "\n")))
 
+(defun overblock-repl-strip-trailing-prompt (text prompt)
+  "Return TEXT without the PROMPT the shell left at the end of it.
+PROMPT is the shell's own prompt pattern — `comint-prompt-regexp' in
+an inferior Python, `inferior-ess-primary-prompt' in an R — and this
+takes off every copy of it that stands at the end, on a line of its
+own or after the last line's whitespace.  A result otherwise came back
+with a bare prompt under it.
+
+The pattern is built once: the loop shrinks TEXT on every turn, so it
+ends, and the two notebooks were both rebuilding the regexp inside
+it."
+  (let ((rx (concat "\n[ \t]*\\(?:" prompt "\\)[ \t\n]*\\'")))
+    (while (string-match rx text)
+      (setq text (substring text 0 (match-beginning 0))))
+    text))
+
 (defun overblock-repl-detach (text)
   "Return the part of TEXT a block shows, cut loose from the shell.
 The outer whitespace goes, except whitespace that carries a display

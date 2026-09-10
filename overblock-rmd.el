@@ -203,10 +203,8 @@ prompt tracebug wrote itself; this runs from that same filter, where
 the real value of that variable is therefore out of reach.  Measured: every
 result came back with a bare > on a line of its own."
   (let ((rx (concat "\\(?:" inferior-ess-primary-prompt "\\)")))
-    ;; The match is at least the newline the pattern opens with, so the
-    ;; text shrinks on every turn and the loop ends.
-    (while (string-match (concat "\n[ \t]*" rx "[ \t\n]*\\'") text)
-      (setq text (substring text 0 (match-beginning 0))))
+    (setq text (overblock-repl-strip-trailing-prompt
+                text inferior-ess-primary-prompt))
     ;; A prompt with nothing before it: the chunk printed nothing at
     ;; all, which is what an assignment does.
     (when (string-match-p (concat "\\`[ \t\n]*" rx "[ \t\n]*\\'") text)
