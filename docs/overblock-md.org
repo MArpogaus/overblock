@@ -199,8 +199,8 @@ one.  The whole block reaches the converter and the rendering is dealt
 back over its lines, a piece to a line.
 
 A block is a fenced piece of code whole, and otherwise the run of lines
-between two blank ones.  =overblock-md-preview--fences= finds the fences
-first, and =overblock-md-preview--paragraphs= then walks the buffer with
+between two blank ones.  =overblock-md-preview-fences= finds the fences
+first, and =overblock-md-preview-paragraphs= then walks the buffer with
 those bounds in hand: a fence is crossed in one jump, so a blank line
 inside one ends no paragraph.  Asked of every line instead, the
 question cost lines times fences — 64 milliseconds of every pass in a

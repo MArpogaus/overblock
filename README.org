@@ -850,8 +850,9 @@ of the cell needs, such as =TAB= for folding:
 | =overblock-pycell-cell-buttons=     | four buttons                      | the buttons on the bar of a code cell            |
 | =overblock-pycell-source-buttons=   | three buttons                     | the buttons on an unrendered markdown cell       |
 
-Zero is a legal value for both limits: =max-lines= of zero shows no
-output inline, and =max-line-length= of zero shows a line whole.
+Zero is a legal value for both limits, and means the same in each:
+=max-lines= of zero shows every line of the output inline, and
+=max-line-length= of zero shows a line whole.
 
 overblock-pycell renders through the layer and =overblock-md=, and
 their options shape what a block looks like: =overblock-image-height=
@@ -1081,8 +1082,9 @@ there, empty, so every key is free to bind:
 | =overblock-rmd-chunk-buttons=   | two buttons               | the buttons on the bar of a chunk                |
 | =overblock-rmd-result-buttons=  | five buttons              | the buttons on the header of a result            |
 
-Zero is a legal value for both limits: =max-lines= of zero shows no
-output inline, and =max-line-length= of zero shows a line whole.
+Zero is a legal value for both limits, and means the same in each:
+=max-lines= of zero shows every line of the output inline, and
+=max-line-length= of zero shows a line whole.
 
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=, as
 the other packages here write it, and a glyph means the same thing on a
@@ -1158,7 +1160,7 @@ And for the two notebooks:
 
 - A result block shows =overblock-pycell-max-lines=, or
   =overblock-rmd-max-lines=, of the output and no more.
-  =overblock-pycell-pop-output= shows the whole of it, and keeps up
+  =overblock-run-pop-output= shows the whole of it, and keeps up
   with a cell that is still printing; =overblock-rmd= has no such
   buffer.
 - One region runs at a time for each inferior process.  A cell or a
