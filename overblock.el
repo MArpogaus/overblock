@@ -1470,8 +1470,54 @@ comes off at a time."
       (setq cut (concat (substring cut 0 -2) "…")))
     cut))
 
-(defun overblock-bar (left icons face)
+(defun overblock-bar-left (glyph label)
+  "Return the left of a bar: GLYPH, a space, LABEL.
+The one shape every bar of every package here is written in — an icon,
+a space, and a word for what the bar stands on.  A part that is empty
+leaves no space of its own: a rule has neither and is a bare row."
+  (string-join (seq-remove #'string-empty-p (list glyph label)) " "))
+
+(defun overblock--bar-padded (left icons face indent)
+  "Return LEFT and ICONS in FACE as a row INDENT columns in.
+The row of a rendering rather than a line of its own, so the space
+between the two is made of spaces: what a block shows rides on a
+display property, and a display property inside a display string is
+swallowed — measured on a frame, both a
+`(space :align-to (- right ...))' and a `(space :width (N))' drew
+nothing at all and the rule the face draws stopped with the text
+halfway across the window.
+
+INDENT is the column the row begins at, which every row of a doc
+string's rendering does: the first hangs where the opening quote stood
+and the rest are indented to it.  Those columns are not the row's to
+fill — padded to the window's full width, the buttons of an indented
+doc string fell onto a row of their own, exactly as many columns over
+as the doc string was deep.
+
+The padding is counted in columns and measured in pixels: a nerd glyph
+draws wider than it counts, and a row padded by what its characters
+count overran the window and wrapped — measured, the buttons of a doc
+string's bar on the row below it, beside the first line of the prose.
+A column of slack, because a row that fills the last one wraps as
+well.  The row is built for the width of the moment, and the layer
+writes that width on the block so `overblock--width-changed' can drop
+what no longer fits."
+  (let* ((width (overblock-window-width))
+         (text (overblock-faced (concat left icons) face))
+         (cell (frame-char-width))
+         (pad (and width (floor (- width
+                                   (* (1+ indent) cell)
+                                   (overblock--pixel-width text))
+                                cell))))
+    (if (and pad (> pad 0))
+        (overblock-faced (concat left (make-string pad ?\s) icons) face)
+      text)))
+
+(defun overblock-bar (left icons face &optional indent)
   "Return a header line: LEFT text, ICONS at the right window edge, in FACE.
+INDENT makes it a row of a rendering instead, drawn by
+`overblock--bar-padded': see there for why such a row is spaced with
+spaces and where the indent comes from.
 The alignment is pixel-exact: icon glyphs render wider than
 `string-width' counts, and (N) in the display spec means N pixels.  A
 terminal gets two columns of slack there: a bar that runs into the last
@@ -1494,6 +1540,12 @@ while the reader looked at another buffer had its header cut to the
 width of that buffer's window — down to \" ▾…\" — and the cut stayed
 there when the notebook came back into a window of 160 columns, because
 nothing rebuilds the header after the cell has ended."
+  (if indent
+      (overblock--bar-padded left icons face indent)
+    (overblock--bar-stretched left icons face)))
+
+(defun overblock--bar-stretched (left icons face)
+  "Return LEFT and ICONS in FACE, held apart by a stretch to the edge."
   (let* (;; A column of slack, in a graphic frame as well as in a
          ;; terminal.  Without it the icons end at the right edge
          ;; exactly, and whether such a row wraps is decided by
@@ -1562,24 +1614,49 @@ and the icons then sit beside the label instead of at the window edge."
     (overlay-put ov 'overblock-bar t)
     ov))
 
-(defun overblock-bar-draw (ov kind label icons face)
-  "Draw the bar LABEL and ICONS on OV, of KIND, in FACE.
+(defun overblock-bar-draw (ov kind glyph label icons &optional face)
+  "Draw the bar of KIND on OV: GLYPH, LABEL, and ICONS at the edge.
 OV comes from `overblock-bar-over'.  KIND is the caller's own word for
 what this bar stands on, and `overblock-bar-kind' answers with it.
+GLYPH and LABEL are put together by `overblock-bar-left', and FACE
+defaults to `overblock-bar', which is what every bar here wears.
 
 Where nothing has changed the bar is left as it is: a caller draws from
 a change hook, and a walk over a long buffer would otherwise measure and
 build every bar it passes.  The text of the line is part of what is
 compared, because the label is usually written on it.  The width is
 not: `overblock--width-changed\' marks every bar stale when it moves."
-  (let ((state (list (buffer-substring-no-properties (overlay-start ov)
-                                                     (overlay-end ov))
-                     label icons face)))
+  (let* ((face (or face 'overblock-bar))
+         (left (overblock-bar-left glyph label))
+         (state (list (buffer-substring-no-properties (overlay-start ov)
+                                                      (overlay-end ov))
+                      left icons face)))
     (overlay-put ov 'overblock-bar kind)
     (unless (equal state (overlay-get ov 'overblock-bar-state))
       (overlay-put ov 'overblock-bar-state state)
-      (overlay-put ov 'overblock-bar-text (overblock-bar label icons face))
+      (overlay-put ov 'overblock-bar-text (overblock-bar left icons face))
       (overblock--bar-wear ov (overlay-get ov 'overblock-bar-text)))))
+
+(defun overblock-bar-line (bol eol kind glyph label icons &optional face)
+  "Draw the bar of KIND over the line BOL..EOL, and return its overlay.
+GLYPH, LABEL, ICONS and FACE are `overblock-bar-draw's.  Every bar
+that stands on a line of the buffer — the boundary line of a notebook
+cell, the header of an R chunk — is drawn through here.
+
+A bar of another kind on that line is not taken over: the bar of a
+rendered markdown cell belongs to its block, and drawing a code bar on
+it left the block holding an overlay that was no longer its own.
+
+The overlay is moved to the line every time, because text typed at the
+end of it falls outside: the bar then covered the line only as far as
+it reached when the line was shorter."
+  (let* ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
+         (ov (if (eq (overblock-bar-kind there) kind)
+                 there
+               (overblock-bar-over bol eol))))
+    (move-overlay ov bol eol)
+    (overblock-bar-draw ov kind glyph label icons face)
+    ov))
 
 (defun overblock--bar-wear (ov text)
   "Put TEXT on OV in place of the line, with room for the caret.

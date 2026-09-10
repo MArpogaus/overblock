@@ -387,22 +387,10 @@ the label is the chunk's name, or the language where it has none, as a
 code cell is called python."
   (save-excursion
     (goto-char open)
-    (let* ((bol (pos-bol))
-           (eol (pos-eol))
-           (there (overblock-bar-in bol (min (point-max) (1+ eol))))
-           (ov (if (eq (overblock-bar-kind there) 'chunk)
-                   there
-                 (overblock-bar-over bol eol))))
-      ;; Text typed at the end of the line is outside the overlay, and
-      ;; the bar then covered the header only as far as it reached when
-      ;; the line was shorter.
-      (move-overlay ov bol eol)
-      (overblock-bar-draw
-       ov 'chunk
-       (concat (overblock-glyph "" "◆" "R") " "
-               (or (overblock-rmd--chunk-name bol eol) "R"))
-       (overblock-buttons overblock-rmd-chunk-buttons)
-       'overblock-bar))))
+    (overblock-bar-line (pos-bol) (pos-eol) 'chunk
+                        (overblock-glyph "" "◆" "R")
+                        (or (overblock-rmd--chunk-name (pos-bol) (pos-eol)) "R")
+                        (overblock-buttons overblock-rmd-chunk-buttons))))
 
 (defun overblock-rmd--hide-fence (close)
   "Hide the closing fence line that begins at CLOSE.

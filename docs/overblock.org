@@ -136,6 +136,26 @@ capped.
 
 * The header bars
 
+Every bar of every package here is one shape and one path: an icon, a
+space, a word for what the bar stands on, and the buttons at the right
+edge with one space between them.  =overblock-bar-left= puts the icon
+and the word together, =overblock-buttons= renders the buttons, and
+=overblock-bar= makes the row.  A bar that stands on a line of the
+buffer — a notebook cell's boundary line, an R chunk's header — goes
+through =overblock-bar-line=, which finds or makes the overlay, moves
+it to the line and calls =overblock-bar-draw=; a bar that is a row of
+a rendering, as a doc string's is, calls =overblock-bar= with the
+column it is indented to.
+
+The two are one function because the row is the same row; they differ
+only in what holds the icons against the edge.  A line of the buffer
+gets a =(space :align-to (- right (N)))= stretch.  A row of a
+rendering cannot: it rides on a display property, and a display
+property inside a display string is swallowed — measured, both a
+stretch and a =(space :width (N))= drew nothing at all there — so
+=overblock--bar-padded= counts the room in pixels and pads it with
+spaces.
+
 =overblock-buttons= walks a list of descriptors.  A descriptor names
 the glyph candidates rather than one glyph, because =overblock-glyph=
 asks the frame which of them it can draw and a terminal answers

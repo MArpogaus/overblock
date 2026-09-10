@@ -289,52 +289,14 @@ rendering comes back indented and still rendered."
     (replace-regexp-in-string "\n" (concat "\n" (make-string indent ?\s))
                               text t t)))
 
-(defun overblock-pydoc--row (left icons face indent)
-  "Return a row of LEFT, ICONS at the window's edge, all in FACE.
-INDENT is the column the row begins at, which every row of a doc
-string's rendering does: the first hangs where the opening quote stood
-and the rest are indented to it.  Its columns are not the row's to
-fill — padded to the window's full width, the buttons of an indented
-doc string fell onto a row of their own, exactly as many columns over
-as the doc string was deep.
-Padded with spaces, and not with a stretch: what a block shows rides on
-a display property, and a display property inside a display string is
-swallowed — the same rule that keeps an image off one, written down in
-`overblock--piece\'.  Measured on a frame, both a
-`(space :align-to (- right ...))\' and a `(space :width (N))\' drew
-nothing at all, and the rule the face draws ended with the text
-halfway across the window.
-
-Spaces are counted in columns, so a nerd glyph that draws wider than it
-counts leaves the rule a column or two short of the edge.  The row is
-built for the width of the moment, and the layer writes that width on
-the block so `overblock--width-changed\' can drop what no longer fits."
-  (let* ((width (overblock-window-width))
-         (text (overblock-faced (concat left icons) face))
-         (cell (frame-char-width))
-         ;; In pixels, as `overblock-bar\' measures: a glyph the frame
-         ;; draws from the icon font is wider than a character cell, and
-         ;; a row padded by columns overran the window by a few pixels
-         ;; and wrapped — measured, the buttons of a doc string's bar
-         ;; on the row below it, beside the first line of the prose.
-         ;; A column of slack, because a row that fills the last one
-         ;; wraps as well.
-         (pad (and width (floor (- width
-                                   (* (1+ indent) cell)
-                                   (overblock--pixel-width text))
-                                cell))))
-    (if (and pad (> pad 0))
-        (overblock-faced (concat left (make-string pad ?\s) icons) face)
-      text)))
-
 (defun overblock-pydoc--bar (indent)
   "Return the bar above a rendered doc string, INDENT columns in.
 The glyph at the left, the buttons at the window's edge, and the rule of
 `overblock-bar\' over the whole row.  The glyph and no word: the prose
 under the bar says what it is."
-  (overblock-pydoc--row (concat (overblock-pydoc--glyph) " ")
-                        (overblock-buttons overblock-pydoc-buttons)
-                        'overblock-bar indent))
+  (overblock-bar (overblock-bar-left (overblock-pydoc--glyph) "")
+                 (overblock-buttons overblock-pydoc-buttons)
+                 'overblock-bar indent))
 
 (defun overblock-pydoc--glyph ()
   "Return the glyph that marks a doc string, as this frame draws it."
@@ -351,7 +313,7 @@ a blank line: the rule was trimmed away and the doc string had no
 footer at all."
   (concat (propertize "\N{ZERO WIDTH SPACE}"
                       'face 'overblock-pydoc-footer)
-          (overblock-pydoc--row "" "" 'overblock-pydoc-footer indent)))
+          (overblock-bar "" "" 'overblock-pydoc-footer indent)))
 
 (defun overblock-pydoc--sole (prose indent)
   "Return the one row PROSE is drawn on, INDENT columns in.
@@ -364,9 +326,9 @@ window\'s edge as they do there, and the row wears the bar\'s own face —
 a rule over it and none under.  Both rules on one row boxes it in, and
 a boxed line of prose among plain lines of code is a loud way to say
 very little."
-  (overblock-pydoc--row (concat (overblock-pydoc--glyph) " " prose " ")
-                        (overblock-buttons overblock-pydoc-buttons)
-                        'overblock-bar indent))
+  (overblock-bar (overblock-bar-left (overblock-pydoc--glyph) (concat prose " "))
+                 (overblock-buttons overblock-pydoc-buttons)
+                 'overblock-bar indent))
 
 (defun overblock-pydoc--dressed (prose indent &optional sole)
   "Return PROSE with its bars, indented by INDENT.

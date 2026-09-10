@@ -366,8 +366,8 @@ prose, and a doc string of one line is the commonest of all."
 Padded to the width of the window, the buttons of an indented doc
 string fell onto a row of their own, exactly as many columns over as
 the doc string was deep."
-  (let ((narrow (overblock-pydoc--row "a" "b" 'default 20))
-        (wide (overblock-pydoc--row "a" "b" 'default 0)))
+  (let ((narrow (overblock-bar "a" "b" 'default 20))
+        (wide (overblock-bar "a" "b" 'default 0)))
     ;; both are built for the same window, and the indented one is
     ;; shorter by what it is indented by
     (should (or (null (overblock-window-width))

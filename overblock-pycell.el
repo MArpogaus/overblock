@@ -677,12 +677,11 @@ the width, and the label of the bar does."
       (goto-char (overlay-start hov))
       (move-overlay hov (pos-bol) (pos-eol)))
     (overblock-bar-draw hov 'markdown
-                        (concat (overblock-glyph "" "◇" "md") " "
-                                (or (overblock-pycell--cell-title (overlay-start hov)
-                                                        (overlay-end hov))
-                                    "markdown"))
-                        (overblock-buttons overblock-pycell-markdown-buttons)
-                        'overblock-bar)))
+                        (overblock-glyph "" "◇" "md")
+                        (or (overblock-pycell--cell-title (overlay-start hov)
+                                                          (overlay-end hov))
+                            "markdown")
+                        (overblock-buttons overblock-pycell-markdown-buttons))))
 
 (defun overblock-pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
@@ -888,23 +887,12 @@ after what it holds."
 (defun overblock-pycell--bar-line (bol eol kind glyph plain buttons)
   "Draw the bar of KIND over the boundary line BOL..EOL.
 GLYPH is what stands in front of the label, PLAIN the label of a cell
-with no title of its own, and BUTTONS the buttons of the bar.  A bar of
-another kind on that line is not taken over: the bar of a rendered
-markdown cell belongs to its block, and drawing a code bar on it left
-the block holding an overlay that was no longer its own."
-  (let* ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
-         (ov (if (eq (overblock-bar-kind there) kind)
-                 there
-               (overblock-bar-over bol eol))))
-    ;; Text typed at the end of the line is outside the overlay, and the
-    ;; bar then covered a boundary line only as far as it reached when
-    ;; the line was shorter.
-    (move-overlay ov bol eol)
-    (overblock-bar-draw ov kind
-                        (concat glyph " " (or (overblock-pycell--cell-title bol eol)
-                                              plain))
-                        (overblock-buttons buttons)
-                        'overblock-bar)))
+with no title of its own, and BUTTONS the buttons of the bar.  The
+drawing is `overblock-bar-line', which every bar of every package
+here goes through; the title read off the line is this package's own."
+  (overblock-bar-line bol eol kind glyph
+                      (or (overblock-pycell--cell-title bol eol) plain)
+                      (overblock-buttons buttons)))
 
 (defun overblock-pycell--source-bar (bol eol)
   "Draw the bar of the markdown cell BOL..EOL that is showing its source.
