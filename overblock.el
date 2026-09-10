@@ -960,7 +960,13 @@ came off under the window made the text grow and shrink as they went."
   "Stop rendering the blocks of KIND in this buffer, and take them off.
 The hooks and the timer go with the last cycle of the buffer."
   (setq overblock-live--specs (assq-delete-all kind overblock-live--specs))
-  (overblock-clear (point-min) (point-max) kind)
+  ;; Nil and not the bounds of the buffer: under a narrowing those are
+  ;; the narrowed ones, and the mode is going — nothing would ever take
+  ;; the blocks outside the accessible region down again, cloaks
+  ;; holding lines invisible among them.  `overblock-run' has always
+  ;; asked this way; the mode-on path is already wrapped in
+  ;; `without-restriction'.
+  (overblock-clear nil nil kind)
   (unless overblock-live--specs
     (remove-hook 'post-command-hook #'overblock-live--settle t)
     (remove-hook 'window-configuration-change-hook #'overblock--width-changed t)

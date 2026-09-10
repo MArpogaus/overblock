@@ -108,6 +108,29 @@ buffer without running the body that would take the hooks down."
 
 ;;;; The chunk walk
 
+(ert-deftest overblock-md-preview-test-a-refusal-leaves-rmd-alone ()
+  "Refusing the mode over an Rmd buffer stops nothing.
+Both modes render prose through the live cycle of the kind
+`md-preview', so the else branch of this mode's body would have
+stopped the cycle `overblock-rmd-mode' is running: the prose
+renderings went, the settle came off `post-command-hook', and the Rmd
+mode stayed on with its lighter and its bars over prose that was
+never rendered again."
+  (skip-unless (fboundp 'markdown-mode))
+  (with-temp-buffer
+    (insert "Some prose.\n\n```{r one}\n1 + 1\n```\n\nMore prose.\n")
+    (markdown-mode)
+    (overblock-rmd-mode 1)
+    (unwind-protect
+        (progn
+          (should (assq 'md-preview overblock-live--specs))
+          (overblock-md-preview-mode 1)
+          (should-not overblock-md-preview-mode)
+          (should overblock-rmd-mode)
+          (should (assq 'md-preview overblock-live--specs))
+          (should (memq #'overblock-live--settle post-command-hook)))
+      (overblock-rmd-mode -1))))
+
 (ert-deftest overblock-rmd-test-the-walk-takes-the-r-chunks ()
   "Only the R chunks, and only the ones holding code."
   (overblock-rmd-test--with-document overblock-rmd-test--document
