@@ -174,6 +174,49 @@ a short one after them, which is where redisplay changes lines."
                               (overblock-in (point-min) (point-max) 'markdown)))
                      3))
           (should (equal (overblock-pycell-scroll-test--stalls) nil))
+          ;; The wheel goes one way from Emacs 30 on; see
+          ;; `overblock-pycell-scroll-test-one-way' for what 29 does.
+          (when (>= emacs-major-version 30)
+            (should (equal (overblock-pycell-scroll-test--reversals) nil))))
+      (kill-buffer buffer))))
+
+(ert-deftest overblock-pycell-scroll-test-one-way ()
+  "Scrolling up over a tall block never moves the window down.
+Emacs 29 does move it down, and the fault is `pixel-scroll.el''s, not
+this package's: its `pixel-scroll-precision-scroll-up-page' sets the
+window start and leaves point wherever its own walk put it, and where
+that is outside the window redisplay recenters — which puts the start
+back below where it was.  Measured on the CI, Ubuntu's Emacs 29.3 in a
+frame of 1032 by 697: the start jumped forward from line 39 to line 65
+at step 23 of the walk.
+
+Emacs 30 rewrote the function to end with \"Move point to a position
+where redisplay will not recenter, if it is now outside the window\",
+and the walk has gone one way since; the emacs-29 branch never took
+that fix.  So this asks Emacs 30 and later, and
+`overblock-pycell-scroll-test-defaults' asks every version whether the
+top is still reachable, which it is."
+  (skip-unless (display-graphic-p))
+  (skip-unless (overblock-md-program))
+  (skip-unless (>= emacs-major-version 30))
+  (let ((buffer (generate-new-buffer "*overblock-pycell one way*")))
+    (unwind-protect
+        (progn
+          (switch-to-buffer buffer)
+          (delete-other-windows)
+          (insert (overblock-pycell-scroll-test--source 2 14)
+                  "# %% [markdown]\n# A short one.\n\n# %%\nz = 3\n")
+          (python-mode)
+          (code-cells-mode)
+          (overblock-pycell-mode 1)
+          (let ((deadline (+ (float-time) 10)))
+            (while (and (seq-some (lambda (process)
+                                    (string-prefix-p "overblock-md"
+                                                     (process-name process)))
+                                  (process-list))
+                        (< (float-time) deadline))
+              (accept-process-output nil 0.05)))
+          (redisplay t)
           (should (equal (overblock-pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))
 

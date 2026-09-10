@@ -597,7 +597,13 @@ back to =python-shell-send-region=.
 
 The package does not change the scroll options.  With their default
 values the window moves through the blocks in one direction, and
-=make scroll= tests this.
+=make scroll= tests this — from Emacs 30 on.  Emacs 29 scrolls a block
+taller than the window and then recenters, so the wheel goes up and
+the window comes down a little: the fault is
+=pixel-scroll-precision-scroll-up-page='s, which leaves point outside
+the window, and Emacs 30 rewrote it to put point back before redisplay
+sees it.  The emacs-29 branch never took that fix, and nothing this
+package can do stands in for it.
 
 Two settings are yours to make:
 
