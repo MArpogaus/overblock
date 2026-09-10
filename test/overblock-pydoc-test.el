@@ -382,6 +382,29 @@ prose, and a doc string of one line is the commonest of all."
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
 
+(ert-deftest overblock-pydoc-test-a-commit-keeps-the-quotes-it-found ()
+  "An unchanged commit leaves the source exactly as it was.
+Every way of writing a doc string, prefix letters and all: the `r' of
+a raw string is part of the string, and a commit that wrote three
+double quotes over it turned `\\d' into an invalid escape and `\\n'
+into a newline.  A doc string in one quote came back in five."
+  (dolist (source '("def f():\n    r\"\"\"Match \\d+ digits.\"\"\"\n"
+                    "def f():\n    R\"\"\"Raw again.\"\"\"\n"
+                    "def f():\n    u\"\"\"Unicode.\"\"\"\n"
+                    "def f():\n    '''Single triple.'''\n"
+                    "def f():\n    \"One line.\"\n"
+                    "def f():\n    \"\"\"Plain.\n\n    More.\n    \"\"\"\n"))
+    (with-temp-buffer
+      (insert source)
+      (python-mode)
+      (font-lock-ensure)
+      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings (point-min)
+                                                                 (point-max)))))
+        (cl-letf (((symbol-function 'overblock-pydoc--show) #'ignore))
+          (overblock-pydoc--put beg end (overblock-pydoc--source beg end))))
+      (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                     source)))))
+
 (ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()
   "A row does not fill the columns its own indentation stands in.
 Padded to the width of the window, the buttons of an indented doc
