@@ -415,3 +415,14 @@ things:
 
 The test uses the default values of the scroll options.  The package
 does not change these options.
+
+The first of the three is asked of Emacs 30 and later only.  Emacs
+29's =pixel-scroll-precision-scroll-up-page= sets the window start and
+leaves point where its own walk put it; where that is outside the
+window redisplay recenters, and the start comes back down below where
+it was — measured on the CI, from line 39 to line 65 at step 23 of the
+walk, in a frame of 1032 by 697.  Emacs 30 ends the function with
+"Move point to a position where redisplay will not recenter, if it is
+now outside the window", and the walk has gone one way since; the
+emacs-29 branch never took that fix.  The other two are asked of every
+version, and the top of the buffer is reachable on 29 as well.
