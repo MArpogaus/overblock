@@ -1229,10 +1229,21 @@ and one header of six icons asked it twenty times, five times a second.
 Measured over a running cell, the header cost 0.71 milliseconds a tick
 and 0.27 with this table.")
 
+(defvar overblock--button-rows (make-hash-table :test #'equal)
+  "The icon row each set of descriptors and states draws.
+The header of a running result is built five times a second and its
+buttons change only when the option behind them, the image, the output
+or the running flag does; without this, every tick walked the
+descriptors, asked `overblock-glyph' for each candidate and built a
+button for each.  The descriptors are part of the key, so an option a
+reader sets answers for itself.")
+
 (defun overblock-forget-glyphs (&rest _)
   "Forget the glyphs answered so far, and draw the bars again.
-A `:set' function for an option the answer depends on."
+A `:set' function for an option the answer depends on.  The rows of
+buttons built from those glyphs go too."
   (clrhash overblock--glyphs)
+  (clrhash overblock--button-rows)
   (mapc #'overblock-bar-stale (overblock-bars)))
 
 (defcustom overblock-terminal-glyphs nil
@@ -1296,14 +1307,23 @@ several of them lead with a space, and a space always is."
 ;; whatever else would take it, and so does the drag: a command that
 ;; moves the text under the pointer — the move buttons do — turns the
 ;; release into a drag, and that drag left a region behind.
+(defvar overblock--button-keymaps (make-hash-table :test #'eq)
+  "The keymap each button command is pressed through.
+A keymap depends on nothing but the command, and the header of a
+running result is built five times a second: one `define-keymap' a
+button a tick, for a map that is always the same one.")
+
 (defun overblock-button (label help command)
   "Return LABEL as a button.
-A left click calls COMMAND, and HELP becomes the tooltip."
+A left click calls COMMAND, and HELP becomes the tooltip.  The keymap
+is kept per command in `overblock--button-keymaps'."
   (propertize label 'mouse-face 'highlight 'help-echo help
-              'keymap (define-keymap
-                        "<down-mouse-1>" command
-                        "<mouse-1>" #'ignore
-                        "<drag-mouse-1>" #'ignore)))
+              'keymap (with-memoization
+                          (gethash command overblock--button-keymaps)
+                        (define-keymap
+                          "<down-mouse-1>" command
+                          "<mouse-1>" #'ignore
+                          "<drag-mouse-1>" #'ignore))))
 
 (defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.
@@ -1347,6 +1367,14 @@ every package here is written in:
 IMAGEP says the block holds an image, LINES how many lines it has and
 RUNNINGP that it is still being written, which is what a WHEN of
 `image', `lines' or `running' waits for."
+  (with-memoization (gethash (list descriptors imagep (> (or lines 0) 0)
+                                   runningp)
+                             overblock--button-rows)
+    (overblock--buttons descriptors imagep lines runningp)))
+
+(defun overblock--buttons (descriptors imagep lines runningp)
+  "Return the icon group DESCRIPTORS ask for, built afresh.
+`overblock-buttons' is this behind a table; the arguments are its."
   (concat
    (string-join
     (seq-keep
