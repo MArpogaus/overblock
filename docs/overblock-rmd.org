@@ -190,7 +190,10 @@ exist.
 Every chunk header carries a bar in place of its own line — the overlay
 and the strings it hangs on are the layer's,
 [[file:overblock.org][its notes]] — with the label the chunk's name and
-the buttons =overblock-rmd-chunk-buttons=.
+the buttons =overblock-rmd-chunk-buttons=.  A result carries
+=overblock-run-result-buttons=, the five the Python notebook shows as
+well, worded for a chunk: one list, so a glyph changed there changes
+both files.
 
 =overblock-rmd-chunk-regexp= reads the engine name whole and then
 whatever may follow it: a blank before the name of the chunk, a comma
