@@ -48,6 +48,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'markdown-mode)
 (require 'overblock-rmd)
 
 (defun overblock-rmd-live-test--wait (predicate &optional seconds)
@@ -104,7 +105,10 @@ converter process a paragraph would only make them slow."
          (with-current-buffer buffer
            (insert ,text)
            (setq buffer-file-name "/tmp/overblock-rmd-live.Rmd")
-           (text-mode)
+           ;; `markdown-mode' and not `text-mode': the mode is for the
+           ;; prose of an Rmd file and refuses a buffer that holds
+           ;; something else, which `overblock-only-in' says.
+           (markdown-mode)
            (overblock-rmd-mode 1)
            (goto-char (point-min))
            ,@body)
