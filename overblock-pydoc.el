@@ -294,7 +294,7 @@ rendering comes back indented and still rendered."
 The glyph at the left, the buttons at the window's edge, and the rule of
 `overblock-bar\' over the whole row.  The glyph and no word: the prose
 under the bar says what it is."
-  (overblock-bar (overblock-bar-left (overblock-pydoc--glyph) "")
+  (overblock-bar (overblock-pydoc--glyph) ""
                  (overblock-buttons overblock-pydoc-buttons)
                  'overblock-bar indent))
 
@@ -313,7 +313,7 @@ a blank line: the rule was trimmed away and the doc string had no
 footer at all."
   (concat (propertize "\N{ZERO WIDTH SPACE}"
                       'face 'overblock-pydoc-footer)
-          (overblock-bar "" "" 'overblock-pydoc-footer indent)))
+          (overblock-bar "" "" "" 'overblock-pydoc-footer indent)))
 
 (defun overblock-pydoc--sole (prose indent)
   "Return the one row PROSE is drawn on, INDENT columns in.
@@ -326,7 +326,7 @@ window\'s edge as they do there, and the row wears the bar\'s own face —
 a rule over it and none under.  Both rules on one row boxes it in, and
 a boxed line of prose among plain lines of code is a loud way to say
 very little."
-  (overblock-bar (overblock-bar-left (overblock-pydoc--glyph) (concat prose " "))
+  (overblock-bar (overblock-pydoc--glyph) (concat prose " ")
                  (overblock-buttons overblock-pydoc-buttons)
                  'overblock-bar indent))
 

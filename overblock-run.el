@@ -221,7 +221,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                       ((not state) "no output")))
          (time (format "%.1fs" runtime)))
     (overblock-bar
-     (overblock-bar-left mark (string-join (delq nil (list label time)) " · "))
+     mark (string-join (delq nil (list label time)) " · ")
      icons (or (plist-get overblock-run-backend :header-face) 'default))))
 
 ;;;###autoload
