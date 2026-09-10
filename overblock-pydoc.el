@@ -256,6 +256,14 @@ empty string."
                  (min limit (+ (point) (1- fence))))
         inside))))
 
+(defvar-local overblock-pydoc--strings-cache nil
+  "The doc strings of this buffer and the tick they were found at.
+A cons of (TICK . STRINGS).  The live cycle re-arms from
+`post-command-hook', so a reader who only moves point pays the walk
+again for an answer that cannot have changed: measured in his
+configuration, 1.05 milliseconds a pause on 60 doc strings, and the
+walk is over the whole buffer whatever the reader touched.")
+
 (defun overblock-pydoc--strings (beg end)
   "Return the bounds of every doc string between BEG and END.
 Each is a cons of the position of the opening quote and the one after
@@ -266,6 +274,20 @@ Font lock says which strings are documentation — see
 them ends.  `font-lock-ensure\' first: jit lock has painted only what
 has been on the screen, and a doc string below the window would
 otherwise be no doc string at all."
+  ;; The whole buffer and nothing else is asked for by every caller
+  ;; here, so that is what is kept.  A narrower question walks as it
+  ;; always did.
+  (if (and (= beg (point-min)) (= end (point-max)))
+      (let ((tick (buffer-chars-modified-tick)))
+        (unless (eql (car overblock-pydoc--strings-cache) tick)
+          (setq overblock-pydoc--strings-cache
+                (cons tick (overblock-pydoc--walk beg end))))
+        (cdr overblock-pydoc--strings-cache))
+    (overblock-pydoc--walk beg end)))
+
+(defun overblock-pydoc--walk (beg end)
+  "Return the bounds of every doc string between BEG and END.
+`overblock-pydoc--strings' is this behind a cache."
   (font-lock-ensure beg end)
   (save-excursion
     (let ((pos beg) found)
