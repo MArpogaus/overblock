@@ -425,31 +425,52 @@ does not fit.  What the fill may still do is break the run itself, and
 `overblock-md--unstow-math\' reads a broken run as the one fragment it
 is.")
 
-(defun overblock-md--stow-math (page)
-  "Return PAGE with its LaTeX fragments taken out, and the fragments.
-The answer is (PAGE . FRAGMENTS), the fragments in the order the marks
-that stand for them appear in PAGE; `overblock-md--unstow-math' puts
-them back once shr has laid the text out.  Each is replaced by as many
-marks as its text is wide, so the fill knows how much room to leave."
-  (if (not (string-match-p "[$\\]" page))
-      (cons page nil)
-    (let (stowed)
-      (cons (replace-regexp-in-string
-             overblock-md--math-regexp
-             (lambda (frag)
-               ;; `save-match-data': `replace-regexp-in-string' reads
-               ;; the match back after this returns, and asking how
-               ;; wide the preview is goes all the way into the engine,
-               ;; which searches on its own account.  Measured with the
-               ;; engine in place: the marks were inserted and the
-               ;; fragment left standing beside them, so every formula
-               ;; showed its image and its own LaTeX next to it.
-               (save-match-data
-                 (push frag stowed)
-                 (make-string (max 1 (overblock-md--math-columns frag))
-                              overblock-md--math-mark)))
-             page t t)
-            (nreverse stowed)))))
+(defun overblock-md--stow-in-string (text)
+  "Return TEXT with its LaTeX fragments replaced by marks that carry them.
+Each fragment becomes as many marks as its text is wide, so the fill
+knows how much room to leave, and the fragment rides on them under
+`overblock-md--frag': `overblock-md--unstow-math' reads it back off
+the run rather than counting fragments off a list, so a fragment whose
+marks never reach the rendering — one in a comment, or in a link title
+shr drops — takes nothing with it."
+  (replace-regexp-in-string
+   overblock-md--math-regexp
+   (lambda (frag)
+     ;; `save-match-data': `replace-regexp-in-string' reads the match
+     ;; back after this returns, and asking how wide the preview is
+     ;; goes all the way into the engine, which searches on its own
+     ;; account.  Measured with the engine in place: the marks were
+     ;; inserted and the fragment left standing beside them, so every
+     ;; formula showed its image and its own LaTeX next to it.
+     (save-match-data
+       (propertize (make-string (max 1 (overblock-md--math-columns frag))
+                                overblock-md--math-mark)
+                   'overblock-md--frag frag)))
+   text t t))
+
+(defun overblock-md--stow-math (node)
+  "Take the LaTeX fragments of the parsed NODE out, in place.
+The text of a document is in its text nodes, so that is where a
+fragment is looked for: cut out of the HTML before it was parsed, the
+inline pattern spanned the tags between two dollars — measured,
+\"Set `$PWD` then use `$x$` in shell.\" lost a <code> pair and handed
+25 characters of prose to LaTeX.
+
+The text under <code> is left alone: what a fenced block or a span of
+code shows is what the writer wrote, dollars and all — and a fenced
+block is <pre><code> in every converter here, while the <pre> that
+`overblock-md--verbatim-math' wraps a display formula in has no
+<code> under it and keeps its preview."
+  (unless (eq (dom-tag node) 'code)
+    (let ((tail (dom-children node)))
+      (while tail
+        (let ((child (car tail)))
+          (cond ((stringp child)
+                 (when (string-match-p "[$\\]" child)
+                   (setcar tail (overblock-md--stow-in-string child))))
+                ((consp child) (overblock-md--stow-math child))))
+        (setq tail (cdr tail)))))
+  node)
 
 (defun overblock-md--math-columns (frag)
   "Return how many columns the LaTeX fragment FRAG will take once shown.
@@ -481,26 +502,31 @@ measured, \"$$a+1$$\\n\\n$$b+2$$\" rendered as \"a+1\" and the second
 formula was dropped, and every fragment after it in that text came
 back as the one before it.")
 
-(defun overblock-md--unstow-math (text stowed)
-  "Return TEXT with each run of marks replaced by what STOWED holds.
+(defun overblock-md--unstow-math (text)
+  "Return TEXT with each run of marks replaced by the fragment it carries.
 A fragment comes back as its preview image where one can be made and
 drawn, and as its own text where it cannot — with the MathJax
 delimiters off, since those say nothing to a reader.
+
+The fragment rides on the marks under `overblock-md--frag', put there
+by `overblock-md--stow-math'.  Read off the run and not counted off a
+list: a fragment shr never draws — one inside an HTML comment, one in
+the title of a link — left no run behind, and every later formula in
+the text then showed the one before it and the last was dropped.
 
 A run inside a table comes back as text of exactly the width the marks
 took: a table is laid out in columns of characters, and a preview image
 is never as wide as the text it replaces, so a formula in a cell would
 pull the columns of its row out of line."
-  (let ((rest stowed))
-    (replace-regexp-in-string
-     overblock-md--math-run
-     (lambda (marks)
-       (save-match-data
-         (let* ((frag (or (pop rest) ""))
-                (table (get-text-property 0 'overblock-md--table marks))
-                (image (and (display-images-p)
-                            (overblock-md--latex-image
-                             (overblock-md--one-line frag)))))
+  (replace-regexp-in-string
+   overblock-md--math-run
+   (lambda (marks)
+     (save-match-data
+       (let* ((frag (or (get-text-property 0 'overblock-md--frag marks) ""))
+              (table (get-text-property 0 'overblock-md--table marks))
+              (image (and (display-images-p)
+                          (overblock-md--latex-image
+                           (overblock-md--one-line frag)))))
            (cond
             ((eq image 'pending)
              ;; Standing in for a preview on its way: the rendering is
@@ -534,7 +560,7 @@ pull the columns of its row out of line."
              (overblock-md--fit
               (overblock-md--bare-math (overblock-md--as-text frag)) marks
               table))))))
-     text t t)))
+   text t t))
 
 (defun overblock-md--place-in-cell (frag image marks)
   "Return FRAG drawing IMAGE in a table cell, as wide as MARKS were.
@@ -813,15 +839,32 @@ Whatever the display can draw, because a fragment stays text for more
 reasons than that: a display can draw images and still have no LaTeX
 to make one with, and a fragment LaTeX cannot compile stays text on
 any display.  The wrapping costs a preview nothing, since the block is
-matched across its lines and replaced whole."
+matched across its lines and replaced whole.
+
+Not inside a fenced block: what a fence holds is shown as it was
+written, and the wrapper came out as literal <pre> tags in a document
+whose subject is display math."
   ;; A cell without display math is the common one, and the replacement
   ;; would copy it twice to find that out.
   (if (not (string-search "$$" md))
       md
-    (replace-regexp-in-string
-     "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$"
-     "<pre>$$\n\\1$$</pre>"
-     md)))
+    (with-temp-buffer
+      (insert md)
+      (goto-char (point-min))
+      (let ((fence "^[ \t]*\\(?:```\\|~~~\\)"))
+        (while (re-search-forward "^\\$\\$\n\\(\\(?:.*\n\\)*?\\)\\$\\$$" nil t)
+          (let ((beg (match-beginning 0))
+                (end (match-end 0))
+                (body (match-string 1)))
+            ;; An odd number of fence lines above it means this block
+            ;; stands inside one.
+            (unless (cl-oddp (save-excursion
+                               (goto-char beg)
+                               (count-matches fence (point-min) (point))))
+              (delete-region beg end)
+              (goto-char beg)
+              (insert "<pre>$$\n" body "$$</pre>")))))
+      (buffer-string))))
 
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
@@ -1163,13 +1206,10 @@ without a converter has to see."
   (when-let* ((page (or html (overblock-md--html
                               (overblock-md--verbatim-math md)))))
     (let* ((overblock-md--buffer (current-buffer))
-           (stowed (overblock-md--stow-math page))
-           (dom (with-temp-buffer
-                  ;; The math is taken out first: shr fills at the
-                  ;; spaces it finds, and a formula it breaks is a
-                  ;; formula nothing recognizes afterwards.
-                  (insert (car stowed))
-                  (libxml-parse-html-region (point-min) (point-max))))
+           (dom (overblock-md--stow-math
+                 (with-temp-buffer
+                   (insert page)
+                   (libxml-parse-html-region (point-min) (point-max)))))
            (shr-use-fonts nil)
            ;; In columns, because `shr-use-fonts' is off above.
            (shr-width overblock-md-width)
@@ -1212,8 +1252,7 @@ without a converter has to see."
         (overblock-image-cap
          (overblock-md--squared
           (overblock-md--unstow-math
-           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+")
-           (cdr stowed))))))))
+           (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here

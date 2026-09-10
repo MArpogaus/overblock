@@ -55,11 +55,10 @@
 
 (defun overblock-md-test--math (text)
   "Return TEXT with its LaTeX fragments taken out and put back.
-The renderer takes the fragments out of the HTML before shr lays it
-out and puts them back after; this does both in one step, which is what
-the fragments themselves see."
-  (let ((stowed (overblock-md--stow-math text)))
-    (overblock-md--unstow-math (car stowed) (cdr stowed))))
+The renderer takes the fragments out of the parsed document and puts
+them back once shr has laid it out; this does both to a string, which
+is what the fragments themselves see."
+  (overblock-md--unstow-math (overblock-md--stow-in-string text)))
 
 (ert-deftest overblock-md-test-image-file-reads-a-path ()
   "A local path names a file; another scheme, or nothing readable, does not.
@@ -723,6 +722,54 @@ on the part before the break, and the rest is drawn as nothing."
     ;; the fragment that goes to LaTeX is the whole formula
     (should (equal (overblock-md--one-line "\\(x +\n  y\\)") "\\(x + y\\)"))))
 
+(ert-deftest overblock-md-test-math-is-taken-out-of-the-parsed-document ()
+  "A dollar pattern cannot span the tags of the document any more.
+The fragments were cut out of the HTML before it was parsed, and the
+inline pattern only forbids a space beside a delimiter, so any tag
+between two dollars closed the gap: `Set `$PWD` then use `$x$`' lost
+a <code> pair and handed 25 characters of prose to LaTeX.  Text nodes
+end at a tag, so the pattern cannot reach across one."
+  (skip-unless (overblock-md-program))
+  (let ((rendered (substring-no-properties
+                   (overblock-md-rendered "Set `$PWD` then use `$x$` in shell."))))
+    (should-not (string-search "</code>" rendered))
+    (should (string-search "$PWD" rendered))))
+
+(ert-deftest overblock-md-test-a-fragment-shr-drops-shifts-nothing ()
+  "A formula the rendering never shows takes nothing with it.
+The runs of marks were paired with the fragments by counting, so a
+fragment stowed out of a part shr drops — an HTML comment, the title
+of a link — left no run, every later formula showed the one before
+it, and the last was dropped.  Each run carries its own fragment now."
+  (skip-unless (overblock-md-program))
+  (cl-letf (((symbol-function 'display-images-p) #'ignore))
+    (should (string-search
+             "beta"
+             (substring-no-properties
+              (overblock-md-rendered
+               "<!-- note: $\\alpha$ -->\n\nThe value $\\beta$ ends it."))))
+    (should (string-search
+             "m"
+             (substring-no-properties
+              (overblock-md-rendered
+               "[docs](https://x.org \"why $n$ matters\") and $m$ here."))))
+    (should-not (string-search
+                 "$n$"
+                 (substring-no-properties
+                  (overblock-md-rendered
+                   "[docs](https://x.org \"why $n$ matters\") and $m$ here."))))))
+
+(ert-deftest overblock-md-test-a-fence-keeps-its-dollars ()
+  "Display math inside a fenced block is shown, not wrapped.
+`overblock-md--verbatim-math' wraps a $$ block in <pre> so shr keeps
+its lines; inside a fence that wrapper reached the reader as literal
+tags, in a document whose subject is display math."
+  (skip-unless (overblock-md-program))
+  (let ((rendered (substring-no-properties
+                   (overblock-md-rendered "Example:\n\n```\n$$\na = b\n$$\n```\n"))))
+    (should-not (string-search "<pre>" rendered))
+    (should (string-search "$$" rendered))))
+
 (ert-deftest overblock-md-test-two-display-formulas-both-arrive ()
   "Two display formulas with a blank line between them are two formulas.
 The run of marks a fragment leaves may be broken over two rows by the
@@ -754,11 +801,9 @@ breaks pandoc put in it; read as text, a formula broken at a backslash
 reads worse than the same formula on one line.  Display math keeps its
 rows, which is what it was written for."
   (cl-letf (((symbol-function 'display-images-p) #'ignore))
-    (let* ((inline (overblock-md--stow-math "before \\(a +\nb\\) after"))
-           (shown (overblock-md--unstow-math (car inline) (cdr inline))))
+    (let ((shown (overblock-md-test--math "before \\(a +\nb\\) after")))
       (should (equal (substring-no-properties shown) "before a + b after")))
-    (let* ((display (overblock-md--stow-math "$$\na = b\n$$"))
-           (shown (overblock-md--unstow-math (car display) (cdr display))))
+    (let ((shown (overblock-md-test--math "$$\na = b\n$$")))
       ;; the rows are the rows it was written with
       (should (= (length (split-string shown "\n")) 3)))))
 
@@ -774,10 +819,13 @@ every formula showed its image and its own LaTeX next to it."
                ;; what the engine does to the match data on the way
                (string-match "x+" "xxx")
                (string-width frag))))
-    (let* ((page "<p>a <span>\\(\\varphi\\)</span> b</p>")
-           (out (overblock-md--stow-math page)))
-      (should (equal (cdr out) '("\\(\\varphi\\)")))
-      (should-not (string-search "varphi" (car out)))
-      (should (string-search (string overblock-md--math-mark) (car out))))))
+    (let ((out (overblock-md--stow-in-string "a \\(\\varphi\\) b")))
+      (should-not (string-search "varphi" out))
+      (should (string-search (string overblock-md--math-mark) out))
+      ;; and the fragment rides on the marks it left
+      (should (equal (get-text-property
+                      (string-search (string overblock-md--math-mark) out)
+                      'overblock-md--frag out)
+                     "\\(\\varphi\\)")))))
 
 ;;; overblock-md-test.el ends here
