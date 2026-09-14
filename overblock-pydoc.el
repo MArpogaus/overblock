@@ -362,25 +362,6 @@ and reads as prose one column from the left."
                                 (cdr lines)))
                   "\n"))))
 
-(defun overblock-pydoc--indented (text indent)
-  "Return TEXT with INDENT spaces before every line but the first.
-A doc string belongs to the definition above it and reads as its
-prose: rendered from the first column it stood apart from the code it
-documents, and a reader had to look twice to see which was which.
-
-Every line but the first, because the first hangs where the quotes
-stood: `overblock--rows\' begins its first row at the block, which is
-the opening quote and already that far in, while every row after it
-begins at a line start.  Padding the first line as well put it two
-indents deep.
-
-`replace-regexp-in-string\' keeps the faces of what it copies, so the
-rendering comes back indented and still rendered."
-  (if (zerop indent)
-      text
-    (replace-regexp-in-string "\n" (concat "\n" (make-string indent ?\s))
-                              text t t)))
-
 (defun overblock-pydoc--bar (indent)
   "Return the bar above a rendered doc string, INDENT columns in.
 The glyph at the left, the buttons at the window's edge, and the rule of
@@ -426,13 +407,14 @@ very little."
                  'overblock-bar indent))
 
 (defun overblock-pydoc--dressed (prose indent &optional sole)
-  "Return PROSE with its bars, indented by INDENT.
+  "Return PROSE with its bars, for a doc string INDENT columns in.
 SOLE says the doc string is written on one line, and takes one row.
 A bar above and a bar below, and the one above is the first line of
 what the block shows, so it begins where the block does — the opening
 quote, already INDENT columns in — and the rule its face draws reaches
-from there to the window\'s edge.  Every line after it carries the
-indentation itself; see `overblock-pydoc--indented\'.
+from there to the window\'s edge.  Every row after it begins at that
+column too: the block leaves the indentation of the source in view
+under the rendering, which is `overblock-show\''s `:indent\'.
 
 Prose of a single line takes a single row instead, its buttons beside
 it and both rules on it: two bars would make three rows out of one line
@@ -441,25 +423,26 @@ of prose, and a doc string of one line is the commonest of all."
   ;; converter filled into one row still take a bar of their own —
   ;; measured, such a doc string stood merged with its header where
   ;; the one below it, of three lines, stood under one.
-  (overblock-pydoc--indented
-   (if (and sole (not (string-search "\n" prose)))
-       (overblock-pydoc--sole prose indent)
-     (string-join (list (overblock-pydoc--bar indent) prose
-                        (overblock-pydoc--rule indent))
-                  "\n"))
-   indent))
+  (if (and sole (not (string-search "\n" prose)))
+      (overblock-pydoc--sole prose indent)
+    (string-join (list (overblock-pydoc--bar indent) prose
+                       (overblock-pydoc--rule indent))
+                 "\n")))
 
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return it.
 HTML is what the converter answered for this doc string, where a caller
 sent the whole buffer through one process.
 
-Every row is padded to the column BEG itself begins at, measured, and
-not to the indentation of its line.  The first row of a rendering is
-the only one that hangs where the block does and it carries no padding
-of its own, so the two have to be the same column: a raw doc string
-begins one column in from its code, past the letter that prefixes its
-quotes, and the rendering of one stood a column out of line."
+Every row begins at the column BEG itself begins at, measured, and not
+at the indentation of its line: the block leaves that many columns of
+every source line in view, so the indentation stays the buffer's own
+text — with whatever an indentation guide painted on it — and a
+description line indented deeper is covered from that column on.  The
+first row hangs where the block does, so the two have to be the same
+column: a raw doc string begins one column in from its code, past the
+letter that prefixes its quotes, and the rendering of one stood a
+column out of line."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source)))
               (indent (save-excursion (goto-char beg) (current-column)))
@@ -483,6 +466,7 @@ quotes, and the rendering of one stood a column out of line."
               (block (overblock-show-rendering
                       beg end rendered 'font-lock-doc-face
                       :kind 'pydoc
+                      :indent indent
                       :keymap overblock-pydoc-map
                       :help-echo "mouse-1: edit this doc string")))
     block))

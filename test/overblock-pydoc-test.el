@@ -245,22 +245,20 @@ not to the indentation of the line."
       (overblock-pydoc-mode 1)
       (should (= (overblock-pydoc-test--wait 1) 1)))
     (let* ((block (car (overblock-in (point-min) (point-max) 'pydoc)))
-           (lines (split-string (substring-no-properties
-                                 (overblock-get block :over))
-                                "\n")))
+           (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                               (overblock-get block :parts))))
       (should block)
       ;; the block begins at the prefix, which is where the code ends
       (goto-char (overlay-start block))
       (should (= (current-column) 4))
       (should (looking-at-p "r\"\"\""))
-      ;; the first row hangs there and carries no padding; every row
-      ;; below it is padded to the same column
-      ;; the label glyph of the bar falls back to a word in batch, so
-      ;; the row opens with the space that follows it; what it must not
-      ;; carry is the padding of the rows below
-      (should-not (string-prefix-p "    " (car lines)))
-      (dolist (line (cdr lines))
-        (should (string-prefix-p "    " line))))
+      ;; every row's piece begins at that column, the indentation before
+      ;; it left in view as the buffer's own text
+      (should (> (length pieces) 1))
+      (dolist (ov pieces)
+        (goto-char (overlay-start ov))
+        (should (= (current-column) 4))
+        (should (string-blank-p (buffer-substring (pos-bol) (point))))))
     (overblock-pydoc-mode -1)))
 
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
