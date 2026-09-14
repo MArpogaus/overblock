@@ -49,8 +49,6 @@
 ;; shr renders the HTML and dom reads the tags out of it: this file is
 ;; the markdown renderer and has no use without them.
 (require 'shr)
-;; `url-copy-file' fetches the image a cell names by URL.
-(require 'url-handlers)
 (require 'dom)
 ;; `xdg-cache-home' is where the fetched images live.  It reads
 ;; XDG_CACHE_HOME as the specification says to, which a bare `getenv'

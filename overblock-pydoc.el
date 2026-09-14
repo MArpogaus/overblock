@@ -49,7 +49,6 @@
 
 (require 'overblock)
 (require 'overblock-md)
-(require 'rst)
 
 (defgroup overblock-pydoc nil
   "Python doc strings rendered where they are written."
