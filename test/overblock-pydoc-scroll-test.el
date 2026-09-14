@@ -67,6 +67,22 @@
       (accept-process-output nil 0.05)))
   (redisplay t))
 
+(defun overblock-pydoc-scroll-test--faults (previous now steps)
+  "Return what went wrong between PREVIOUS and NOW at step STEPS.
+Each is (START VSCROLL POINT); the window may only go up, and so may
+point."
+  (delq nil
+        (list (when (or (> (nth 0 now) (nth 0 previous))
+                        (and (= (nth 0 now) (nth 0 previous))
+                             (> (nth 1 now) (nth 1 previous))))
+                (format "step %d: window %d+%d to %d+%d" steps
+                        (line-number-at-pos (nth 0 previous)) (nth 1 previous)
+                        (line-number-at-pos (nth 0 now)) (nth 1 now)))
+              (when (> (nth 2 now) (nth 2 previous))
+                (format "step %d: point line %d to %d" steps
+                        (line-number-at-pos (nth 2 previous))
+                        (line-number-at-pos (nth 2 now)))))))
+
 (defun overblock-pydoc-scroll-test--walk-up (step)
   "Walk the window up from the bottom with STEP, a thunk; return the faults.
 The window start may only go down, or stay while the vscroll goes
@@ -89,18 +105,8 @@ signalling `beginning-of-buffer' anywhere but at the top is a fault."
         (error (push (format "step %d: %S" steps err) faults)))
       (redisplay t)
       (let ((now (list (window-start) (window-vscroll nil t) (point))))
-        (when (or (> (nth 0 now) (nth 0 previous))
-                  (and (= (nth 0 now) (nth 0 previous))
-                       (> (nth 1 now) (nth 1 previous))))
-          (push (format "step %d: window %d+%d to %d+%d" steps
-                        (line-number-at-pos (nth 0 previous)) (nth 1 previous)
-                        (line-number-at-pos (nth 0 now)) (nth 1 now))
-                faults))
-        (when (> (nth 2 now) (nth 2 previous))
-          (push (format "step %d: point line %d to %d" steps
-                        (line-number-at-pos (nth 2 previous))
-                        (line-number-at-pos (nth 2 now)))
-                faults))
+        (dolist (fault (overblock-pydoc-scroll-test--faults previous now steps))
+          (push fault faults))
         (when (and (= (nth 0 now) (point-min)) (= (nth 2 now) (point-min)))
           (setq steps 999))
         (setq previous now)))

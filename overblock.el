@@ -509,6 +509,68 @@ start, which is that same error.  Such a row keeps its text."
   (cond (open open)
         ((> from (point-min)) (1- from))))
 
+(defun overblock--region-end (block)
+  "Return where the region of BLOCK ends, its last newline included.
+The anchor stops before that newline, and a cloak that stopped there
+too would leave the last line of the region on the screen.
+
+A live overlay, tested by its buffer: `delete-overlay' leaves an
+overlay that is still an overlay and answers nil to `overlay-end'.
+Deleting the region's last newline kills that overlay without touching
+the anchor, whose range does not cover it, so the slot can hold a corpse
+while the block is otherwise sound — and an end of nil ended the row
+walk in `wrong-type-argument'."
+  (let ((nl (overblock-get block :newline)))
+    (if (and (overlayp nl) (overlay-buffer nl))
+        (overlay-end nl)
+      (overlay-end block))))
+
+(defun overblock--piece-rows (block end)
+  "Return the rows of BLOCK up to END as (BOL FROM TO BLANK), in order.
+BOL is where the line begins, FROM where its piece begins, TO where its
+text ends and BLANK whether the line is blank.  The piece begins at the
+block on the first row and `:indent' columns in on every other — or at
+the end of a line shorter than that, which then carries nothing."
+  (let ((beg (overlay-start block))
+        (indent (overblock-get block :indent)))
+    (mapcar (lambda (row)
+              (let ((bol (car row)) (to (cdr row)))
+                (list bol
+                      (if (and indent (> bol beg))
+                          (min to (+ bol indent))
+                        bol)
+                      to
+                      ;; The whole buffer, as `overblock--rows' walks
+                      ;; it: a row can lie outside a narrowing.
+                      (without-restriction
+                        (string-blank-p
+                         (buffer-substring-no-properties bol to))))))
+            (overblock--rows beg end))))
+
+(defun overblock--piece-lines (text slots)
+  "Return the lines of TEXT to deal over SLOTS rows, as (LONG . LINES).
+LONG is non-nil where TEXT has more lines than there are rows to hang
+them on.  The blank lines of the rendering go then, and the blank lines
+of the source stay in view for them — one of the rendering dealt onto a
+row of text was a second gap where the source has one.  A shorter
+rendering keeps its own blank lines, and the source's go under the cloak
+with the rest."
+  (let* ((all (overblock--lines (string-trim text "\\(?:[ \t]*\n\\)+"
+                                             "\\(?:\n[ \t]*\\)+")))
+         (long (> (length all) slots)))
+    (cons long (if long (seq-remove #'string-blank-p all) all))))
+
+(defun overblock--piece-text (chunk indent)
+  "Return the lines of CHUNK as the text of one piece, INDENT columns in.
+A rendering line that shares a row with another is drawn where the
+display string breaks, at the window's edge: it is padded to the column
+the row's piece begins at, which with INDENT is that many columns in —
+measured, two such lines of a doc string stood at column zero, left of
+the guide's bars."
+  (string-join chunk (if indent
+                         (concat "\n" (make-string indent ?\s))
+                       "\n")))
+
 (defun overblock--pieces (block text)
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
@@ -535,56 +597,19 @@ the top of the buffer, on every turn of the wheel.  A blank line inside
 a cloak that is open already is cloaked with it, so the lines a cloak
 hides stay one run; under a shorter rendering every line without a
 piece goes under one, as before."
-  (let* ((beg (overlay-start block))
-         ;; The last newline of the region belongs to it: the anchor
-         ;; stops before that newline, and a cloak that stopped there
-         ;; too would leave the last line of the region on the screen.
-         ;;
-         ;; A live overlay, tested by its buffer: `delete-overlay' leaves
-         ;; an overlay that is still an overlay and answers nil to
-         ;; `overlay-end'.  Deleting the region's last newline kills that
-         ;; overlay without touching the anchor, whose range does not
-         ;; cover it, so the slot can hold a corpse while the block is
-         ;; otherwise sound — and END of nil ends the walk below in
-         ;; `wrong-type-argument'.
-         (nl (overblock-get block :newline))
-         (end (if (and (overlayp nl) (overlay-buffer nl))
-                  (overlay-end nl)
-                (overlay-end block)))
-         (indent (overblock-get block :indent))
-         ;; Each row as (BOL FROM TO BLANK): where the line begins,
-         ;; where its piece begins, where its text ends, and whether it
-         ;; is blank.  The piece begins at the block on the first row
-         ;; and `:indent' columns in on every other — or at the end of
-         ;; a line shorter than that, which then carries nothing.
-         (rows (mapcar (lambda (row)
-                         (let ((bol (car row)) (to (cdr row)))
-                           (list bol
-                                 (if (and indent (> bol beg))
-                                     (min to (+ bol indent))
-                                   bol)
-                                 to
-                                 ;; The whole buffer, as `overblock--rows'
-                                 ;; walks it: a row can lie outside a
-                                 ;; narrowing.
-                                 (without-restriction
-                                   (string-blank-p
-                                    (buffer-substring-no-properties bol to))))))
-                       (overblock--rows beg end)))
-         (slots (max 1 (seq-count (lambda (row) (> (nth 2 row) (nth 1 row)))
-                                  rows)))
-         (all (overblock--lines (string-trim text "\\(?:[ \t]*\n\\)+"
-                                            "\\(?:\n[ \t]*\\)+")))
-         ;; More lines than rows to hang them on: the blank lines of
-         ;; the rendering go, and the blank lines of the source stay in
-         ;; view for them — one of the rendering dealt onto a row of
-         ;; text was a second gap where the source has one.  A shorter
-         ;; rendering keeps its own blank lines and the source's go
-         ;; under the cloak with the rest.
-         (long (> (length all) slots))
-         (lines (if long (seq-remove #'string-blank-p all) all))
-         (chunks (overblock--deal lines slots))
-         parts cloak-from)
+  (pcase-let* ((indent (overblock-get block :indent))
+               ;; The last newline of the region belongs to it, so the
+               ;; cloak that reaches the end covers it: see
+               ;; `overblock--region-end'.
+               (end (overblock--region-end block))
+               (rows (overblock--piece-rows block end))
+               (slots (max 1 (seq-count (lambda (row)
+                                          (> (nth 2 row) (nth 1 row)))
+                                        rows)))
+               (`(,long . ,lines) (overblock--piece-lines text slots))
+               (chunks (overblock--deal lines slots))
+               (parts nil)
+               (cloak-from nil))
     (pcase-dolist (`(,bol ,from ,to ,blank) rows)
       ;; A line with text to cover takes the next chunk of the
       ;; rendering; one without carries nothing.
@@ -599,21 +624,13 @@ piece goes under one, as before."
             (push (overblock--cloak block cloak-from (1- bol)) parts)
             (push (overblock--newline-guard block (1- bol)) parts)
             (setq cloak-from nil))
-          ;; A rendering line that shares a row with another is drawn
-          ;; where the display string breaks, at the window's edge: it
-          ;; is padded to the column the row's piece begins at, which
-          ;; with `:indent' is that many columns in — measured, two such
-          ;; lines of a doc string stood at column zero, left of the
-          ;; guide's bars.  The piece itself begins where every piece
-          ;; does, and not at the line's start: a display string over
-          ;; the indentation is counted by `current-column', and a
-          ;; column measured on such a line came out as the width of the
-          ;; rendering.
+          ;; The piece begins where every piece does, and not at the
+          ;; line's start even where it carries two lines: a display
+          ;; string over the indentation is counted by `current-column',
+          ;; and a column measured on such a line came out as the width
+          ;; of the rendering.
           (push (overblock--piece block from to
-                                  (string-join chunk
-                                               (if indent
-                                                   (concat "\n" (make-string indent ?\s))
-                                                 "\n")))
+                                  (overblock--piece-text chunk indent))
                 parts))))
     (when cloak-from
       (push (overblock--cloak block cloak-from (1- end)) parts)
