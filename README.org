@@ -795,7 +795,7 @@ into:
 |-------------------------------+-----------------------------------------|
 | =overblock-pycell-mode-map=   | the notebook, while the mode is on      |
 | =overblock-run-pop-map=       | a result popped out into its own buffer |
-| =overblock-pycell-result-map= | inside a cell that shows a result       |
+| =overblock-run-result-map=    | inside a cell that shows a result       |
 | =overblock-pycell-md-map=     | a rendered markdown cell                |
 
 The edit buffer of a markdown cell wears =overblock-edit-mode=, so its
@@ -816,7 +816,7 @@ looking at.  =overblock-pycell-tab-filter= guards a key that the rest
 of the cell needs, such as =TAB= for folding:
 
 #+begin_src emacs-lisp
-  (keymap-set overblock-pycell-result-map "TAB"
+  (keymap-set overblock-run-result-map "TAB"
               '(menu-item "" overblock-run-toggle-output
                           :filter overblock-pycell-tab-filter))
 #+end_src
@@ -1047,8 +1047,9 @@ stays as it is; the chunks run either way.
 
 overblock-rmd binds no keys.  It binds the mouse on its bars and blocks
 only.  =overblock-rmd-mode-map= answers in the buffer and
-=overblock-rmd-result-map= inside a chunk that shows a result; both are
-there, empty, so every key is free to bind:
+=overblock-run-result-map= inside a chunk that shows a result, as it
+does in a cell of the Python notebook; both are there, empty, so every
+key is free to bind:
 
 #+begin_src emacs-lisp
   (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-rmd-run-chunk)

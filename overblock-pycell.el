@@ -319,26 +319,22 @@ shell buffer, where `comint-prompt-regexp' has its value."
 
 (defun overblock-pycell-tab-filter (cmd)
   "Return CMD when point sits at the very end of a cell with a result.
-A `menu-item' filter for a key in `overblock-pycell-result-map': it
-keeps a key that means something in the rest of the cell — TAB indents
-— out of the way everywhere but on the one spot where the reader faces
-the result."
+A `menu-item' filter for a key in `overblock-run-result-map': it keeps
+a key that means something in the rest of the cell — TAB indents — out
+of the way everywhere but on the one spot where the reader faces the
+result:
+
+  (keymap-set overblock-run-result-map \"TAB\"
+              \\='(menu-item \"\" overblock-run-toggle-output
+                          :filter overblock-pycell-tab-filter))"
   (and (eolp)
        (seq-some (lambda (o) (eq (point) (overlay-end o)))
                  (overblock-in (max (1- (point)) (point-min)) (point)
                                'result))
        cmd))
 
-(defvar-keymap overblock-pycell-result-map
-  :doc "Keymap inside a cell that shows a result, empty on purpose.
-overblock-pycell binds no keys; put your own here.
-`overblock-run-toggle-output' is the natural candidate.  Guard a key the
-rest of the cell needs with `overblock-pycell-tab-filter', which answers
-only at the very end of the cell:
-
-  (keymap-set overblock-pycell-result-map \"TAB\"
-              \\='(menu-item \"\" overblock-run-toggle-output
-                          :filter overblock-pycell-tab-filter))")
+(define-obsolete-variable-alias 'overblock-pycell-result-map
+  'overblock-run-result-map "1.0")
 
 ;;;; Moving a cell
 
@@ -1184,7 +1180,6 @@ The commentary of `overblock-run' lists the slots."
         :region-at #'overblock-pycell--cell-at
         :starts #'overblock-pycell--cell-starts
         :redraw (lambda () (mapc #'overblock-pycell--bar-redraw (overblock-bars)))
-        :keymap overblock-pycell-result-map
         :buttons 'overblock-pycell-result-buttons
         :stale #'overblock-pycell--stale-when-edited
         :lines 'overblock-pycell-max-lines

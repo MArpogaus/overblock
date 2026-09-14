@@ -184,13 +184,8 @@ Customize this and the results already on the screen follow."
 
 ;;;; The result of a chunk
 
-(defvar-keymap overblock-rmd-result-map
-  :doc "Keymap inside a chunk that shows a result, empty on purpose.
-overblock-rmd binds no keys; put your own here.
-`overblock-run-toggle-output' is the natural candidate:
-
-  (keymap-set overblock-rmd-result-map \"C-c C-o\"
-              #\\='overblock-run-toggle-output)")
+(define-obsolete-variable-alias 'overblock-rmd-result-map
+  'overblock-run-result-map "1.0")
 
 (defun overblock-rmd--strip-prompt (text)
   "Return TEXT without the prompt R wrote when the chunk was done.
@@ -624,7 +619,6 @@ prompted, so nothing is ever waiting for one."
         :region-at #'overblock-rmd--region-at
         :starts #'overblock-rmd--starts
         :redraw #'overblock-rmd--bars
-        :keymap overblock-rmd-result-map
         :buttons 'overblock-rmd-result-buttons
         :lines 'overblock-rmd-max-lines
         :chars 'overblock-rmd-max-line-length))
