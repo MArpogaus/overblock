@@ -316,6 +316,29 @@ and the default stands."
       (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 3 96))))))
 
+(ert-deftest overblock-rmd-test-a-chunk-runs-and-point-steps-on ()
+  "Running a chunk with the step leaves point in the chunk below it.
+And the last chunk of the buffer runs with point where it is: the walk
+answers `user-error\' there, which would otherwise reach the reader as
+a failure of the run they asked for."
+  (overblock-rmd-test--with-document "```{r a}\n1\n```\n\n```{r b}\n2\n```\n"
+    (let (ran)
+      (cl-letf (((symbol-function 'overblock-rmd-run-chunk)
+                 (lambda (&rest _) (push (line-number-at-pos) ran))))
+        (goto-char (point-min))
+        (overblock-rmd-run-chunk-and-step)
+        ;; the chunk at point ran, and point is in its code
+        (should (equal ran '(1)))
+        (should (= (line-number-at-pos) 2))
+        ;; the next step runs that chunk and lands in the one below
+        (overblock-rmd-run-chunk-and-step)
+        (should (equal ran '(2 1)))
+        (should (= (line-number-at-pos) 6))
+        ;; the last chunk runs and point stays rather than signalling
+        (overblock-rmd-run-chunk-and-step)
+        (should (equal ran '(6 2 1)))
+        (should (= (line-number-at-pos) 6))))))
+
 (ert-deftest overblock-rmd-test-the-chunks-are-walked-as-cells-are ()
   "Forward goes to the code of the next chunk, backward to the previous.
 Backwards from inside a chunk comes to its own code first, as

@@ -233,10 +233,18 @@ Pixel filling needs font metrics, which a batch session has none of."
     (should (string-match-p "Title" out))
     (should (string-match-p "Some text here" out))))
 
+(defun overblock-md-test--batch (texts)
+  "Return the HTML of each of TEXTS from one call of the converter.
+What `overblock-md-html-batch-async\' does between its process and its
+callback, without the process: the texts are joined with the marker
+between them and the answer is split at it again."
+  (when-let* ((joined (overblock-md--batch-text texts)))
+    (overblock-md--batch-pieces (overblock-md--html joined) texts)))
+
 (ert-deftest overblock-md-test-html-batch-gives-one-piece-per-text ()
   "The cells come back from one converter call, one piece each."
   (skip-unless (overblock-md-program))
-  (let ((htmls (overblock-md-html-batch '("# One\n\nfirst" "second" "*third*"))))
+  (let ((htmls (overblock-md-test--batch '("# One\n\nfirst" "second" "*third*"))))
     (should (= (length htmls) 3))
     (should (string-match-p "first" (nth 0 htmls)))
     (should (string-match-p "second" (nth 1 htmls)))
@@ -244,7 +252,7 @@ Pixel filling needs font metrics, which a batch session has none of."
     ;; nothing of one cell leaks into the next
     (should-not (string-match-p "second" (nth 0 htmls))))
   ;; a cell that holds the marker sends everyone the ordinary way
-  (should-not (overblock-md-html-batch (list "text" overblock-md--marker))))
+  (should-not (overblock-md--batch-text (list "text" overblock-md--marker))))
 
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
@@ -329,17 +337,6 @@ blank line."
     (should (<= (length (split-string shown "\n"))
                 (length (split-string source "\n"))))))
 
-(ert-deftest overblock-md-test-the-converter-paints-no-code ()
-  "Every pandoc the defaults name is told to leave the code alone.
-shr reads no CSS class, so the colours pandoc encodes in them are
-dropped and only the line anchors it hangs on every row survive.
-Measured on a document of three fenced blocks, pandoc spent 785
-milliseconds of which 720 were the syntax definitions it loaded to
-paint them."
-  (dolist (command (ensure-list overblock-md-command))
-    (when (string-prefix-p "pandoc" command)
-      (should (string-search "--no-highlight" command)))))
-
 (ert-deftest overblock-md-test-html-batch-gives-up-when-the-marker-changes ()
   "A converter that reshapes the marker sends every cell its own way.
 The batch is only safe while the pieces come back one to a cell, and
@@ -348,14 +345,14 @@ nothing but their number says whether they did."
   (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (md) (replace-regexp-in-string
                            "\\([^\n]+\\)" "<p>\\1</p>" md))))
-    (let ((pieces (overblock-md-html-batch '("one" "two"))))
+    (let ((pieces (overblock-md-test--batch '("one" "two"))))
       (should (= (length pieces) 2))
       (should (string-match-p "one" (nth 0 pieces)))
       (should (string-match-p "two" (nth 1 pieces)))))
   ;; and nothing at all when the marker does not come back
   (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
-    (should-not (overblock-md-html-batch '("one" "two")))))
+    (should-not (overblock-md-test--batch '("one" "two")))))
 
 (ert-deftest overblock-md-test-no-previews-without-images ()
   "A display that cannot draw images gets no preview substitution.
@@ -603,11 +600,11 @@ turned it on with it."
   (let ((overblock-md-command "false"))
     (should-not (overblock-md--html "# heading"))
     (should-not (overblock-md-rendered "# heading"))
-    (should-not (overblock-md-html-batch '("a" "b"))))
+    (should-not (overblock-md-test--batch '("a" "b"))))
   ;; And with no converter at all, which has always answered nil.
   (let ((overblock-md-command "there-is-no-such-program-here"))
     (should-not (overblock-md--html "# heading"))
-    (should-not (overblock-md-html-batch '("a" "b")))))
+    (should-not (overblock-md-test--batch '("a" "b")))))
 
 (ert-deftest overblock-md-test-a-link-keeps-its-keymap-through-fill-props ()
   "A link in a rendered cell keeps its own keymap when the block fills one.

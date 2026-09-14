@@ -1039,8 +1039,13 @@ complete."
           (let ((batched (funcall displays)))
             (should (= (length batched) 3))
             (overblock-clear (point-min) (point-max) 'markdown)
-            ;; the same buffer with the batch turned down
-            (cl-letf (((symbol-function 'overblock-md-html-batch) (lambda (_texts) nil)))
+            ;; the same buffer with the batch turned down: the joined
+            ;; text is what the one process is made of, and without it
+            ;; every cell converts on its own, which is the comparison
+            ;; this test is named for.  The stub used to sit on a
+            ;; function no caller reached, so both halves were batched.
+            (cl-letf (((symbol-function 'overblock-md--batch-text)
+                       (lambda (_texts) nil)))
               (overblock-pycell-test--render-all))
             (should (equal batched (funcall displays)))))
       (kill-buffer buffer))))
@@ -1326,6 +1331,24 @@ at the bottom edge with the code about to run out of sight."
               (should (= (window-start window) second))
               (should (= (window-point window) second))))
         (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-guarded-key-answers-at-the-result ()
+  "The filter lets a key through at the end of a cell that has a result.
+A reader binds TAB in the result map, and TAB indents everywhere else
+in the cell: the filter is what keeps the two apart, and nothing asked
+it anything."
+  (overblock-pycell-test--with-cells
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (overblock-run-show beg end "42" 0.3)
+      (let ((block (car (overblock-in (point-min) (point-max) 'result))))
+        ;; at the very end of the cell, where the result faces the reader
+        (goto-char (overlay-end block))
+        (should (overblock-pycell-tab-filter 'a-command))
+        ;; and nowhere else in it
+        (goto-char beg)
+        (should-not (overblock-pycell-tab-filter 'a-command))
+        (goto-char (1- (overlay-end block)))
+        (should-not (overblock-pycell-tab-filter 'a-command))))))
 
 (ert-deftest overblock-pycell-test-a-running-cell-carries-a-stop-button ()
   "The header of a running cell holds a stop button, a finished one none.

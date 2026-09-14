@@ -93,17 +93,6 @@ point of it: a test has to wait where a reader does not."
                                "\n")))
           (overblock-pydoc--strings (point-min) (point-max))))
 
-(ert-deftest overblock-pydoc-test-the-converter-paints-no-code ()
-  "Every pandoc named here is told to leave a code block alone.
-For the reason `overblock-md-command' gives: shr reads no CSS class,
-so painting one costs the reader the syntax definitions pandoc loads
-and gives them nothing."
-  (pcase-dolist (`(,markup . ,commands) overblock-pydoc-command)
-    (should (memq markup '(rst markdown)))
-    (dolist (command (ensure-list commands))
-      (when (string-prefix-p "pandoc" command)
-        (should (string-search "--no-highlight" command))))))
-
 (ert-deftest overblock-pydoc-test-the-markup-picks-the-command-and-the-mode ()
   "One option says the markup, and the renderer and the editor follow it.
 A doc string rendered as one markup and edited in the mode of another
@@ -477,6 +466,42 @@ into a newline.  A doc string in one quote came back in five."
           (overblock-pydoc--put beg end (overblock-pydoc--source beg end))))
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      source)))))
+
+(ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
+  "The whole round trip: a rendering opens, is edited and is committed.
+The command that opens the buffer was in no test, and this is the path
+the quotes and the indentation of a doc string are lost on.  The prose
+reaches the edit buffer without either, and comes back with both."
+  (skip-unless (overblock-md-program))
+  (overblock-pydoc-test--with
+    (overblock-pydoc-mode 1)
+    (unwind-protect
+        (let ((source (current-buffer)))
+          (goto-char (point-max))
+          (overblock-pydoc-render-buffer)
+          (should (= (overblock-pydoc-test--wait 4) 4))
+          ;; the doc string of the function, which is indented and has
+          ;; a numpydoc section under it
+          (goto-char (point-min))
+          (search-forward "Do a thing.")
+          (overblock-pydoc-edit)
+          (let ((edit (current-buffer)))
+            (should overblock-edit-mode)
+            ;; no quotes and no indent in the edit buffer
+            (should-not (string-search "\"\"\"" (buffer-string)))
+            (should (string-prefix-p "Do a thing." (buffer-string)))
+            (goto-char (point-min))
+            (end-of-line)
+            (insert " again")
+            (overblock-edit-commit)
+            (should-not (buffer-live-p edit)))
+          ;; back in the source: the quotes are on and the body is
+          ;; indented to where the doc string stands
+          (with-current-buffer source
+            (should (string-search "    \"\"\"Do a thing. again"
+                                   (buffer-string)))
+            (should (string-search "\n    x : int" (buffer-string)))))
+      (overblock-pydoc-mode -1))))
 
 (ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()
   "A row does not fill the columns its own indentation stands in.

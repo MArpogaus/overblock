@@ -197,8 +197,8 @@ only way to know whether BEG stands inside a fence."
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
-HTML is what `overblock-md-html-batch' answered for this block, where a
-caller sent the whole buffer through one process.  The rendering is
+HTML is what `overblock-md-html-batch-async' answered for this block,
+where a caller sent the whole buffer through one process.  The rendering is
 dealt over the lines of the region by `overblock-show', a piece to a
 line, which is what lets a tall block scroll like text."
   (when-let* ((source (string-trim (buffer-substring-no-properties beg end)))
