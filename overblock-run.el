@@ -143,21 +143,18 @@ The spinner turns one frame a tick, so `overblock-run-header\' divides
 the runtime by this to pick its glyph: the two have to agree, which is
 why the interval has a name.")
 
-(defun overblock-run-body-lines (lines max chars)
-  "Return the leading LINES that show inline.
-At most MAX of them — every one where MAX is zero — each cut to CHARS
-characters, and
-nothing after the first line that carries an image it can draw: more
-inline figures would grow the block, and the scroll jump with it,
-without bound.  A display that shows no images has nothing to stop
-for, and names them instead.  A line with an image on it is not cut,
-since the image may sit past the cut; its images are capped to
-`overblock-image-height' instead."
+(defun overblock-run-body-lines (lines chars)
+  "Return LINES as they show inline.
+Each is cut to CHARS characters, and nothing after the first line that
+carries an image it can draw shows: more inline figures would grow the
+block, and the scroll jump with it, without bound.  How many lines
+show is `overblock-repl-first-lines'' question, asked before this one.
+A display that shows no images has nothing to stop for, and names them
+instead.  A line with an image on it is not cut, since the image may
+sit past the cut; its images are capped to `overblock-image-height'
+instead."
   (let (shown stop)
-    ;; A MAX of zero shows every line, as a CHARS of zero leaves every
-    ;; line whole: two options of the same shape, and a zero that meant
-    ;; "all of it" in one and "none of it" in the other was a trap.
-    (while (and lines (not stop) (or (zerop max) (< (length shown) max)))
+    (while (and lines (not stop))
       (let* ((l (pop lines))
              (imagep (overblock-image-in l))
              ;; Only where an image can be drawn.  A terminal shows
@@ -286,7 +283,7 @@ are and how many of them show, and the body is those that show."
            (max (overblock-run--option :lines))
            (chars (overblock-run--option :chars))
            (lines (unless empty (overblock-repl-first-lines text max)))
-           (shown (overblock-run-body-lines lines max chars))
+           (shown (overblock-run-body-lines lines chars))
            ;; The count is asked for once and kept: a finished result
            ;; carries none, and a fold would otherwise scan the whole
            ;; output again on every keypress.
