@@ -632,9 +632,13 @@ one display property, and a display property inside a display string is
 never looked at."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image) #'ignore))
-    ;; in a table, where no preview is ever made
-    (let* ((cell (propertize "\\(x_1\\)  a source" 'overblock-md--table t))
-           (shown (substring-no-properties (overblock-md-test--math cell))))
+    ;; in a table, where no preview is ever made.  The table's mark
+    ;; is on the laid-out text, which is where `overblock-md--tag-table'
+    ;; puts it: shr has run by then, and the fragment itself never
+    ;; carries it.
+    (let* ((cell (propertize (overblock-md--stow-in-string "\\(x_1\\)  a source")
+                             'overblock-md--table t))
+           (shown (substring-no-properties (overblock-md--unstow-math cell))))
       (should (string-prefix-p "x_1" shown))
       (should-not (string-search "\\(" shown))
       ;; as wide as before, or the columns move
