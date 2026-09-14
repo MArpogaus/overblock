@@ -157,14 +157,25 @@ second time.  It opens with a zero-width space, because
 given and a row of spaces is a blank line: the rule was trimmed away
 and the doc string had no footer at all.
 
-** One line, one row
+** The summary rides the bar
 
-A doc string of one line takes one row: the prose where the label would
-stand, the buttons at the window's edge, and the bar's own face over
-it.  A bar above and a rule below would make three rows out of one line
-of prose, and a doc string of one line is the commonest of all.  Both
-rules on one row boxes it in, and a boxed line of prose among plain
-lines of code is a loud way to say very little.
+The first line of the prose stands on the bar, where the label of a bar
+stands: the glyph, the summary, the buttons at the window's edge.  The
+bar is the one row a rendering adds to its doc string, and the summary
+on it is the row that pays for it: the rendering then has exactly as
+many rows as the doc string.  Under the bar, on a row of its own, the
+rendering was one line longer than the source and the layer dealt two
+lines onto the first row — the summary shared the quote's line number
+with the bar or stood on the next, depending on nothing but how the
+body's lines happened to fill.  Measured: two doc strings of the same
+shape rendered two ways, and a two-row first piece was also what the
+wheel stumbled over (see the layer's notes on cloaks).
+
+A doc string of one line is all bar, and no rule closes it: both rules
+on one row boxes it in, and a boxed line of prose among plain lines of
+code is a loud way to say very little.  A summary longer than the room
+between the glyph and the buttons is cut with an ellipsis by the
+layer's padded bar, as a result's label is by the stretched one.
 
 ** The width one is built for
 

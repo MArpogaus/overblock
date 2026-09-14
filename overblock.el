@@ -1721,8 +1721,22 @@ well.  The row is built for the width of the moment, and the layer
 writes that width on the block so `overblock--width-changed' can drop
 what no longer fits."
   (let* ((width (overblock-window-width))
-         (text (overblock-faced (concat left icons) face))
          (cell (frame-char-width))
+         ;; The room LEFT has: the window less the indent, the icons
+         ;; and a cell of slack.  A label longer than that is cut with
+         ;; an ellipsis, as `overblock--bar-stretched' cuts one: left
+         ;; whole, the row wrapped and the icons stood on a row of their
+         ;; own — a doc string's summary is as long as its writer made
+         ;; it.
+         (room (and width (- width (* (1+ indent) cell)
+                             (overblock--pixel-width (propertize icons 'face face))
+                             cell)))
+         (left (if (and room
+                        (> (overblock--pixel-width (propertize left 'face face))
+                           room))
+                   (overblock--cut left face (max room cell))
+                 left))
+         (text (overblock-faced (concat left icons) face))
          (pad (and width (floor (- width
                                    (* (1+ indent) cell)
                                    (overblock--pixel-width text))

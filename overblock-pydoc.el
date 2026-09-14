@@ -362,15 +362,6 @@ and reads as prose one column from the left."
                                 (cdr lines)))
                   "\n"))))
 
-(defun overblock-pydoc--bar (indent)
-  "Return the bar above a rendered doc string, INDENT columns in.
-The glyph at the left, the buttons at the window's edge, and the rule of
-`overblock-bar\' over the whole row.  The glyph and no word: the prose
-under the bar says what it is."
-  (overblock-bar (overblock-pydoc--glyph) ""
-                 (overblock-buttons overblock-pydoc-buttons)
-                 'overblock-bar indent))
-
 (defun overblock-pydoc--glyph ()
   "Return the glyph that marks a doc string, as this frame draws it.
 The plain candidate is a page and not the diamond a markdown cell
@@ -391,43 +382,44 @@ footer at all."
                       'face 'overblock-pydoc-footer)
           (overblock-bar "" "" "" 'overblock-pydoc-footer indent)))
 
-(defun overblock-pydoc--sole (prose indent)
-  "Return the one row PROSE is drawn on, INDENT columns in.
-A doc string of a single line takes a single row: a bar above and a
-rule below would make three rows of one line of prose, and a doc string
-of one line is the commonest of all.
+(defun overblock-pydoc--bar (summary indent)
+  "Return the bar of a rendered doc string, INDENT columns in.
+The glyph, the SUMMARY where the label of a bar stands, and the buttons
+at the window\'s edge, all under the rule the bar\'s face draws.
 
-The prose stands where the label stands on a bar, the buttons at the
-window\'s edge as they do there, and the row wears the bar\'s own face —
-a rule over it and none under.  Both rules on one row boxes it in, and
-a boxed line of prose among plain lines of code is a loud way to say
-very little."
-  (overblock-bar (overblock-pydoc--glyph) (concat prose " ")
+The summary rides the bar because the bar is the one row a rendering
+adds to its doc string.  Under the bar, on a row of its own, it made
+the rendering one line longer than the source, and the first row then
+carried two lines: the summary shared the quote\'s line number with
+the bar or stood on the next, depending on nothing but how the lines
+of the rest happened to fill — measured, two doc strings of the same
+shape rendered two ways.  On the bar the rendering has as many rows as
+the doc string, nothing shares a row, and a doc string of one line
+reads as the first row of one of twenty.  A summary too long for the
+room is cut with an ellipsis, as any label of a bar is."
+  (overblock-bar (overblock-pydoc--glyph) (concat summary " ")
                  (overblock-buttons overblock-pydoc-buttons)
                  'overblock-bar indent))
 
-(defun overblock-pydoc--dressed (prose indent &optional sole)
-  "Return PROSE with its bars, for a doc string INDENT columns in.
-SOLE says the doc string is written on one line, and takes one row.
-A bar above and a bar below, and the one above is the first line of
-what the block shows, so it begins where the block does — the opening
-quote, already INDENT columns in — and the rule its face draws reaches
-from there to the window\'s edge.  Every row after it begins at that
-column too: the block leaves the indentation of the source in view
-under the rendering, which is `overblock-show\''s `:indent\'.
+(defun overblock-pydoc--dressed (prose indent)
+  "Return PROSE with its bar and its rule, for a doc string INDENT columns in.
+The first line of PROSE rides the bar; the rest stands under it, and a
+rule closes it.  Prose of one line is all bar: a rule under one row
+would box it in, and a boxed line of prose among plain lines of code
+is a loud way to say very little.
 
-Prose of a single line takes a single row instead, its buttons beside
-it and both rules on it: two bars would make three rows out of one line
-of prose, and a doc string of one line is the commonest of all."
-  ;; The source decides, not the prose: two lines of source that the
-  ;; converter filled into one row still take a bar of their own —
-  ;; measured, such a doc string stood merged with its header where
-  ;; the one below it, of three lines, stood under one.
-  (if (and sole (not (string-search "\n" prose)))
-      (overblock-pydoc--sole prose indent)
-    (string-join (list (overblock-pydoc--bar indent) prose
-                       (overblock-pydoc--rule indent))
-                 "\n")))
+The bar is the first line of what the block shows, so it begins where
+the block does — the opening quote, already INDENT columns in — and
+every row after it begins at that column too: the block leaves the
+indentation of the source in view under the rendering, which is
+`overblock-show\''s `:indent\'."
+  (pcase-let ((`(,summary . ,body) (split-string prose "\n")))
+    (if body
+        (string-join `(,(overblock-pydoc--bar summary indent)
+                       ,@body
+                       ,(overblock-pydoc--rule indent))
+                     "\n")
+      (overblock-pydoc--bar summary indent))))
 
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return it.
@@ -458,11 +450,8 @@ column out of line."
                (let ((overblock-md-width (overblock-md-columns indent))
                      (overblock-md-command (overblock-pydoc--command-for-markup)))
                  (when-let* ((prose (overblock-md-rendered source html)))
-                   (overblock-pydoc--dressed
-                    (string-trim-right prose "\n+")
-                    indent
-                    ;; one line of source, one row
-                    (= (line-number-at-pos beg) (line-number-at-pos end))))))
+                   (overblock-pydoc--dressed (string-trim-right prose "\n+")
+                                             indent))))
               (block (overblock-show-rendering
                       beg end rendered 'font-lock-doc-face
                       :kind 'pydoc
