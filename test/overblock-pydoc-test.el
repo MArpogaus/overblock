@@ -322,28 +322,40 @@ down stays source, and only while point stays in it."
       (overblock-pydoc-mode -1))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-wears-its-bars ()
-  "Prose of many lines is dressed in a bar above and a rule below.
-The bar carries the label and the two buttons; the rule carries
-nothing, since saying the same twice said nothing the second time."
+  "The first line rides the bar, the rest stands under it, a rule closes it.
+So the rendering has as many rows as the doc string: the bar is the row
+the rendering adds, and the summary it carries is the row it saves.
+The rule carries nothing, since saying the same twice said nothing the
+second time."
   (let* ((dressed (overblock-pydoc--dressed "one\ntwo" 0))
          (lines (split-string dressed "\n")))
-    (should (= (length lines) 4))
+    (should (= (length lines) 3))
     (should (string-prefix-p (overblock-pydoc--glyph) (car lines)))
-    (should (equal (nth 1 lines) "one"))
-    (should (equal (nth 2 lines) "two"))
+    (should (string-search "one" (car lines)))
+    (should (equal (nth 1 lines) "two"))
     ;; the rule has no label and no button of its own: spaces, and
     ;; the zero-width space that keeps the row from being read as a
     ;; blank line and trimmed away
-    (should-not (string-search (overblock-pydoc--glyph) (nth 3 lines)))
-    (should (string-match-p "\\`[\u200b[:blank:]]*\\'" (nth 3 lines)))))
+    (should-not (string-search (overblock-pydoc--glyph) (nth 2 lines)))
+    (should (string-match-p "\\`[\u200b[:blank:]]*\\'" (nth 2 lines)))))
 
 (ert-deftest overblock-pydoc-test-one-line-takes-one-row ()
-  "Prose of a single line shares its row with the buttons.
-A bar above and a rule below would make three rows of one line of
-prose, and a doc string of one line is the commonest of all."
-  (let ((dressed (overblock-pydoc--dressed "all of it" 0 t)))
+  "Prose of a single line is all bar: the glyph, the prose, the buttons.
+A rule under one row would box it in, and a doc string of one line is
+the commonest of all."
+  (let ((dressed (overblock-pydoc--dressed "all of it" 0)))
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
+
+(ert-deftest overblock-pydoc-test-a-long-summary-is-cut-on-the-bar ()
+  "A summary longer than the room is cut with an ellipsis, not wrapped."
+  (with-temp-buffer
+    (set-window-buffer nil (current-buffer))
+    (cl-letf (((symbol-function 'overblock-window-width)
+               (lambda () (* 40 (frame-char-width)))))
+      (let ((bar (overblock-pydoc--bar (make-string 80 ?x) 4)))
+        (should (string-search "…" bar))
+        (should (< (string-width bar) 60))))))
 
 (ert-deftest overblock-pydoc-test-the-cache-does-not-outlive-a-narrowing ()
   "A narrowing is a different question, and widening asks it again.
