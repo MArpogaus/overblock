@@ -34,7 +34,8 @@ LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el
 # under `--batch' they can only skip; `scroll' below runs them in one.
 # Left in SUITE they made `make test' report three skips for ever, and
 # STRICT accepted them because a skip is all they can do there.
-GRAPHIC := test/overblock-pycell-scroll-test.el test/run-scroll.el
+GRAPHIC := test/overblock-pycell-scroll-test.el test/overblock-pydoc-scroll-test.el \
+           test/run-scroll.el
 SUITE := $(filter-out $(LIVE) $(GRAPHIC),$(TEST))
 
 # Elisp programs live in variables: make joins their continuation lines,
