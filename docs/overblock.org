@@ -75,8 +75,15 @@ Decided by measurement, in a graphical frame:
 ** Text shown over a region
 
 Text shown =:over= a region hangs on its lines, a piece to a line, and
-lines with no piece left for them go under a cloak.  That is what makes
-a tall rendering scroll a line at a time.
+lines of text with no piece left for them go under a cloak.  That is
+what makes a tall rendering scroll a line at a time.  A rendering with
+more lines than the region has rows loses its blank lines first, and
+the blank lines of the source stay in view as the gaps they are; a
+shorter rendering keeps its own blank lines and the source's go under
+the cloak with the rest.  A blank line left in view is also what keeps
+the wheel moving: a cloak that began right after a row carrying two
+lines of the rendering put the wheel's own step into invisible text, and
+redisplay threw the window back to the top of the buffer on every turn.
 
 A cloak is an invisible overlay that starts at the newline of the line
 above.  An invisible run that starts inside a line, or a line of no
