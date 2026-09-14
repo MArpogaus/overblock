@@ -76,17 +76,23 @@ with =overblock-md-command= bound to the command for the markup — one
 process for the buffer, asked and not waited for.  The mode is what
 =overblock-pydoc-edit= opens the source in.
 
-reStructuredText is the default, because that is what Python's own
-tools read, and numpydoc and Sphinx with them.  Neither reader knows
-the other's markup: measured on a numpy doc string holding a GitHub
-pipe table, pandoc's reStructuredText reader ran the table together
-into one paragraph of pipes, and its Markdown reader laid the table
-out in columns and left the =:class:`x`= roles standing in the prose.
-There is no reader for both — =-f rst+pipe_tables= is refused, the
-reStructuredText reader has no table extension — so the option is a
-choice, and a project that writes Markdown makes it in
-=.dir-locals.el=.  Both readers are asked for no highlighting, for the
-reason [[file:overblock-md.org][overblock-md's notes]] give.
+Markdown is the default.  A numpy style doc string today, as
+mkdocstrings reads it, is numpydoc section titles over a Markdown body
+— a fenced block, a pipe table, bold — and neither reader knows the
+other's markup: measured on such a doc string, pandoc's
+reStructuredText reader ran the table together into one paragraph of
+pipes and read =*parents= as an emphasis, and its Markdown reader laid
+the table out in columns and ran the parameter entries together into
+one paragraph, because CommonMark has no definition list and reads an
+indented line after a paragraph line as more of the paragraph.  The
+Markdown command therefore asks for =hard_line_breaks=: every source
+line stays a line, an entry and its description stay apart, and only
+the indent of the description is lost.  There is no reader for both —
+=-f rst+pipe_tables= is refused, the reStructuredText reader has no
+table extension — so the option is a choice, and a Sphinx project
+makes it in =.dir-locals.el=.  Both readers are asked for no
+highlighting, for the reason [[file:overblock-md.org][overblock-md's
+notes]] give.
 
 The quotes and the shared indentation come off before the text is
 rendered, because a doc string is written where the code stands and

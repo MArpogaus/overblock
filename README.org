@@ -522,7 +522,7 @@ click.
 
 | Option                     | Default                        | Meaning                                 |
 |----------------------------+--------------------------------+-----------------------------------------|
-| =overblock-pydoc-markup=   | =rst=                          | the markup the doc strings are written in |
+| =overblock-pydoc-markup=   | =markdown=                     | the markup the doc strings are written in |
 | =overblock-pydoc-command=  | a =pandoc= command per markup  | the shell command for a doc string      |
 | =overblock-pydoc-modes=    | =rst-mode=, =markdown-mode=    | the major mode that reads one, per markup |
 | =overblock-pydoc-buttons=  | one edit button                | the buttons on that bar                 |
@@ -532,13 +532,16 @@ click.
 written in, and everything else follows it: which command of
 =overblock-pydoc-command= renders them, and which mode of
 =overblock-pydoc-modes= =overblock-pydoc-edit= opens the source in.
-reStructuredText is the default, because
-that is what Python's own tools read.  A project whose doc strings are
-Markdown says so once, per project:
+Markdown is the default, because that is what a numpy style doc string
+carries under its section titles today, as mkdocstrings reads it: a
+fenced block, a pipe table, bold.  The Markdown command keeps every
+source line a line, so a parameter entry and its description stay
+apart.  A project whose doc strings are reStructuredText for Sphinx
+says so once, per project:
 
 #+begin_src emacs-lisp
   ;;; .dir-locals.el
-  ((python-base-mode . ((overblock-pydoc-markup . markdown))))
+  ((python-base-mode . ((overblock-pydoc-markup . rst))))
 #+end_src
 
 One doc string is one markup: given the other reader, a pipe table
