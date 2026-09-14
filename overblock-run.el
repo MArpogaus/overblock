@@ -177,7 +177,7 @@ instead."
                     ;; A blank row said nothing about the figure that
                     ;; could not be drawn there.
                     (imagep (overblock-run--shorten (overblock-image-label l)
-                                                   chars))
+                                                    chars))
                     (t (overblock-run--shorten l chars)))
               shown)
         (when drawp (setq stop t))))
@@ -659,7 +659,7 @@ was reporting.  `overblock-run-abort' asks the same question."
       ;; single cell to run.
       (when died (setq overblock-run--queue nil overblock-run--home nil))
       (overblock-run--show-in-notebook beg fin text (- (float-time) start)
-                                      (and died 'died))
+                                       (and died 'died))
       (when-let* ((buffer (car-safe follow))
                   ((buffer-live-p buffer)))
         (overblock-run--follow-done buffer text))
@@ -765,7 +765,7 @@ It cancels itself when nothing runs there anymore."
                  (total (if (string-empty-p text) 0 (overblock-run-total from))))
             (overblock-run--follow-tick)
             (overblock-run--show-in-notebook beg fin text (- (float-time) start)
-                                            'running total)))))))
+                                             'running total)))))))
 
 (defun overblock-run--filter (output)
   "Watch OUTPUT for the closing prompt, then end the running region.
@@ -962,7 +962,7 @@ already where it is to come back to."
   (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
     (overblock-run--home-set (point-marker)))
   (overblock-run--queue-set (append (overblock-run--queued)
-                                   (list (copy-marker start))))
+                                    (list (copy-marker start))))
   (message "%s: queued behind the running %s"
            (overblock-run--name) (overblock-run--unit)))
 
