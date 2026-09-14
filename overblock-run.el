@@ -188,7 +188,11 @@ instead."
 A spinner while the region runs, a warning where the interpreter went
 away, a fold arrow where there is something to fold, and a tick where
 the region printed nothing at all.  FOLDED, TOTAL, RUNTIME and STATE are
-`overblock-run-header''s own."
+`overblock-run-header''s own.
+
+The mark stands on the first character of the bar, as the glyph of
+every other bar does: it used to lead with a space, and the fold arrow
+of a result stood one column right of the glyph of the cell above it."
   (cond ((eq state 'running)
          ;; The stopwatch drives the spinner: one frame for each tick.
          ;; Braille and not a codicon like every other mark here: a
@@ -196,19 +200,19 @@ the region printed nothing at all.  FOLDED, TOTAL, RUNTIME and STATE are
          ;; still glyph.  These ten are one weight and one size among
          ;; themselves, which is what the rest of the row is for.
          (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
-           (string ?\s (aref frames (mod (truncate runtime overblock-run--interval)
-                                         (length frames))))))
-        ((eq state 'died) (overblock-glyph " " " ⚠" " !"))
+           (string (aref frames (mod (truncate runtime overblock-run--interval)
+                                     (length frames))))))
+        ((eq state 'died) (overblock-glyph "" "⚠" "!"))
         ;; A single line can still be tall: one image is one line, and
         ;; that is the block worth folding.
         ((> total 0)
          (overblock-button (if folded
-                               (overblock-glyph " " " ▸" " >")
-                             (overblock-glyph " " " ▾" " v"))
+                               (overblock-glyph "" "▸" ">")
+                             (overblock-glyph "" "▾" "v"))
                            "Fold or unfold this result"
                            #'overblock-run-toggle-output))
         ;; nothing printed: every other case is above
-        (t (overblock-glyph " " " ✓" " ."))))
+        (t (overblock-glyph "" "✓" "."))))
 
 (defun overblock-run-result-buttons (unit picture)
   "Return the five buttons every result header carries.

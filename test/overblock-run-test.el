@@ -288,8 +288,9 @@ four were drawn by no test at all."
         ;; the fold arrow turns with the fold and is a button; the
         ;; other three are not pressed
         (should-not (equal fold (overblock-run--mark t 3 1.0 nil)))
-        (should (get-text-property 1 'keymap fold))
-        (should-not (get-text-property 1 'keymap died))))))
+        ;; on the first character: the mark leads the bar, as every glyph does
+        (should (get-text-property 0 'keymap fold))
+        (should-not (get-text-property 0 'keymap died))))))
 
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here
