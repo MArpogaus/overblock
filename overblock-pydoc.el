@@ -379,8 +379,11 @@ under the bar says what it is."
                  'overblock-bar indent))
 
 (defun overblock-pydoc--glyph ()
-  "Return the glyph that marks a doc string, as this frame draws it."
-  (overblock-glyph "" "◇" "doc"))
+  "Return the glyph that marks a doc string, as this frame draws it.
+The plain candidate is a page and not the diamond a markdown cell
+wears: both modes are on in one notebook, and a frame without the icon
+font drew the same mark for a cell and for a doc string."
+  (overblock-glyph "" "▯" "doc"))
 
 (defun overblock-pydoc--rule (indent)
   "Return the row that closes a rendered doc string, INDENT columns in.
