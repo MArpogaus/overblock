@@ -44,7 +44,7 @@ is wanted only where the live cycle of its kind is on, so a buffer
 with no mode on is given the cycle's record without the mode's hooks."
   (unless (assq 'markdown overblock-live--specs)
     (setq-local overblock-live--specs
-                (list (list 'markdown #'overblock-pycell-md-render-all nil))))
+                (list (list 'markdown #'overblock-pycell-md-render-all))))
   (overblock-pycell-md-render-all)
   (overblock-pycell-test--settle))
 

@@ -824,8 +824,18 @@ what it does not understand."
     (user-error "%s is for %s buffers" mode
                 (mapconcat #'symbol-name parents " or "))))
 
+(defcustom overblock-live-idle 0.2
+  "Seconds of quiet before a live cycle renders again.
+What the reader has left is rendered when they stop moving, not on
+every command: a held down `C-n' would otherwise render a region for
+every keypress it repeats.  One quiet for every cycle of the family —
+a markdown file, the doc strings of a Python buffer, the cells of a
+notebook — so a reader who wants another sets it once."
+  :type 'number
+  :group 'overblock)
+
 (defvar-local overblock-live--specs nil
-  "How this buffer renders itself: one (KIND RENDER IDLE) a live cycle.
+  "How this buffer renders itself: one (KIND RENDER) a live cycle.
 A buffer can carry several — a notebook renders its markdown cells and
 its doc strings, each through a mode of its own — and each renders the
 blocks of its kind.  `overblock-live-start' adds one and
@@ -891,10 +901,7 @@ edited and left carries no rendering, and the timer puts it back."
     (cancel-timer overblock-live--timer))
   (setq overblock-live--timer
         (run-with-idle-timer
-         ;; the shortest quiet any cycle here asks for
-         (apply #'min 0.2 (mapcar (lambda (spec) (or (nth 2 spec) 0.2))
-                                  overblock-live--specs))
-         nil
+         overblock-live-idle nil
          (let ((buffer (current-buffer)))
            (lambda ()
              (when (buffer-live-p buffer)
@@ -948,13 +955,13 @@ mode binds to the mouse."
                                overblock-live--specs)))
     (overblock-take-down block)))
 
-(defun overblock-live-start (kind render &optional idle)
+(defun overblock-live-start (kind render)
   "Keep this buffer rendered, and let the reader edit what they click.
 KIND names the blocks, as `overblock-show\' takes it.  RENDER is called
 with no arguments to render whatever is not rendered yet; it is the
 caller\'s whole part, and it is where a mode sends a buffer of regions
-through one converter rather than one apiece.  IDLE is the quiet the
-buffer waits for before RENDER is called again, 0.2 seconds by default.
+through one converter rather than one apiece.  `overblock-live-idle\' is
+the quiet the buffer waits for before RENDER is called again.
 
 RENDER is called once here and then whenever the reader stops moving.
 It must leave alone what `overblock-live-wanted-p\' says wants no
@@ -966,7 +973,7 @@ which a mode binds to a click — and when the region under it is edited,
 which `overblock-stale-when-edited\' answers.  Point arriving somewhere
 reveals nothing: a reader scrolls through a buffer, and a rendering that
 came off under the window made the text grow and shrink as they went."
-  (setf (alist-get kind overblock-live--specs) (list render idle))
+  (setf (alist-get kind overblock-live--specs) (list render))
   (setq overblock--columns (overblock-window-columns))
   (add-hook 'post-command-hook #'overblock-live--settle nil t)
   ;; The width, too: a rendering is built for the columns it is shown

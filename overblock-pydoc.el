@@ -56,12 +56,7 @@
   :group 'overblock
   :prefix "overblock-pydoc-")
 
-(defcustom overblock-pydoc-idle 0.2
-  "Seconds of quiet before a doc string is rendered again.
-The doc string point leaves is rendered when the reader stops moving,
-not on every command: a held down `C-n\' would otherwise render one
-for every keypress it repeats."
-  :type 'number)
+(define-obsolete-variable-alias 'overblock-pydoc-idle 'overblock-live-idle "1.0")
 
 ;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)
 (defcustom overblock-pydoc-markup 'rst
@@ -580,9 +575,7 @@ strings are written in."
   (if overblock-pydoc-mode
       (progn
         (setq-local overblock-live-source-at-point nil)
-        (overblock-live-start 'pydoc
-                              #'overblock-pydoc-render-buffer
-                              overblock-pydoc-idle))
+        (overblock-live-start 'pydoc #'overblock-pydoc-render-buffer))
     (overblock-live-stop 'pydoc)
     (kill-local-variable 'overblock-live-source-at-point)))
 

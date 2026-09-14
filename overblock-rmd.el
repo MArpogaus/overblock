@@ -788,8 +788,7 @@ drew them twice.  The chunks are still fontified and indented as R."
                     #'overblock-rmd--prose)
         (overblock-rmd--stay-in-host)
         (add-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host nil t)
-        (overblock-live-start 'md-preview #'overblock-rmd-render-buffer
-                              overblock-md-preview-idle))
+        (overblock-live-start 'md-preview #'overblock-rmd-render-buffer))
     (overblock-live-stop 'md-preview)
     (overblock-run-detach)
     (remove-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host t)

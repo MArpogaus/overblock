@@ -58,12 +58,8 @@
   :group 'overblock
   :prefix "overblock-md-preview-")
 
-(defcustom overblock-md-preview-idle 0.2
-  "Seconds of quiet before a line is rendered again.
-The line point leaves is rendered when the reader stops moving, not on
-every command: a held down `C-n' would otherwise render a line for
-every keypress it repeats."
-  :type 'number)
+(define-obsolete-variable-alias 'overblock-md-preview-idle
+  'overblock-live-idle "1.0")
 
 (defvar-keymap overblock-md-preview-map
   :doc "Keymap on a rendered line.
@@ -259,9 +255,7 @@ nothing where none of its candidates is installed."
     (setq overblock-md-preview-mode nil)
     (message "overblock-md-preview: off, overblock-rmd-mode renders this prose"))
    (overblock-md-preview-mode
-    (overblock-live-start 'md-preview
-                          #'overblock-md-preview-render-buffer
-                          overblock-md-preview-idle))
+    (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer))
    (t (overblock-live-stop 'md-preview))))
 
 (provide 'overblock-md-preview)
