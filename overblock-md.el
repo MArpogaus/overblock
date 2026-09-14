@@ -41,7 +41,7 @@
 ;; image is drawn on the spot rather than fetched.
 ;;
 ;; Rendering a whole buffer of cells calls the program once, with
-;; `overblock-md-html-batch'.
+;; `overblock-md-html-batch-async'.
 
 ;;; Code:
 
@@ -707,26 +707,11 @@ One wrong argument in `overblock-md-command' was enough."
                 nil)))
         (ignore-errors (delete-file errors))))))
 
-(defun overblock-md-html-batch (texts)
-  "Return the HTML of each of TEXTS, converted in one go.
-A caller often renders many pieces at once, and a converter
-process costs more than the markdown: 44 milliseconds a cell with
-`markdown_py', which is two seconds for fifty cells and nine for two
-hundred.  One process for the buffer costs that once.
-
-Nil when the marker does not come back once between every pair of
-cells, or when a cell holds it already; the caller then asks for one
-call per cell, as it always did."
-  (when-let* ((joined (overblock-md--batch-text texts)))
-    ;; Nil where the converter is missing or failed, which is what
-    ;; `overblock-md--html' answers and what this function's own
-    ;; docstring promises.
-    (overblock-md--batch-pieces (overblock-md--html joined) texts)))
-
 (defun overblock-md--batch-text (texts)
   "Return TEXTS joined for one call of the converter, or nil.
-Nil where a text holds the marker that tells them apart, which is what
-`overblock-md-html-batch\' answers nil for."
+Nil where a text holds the marker that tells them apart: the pieces
+could not be told apart again, and the caller asks for one call a text
+instead."
   (unless (seq-some (lambda (text) (string-search overblock-md--marker text))
                     texts)
     (string-join (mapcar #'overblock-md--verbatim-math texts)
@@ -747,8 +732,7 @@ is the one answer a caller has to be ready for."
   "Convert TEXTS in one process and hand the HTML of each to CALLBACK.
 CALLBACK is called with the list, in the order of TEXTS, or with nil
 where the converter is missing, failed, or answered without its marker
-between every pair — the same answers `overblock-md-html-batch\' gives,
-and a caller has to be ready for nil either way.
+between every pair; a caller has to be ready for nil either way.
 
 The point of it is that nothing waits: a buffer of doc strings costs a
 process, and a process that is waited for is a frozen Emacs.  Measured
@@ -1205,8 +1189,8 @@ what it can show."
   "Render the markdown MD to a propertized string.
 `overblock-md-command' produces HTML, shr renders it, and LaTeX
 fragments become preview images.  With HTML, that is rendered instead
-and MD is not converted again: `overblock-md-html-batch' converts a
-whole buffer of cells at once.
+and MD is not converted again: `overblock-md-html-batch-async' converts
+a whole buffer of cells at once.
 
 shr renders without its font arithmetic here: a cell's text hangs on
 source lines at whatever indent the buffer wears, and only literal

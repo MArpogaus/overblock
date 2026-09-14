@@ -337,8 +337,7 @@ Markdown buffer over its own source.
 | Function                        | What it does                            |
 |---------------------------------+-----------------------------------------|
 | =overblock-md-rendered=         | markup in, one propertized string out   |
-| =overblock-md-html-batch=       | convert many texts in one process       |
-| =overblock-md-html-batch-async= | the same, and do not wait for it        |
+| =overblock-md-html-batch-async= | convert many texts in one process       |
 | =overblock-md-fontified=        | render with a major mode's font lock    |
 | =overblock-md-columns=          | the columns a window leaves a rendering |
 | =overblock-md-program=          | the converter that is installed, or nil |

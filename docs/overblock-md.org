@@ -46,13 +46,12 @@ which shr has no handler for: the alt text was drawn twice, once on the
 shr reads the HTML with libxml2.  Without libxml2 the markup stays
 plain text, and the mode reports which part is missing.
 
-=overblock-md-html-batch= sends many texts to the converter in one
-call.  It puts a marker between them and splits the HTML at that
-marker.  One process for a buffer is much faster than one for each
+=overblock-md-html-batch-async= sends many texts to the converter in
+one call and does not wait for the answer.  It puts a marker between
+them and splits the HTML at that marker.  One process for a buffer is much faster than one for each
 region: 44 milliseconds a region with =markdown_py=, which is two
 seconds for fifty and nine for two hundred.  A caller falls back to one
 call apiece if the number of pieces does not match the number of texts.
-=overblock-md-html-batch-async= does not wait for the answer.
 
 A converter is a process that can fail, and the answer is nil where
 none is installed and nil where the one that is exits non-zero.  That
