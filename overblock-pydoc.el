@@ -133,6 +133,18 @@ where the bar's own text begins, which is the column the doc string is
 indented to, and it ends where the row ends, which is the window's
 edge.  Nothing has to measure either.")
 
+(defun overblock-pydoc--redraw ()
+  "Draw the bars of every rendered doc string again, in every buffer.
+A button list or a label the reader changes reaches the bars at once;
+without this it waited for something else to render the doc string
+again — a window changing width, or the file opened afresh."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (bound-and-true-p overblock-pydoc-mode)
+        (dolist (block (overblock-in (point-min) (point-max) 'pydoc))
+          (overblock-delete block))
+        (overblock-pydoc-render-buffer)))))
+
 (defcustom overblock-pydoc-buttons
   '((edit ("\uea73" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
@@ -144,11 +156,6 @@ click on the rendering already gives the source back where it stands,
 which is what its tooltip says, so a button for it said the same thing
 twice."
   :type overblock-button-type
-  ;; `custom-initialize-reset', which a `defcustom' takes by default,
-  ;; calls the `:set' function as the option is defined, and the
-  ;; drawing it asks for is defined further down.  Nothing is drawn at
-  ;; that moment anyway.
-  :initialize #'custom-initialize-default
   :set (lambda (symbol value)
          (set-default symbol value)
          (overblock-pydoc--redraw)))
@@ -426,18 +433,6 @@ of prose, and a doc string of one line is the commonest of all."
                         (overblock-pydoc--rule indent))
                   "\n"))
    indent))
-
-(defun overblock-pydoc--redraw ()
-  "Draw the bars of every rendered doc string again, in every buffer.
-A button list or a label the reader changes reaches the bars at once;
-without this it waited for something else to render the doc string
-again — a window changing width, or the file opened afresh."
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer
-      (when (bound-and-true-p overblock-pydoc-mode)
-        (dolist (block (overblock-in (point-min) (point-max) 'pydoc))
-          (overblock-delete block))
-        (overblock-pydoc-render-buffer)))))
 
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return it.
