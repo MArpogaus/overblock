@@ -1332,6 +1332,40 @@ at the bottom edge with the code about to run out of sight."
               (should (= (window-point window) second))))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-new-button-list-redraws-the-bars ()
+  "Customizing the buttons draws the bars of an open notebook again.
+A bar is left as it is where nothing it compares has changed, and the
+button list is a change it cannot see: without the mark the reader set
+the option and nothing moved until a window changed width or the file
+was opened afresh."
+  (overblock-pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (let ((before (overblock-pycell-test--bar-texts))
+          (was overblock-pycell-cell-buttons))
+      (should before)
+      (unwind-protect
+          (progn
+            (setopt overblock-pycell-cell-buttons
+                    '((run ("" "▷" "run") "Run this cell"
+                           overblock-pycell-run-cell t)))
+            (should-not (equal before (overblock-pycell-test--bar-texts))))
+        (setopt overblock-pycell-cell-buttons was))
+      ;; and back again, so the option is what the bars follow
+      (should (equal before (overblock-pycell-test--bar-texts))))))
+
+(ert-deftest overblock-pycell-test-a-bar-is-cut-again-for-a-new-width ()
+  "A bar follows the window it is drawn in when that window changes width.
+A bar is left as it is where nothing it compares has changed, and the
+width is not among those things: it is declared stale instead, and
+without that the rule of every bar stayed the length of the window the
+file was opened in."
+  (overblock-pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
+    (let ((wide (overblock-pycell-test--bar-texts)))
+      (should wide)
+      (cl-letf (((symbol-function 'window-max-chars-per-line)
+                 (lambda (&rest _) 24)))
+        (overblock--width-changed)
+        (should-not (equal wide (overblock-pycell-test--bar-texts)))))))
+
 (ert-deftest overblock-pycell-test-a-guarded-key-answers-at-the-result ()
   "The filter lets a key through at the end of a cell that has a result.
 A reader binds TAB in the result map, and TAB indents everywhere else
