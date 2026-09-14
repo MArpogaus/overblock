@@ -2154,7 +2154,7 @@ ordinary font has, or the plain characters a terminal falls to.  Two
 rounds of this: `^' meant both \"pop this result out\" and \"edit this
 cell\" in the last row, and `↗' meant both in the middle one, which is
 the row a frame with a font and no nerd glyphs draws."
-  (let ((bars (list overblock-pycell-result-buttons overblock-pycell-markdown-buttons
+  (let ((bars (list overblock-pycell-result-buttons overblock-pycell-md-buttons
                     overblock-pycell-cell-buttons overblock-pycell-source-buttons)))
     (dotimes (row 3)
       ;; No glyph twice on one bar.

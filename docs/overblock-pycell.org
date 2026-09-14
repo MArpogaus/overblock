@@ -106,7 +106,7 @@ the text.
 
 ** The header bars
 
-=overblock-pycell-result-buttons= and =overblock-pycell-markdown-buttons= hold the buttons
+=overblock-pycell-result-buttons= and =overblock-pycell-md-buttons= hold the buttons
 of the two bars — the shape that =overblock-button-type= asks
 customize for — and =overblock-buttons= walks a list of them.  A
 descriptor names the glyph candidates rather than one glyph, because a
