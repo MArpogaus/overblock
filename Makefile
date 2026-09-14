@@ -30,7 +30,12 @@ TEST := $(wildcard test/*.el)
 # does not load them; `test-live' below is their target.  They are still
 # in TEST, so they are byte-compiled and relinted with the rest.
 LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el
-SUITE := $(filter-out $(LIVE),$(TEST))
+# The scroll tests need a real frame to give a line a pixel height, so
+# under `--batch' they can only skip; `scroll' below runs them in one.
+# Left in SUITE they made `make test' report three skips for ever, and
+# STRICT accepted them because a skip is all they can do there.
+GRAPHIC := test/overblock-pycell-scroll-test.el test/run-scroll.el
+SUITE := $(filter-out $(LIVE) $(GRAPHIC),$(TEST))
 
 # Elisp programs live in variables: make joins their continuation lines,
 # while a backslash inside a quoted recipe line would reach Emacs as is.
@@ -42,8 +47,18 @@ init = (progn (setq package-user-dir (expand-file-name "$(SANDBOX)")) \
 bootstrap = (progn (package-refresh-contents) \
                    (dolist (p (quote ($(DEPS)))) \
                      (unless (package-installed-p p) (package-install p))))
-strict = (unless (overblock-md-program) \
-           (error "No markdown converter: the markdown tests would skip"))
+# Every condition the batch suite skips on that a machine running it is
+# meant to satisfy.  Image support is not among them: five of the six
+# CI Emacsen are built without it, and a test that needs a PNG can only
+# skip there — honestly, which is what the rest of this guards against.
+strict = (dolist (want (list \
+             (cons (overblock-md-program) "markdown converter") \
+             (cons (fboundp (quote markdown-mode)) "markdown-mode") \
+             (cons (fboundp (quote make-vtable)) "vtable") \
+             (cons (fboundp (quote libxml-parse-html-region)) "libxml") \
+             (cons (executable-find "sh") "shell"))) \
+           (unless (car want) \
+             (error "No %s: tests that want one would skip" (cdr want))))
 
 BATCH = $(EMACS) -Q --batch -L . -L test --eval '$(init)'
 

@@ -115,6 +115,27 @@ back as a row of empty cells and every row as a paragraph of its own."
       (should (string-match-p "a +b" shown))
       (should (string-match-p "1 +2" shown)))))
 
+(ert-deftest overblock-md-preview-test-a-rendering-fits-the-window ()
+  "The rendering is filled to the columns the window has.
+A batch frame is as wide as its only window, so the width could stop
+reaching shr without a test noticing: measured, every row of a
+rendering stayed the frame\'s 80 columns wide with the window at 30.
+One column is kept back, because a row that fills the last one wraps."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with
+      (concat "A paragraph long enough to need filling, of ordinary "
+              "words and no markup at all, so that what comes back is "
+              "as wide as the filling made it.\n")
+    (set-window-buffer nil (current-buffer))
+    (cl-letf (((symbol-function 'window-max-chars-per-line) (lambda (&rest _) 30)))
+      (let ((block (overblock-md-preview--show (point-min) (point-max))))
+        (should block)
+        (dolist (row (split-string (overblock-get block :over) "\n"))
+          (should (<= (string-width row) 29)))
+        ;; and it is the filling that did it, not a short answer
+        (should (seq-find (lambda (row) (> (string-width row) 20))
+                          (split-string (overblock-get block :over) "\n")))))))
+
 (ert-deftest overblock-md-preview-test-a-region-is-read-from-the-top ()
   "A region inside a fence is known to be inside it.
 The walk starts at the top of the buffer whatever the region says,

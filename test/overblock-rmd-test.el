@@ -163,6 +163,37 @@ the closing brace."
     (overblock-rmd-test--with-document (car case)
       (should (= (length (overblock-rmd-chunks)) (cdr case))))))
 
+(defclass overblock-rmd-test--polymode ()
+  ((keep-in-mode :initform nil))
+  :documentation "A stand-in for polymode\'s own object, with the one slot.
+polymode is not a dependency of this package and not installed for the
+suite; what the mode does with it is one `eieio-oset\', and that is
+what this class is here to catch.")
+
+(ert-deftest overblock-rmd-test-the-buffer-stays-in-its-host-mode ()
+  "Under polymode the buffer is kept in the host mode while the mode is on.
+polymode carries the overlays of a buffer along when it switches to an
+inner one, and the bars and blocks of this mode are overlays whose
+owner stays behind: every one of them left the buffer the moment point
+entered a chunk.  The mode says so on the way in and takes it back on
+the way out."
+  (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
+    (setq-local pm/polymode (overblock-rmd-test--polymode))
+    (let ((overblock-md-command nil))
+      (unwind-protect
+          (progn
+            (overblock-rmd-mode 1)
+            (should (eq (eieio-oref pm/polymode 'keep-in-mode) 'host))
+            ;; and again when polymode initializes the host after us:
+            ;; the mode goes on from `markdown-mode-hook', which
+            ;; polymode runs before it has set its own variable
+            (eieio-oset pm/polymode 'keep-in-mode nil)
+            (run-hooks 'polymode-init-host-hook)
+            (should (eq (eieio-oref pm/polymode 'keep-in-mode) 'host)))
+        (overblock-rmd-mode -1))
+      ;; off again: the buffer is polymode's to switch as it likes
+      (should-not (eieio-oref pm/polymode 'keep-in-mode)))))
+
 (ert-deftest overblock-rmd-test-an-unclosed-chunk-keeps-the-next-header ()
   "A chunk left unclosed does not swallow the chunk below it.
 The header of the next chunk is a fence too, and it was taken for the
