@@ -111,13 +111,13 @@ doc string in it.
 mode here where you prefer one."
   :type '(alist :key-type symbol :value-type function))
 
-(defun overblock-pydoc-mode-for-markup ()
+(defun overblock-pydoc--mode-for-markup ()
   "Return the major mode that reads a doc string of this buffer.
 `overblock-pydoc-modes' says which, and `rst-mode' answers for a
 markup the option says nothing about."
   (or (alist-get overblock-pydoc-markup overblock-pydoc-modes) #'rst-mode))
 
-(defun overblock-pydoc-command-for-markup ()
+(defun overblock-pydoc--command-for-markup ()
   "Return the command that renders a doc string of this buffer.
 `overblock-pydoc-command' says which, read as `overblock-md-command'
 is read, and a markup the option says nothing about renders with
@@ -463,7 +463,7 @@ quotes, and the rendering of one stood a column out of line."
                ;; rendering to shr with whatever `overblock-md-command'
                ;; holds.
                (let ((overblock-md-width (overblock-md-columns indent))
-                     (overblock-md-command (overblock-pydoc-command-for-markup)))
+                     (overblock-md-command (overblock-pydoc--command-for-markup)))
                  (when-let* ((prose (overblock-md-rendered source html)))
                    (overblock-pydoc--dressed
                     (string-trim-right prose "\n+")
@@ -495,7 +495,7 @@ again whenever the reader stops."
                           (overblock-live-wanted-p (car region) (cdr region)
                                                    'pydoc))
                         (overblock-pydoc--strings (point-min) (point-max)))))
-    (let ((overblock-md-command (overblock-pydoc-command-for-markup)))
+    (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
       (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
                                    #'overblock-pydoc--show))))
 
@@ -551,7 +551,7 @@ of this buffer.
        (list :name (format "*overblock-pydoc: %s:%d*" (buffer-name)
                            (line-number-at-pos (overlay-start block)))
              :label "doc string"
-             :mode (overblock-pydoc-mode-for-markup)
+             :mode (overblock-pydoc--mode-for-markup)
              :text #'overblock-pydoc--source
              :put #'overblock-pydoc--put))
     (user-error "No rendered doc string here")))

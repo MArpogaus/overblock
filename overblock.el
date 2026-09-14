@@ -1313,7 +1313,7 @@ What a change that no bar can see for itself calls: another glyph,
 another list of buttons, a window of another width."
   (mapc #'overblock-bar-stale (overblock-bars)))
 
-(defun overblock-forget-glyphs ()
+(defun overblock--forget-glyphs ()
   "Forget the glyphs answered so far, and draw the bars again.
 The rows of buttons built from those glyphs go too.
 
@@ -1343,7 +1343,7 @@ candidate never gets it."
   :initialize #'custom-initialize-default
   :set (lambda (symbol value)
          (set-default symbol value)
-         (overblock-forget-glyphs))
+         (overblock--forget-glyphs))
   :group 'overblock)
 
 (defun overblock--glyph-drawn-p (candidate)

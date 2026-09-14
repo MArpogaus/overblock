@@ -142,7 +142,7 @@ outside the suite ever called."
   "Return the leading LINES of a result, as the notebook's options bound them.
 The package has no wrapper of its own for this — the runner takes the
 budgets as arguments — so the tests supply them here."
-  (overblock-run-body-lines
+  (overblock-run--body-lines
    (overblock-repl-first-lines (string-join lines "\n") overblock-pycell-max-lines)
    overblock-pycell-max-line-length))
 
@@ -371,7 +371,7 @@ ten thousand lines cost 12.9 milliseconds against 0.6."
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
         (should (plist-get (overblock-get ov :data) :folded))
         ;; and the result that replaced it is the new one
-        (should (equal (overblock-run-result-text ov) "c\nd"))))))
+        (should (equal (overblock-run--result-text ov) "c\nd"))))))
 
 (ert-deftest overblock-pycell-test-remove-overlays ()
   "Removing results takes the helper overlays with them."
@@ -564,7 +564,7 @@ cell."
             (should (buffer-local-value 'python-shell-first-prompt-hook shell))
             (cl-letf (((symbol-function 'python-shell-get-process)
                        (lambda (&rest _) proc))
-                      ((symbol-function 'overblock-run-send)
+                      ((symbol-function 'overblock-run--send)
                        (lambda (_proc beg end)
                          (setq sent (list (marker-buffer beg)
                                           (marker-buffer end))))))
@@ -1108,12 +1108,12 @@ the block of one cell would end up under the other."
                                 (pos-bol) (pos-eol))))
       (should (= (- (point) (pos-bol)) column)))
     ;; each result is on its own cell again
-    (let ((texts (mapcar #'overblock-run-result-text
+    (let ((texts (mapcar #'overblock-run--result-text
                          (overblock-in (point-min) (point-max) 'result))))
       (should (equal (sort (copy-sequence texts) #'string<) '("one" "two")))
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (should (equal (overblock-run-result-text (car (overblock-in beg end 'result)))
+        (should (equal (overblock-run--result-text (car (overblock-in beg end 'result)))
                        "two"))))))
 
 (ert-deftest overblock-pycell-test-move-cell-keeps-a-rendered-markdown-cell ()
@@ -1223,7 +1223,7 @@ and nothing is taken off before it has said it."
                      before))
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (should (equal (overblock-run-result-text (car (overblock-in beg end 'result)))
+        (should (equal (overblock-run--result-text (car (overblock-in beg end 'result)))
                        "one"))))))
 
 (ert-deftest overblock-pycell-test-table-pops-as-a-live-table ()
@@ -1296,14 +1296,14 @@ another's cells and then fed its own down that notebook's interpreter."
                     ((symbol-function 'process-buffer)
                      (lambda (proc)
                        (if (eq proc 'proc-one) shell-one shell-two))))
-            (with-current-buffer one (overblock-run-queue-set '(a b c)))
-            (with-current-buffer two (overblock-run-queue-set '(x)))
-            (should (equal (with-current-buffer one (overblock-run-queued)) '(a b c)))
-            (should (equal (with-current-buffer two (overblock-run-queued)) '(x)))
+            (with-current-buffer one (overblock-run--queue-set '(a b c)))
+            (with-current-buffer two (overblock-run--queue-set '(x)))
+            (should (equal (with-current-buffer one (overblock-run--queued)) '(a b c)))
+            (should (equal (with-current-buffer two (overblock-run--queued)) '(x)))
             ;; Stopping one leaves the other running.
             (with-current-buffer two (overblock-run-stop))
-            (should (equal (with-current-buffer one (overblock-run-queued)) '(a b c)))
-            (should-not (with-current-buffer two (overblock-run-queued)))))
+            (should (equal (with-current-buffer one (overblock-run--queued)) '(a b c)))
+            (should-not (with-current-buffer two (overblock-run--queued)))))
       (mapc #'kill-buffer (list one two shell-one shell-two)))))
 
 (ert-deftest overblock-pycell-test-a-pass-aligns-the-cell-with-the-window-top ()
@@ -1319,14 +1319,14 @@ at the bottom edge with the code about to run out of sight."
                      (lambda (&rest _) 'proc))
                     ((symbol-function 'process-buffer)
                      (lambda (_proc) shell))
-                    ((symbol-function 'overblock-run-send)
+                    ((symbol-function 'overblock-run--send)
                      (lambda (_proc beg _end) (setq sent beg))))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode))
             (let ((second (cadr (overblock-pycell--cell-starts)))
                   (window (get-buffer-window)))
               (set-window-start window (point-max))
-              (overblock-run-queue-set (list second))
+              (overblock-run--queue-set (list second))
               (overblock-run-next)
               (should (>= sent second))
               (should (= (window-start window) second))
@@ -1627,13 +1627,13 @@ writes the whole of it again with the prompts off."
                       (list :from (copy-marker 1)
                             :follow (cons out (copy-marker 1))))
           ;; what has been printed already
-          (overblock-run-follow-tick)
+          (overblock-run--follow-tick)
           (should (equal (with-current-buffer out (buffer-string))
                          "one\ntwo\n"))
           ;; and then only what is new
           (goto-char (point-max))
           (insert "three\n")
-          (overblock-run-follow-tick)
+          (overblock-run--follow-tick)
           (should (equal (with-current-buffer out (buffer-string))
                          "one\ntwo\nthree\n"))
           ;; point at the end followed the output
@@ -1643,7 +1643,7 @@ writes the whole of it again with the prompts off."
             (kill-buffer gone)
             (setq overblock-run--state (plist-put overblock-run--state :follow
                                          (cons gone (copy-marker 1))))
-            (should-not (overblock-run-follow-tick)))
+            (should-not (overblock-run--follow-tick)))
           ;; and the end writes the whole of it, cleaned
           (overblock-run--follow-done out "one\ntwo\nthree")
           (should (equal (with-current-buffer out (buffer-string))
@@ -1658,7 +1658,7 @@ alone left a cloak of a lost block keeping lines of the buffer
 invisible, with nothing able to remove it."
   (cl-letf (((symbol-function 'run-python) #'ignore)
             ((symbol-function 'python-shell-get-process) #'ignore)
-            ((symbol-function 'overblock-run-queue-set) #'ignore)
+            ((symbol-function 'overblock-run--queue-set) #'ignore)
             ((symbol-function 'overblock-pycell--dedicated) #'ignore))
     (overblock-pycell-test--with-cells
       (let ((orphan (make-overlay (point-min) (1+ (point-min)))))
@@ -1757,7 +1757,7 @@ so `overblock-run-interrupt' works there wherever the reader binds it."
             (with-current-buffer shell
               (setq-local overblock-run--state (list :beg cell)))
             (with-temp-buffer
-              (setq-local overblock-run-follower (cons shell cell))
+              (setq-local overblock-run--follower (cons shell cell))
               (overblock-run-interrupt)
               (should (equal asked (list 'process-of shell)))
               ;; and not another notebook's run, nor a result that ended
@@ -1778,7 +1778,7 @@ so `overblock-run-interrupt' works there wherever the reader binds it."
             (progn
               (with-current-buffer shell (setq overblock-run--state (list :beg dead)))
               (with-temp-buffer
-                (setq-local overblock-run-follower (cons shell dead))
+                (setq-local overblock-run--follower (cons shell dead))
                 (should-error (overblock-run-interrupt) :type 'user-error)
                 (should-not asked)))
             ;; And a shell that has outlived its process says whose
@@ -1787,7 +1787,7 @@ so `overblock-run-interrupt' works there wherever the reader binds it."
             (with-current-buffer shell (setq overblock-run--state (list :beg cell)))
             (cl-letf (((symbol-function 'get-buffer-process) #'ignore))
               (with-temp-buffer
-                (setq-local overblock-run-follower (cons shell cell))
+                (setq-local overblock-run--follower (cons shell cell))
                 (should-error (overblock-run-interrupt) :type 'user-error)
                 (should-not asked)))))
       (kill-buffer shell)
@@ -1801,7 +1801,7 @@ error, or on `overblock-run-stop', left every cell after that point plain.  A
 rendering has nothing to do with the interpreter."
   (cl-letf (((symbol-function 'run-python) #'ignore)
             ((symbol-function 'python-shell-get-process) #'ignore)
-            ((symbol-function 'overblock-run-queue-set) #'ignore)
+            ((symbol-function 'overblock-run--queue-set) #'ignore)
             ((symbol-function 'overblock-pycell--dedicated) #'ignore))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
@@ -1822,7 +1822,7 @@ rendering has nothing to do with the interpreter."
 called it
 back: two markdown cells in a row made two frames, and each frame ran
 its own tail on the way out — the second sending a code cell while the
-first was still running.  `overblock-run-send' refused that one from inside
+first was still running.  `overblock-run--send' refused that one from inside
 the process filter, and the cell, already off the queue, never ran."
   (with-temp-buffer
     (insert "# %% [markdown]\n# one\n\n# %% [markdown]\n# two\n\n"
@@ -1843,8 +1843,8 @@ the process filter, and the cell, already off the queue, never ran."
                      ;; A code cell is where the walk has to stop.
                      ((symbol-function 'python-shell-get-process)
                       (lambda (&rest _) 'process))
-                     (send (symbol-function 'overblock-run-send))
-                     ((symbol-function 'overblock-run-send)
+                     (send (symbol-function 'overblock-run--send))
+                     ((symbol-function 'overblock-run--send)
                       (lambda (_proc beg _end)
                         (ignore send)
                         (setq depth (1+ depth)
@@ -1873,7 +1873,7 @@ the process filter, and the cell, already off the queue, never ran."
                        2))
             (should (= (length sent) 1))
             (should (= deepest 1))
-            (should (= (length (overblock-run-queued)) 1)))
+            (should (= (length (overblock-run--queued)) 1)))
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-copy-output-keeps-what-the-result-holds ()
@@ -2275,7 +2275,7 @@ already taken off it."
                       (lambda (&rest _) (user-error "Still busy"))))
             (goto-char (point-max))
             (should-error (overblock-run-above) :type 'user-error)
-            (should-not (overblock-run-queued)))
+            (should-not (overblock-run--queued)))
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-change-leaves-the-search-alone ()
@@ -2342,12 +2342,12 @@ an unrelated cell ended."
       (cl-letf (((symbol-function 'overblock-run-shell) (lambda () shell)))
         (with-current-buffer shell (setq-local overblock-run--home nil))
         (goto-char (point-max))
-        (overblock-run-home-set (point-marker))
+        (overblock-run--home-set (point-marker))
         (should (= (marker-position
                     (buffer-local-value 'overblock-run--home shell))
                    (point-max)))
         ;; A refusal takes it away again, so nothing drags point later.
-        (overblock-run-home-set nil)
+        (overblock-run--home-set nil)
         (should-not (buffer-local-value 'overblock-run--home shell))
         ;; And going home with none set is not an error.
         (overblock-run-go-home))
@@ -2432,13 +2432,13 @@ could fold it, and no edit of the cell took it down."
       (let ((from (copy-marker beg))
             (to (copy-marker end t)))
         (overblock-pycell-mode 1)
-        (overblock-run-show-in-notebook from to "out" 0.1 nil)
+        (overblock-run--show-in-notebook from to "out" 0.1 nil)
         (should (overblock-in (point-min) (point-max) 'result))
         (overblock-pycell-mode -1)
         (should-not (overblock-in (point-min) (point-max) 'result))
         ;; Both the ticker and the end of the cell come this way.
-        (overblock-run-show-in-notebook from to "more" 0.2 'running 2)
-        (overblock-run-show-in-notebook from to "out" 0.3 nil)
+        (overblock-run--show-in-notebook from to "more" 0.2 'running 2)
+        (overblock-run--show-in-notebook from to "out" 0.3 nil)
         (should-not (overblock-in (point-min) (point-max) 'result))))))
 
 (ert-deftest overblock-pycell-test-a-region-of-no-length-leaves-the-shell-busy-no-longer ()
@@ -2461,7 +2461,7 @@ alone."
       (should-not (overblock-run-show beg end "" 0.0)))
     ;; The filter path survives it, and the next cell of the run still
     ;; shows its result.
-    (overblock-run-show-in-notebook (copy-marker (point-min))
+    (overblock-run--show-in-notebook (copy-marker (point-min))
                               (copy-marker (point-min))
                               "" 0.0 nil)
     (should (overblock-run-show (copy-marker (+ 5 (point-min)))

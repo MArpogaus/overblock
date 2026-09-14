@@ -56,17 +56,17 @@ Emacs cannot ask a terminal what its font holds, so the icons are kept
 from it until `overblock-terminal-glyphs' says otherwise.  Then the
 coding system decides, which is the one thing a terminal can be asked."
   (let ((overblock-terminal-glyphs nil))
-    (overblock-forget-glyphs)
+    (overblock--forget-glyphs)
     (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "copy")))
   (let ((overblock-terminal-glyphs t))
-    (overblock-forget-glyphs)
+    (overblock--forget-glyphs)
     (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "\uEBCC"))
     ;; and what this terminal cannot encode it still does not get
     (cl-letf (((symbol-function 'char-displayable-p)
                (lambda (ch) (not (eq ch ?\uEBCC)))))
-      (overblock-forget-glyphs)
+      (overblock--forget-glyphs)
       (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "◫"))))
-  (overblock-forget-glyphs))
+  (overblock--forget-glyphs))
 
 (ert-deftest overblock-test-the-glyph-answer-is-forgotten-on-a-change ()
   "An answer kept from before the option changed is not reused.
@@ -469,7 +469,7 @@ plain `setq' of the option changed nothing — only
 `customize-set-variable' reaches the `:set' that empties the table."
   (skip-unless (not (display-graphic-p)))
   (let ((descriptors '((one ("\uEA76 " "x ") "first" ignore t))))
-    (overblock-forget-glyphs)
+    (overblock--forget-glyphs)
     (let ((overblock-terminal-glyphs nil))
       ;; a private use glyph is refused where the terminal is not
       ;; trusted with the icons
@@ -488,7 +488,7 @@ plain `setq' of the option changed nothing — only
 The header of a running result asks five times a second."
   (let ((descriptors '((one ("x ") "first" ignore t)))
         (built 0))
-    (overblock-forget-glyphs)
+    (overblock--forget-glyphs)
     (cl-letf* ((real (symbol-function 'overblock--buttons))
                ((symbol-function 'overblock--buttons)
                 (lambda (&rest args) (setq built (1+ built)) (apply real args))))

@@ -120,7 +120,7 @@ the shell stayed busy for the session."
     (overblock-pycell-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-pycell-live-test--idle-p)
-                             (null (overblock-run-queued))
+                             (null (overblock-run--queued))
                              (= (length (overblock-test-common-results)) 2)))
              60))
     (should (equal (overblock-test-common-text (car (overblock-test-common-results)))
@@ -142,15 +142,15 @@ in.  The running cell runs to its end, and the pass ends clean."
     (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (python-shell-get-process)))
-                 (and (null (overblock-run-queued))
+                 (and (null (overblock-run--queued))
                       (buffer-local-value 'overblock-run--state
                                           (process-buffer proc)))))
              60))
     ;; from another buffer, as a key bound in some other map would be
     (with-temp-buffer (overblock-run-stop))
-    (should-not (overblock-run-queued))
+    (should-not (overblock-run--queued))
     (should (overblock-test-common-wait #'overblock-pycell-live-test--idle-p 60))
-    (should-not (overblock-run-queued))
+    (should-not (overblock-run--queued))
     ;; the running cell was not cut short: both results arrived
     (should (= (length (overblock-test-common-results)) 2))))
 
