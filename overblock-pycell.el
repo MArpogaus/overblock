@@ -644,8 +644,8 @@ Only the word =markdown= of the boundary line carries the header, so
 
 (defun overblock-pycell--md-bar (hov)
   "Draw the bar HOV of a rendered markdown cell, or draw it again.
-The bar is an overlay on the boundary line above the cell, which the
-block keeps under `:bar'.  It is remade rather than the cell rendered
+The bar is an overlay on the boundary line above the cell, one of the
+block's `:attached'.  It is remade rather than the cell rendered
 again when the window changes width: the rendering does not depend on
 the width, and the label of the bar does."
   (when (overlay-buffer hov)
@@ -707,7 +707,6 @@ See `overblock-pycell--md-show', which renders and calls this."
     ;; A click on the bar lands on this overlay, so it points back at
     ;; the block, which knows the bounds of the cell.
     (overlay-put hov 'overblock-pycell-main block)
-    (overblock-set block :bar hov)
     (overblock-pycell--md-bar hov)
     ;; An edit of the source takes the rendering with it, the bar
     ;; included.  The block itself evaporates with the text it covers,
