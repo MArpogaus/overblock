@@ -59,7 +59,6 @@
 ;;
 ;; And the look of a result block, which `overblock-run-show' draws:
 ;;
-;;   :keymap       the keymap on it
 ;;   :buttons      the option that holds the button descriptors, a symbol
 ;;   :lines        the option that says how many lines show, a symbol
 ;;   :chars        the option that says how long a line may be, a symbol
@@ -124,6 +123,18 @@ and a block drawn later shows what they say now."
   "Return what this backend calls a region, PLURAL where that is asked."
   (concat (or (plist-get overblock-run-backend :unit) "region")
           (if plural "s" "")))
+
+(defvar-keymap overblock-run-result-map
+  :doc "Keymap inside a region that shows a result, empty on purpose.
+The runner binds no keys; put your own here, and they reach the cells
+of a Python notebook and the chunks of an Rmd file alike.
+`overblock-run-toggle-output' is the natural candidate:
+
+  (keymap-set overblock-run-result-map \"C-c C-o\"
+              #\\='overblock-run-toggle-output)
+
+Point never enters the block, so a key pressed in the region is
+answered by this map through the overlays that carry it.")
 
 (defun overblock-run-shorten (line chars)
   "Return LINE cut to CHARS characters.
@@ -347,8 +358,7 @@ counted."
       (let ((block (overblock-show beg end
                                    :kind 'result
                                    :data data
-                                   :keymap (plist-get overblock-run-backend
-                                                      :keymap))))
+                                   :keymap overblock-run-result-map)))
         ;; An empty cell — a boundary line directly followed by the
         ;; next — has no newline of its own to hang a block on, and
         ;; `overblock-show' answers nil rather than anchor a
