@@ -579,6 +579,10 @@ measured — no frame to draw it on — the text stays, padded as before."
                   (propertize " " 'display `(space :width (,gap)))
                 "")))))
 
+(defun overblock-md--display-p (frag)
+  "Return non-nil where FRAG is display math: a $$ block or a \\[ one."
+  (string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag))
+
 (defun overblock-md--as-text (frag)
   "Return FRAG as the text a display without images shows.
 Inline math is joined: the converter wraps its own output, so a
@@ -588,7 +592,7 @@ read as text reads better on one line than broken at a backslash.
 Display math keeps its rows — one equation to a line is what it was
 written for, and `overblock-md--verbatim-math\' went to some trouble to
 keep them."
-  (if (string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag)
+  (if (overblock-md--display-p frag)
       frag
     (overblock-md--one-line frag)))
 
@@ -637,7 +641,7 @@ string over the rest left the raw LaTeX standing on the screen."
    ;; Display math keeps its rows as text; as an image it is one row,
    ;; and the rows its source had would stand empty under the figure —
    ;; measured, two blank lines after every displayed formula.
-   ((string-match-p "\\`\\(?:\\$\\$\\|\\\\\\[\\)" frag)
+   ((overblock-md--display-p frag)
     (propertize (overblock-md--one-line frag) 'display image))
    (t
     (let ((break (string-search "\n" frag)))

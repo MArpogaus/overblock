@@ -797,8 +797,6 @@ blank and said nothing at all."
                       (propertize " " 'display '(image :type png :data "x"))
                       " after")))
     (should (equal (overblock-image-label text) "before [figure] after"))
-    (should (equal (overblock-image-label text "[plot]")
-                   "before [plot] after"))
     ;; nothing to name, nothing changed
     (should (equal (overblock-image-label "plain") "plain"))))
 

@@ -1060,13 +1060,12 @@ the image inside it is what answers."
           (setq pos (or (next-single-property-change pos 'display text) len)))))
     img))
 
-(defun overblock-image-label (text &optional label)
-  "Return TEXT with every image in it replaced by LABEL.
+(defun overblock-image-label (text)
+  "Return TEXT with every image in it replaced by \"[figure]\".
 For a display that draws none: an image rides a character, and that
 character is a space — a figure came out as a blank row, and a reader
-had nothing to tell an empty result from a picture.  LABEL defaults to
-\"[figure]\"."
-  (let ((label (or label "[figure]"))
+had nothing to tell an empty result from a picture."
+  (let ((label "[figure]")
         (len (length text))
         (pos 0)
         pieces)
@@ -1307,14 +1306,13 @@ What a change that no bar can see for itself calls: another glyph,
 another list of buttons, a window of another width."
   (mapc #'overblock-bar-stale (overblock-bars)))
 
-(defun overblock-forget-glyphs (&rest _)
+(defun overblock-forget-glyphs ()
   "Forget the glyphs answered so far, and draw the bars again.
 The rows of buttons built from those glyphs go too.
 
 What an option that changes the answers calls, after setting itself:
 this sets nothing, which is why `overblock-terminal-glyphs' wraps it
-in a lambda that calls `set-default' first.  The ignored arguments are
-for a caller that hands it a hook's."
+in a lambda that calls `set-default' first."
   (clrhash overblock--glyphs)
   (clrhash overblock--button-rows)
   (overblock-bars-stale))
