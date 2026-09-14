@@ -78,7 +78,10 @@
 (require 'seq)
 (require 'subr-x)
 
-(defgroup overblock-pycell nil "Inline results for Python code cells." :group 'python)
+(defgroup overblock-pycell nil "Inline results for Python code cells."
+  :group 'python
+  :group 'overblock
+  :prefix "overblock-pycell-")
 
 (defconst overblock-pycell--move-buttons
   '((move-up ("" "⌃" "up") "Move this cell up"
@@ -104,7 +107,7 @@ Drop an entry you never press, reorder them, or give one a glyph your
 font draws better.  The fold arrow and the spinner are not buttons of
 this list: they say what the result is doing."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-markdown-buttons
   (append '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
@@ -118,7 +121,7 @@ No button for the source: a click on the rendering shows it, which is
 what the cell's own tooltip says, and a second way of saying it is one
 more icon to read."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-source-buttons
   (append '((render ("" "⟳" "render") "Render this markdown cell"
@@ -129,7 +132,7 @@ An entry is the shape `overblock-buttons' reads.  Such a cell is one
 just written, or one taken back to its source with `overblock-pycell-md-raw';
 the third button renders it."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-cell-buttons
   (append '((run-above ("" "⇈" "above") "Run every cell above this one"
@@ -146,7 +149,7 @@ ones that fall in the same place whatever else a bar carries: measured,
 the pair leading sat at x=996 on a bar of four buttons and x=959 on one
 of five, and trailing it stands in one column down the window."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-max-lines 12
   "Number of result lines that show inline.
@@ -162,7 +165,8 @@ twelve lines full of face changes cost three times as much: the work
 follows the number of face runs the text carries, not its size.
 
 Width is another matter: see `overblock-pycell-max-line-length'."
-  :type 'natnum)
+  :type 'natnum
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-max-line-length 2000
   "Number of characters of a result line that show inline.
@@ -175,8 +179,11 @@ Measured in a 1200x800 window: a thousand characters on one line cost
 1.4 milliseconds a wheel event, five thousand 2.4, twenty thousand
 12.8, and a hundred thousand 226 — a fifth of a second an event, with
 the wheel sending them by the dozen.  A `print' of a wide row, a long
-list or a base64 blob is one such line."
-  :type 'natnum)
+list or a base64 blob is one such line.
+
+Customize this and the results already on the screen follow."
+  :type 'natnum
+  :set #'overblock-run-set-and-redraw)
 
 ;;;; Blocks of every kind
 
