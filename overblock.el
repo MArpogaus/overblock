@@ -711,7 +711,7 @@ source block in org knows them already."
   "Edit the text under a block, as `org-edit-special\' edits a source block."
   ;; The :lighter also keeps the body out of the deprecated positional
   ;; INIT-VALUE argument.
-  :lighter " block-edit")
+  :lighter " BlockEdit")
 
 (defun overblock-edit-in-buffer (beg end props)
   "Edit the text of BEG..END in a buffer of its own, and show it.
