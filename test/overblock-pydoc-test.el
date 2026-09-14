@@ -503,6 +503,36 @@ reaches the edit buffer without either, and comes back with both."
             (should (string-search "\n    x : int" (buffer-string)))))
       (overblock-pydoc-mode -1))))
 
+(ert-deftest overblock-pydoc-test-a-new-button-list-redraws-the-bars ()
+  "Customizing the buttons draws the bar of every rendering again.
+Without it a changed list waited for something else to render the doc
+string again — a window changing width, or the file opened afresh."
+  (skip-unless (overblock-md-program))
+  (overblock-pydoc-test--with
+    (overblock-pydoc-mode 1)
+    (let ((was overblock-pydoc-buttons))
+      (unwind-protect
+          (progn
+            (goto-char (point-max))
+            (overblock-pydoc-render-buffer)
+            (should (= (overblock-pydoc-test--wait 4) 4))
+            (let ((before (mapcar (lambda (block)
+                                    (substring-no-properties
+                                     (overblock-get block :over)))
+                                  (overblock-in (point-min) (point-max)
+                                                'pydoc))))
+              (setopt overblock-pydoc-buttons nil)
+              (should (= (overblock-pydoc-test--wait 4) 4))
+              (should-not
+               (equal before
+                      (mapcar (lambda (block)
+                                (substring-no-properties
+                                 (overblock-get block :over)))
+                              (overblock-in (point-min) (point-max)
+                                            'pydoc))))))
+        (setopt overblock-pydoc-buttons was)
+        (overblock-pydoc-mode -1)))))
+
 (ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()
   "A row does not fill the columns its own indentation stands in.
 Padded to the width of the window, the buttons of an indented doc

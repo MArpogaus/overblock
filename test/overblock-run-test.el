@@ -229,6 +229,44 @@ markers live in the second."
     (with-current-buffer notebook
       (should-not (overblock-run-running-region)))))
 
+(ert-deftest overblock-run-test-a-follower-gets-the-output-as-it-comes ()
+  "A buffer that follows the run is written what the region prints.
+What a popped out result does while its region still runs: the marker
+that says how much has been copied lives in the shell, beside the run,
+and the follower gets what was printed before it asked as well."
+  (overblock-run-test--with-run
+    (goto-char (point-max))
+    (insert "first\n")
+    (let ((out (generate-new-buffer " *overblock-run-test-follow*")))
+      (unwind-protect
+          (progn
+            (with-current-buffer notebook (overblock-run-follow out))
+            ;; what stood there already
+            (should (equal (with-current-buffer out (buffer-string)) "first\n"))
+            ;; and then only what is new
+            (goto-char (point-max))
+            (insert "second\n")
+            (overblock-run-follow-tick)
+            (should (equal (with-current-buffer out (buffer-string))
+                           "first\nsecond\n")))
+        (kill-buffer out)))))
+
+(ert-deftest overblock-run-test-both-notebooks-draw-the-same-five ()
+  "The five buttons of a result header are one list, drawn for both.
+A glyph changed there changes the row a reader reads in a .py file and
+in an Rmd alike, which is the point of the row being made here."
+  (let ((buttons (overblock-run-result-buttons "cell" "image")))
+    (should (= (length buttons) 5))
+    (should (equal (mapcar #'car buttons)
+                   '(stop save-image copy pop discard)))
+    ;; the unit and the word for a picture reach the tooltips
+    (should (string-search "cell" (nth 2 (assq 'stop buttons))))
+    (should (string-search "image" (nth 2 (assq 'save-image buttons))))
+    ;; and a chunk is a chunk, with figures in it
+    (let ((chunk (overblock-run-result-buttons "chunk" "figure")))
+      (should (string-search "chunk" (nth 2 (assq 'stop chunk))))
+      (should (string-search "figure" (nth 2 (assq 'save-image chunk)))))))
+
 ;;;; The mark at the head of a result bar
 
 (ert-deftest overblock-run-test-the-mark-says-which-state-it-is-in ()

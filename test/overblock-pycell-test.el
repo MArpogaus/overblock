@@ -1352,6 +1352,40 @@ was opened afresh."
       ;; and back again, so the option is what the bars follow
       (should (equal before (overblock-pycell-test--bar-texts))))))
 
+(ert-deftest overblock-pycell-test-the-run-button-runs-the-cell-it-sits-on ()
+  "The command hands the bounds of the cell at point to code-cells.
+A press on the bar of another cell moves point there first, which is
+what makes one button a cell: the click carries the position, and
+without it every button ran whatever cell point happened to be in."
+  (overblock-pycell-test--with-cells
+    (let (asked)
+      (cl-letf (((symbol-function 'code-cells-eval)
+                 (lambda (beg end &rest _) (setq asked (cons beg end)))))
+        (goto-char (point-min))
+        (overblock-pycell-run-cell)
+        (should (equal asked (pcase-let ((`(,beg ,end)
+                                          (code-cells--bounds nil nil t)))
+                               (cons beg end))))
+        ;; and the second cell is another pair
+        (let ((first asked))
+          (goto-char (point-max))
+          (overblock-pycell-run-cell)
+          (should-not (equal asked first)))))))
+
+(ert-deftest overblock-pycell-test-the-mode-goes-on-in-python-alone ()
+  "The hook a reader installs turns the mode on in a Python buffer only.
+`code-cells-mode\' is on in more than Python — an Org file with source
+blocks is one — and the notebook of this package is Python\'s."
+  (with-temp-buffer
+    (python-mode)
+    (overblock-pycell-mode-maybe)
+    (unwind-protect (should overblock-pycell-mode)
+      (overblock-pycell-mode -1)))
+  (with-temp-buffer
+    (text-mode)
+    (overblock-pycell-mode-maybe)
+    (should-not (bound-and-true-p overblock-pycell-mode))))
+
 (ert-deftest overblock-pycell-test-a-bar-is-cut-again-for-a-new-width ()
   "A bar follows the window it is drawn in when that window changes width.
 A bar is left as it is where nothing it compares has changed, and the
