@@ -36,8 +36,8 @@
 (require 'overblock-pycell)
 (require 'overblock-test-common)
 
-(defun overblock-pycell-test--render-all (&optional beg end)
-  "Render the markdown cells between BEG and END, and wait for them.
+(defun overblock-pycell-test--render-all ()
+  "Render the markdown cells of the buffer, and wait for them.
 The conversion is asked of a process and not waited for, which is the
 point of it: a test has to wait where a reader does not.  A rendering
 is wanted only where the live cycle of its kind is on, so a buffer
@@ -45,7 +45,7 @@ with no mode on is given the cycle's record without the mode's hooks."
   (unless (assq 'markdown overblock-live--specs)
     (setq-local overblock-live--specs
                 (list (list 'markdown #'overblock-pycell-md-render-all nil))))
-  (overblock-pycell-md-render-all beg end)
+  (overblock-pycell-md-render-all)
   (overblock-pycell-test--settle))
 
 (defun overblock-pycell-test--settle ()
