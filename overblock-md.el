@@ -247,6 +247,7 @@ reader stops — from the cache now, or from a fresh preview."
 A preview is drawn in the foreground of the theme that asked for it,
 and the cache is keyed by that colour: a theme change leaves every
 rendered formula in the old colour until it is rendered again."
+  (overblock-md--eldoc-forget)
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
       (overblock-md--drop-and-settle 'overblock-md-math))))
@@ -1209,6 +1210,87 @@ without a converter has to see."
          (overblock-md--squared
           (overblock-md--unstow-math
            (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))))
+
+;;;; A renderer for what a language server says
+
+(defvar overblock-md--eldoc-cache (make-hash-table :test #'equal)
+  "The rendering of each hover text seen, by the text.
+eldoc asks again on every idle after a move, and the same text comes
+back for every symbol the reader passes over twice: a converter process
+costs some twenty milliseconds, the lookup nothing.")
+
+(defconst overblock-md--eldoc-cache-size 200
+  "How many renderings are kept before the table is emptied.")
+
+(defun overblock-md--eldoc-forget ()
+  "Forget the renderings kept for eldoc.
+What a theme change calls: a formula is drawn in the colour of the theme
+that asked for it, and what the width option's `:set' calls."
+  (clrhash overblock-md--eldoc-cache))
+
+(defcustom overblock-md-eldoc-width 72
+  "Columns a language server's documentation is filled to.
+`overblock-md-eglot-renderer' renders in a buffer no window shows, so
+nothing says how wide the text will be shown; this does, for the echo
+area, the *eldoc* buffer and an eldoc-box child frame alike."
+  :type 'natnum
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock-md--eldoc-forget))
+  :group 'overblock-md)
+
+(defun overblock-md--eldoc-markdown (md)
+  "Return MD as the converter reads it the way the server meant it.
+A server writes its signature in a fence, a rule of three dashes under
+it, and the first paragraph right under the rule.  pandoc reads a rule,
+a paragraph and the setext underline of the next section as one simple
+table: measured with basedpyright, a whole numpydoc doc string came out
+as one padded rectangle with its first paragraph lost.  A blank line
+after the rule is what the converter needs to read a rule, and nothing
+else in the dialect needs help."
+  (replace-regexp-in-string "^---\n" "---\n\n" md t t))
+
+(defun overblock-md--eldoc-rendering (md)
+  "Return the rendering of the hover text MD, from the table where it can.
+Nil where no converter is installed.  A rendering that still waits for
+a formula is not kept: the stand-in for the preview would show for
+ever."
+  (or (gethash md overblock-md--eldoc-cache)
+      (let ((rendered (let ((overblock-md-width overblock-md-eldoc-width))
+                        (overblock-md-rendered (overblock-md--eldoc-markdown md)))))
+        (when (and rendered
+                   (not (text-property-not-all 0 (length rendered)
+                                               'overblock-md-pending nil
+                                               rendered)))
+          (when (>= (hash-table-count overblock-md--eldoc-cache)
+                    overblock-md--eldoc-cache-size)
+            (clrhash overblock-md--eldoc-cache))
+          (puthash md rendered overblock-md--eldoc-cache))
+        rendered)))
+
+;;;###autoload
+(defun overblock-md-eglot-renderer ()
+  "Render the markdown of this buffer with `overblock-md-rendered', in place.
+A value for `eglot-documentation-renderer':
+
+  (setopt eglot-documentation-renderer #\\='overblock-md-eglot-renderer)
+
+eglot calls it in a temporary buffer that holds the server's markdown,
+and runs `font-lock-ensure' afterwards.  Its own choice is a markdown
+mode's font lock, which cannot lay out a table, draw a formula or paint
+a fenced block in its language; this does all three, through the
+converter `overblock-md-command' names, and the result shows wherever
+eldoc shows documentation — the echo area, the *eldoc* buffer, an
+eldoc-box child frame — filled to `overblock-md-eldoc-width'.  Only
+markdown reaches this: eglot renders plain text with `text-mode'
+whatever the variable says.  Without a converter the markdown is left
+as it came."
+  (when-let* ((rendered (overblock-md--eldoc-rendering (buffer-string))))
+    (erase-buffer)
+    (insert rendered)
+    ;; The `font-lock-ensure' that follows would take every face off
+    ;; the rendering: say that the work is done.
+    (setq-local font-lock-fontified t)))
 
 (provide 'overblock-md)
 ;;; overblock-md.el ends here

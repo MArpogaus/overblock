@@ -166,6 +166,37 @@ them again when a window has the buffer:
 [[file:overblock-pydoc.org][overblock-pydoc's notes]] say how it
 follows the width.
 
+** A language server's documentation
+
+=overblock-md-eglot-renderer= is a value for eglot's
+=eglot-documentation-renderer=.  eglot calls the renderer in a
+temporary buffer holding the server's Markdown and runs
+=font-lock-ensure= afterwards, expecting a major mode; this function
+replaces the buffer's text with =overblock-md-rendered= of it and sets
+=font-lock-fontified=, so the ensure that follows leaves the faces
+alone.
+
+One thing is done to the Markdown first.  A server writes its
+signature in a fence, a rule of three dashes under it and the first
+paragraph right under the rule.  pandoc reads a rule followed by text
+and then a setext underline as one simple table: measured with
+basedpyright, a whole numpydoc doc string came out as one padded
+rectangle with its first paragraph lost.  A blank line after the rule
+is what the converter needs to read a rule, and nothing else in the
+dialect needs help — the =&nbsp;= indents and the two-space line breaks
+pyright writes render as they should.
+
+The rendering is kept by its text, up to two hundred of them, because
+eldoc asks again after every move and the same hover comes back for
+every symbol passed twice.  A rendering that still waits for a formula
+is not kept: the stand-in would show for ever.  A theme change empties
+the table, since a formula is drawn in the colour of the theme that
+asked; so does a change of =overblock-md-eldoc-width=.
+
+Measured through eglot with basedpyright: a Google-style hover with a
+pipe table rendered in 17 ms with the table in columns and the
+signature painted as Python, a numpydoc hover in 23 ms.
+
 * The preview mode
 
 =overblock-md-preview-mode= is =overblock-live-start= with three
