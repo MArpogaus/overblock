@@ -724,7 +724,7 @@ reports that it does not know =get_ipython=.
 A cell with the marker =# %% [markdown]= renders in place.  The
 rendering hangs on the commented source lines, one piece to a line.
 The bar of the cell says /markdown/, or the name you wrote after the
-tag, and carries the buttons of =overblock-pycell-markdown-buttons=:
+tag, and carries the buttons of =overblock-pycell-md-buttons=:
 =✎= opens the cell in a buffer of its own, and the move pair follows.
 No button shows the source, because a click on the rendering does: the
 cell shows its source while point is in it, and is rendered again once
@@ -829,7 +829,7 @@ of the cell needs, such as =TAB= for folding:
 | =overblock-pycell-max-lines=        | 12                                | the result lines that show inline                |
 | =overblock-pycell-max-line-length=  | 2000                              | the characters of a result line that show inline |
 | =overblock-pycell-result-buttons=   | seven buttons                     | the buttons on the header of a result            |
-| =overblock-pycell-markdown-buttons= | three buttons                     | the buttons on the header of a markdown cell     |
+| =overblock-pycell-md-buttons=       | three buttons                     | the buttons on the header of a markdown cell     |
 | =overblock-pycell-cell-buttons=     | four buttons                      | the buttons on the bar of a code cell            |
 | =overblock-pycell-source-buttons=   | three buttons                     | the buttons on an unrendered markdown cell       |
 

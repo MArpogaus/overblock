@@ -108,7 +108,9 @@ this list: they say what the result is doing."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-pycell-markdown-buttons
+(define-obsolete-variable-alias 'overblock-pycell-markdown-buttons
+  'overblock-pycell-md-buttons "1.0")
+(defcustom overblock-pycell-md-buttons
   (append '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
           overblock-pycell-md-edit t))
           overblock-pycell--move-buttons)
@@ -661,7 +663,7 @@ the width, and the label of the bar does."
                         (or (overblock-pycell--cell-title (overlay-start hov)
                                                           (overlay-end hov))
                             "markdown")
-                        (overblock-buttons overblock-pycell-markdown-buttons))))
+                        (overblock-buttons overblock-pycell-md-buttons))))
 
 (defun overblock-pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
