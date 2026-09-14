@@ -47,8 +47,9 @@
 ;; Text shown over the region hangs on its lines, a piece to a line.
 ;; Emacs lays a display string out whole on every redisplay, so one
 ;; string for a tall region costs its full height on every scroll event,
-;; while a piece to a line costs only what the window shows.  Lines with
-;; no piece left for them go under a cloak.
+;; while a piece to a line costs only what the window shows.  Lines of
+;; text with no piece left for them go under a cloak; a blank line
+;; stays, as the gap it is.
 ;;
 ;; See `overblock-show' for what a caller may pass.
 
@@ -513,16 +514,27 @@ start, which is that same error.  Such a row keeps its text."
 Return the overlays that carry the pieces and the cloaks.
 
 A rendering rarely has as many lines as the region.  Where it has more,
-one line carries several of them, dealt out as evenly as the two counts
-allow; where it has fewer, the lines left over go under a cloak.
+the blank lines of the rendering go first — a blank line of the source
+stands in view for each — and one line then carries several of what is
+left, dealt out as evenly as the two counts allow; where it has fewer,
+the lines of text left over go under a cloak.
 
 A piece covers the text of its line and leaves the newline alone, so
 the buffer keeps its line structure and every line keeps its height;
 `overblock--piece' makes one.
 
 A line without text cannot carry a piece — there is nothing to put the
-display property on — and a rendering rarely fills as many lines as the
-region has anyway.  Those lines go under a cloak."
+display property on.  Under a rendering with more lines than rows a
+blank one stays in view: it is the gap the rendering wants there, and
+under a cloak it was a fault as well.  A cloak begins at the newline of
+the row above it, and where that row carried two lines of the rendering
+the wheel's own step landed on that newline — `vertical-motion' walks
+screen rows, and a display string of two rows ends at its line's end —
+so point stood in invisible text and redisplay put the window back at
+the top of the buffer, on every turn of the wheel.  A blank line inside
+a cloak that is open already is cloaked with it, so the lines a cloak
+hides stay one run; under a shorter rendering every line without a
+piece goes under one, as before."
   (let* ((beg (overlay-start block))
          ;; The last newline of the region belongs to it: the anchor
          ;; stops before that newline, and a cloak that stopped there
@@ -539,33 +551,50 @@ region has anyway.  Those lines go under a cloak."
          (end (if (and (overlayp nl) (overlay-buffer nl))
                   (overlay-end nl)
                 (overlay-end block)))
-         (lines (overblock--lines
-                 (string-trim text "\\(?:[ \t]*\n\\)+"
-                              "\\(?:\n[ \t]*\\)+")))
          (indent (overblock-get block :indent))
-         ;; Each row as (BOL FROM TO): where the line begins, where its
-         ;; piece begins and where its text ends.  The piece begins at
-         ;; the block on the first row and `:indent' columns in on every
-         ;; other — or at the end of a line shorter than that, which
-         ;; then carries nothing and goes under a cloak.
+         ;; Each row as (BOL FROM TO BLANK): where the line begins,
+         ;; where its piece begins, where its text ends, and whether it
+         ;; is blank.  The piece begins at the block on the first row
+         ;; and `:indent' columns in on every other — or at the end of
+         ;; a line shorter than that, which then carries nothing.
          (rows (mapcar (lambda (row)
                          (let ((bol (car row)) (to (cdr row)))
                            (list bol
                                  (if (and indent (> bol beg))
                                      (min to (+ bol indent))
                                    bol)
-                                 to)))
+                                 to
+                                 ;; The whole buffer, as `overblock--rows'
+                                 ;; walks it: a row can lie outside a
+                                 ;; narrowing.
+                                 (without-restriction
+                                   (string-blank-p
+                                    (buffer-substring-no-properties bol to))))))
                        (overblock--rows beg end)))
          (slots (max 1 (seq-count (lambda (row) (> (nth 2 row) (nth 1 row)))
                                   rows)))
+         (all (overblock--lines (string-trim text "\\(?:[ \t]*\n\\)+"
+                                            "\\(?:\n[ \t]*\\)+")))
+         ;; More lines than rows to hang them on: the blank lines of
+         ;; the rendering go, and the blank lines of the source stay in
+         ;; view for them — one of the rendering dealt onto a row of
+         ;; text was a second gap where the source has one.  A shorter
+         ;; rendering keeps its own blank lines and the source's go
+         ;; under the cloak with the rest.
+         (long (> (length all) slots))
+         (lines (if long (seq-remove #'string-blank-p all) all))
          (chunks (overblock--deal lines slots))
          parts cloak-from)
-    (pcase-dolist (`(,bol ,from ,to) rows)
+    (pcase-dolist (`(,bol ,from ,to ,blank) rows)
       ;; A line with text to cover takes the next chunk of the
       ;; rendering; one without carries nothing.
       (let ((chunk (and (> to from) (pop chunks))))
         (if (null chunk)
-            (setq cloak-from (overblock--cloak-from cloak-from bol))
+            ;; Under a long rendering a blank line stays in view unless
+            ;; a cloak is open already; everything else without a chunk
+            ;; goes under one.
+            (unless (and long blank (null cloak-from))
+              (setq cloak-from (overblock--cloak-from cloak-from bol)))
           (when cloak-from
             (push (overblock--cloak block cloak-from (1- bol)) parts)
             (push (overblock--newline-guard block (1- bol)) parts)
@@ -575,7 +604,11 @@ region has anyway.  Those lines go under a cloak."
           ;; is padded to the column the row's piece begins at, which
           ;; with `:indent' is that many columns in — measured, two such
           ;; lines of a doc string stood at column zero, left of the
-          ;; guide's bars.
+          ;; guide's bars.  The piece itself begins where every piece
+          ;; does, and not at the line's start: a display string over
+          ;; the indentation is counted by `current-column', and a
+          ;; column measured on such a line came out as the width of the
+          ;; rendering.
           (push (overblock--piece block from to
                                   (string-join chunk
                                                (if indent

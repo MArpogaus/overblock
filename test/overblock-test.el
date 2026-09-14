@@ -1031,11 +1031,13 @@ that column on, and a line shorter than that carries nothing."
       ;; the anchor leaves the indentation's own face alone
       (should-not (overlay-get block 'face))
       (should (eq (get-char-property 1 'face) 'bold)))
-    ;; two lines on one row: the second is padded to the same column
+    ;; two lines on one row: the second is padded to the same column,
+    ;; and the piece still begins after the indentation
     (overblock-clear)
     (let* ((block (overblock-show (+ (point-min) 4) (+ (point-min) 5)
                                   :over "A\nB" :indent 4))
            (piece (car (overblock-get block :parts))))
+      (should (= (overlay-start piece) (+ (point-min) 4)))
       (should (equal (overlay-get piece 'display) "A\n    B")))
     ;; without `:indent' the anchor paints the whole region plain
     (overblock-clear)
