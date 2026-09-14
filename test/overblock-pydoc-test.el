@@ -565,4 +565,27 @@ proves that the mode asks for it and that it stops asking."
       (should (equal (buffer-string) before)))))
 
 (provide 'overblock-pydoc-test)
+(ert-deftest overblock-pydoc-test-a-numpy-parameter-list-keeps-its-lines ()
+  "Each entry of a Parameters section stays on its own lines under Markdown.
+CommonMark read the indented description as more of the entry's
+paragraph and the next entry as more of that, so a whole section came
+out as one paragraph; the hard line breaks of the default command keep
+every source line a line.  The pipe table and the fence of the same
+doc string render as a table and as code."
+  (skip-unless (overblock-md-program))
+  (let* ((overblock-pydoc-markup 'markdown)
+         (overblock-md-command (overblock-pydoc--command-for-markup))
+         (overblock-md-width 72)
+         (shown (substring-no-properties
+                 (overblock-md-rendered
+                  "Parameters\n----------\na : int\n    The first, **bold**.\n\
+b : str | None, optional\n    The second.\n\n| k | v |\n|---|---|\n| x | 1 |\n\n\
+```python\nf(a, b)\n```\n"))))
+    (should (string-search "a : int\nThe first, bold.\nb : str | None, optional\nThe second."
+                           shown))
+    ;; the table's pipes are gone; the one in `str | None' is prose
+    (should-not (string-search "| k |" shown))
+    (should (string-match-p "k +v *\n" shown))
+    (should (string-search "f(a, b)" shown))))
+
 ;;; overblock-pydoc-test.el ends here

@@ -59,19 +59,21 @@
 (define-obsolete-variable-alias 'overblock-pydoc-idle 'overblock-live-idle "1.0")
 
 ;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)
-(defcustom overblock-pydoc-markup 'rst
+(defcustom overblock-pydoc-markup 'markdown
   "The markup the doc strings of this buffer are written in.
 It says which command of `overblock-pydoc-command' renders them and
 which major mode of `overblock-pydoc-modes' reads them, so that the
 rendering and the buffer `overblock-pydoc-edit' opens agree.
 
-reStructuredText is the default, because that is what Python's own
-tools read, and numpydoc and Sphinx with them.  A project whose doc
-strings are Markdown — a pipe table, a fenced block — sets this to
-`markdown', which is worth doing per project rather than globally:
+Markdown is the default: it is what a numpy style doc string carries
+today under its section titles — a fenced block, a pipe table, bold —
+as mkdocstrings reads it, and the Markdown reader keeps the parameter
+entries on their lines (see `overblock-pydoc-command').  A project
+whose doc strings are reStructuredText for Sphinx sets this to `rst',
+which is worth doing per project rather than globally:
 
   ;;; .dir-locals.el
-  ((python-base-mode . ((overblock-pydoc-markup . markdown))))
+  ((python-base-mode . ((overblock-pydoc-markup . rst))))
 
 One doc string, one markup: a reader that is given the other one lays
 out what it does not know as prose.  Measured on a numpy doc string
@@ -84,13 +86,23 @@ out in columns and left the Sphinx roles standing in the prose."
 
 (defcustom overblock-pydoc-command
   '((rst . "pandoc --mathjax --no-highlight -f rst")
-    (markdown . "pandoc --mathjax --no-highlight -f markdown"))
+    (markdown . "pandoc --mathjax --no-highlight -f markdown+hard_line_breaks"))
   "How to turn a doc string into HTML, per markup.
 An alist of (MARKUP . COMMAND), where MARKUP is a value of
 `overblock-pydoc-markup' and COMMAND is read as `overblock-md-command'
 is read: one shell command, or a list of candidates of which the first
 one installed is used.  It stands in that variable's place while a doc
 string is rendered.
+
+Markdown with hard line breaks, because a numpy style parameter list
+is lines: `name : type' and its indented description under it.
+CommonMark has no definition list and reads an indented line after a
+paragraph line as more of the paragraph, so every entry of a section
+ran together into one — measured, six parameters as a single
+paragraph.  With the extension each source line stays a line, which is
+also the shape a rendering laid over its own lines wants; what is lost
+is the indent of the description, which CommonMark strips from a
+continuation line.
 
 No highlighting, for the reason `overblock-md-command' gives: shr
 reads no CSS class, so what pandoc spends on painting a code block is
