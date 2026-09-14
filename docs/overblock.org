@@ -256,7 +256,8 @@ rendered and editable.  The caller answers three questions: which
 regions, what to render them with, and when.
 
 The render function is called once at the start and then whenever the
-reader stops moving, after =IDLE= seconds of quiet.  It must leave
+reader stops moving, after =overblock-live-idle= seconds of quiet.  It
+must leave
 alone what is rendered already and the region point is in — the reader
 is editing that one, and rendering it would take the text out from
 under them.
