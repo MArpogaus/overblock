@@ -1,0 +1,19 @@
+## Speed and stopping distance
+
+The chunk below is **run where it stands**, and what R answers is a
+block over the text — the file itself is untouched.  The prose renders
+like any markdown, math included: $d = v\,t + \tfrac{1}{2} a t^2$.
+
+```{r summary}
+summary(cars)
+```
+
+```{r head}
+head(cars, 4)
+```
+
+A chunk that plots answers with its figure:
+
+```{r plot}
+plot(cars, pch = 19, col = "steelblue")
+```
