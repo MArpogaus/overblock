@@ -142,8 +142,9 @@ outside the suite ever called."
   "Return the leading LINES of a result, as the notebook's options bound them.
 The package has no wrapper of its own for this — the runner takes the
 budgets as arguments — so the tests supply them here."
-  (overblock-run-body-lines lines overblock-pycell-max-lines
-                            overblock-pycell-max-line-length))
+  (overblock-run-body-lines
+   (overblock-repl-first-lines (string-join lines "\n") overblock-pycell-max-lines)
+   overblock-pycell-max-line-length))
 
 (defun overblock-run-header-of-pycell (folded total shown runtime state imagep)
   "Return the header bar of a result of the notebook.
