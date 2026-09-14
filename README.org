@@ -781,7 +781,7 @@ source of one cell, to edit it where it stands.
 | =overblock-run-stop=                   | stop the run of the cells after this one                           |
 | =overblock-pycell-move-cell-up=        | move the cell at point up, with its result                         |
 | =overblock-pycell-move-cell-down=      | move the cell at point down, likewise                              |
-| =overblock-pycell-md-render-all=       | render each markdown cell that is not rendered                     |
+| =overblock-pycell-render-buffer=       | render each markdown cell that is not rendered                     |
 | =overblock-pycell-md-render-cell=      | render the markdown cell at point                                  |
 | =overblock-pycell-md-raw=              | show one markdown cell as source, until point leaves it            |
 | =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                           |

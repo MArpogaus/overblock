@@ -280,7 +280,7 @@ and the converter that turns the markdown into the string is
 overblock-md's: [[file:overblock-md.org][its notes]].
 
 The cells are rendered by the live cycle of the layer, as the prose of
-a Markdown file is: =overblock-pycell-md-render-all= renders whatever
+a Markdown file is: =overblock-pycell-render-buffer= renders whatever
 is not rendered yet and is not the cell point is in, and the whole
 buffer goes to the converter in one process that nothing waits for,
 which is what =overblock-md-render-regions= is for.  A moved cell is

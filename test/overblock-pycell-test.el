@@ -44,8 +44,8 @@ is wanted only where the live cycle of its kind is on, so a buffer
 with no mode on is given the cycle's record without the mode's hooks."
   (unless (assq 'markdown overblock-live--specs)
     (setq-local overblock-live--specs
-                (list (list 'markdown #'overblock-pycell-md-render-all))))
-  (overblock-pycell-md-render-all)
+                (list (list 'markdown #'overblock-pycell-render-buffer))))
+  (overblock-pycell-render-buffer)
   (overblock-pycell-test--settle))
 
 (defun overblock-pycell-test--settle ()
@@ -746,7 +746,7 @@ were a fifth of a second a wheel event."
 
 (ert-deftest overblock-pycell-test-md-without-a-converter-stays-plain ()
   "A markdown cell without a converter stays text, and raises nothing.
-`overblock-pycell-md-render-all' asks for the program first, but evaluating a
+`overblock-pycell-render-buffer' asks for the program first, but evaluating a
 single cell reached the converter through `overblock-md-rendered' and
 called nil as a program: \"Invalid argument 3 of operation
 `call-process-region'\".  The answer belongs where the program is
