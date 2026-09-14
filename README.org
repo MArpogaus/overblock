@@ -338,19 +338,11 @@ Markdown buffer over its own source.
 |---------------------------------+-----------------------------------------|
 | =overblock-md-rendered=         | markup in, one propertized string out   |
 | =overblock-md-html-batch-async= | convert many texts in one process       |
-| =overblock-md-fontified=        | render with a major mode's font lock    |
 | =overblock-md-columns=          | the columns a window leaves a rendering |
 | =overblock-md-program=          | the converter that is installed, or nil |
 
 One process for a whole buffer costs much less than one for each
 region, which is what the batch calls are for.
-
-=overblock-md-fontified= is the renderer without a process: a major
-mode's own font lock paints the markup, as eldoc does with what a
-language server sends it.  The rendering is exactly as tall as the
-source and the markup characters stay visible.  A converter knows the
-markup better and fills a paragraph to the window; the font lock costs
-nothing and moves no line.
 
 A rendering is built for the window it is shown in.  shr fills a
 paragraph to a width, and the rendering is made in a temporary buffer
@@ -508,7 +500,6 @@ click.
 | Option                     | Default                        | Meaning                                 |
 |----------------------------+--------------------------------+-----------------------------------------|
 | =overblock-pydoc-markup=   | =rst=                          | the markup the doc strings are written in |
-| =overblock-pydoc-renderer= | =converter=                    | converter or font lock                  |
 | =overblock-pydoc-command=  | a =pandoc= command per markup  | the shell command for a doc string      |
 | =overblock-pydoc-modes=    | =rst-mode=, =markdown-mode=    | the major mode that reads one, per markup |
 | =overblock-pydoc-idle=     | 0.2                            | the quiet before one is rendered again  |
@@ -518,8 +509,8 @@ click.
 =overblock-pydoc-markup= says what the doc strings of a buffer are
 written in, and everything else follows it: which command of
 =overblock-pydoc-command= renders them, and which mode of
-=overblock-pydoc-modes= the =fontify= renderer paints with and
-=overblock-pydoc-edit= opens.  reStructuredText is the default, because
+=overblock-pydoc-modes= =overblock-pydoc-edit= opens the source in.
+reStructuredText is the default, because
 that is what Python's own tools read.  A project whose doc strings are
 Markdown says so once, per project:
 
@@ -530,14 +521,7 @@ Markdown says so once, per project:
 
 One doc string is one markup: given the other reader, a pipe table
 runs together into a paragraph of pipes, and a =:class:`x`= role stands
-in the prose as it is written.  Both mode entries are yours to change —
-name a =markdown-mode= derivative that hides its markup if you prefer a
-quieter rendering.
-
-=overblock-pydoc-renderer= picks between the two renderers.
-=converter= hands the text to the command for the markup; =fontify=
-runs the mode for the markup over the text and keeps what its font
-lock painted: no process, and no line below moves.
+in the prose as it is written.  Both mode entries are yours to change.
 
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=.
 Drop a button you never press, put them in another order, or give one a

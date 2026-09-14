@@ -1009,8 +1009,8 @@ package\'s floor."
 
 (defun overblock-md--tag-pre (dom)
   "Render the fenced block DOM with the font lock of its language.
-The code goes through a buffer in that mode, as `overblock-md-fontified\'
-renders markup, and comes back wearing its faces; shr\'s own indentation
+The code goes through a buffer in that mode and comes back wearing its
+faces; shr\'s own indentation
 stands before each line, so a block inside a list item keeps its place.
 A block that names no language this Emacs has is shr\'s to draw.
 
@@ -1039,50 +1039,6 @@ rather than the colour inline code wears."
           (insert line "\n"))
         (shr-ensure-newline))
     (shr-tag-pre dom)))
-
-(defun overblock-md--shown-p (pos)
-  "Return non-nil where the text at POS is worth showing to a reader.
-Two markups say the same thing twice.  A run the mode marked
-`invisible\' is markup a markdown mode has already replaced with a
-face — that is how eglot renders documentation, and what it hides is
-the asterisks and the backticks.  The adornment under a
-reStructuredText section is the other: the face on the title says it is
-a title, and the row of dashes under it says it again."
-  (and (not (get-text-property pos 'invisible))
-       (not (memq 'rst-adornment
-                  (ensure-list (get-text-property pos 'face))))))
-
-(defun overblock-md-fontified (text mode)
-  "Return TEXT fontified by MODE, as a rendering of its markup.
-No process: MODE\'s own font lock is the renderer, which is how eldoc
-shows what a language server sends it — see `eglot--format-markup\'.
-`rst-mode\' knows a reStructuredText section and `gfm-view-mode\' the
-markup of markdown, and each leaves the text where the writer put it,
-so the rendering is exactly as tall as the source and no code below it
-moves.
-
-What a converter does better: it knows the markup it is given, lays a
-table out in columns and fills a paragraph to the window.  What this
-does better: it costs no process and keeps the lines as written."
-  (with-temp-buffer
-    (setq-local markdown-fontify-code-blocks-natively t)
-    (insert text)
-    (let ((inhibit-message t)
-          (message-log-max nil))
-      (ignore-errors (delay-mode-hooks (funcall mode)))
-      (font-lock-ensure))
-    (let ((pos (point-min))
-          (pieces nil))
-      (while (< pos (point-max))
-        (let ((next (or (next-property-change pos) (point-max))))
-          (when (overblock-md--shown-p pos)
-            (push (buffer-substring pos next) pieces))
-          (setq pos next)))
-      ;; The dropped adornment leaves the newline that followed it, and
-      ;; two newlines in a row read as a blank line the writer did not
-      ;; put there.
-      (replace-regexp-in-string
-       "\n\n\n+" "\n\n" (apply #'concat (nreverse pieces))))))
 
 (defvar overblock-md-width nil
   "The number of columns a rendering is filled to, or nil for shr\'s own.

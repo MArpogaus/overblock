@@ -60,20 +60,6 @@ caller renders from the body of a minor mode, and a signal from here
 left the mode on with nothing rendered and took the rest of the hook
 that turned it on with it.
 
-** Font lock as the renderer
-
-=overblock-md-fontified= runs a major mode's own font lock over the
-text and keeps what it painted, which is how eldoc shows what a
-language server sends it.  =rst-mode= knows a reStructuredText section
-and =gfm-view-mode= the markup of Markdown, and each leaves the text
-where the writer put it, so the rendering is exactly as tall as the
-source and no line below it moves.
-
-What a converter does better: it knows the markup it is given, lays a
-table out in columns and fills a paragraph to the window.  What the
-font lock does better: it costs no process and keeps the lines as
-written.
-
 ** Images
 
 shr fetches an image with =url-queue-retrieve=, which answers long after
