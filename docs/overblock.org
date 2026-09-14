@@ -29,6 +29,7 @@ A caller renders text and hands it over:
                   :kind 'result          ; whose block this is
                   :data ANYTHING         ; what the caller keeps with it
                   :over TEXT             ; shown instead of the region
+                  :indent N              ; columns left in view under it
                   :body TEXT             ; shown after the region
                   :header TEXT
                   :hidden t              ; show nothing for now

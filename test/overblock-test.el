@@ -1006,4 +1006,40 @@ the mouse."
       (should-not (overblock-goto-event event))
       (should (= (point) (point-min))))))
 
+(ert-deftest overblock-test-indent-leaves-the-indentation-in-view ()
+  "With `:indent' a piece begins that many columns in, and the anchor paints nothing.
+The indentation stays the buffer's own text, so what an indentation
+guide painted on it stays too; a line indented deeper is covered from
+that column on, and a line shorter than that carries nothing."
+  (with-temp-buffer
+    (insert "    a\n        deeper\n  x\n    c\n")
+    (put-text-property 1 5 'face 'bold)   ; what a guide would leave
+    ;; from the first character after the indentation, as a doc string
+    ;; begins at its quote: the first row hangs where the block does
+    (let* ((block (overblock-show (+ (point-min) 4) (point-max)
+                                  :over "A\nB\nC" :indent 4))
+           (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                               (overblock-get block :parts))))
+      (should (= (length pieces) 3))
+      (dolist (ov pieces)
+        (goto-char (overlay-start ov))
+        (should (= (current-column) 4))
+        (should (equal (overlay-get ov 'face) 'default)))
+      ;; the short line has no piece and is cloaked
+      (goto-char (point-min)) (forward-line 2)
+      (should (invisible-p (point)))
+      ;; the anchor leaves the indentation's own face alone
+      (should-not (overlay-get block 'face))
+      (should (eq (get-char-property 1 'face) 'bold)))
+    ;; two lines on one row: the second is padded to the same column
+    (overblock-clear)
+    (let* ((block (overblock-show (+ (point-min) 4) (+ (point-min) 5)
+                                  :over "A\nB" :indent 4))
+           (piece (car (overblock-get block :parts))))
+      (should (equal (overlay-get piece 'display) "A\n    B")))
+    ;; without `:indent' the anchor paints the whole region plain
+    (overblock-clear)
+    (let ((block (overblock-show (point-min) (point-max) :over "A")))
+      (should (eq (overlay-get block 'face) 'default)))))
+
 ;;; overblock-test.el ends here

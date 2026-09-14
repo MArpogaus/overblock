@@ -104,12 +104,19 @@ where the doc string has more than one line, as PEP 257 writes it.
 * The rows a rendering is drawn on
 
 Every row begins at the column the opening quote itself stands at,
-measured there, and not at the indentation of that line: the first row
-of a rendering is the only one that hangs where the block does and it
-carries no padding of its own, so the two have to be the same column.
-A raw doc string begins one column in from its code, past the letter
-that prefixes its quotes, and the rendering of one stood a column out
-of line.
+measured there, and not at the indentation of that line.  The block is
+asked to leave that many columns of every source line in view
+(=overblock-show='s =:indent=), so the indentation under a rendering
+is the buffer's own text — an indentation guide's bars run through the
+doc string as they run through the code — and a description line
+indented deeper is covered from that column on, so every row lines up.
+The rendering itself carries no padding: it used to, a row of spaces
+before every line, and the bars stopped at every doc string.  Only a
+line that shares a row with another is padded, by the layer, to the
+same column.  A raw
+doc string begins one column in from its code, past the letter that
+prefixes its quotes, and the rendering of one stood a column out of
+line before the column was measured at the block.
 
 ** Padded with spaces, not with a stretch
 

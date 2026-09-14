@@ -215,6 +215,14 @@ optional:
              it and never reads it, so its shape is the caller's own.
   :over      text shown instead of the lines of the region, a piece to
              a line; without it the region stays as it is.
+  :indent    columns at the start of every line after the first that
+             the pieces leave in view, so the indentation of the source
+             stays the buffer's own text under a rendering, with
+             whatever an indentation guide painted on it.  A line
+             indented deeper is covered from that column on, so every
+             row of the rendering begins at one column; the first row
+             begins where the block does, which is that column too for
+             a caller that measures it there.  Nil covers whole lines.
   :body      text shown after the region, on the newline that ends it,
              or on the anchor where the region ends without one.
   :header    text shown above the body.
@@ -268,15 +276,18 @@ every `overblock-refresh'."
       ;; paints itself outranks this, so only the columns nothing claims
       ;; come out plain.
       ;;
-      ;; Only under a rendering.  A result hangs below its region and
-      ;; leaves the code in view, and the same paint took every colour
-      ;; off a cell the moment it ran: an overlay's face outranks what
-      ;; font lock wrote, `default' included.
+      ;; Only under a rendering that covers whole lines.  A result hangs
+      ;; below its region and leaves the code in view, and the same
+      ;; paint took every colour off a cell the moment it ran: an
+      ;; overlay's face outranks what font lock wrote, `default'
+      ;; included — and it would take the indentation guide off the
+      ;; columns a block with `:indent' leaves in view; those blocks
+      ;; paint their pieces alone.
       ;;
       ;; Under `hl-line', which draws at -50: an overlay face with no
       ;; priority at all outranks it, and the stripe then disappeared
       ;; wherever a block stood.
-      (when (plist-get props :over)
+      (when (and (plist-get props :over) (not (plist-get props :indent)))
         (overlay-put block 'face 'default))
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, so
@@ -439,6 +450,14 @@ cloak at the piece's end, 32 for the same image on a before-string."
   (let ((ov (make-overlay from to nil t)))
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'overblock-part t)
+    ;; The source under the piece is painted plain, as the anchor
+    ;; paints its region: what a display string shows wears the face of
+    ;; the text it stands on as well as its own.  Here as well, because
+    ;; a block with `:indent' paints no anchor, so that the indentation
+    ;; it leaves in view keeps its own faces.  Below `hl-line', as the
+    ;; anchor is.
+    (overlay-put ov 'face 'default)
+    (overlay-put ov 'priority -60)
     (if (overblock-image-in text)
         (progn (overlay-put ov 'display "")
                (overlay-put ov 'before-string text))
@@ -523,23 +542,45 @@ region has anyway.  Those lines go under a cloak."
          (lines (overblock--lines
                  (string-trim text "\\(?:[ \t]*\n\\)+"
                               "\\(?:\n[ \t]*\\)+")))
-         (rows (overblock--rows beg end))
-         (slots (max 1 (seq-count (lambda (row) (> (cdr row) (car row))) rows)))
+         (indent (overblock-get block :indent))
+         ;; Each row as (BOL FROM TO): where the line begins, where its
+         ;; piece begins and where its text ends.  The piece begins at
+         ;; the block on the first row and `:indent' columns in on every
+         ;; other — or at the end of a line shorter than that, which
+         ;; then carries nothing and goes under a cloak.
+         (rows (mapcar (lambda (row)
+                         (let ((bol (car row)) (to (cdr row)))
+                           (list bol
+                                 (if (and indent (> bol beg))
+                                     (min to (+ bol indent))
+                                   bol)
+                                 to)))
+                       (overblock--rows beg end)))
+         (slots (max 1 (seq-count (lambda (row) (> (nth 2 row) (nth 1 row)))
+                                  rows)))
          (chunks (overblock--deal lines slots))
          parts cloak-from)
-    (dolist (row rows)
-      (let* ((from (car row))
-             (to (cdr row))
-             ;; A line with text to cover takes the next chunk of the
-             ;; rendering; one without carries nothing.
-             (chunk (and (> to from) (pop chunks))))
+    (pcase-dolist (`(,bol ,from ,to) rows)
+      ;; A line with text to cover takes the next chunk of the
+      ;; rendering; one without carries nothing.
+      (let ((chunk (and (> to from) (pop chunks))))
         (if (null chunk)
-            (setq cloak-from (overblock--cloak-from cloak-from from))
+            (setq cloak-from (overblock--cloak-from cloak-from bol))
           (when cloak-from
-            (push (overblock--cloak block cloak-from (1- from)) parts)
-            (push (overblock--newline-guard block (1- from)) parts)
+            (push (overblock--cloak block cloak-from (1- bol)) parts)
+            (push (overblock--newline-guard block (1- bol)) parts)
             (setq cloak-from nil))
-          (push (overblock--piece block from to (string-join chunk "\n"))
+          ;; A rendering line that shares a row with another is drawn
+          ;; where the display string breaks, at the window's edge: it
+          ;; is padded to the column the row's piece begins at, which
+          ;; with `:indent' is that many columns in — measured, two such
+          ;; lines of a doc string stood at column zero, left of the
+          ;; guide's bars.
+          (push (overblock--piece block from to
+                                  (string-join chunk
+                                               (if indent
+                                                   (concat "\n" (make-string indent ?\s))
+                                                 "\n")))
                 parts))))
     (when cloak-from
       (push (overblock--cloak block cloak-from (1- end)) parts)
