@@ -163,28 +163,18 @@ whoever reads it."
 ;;;; The scenarios
 
 (defun ob-gif-pydoc ()
-  "A module of doc strings, rendered where they stand, by both renderers.
+  "A module of doc strings, rendered where they stand.
 The class doc string is reStructuredText with everything in it a doc
 string carries — a field list, math, a bullet list, a table and a code
-block — so that the two renderers can be told apart: the converter
-lays all of that out with shr, and `fontify\' paints the source where
-the writer left it."
+block — and the converter lays all of that out with shr.  The markup is
+said, because the default is Markdown and this file is not."
   (find-file (ob-gif-file "shapes.py" nil))
-  (setq overblock-pydoc-renderer 'converter)
+  (setq overblock-pydoc-markup 'rst)
   (goto-char (point-min))
   (ob-gif-frame 250)
   (overblock-pydoc-mode 1)
   (ob-gif-wait 40 #'ob-gif-pydoc--settled)
-  (ob-gif-frame 400)
-  ;; the same doc strings, painted rather than converted
-  (setq overblock-pydoc-renderer 'fontify)
-  (overblock-pydoc--redraw)
-  (ob-gif-wait 20 #'ob-gif-pydoc--settled)
-  (ob-gif-frame 400)
-  (setq overblock-pydoc-renderer 'converter)
-  (overblock-pydoc--redraw)
-  (ob-gif-wait 30 #'ob-gif-pydoc--settled)
-  (ob-gif-frame 250)
+  (ob-gif-frame 500)
   ;; and one of them opened, edited and put back
   (goto-char (point-min))
   (when-let* ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
@@ -209,7 +199,7 @@ the writer left it."
     (and (= (length blocks)
             (length (overblock-pydoc--strings (point-min) (point-max))))
          (seq-every-p (lambda (block)
-                        (eql (overlay-get block 'overblock-pydoc-columns)
+                        (eql (overlay-get block 'overblock-columns)
                              (overblock-window-columns)))
                       blocks))))
 
@@ -474,7 +464,7 @@ size."
   (ob-gif-frame 300)
   ;; the doc strings of a module
   (find-file (ob-gif-file "shapes.py" nil))
-  (setq overblock-pydoc-renderer 'converter)
+  (setq overblock-pydoc-markup 'rst)
   ;; The top of the file, and point on the line of code above the first
   ;; doc string: the one point is in is left as source.
   (goto-char (point-min))
