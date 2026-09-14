@@ -61,17 +61,14 @@
 ;;
 ;;   :keymap       the keymap on it
 ;;   :buttons      the option that holds the button descriptors, a symbol
-;;   :fold         the command the fold mark runs, `overblock-run-toggle-output'
-;;                 where the backend names none
-;;   :header-face  the face of the bar, `overblock-bar' where it names none
-;;   :output-face  the face of the body, `overblock-body' where it names none
 ;;   :lines        the option that says how many lines show, a symbol
 ;;   :chars        the option that says how long a line may be, a symbol
 ;;   :stale        what to do with the block when its region is edited,
 ;;                 `overblock-delete' where the backend names none
 ;;
 ;; The three options are named and not copied, because the reader may
-;; customize them while the notebook is open.
+;; customize them while the notebook is open.  The bar wears
+;; `overblock-bar' and the body `overblock-body', in every notebook.
 ;;
 ;; Two consumers live here: `overblock-pycell' sends Python cells to an
 ;; inferior Python, and `overblock-rmd' sends the R chunks of an Rmd
@@ -201,8 +198,7 @@ the region printed nothing at all.  FOLDED, TOTAL, RUNTIME and STATE are
                                (overblock-glyph " " " ▸" " >")
                              (overblock-glyph " " " ▾" " v"))
                            "Fold or unfold this result"
-                           (or (plist-get overblock-run-backend :fold)
-                               #'overblock-run-toggle-output)))
+                           #'overblock-run-toggle-output))
         ;; nothing printed: every other case is above
         (t (overblock-glyph " " " ✓" " ."))))
 
@@ -244,7 +240,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
          (time (format "%.1fs" runtime)))
     (overblock-bar
      mark (string-join (delq nil (list label time)) " · ")
-     icons (or (plist-get overblock-run-backend :header-face) 'overblock-bar))))
+     icons 'overblock-bar)))
 
 (defun overblock-run-restart (reason restart)
   "End what runs, drop the queue and the results, then call RESTART.
@@ -308,10 +304,7 @@ are and how many of them show, and the body is those that show."
                                                 (overblock-image-in text))))
       (overblock-set block :body
                      (when (and shown (not folded))
-                       (overblock-faced
-                        (string-join shown "\n")
-                        (or (plist-get overblock-run-backend :output-face)
-                            'overblock-body))))
+                       (overblock-faced (string-join shown "\n") 'overblock-body)))
       (overblock-refresh block))))
 
 (defun overblock-run-show (beg end text runtime &optional state total)
