@@ -341,6 +341,7 @@ Markdown buffer over its own source.
 | =overblock-md-html-batch-async= | convert many texts in one process       |
 | =overblock-md-columns=          | the columns a window leaves a rendering |
 | =overblock-md-program=          | the converter that is installed, or nil |
+| =overblock-md-eglot-renderer=   | render a language server's documentation |
 
 One process for a whole buffer costs much less than one for each
 region, which is what the batch calls are for.
@@ -397,6 +398,27 @@ and a caller may use either on its own.
 The mode does nothing where no candidate of =overblock-md-command= is
 installed.
 
+*** Documentation from a language server
+
+eglot shows what a language server answers for the symbol at point
+through eldoc, and renders the server's Markdown with a Markdown mode's
+font lock.  Font lock cannot lay out a table, draw a formula or paint a
+fenced block in its own language; this renderer can, and eglot has the
+hook for it:
+
+#+begin_src emacs-lisp
+  (setopt eglot-documentation-renderer #'overblock-md-eglot-renderer)
+#+end_src
+
+The documentation then reads the same wherever eldoc shows it — the
+echo area, the =*eldoc*= buffer, an eldoc-box child frame — with a pipe
+table in columns, the signature painted as code and a formula as an
+image.  =overblock-md-eldoc-width= is the width the text is filled to,
+72 columns by default, since no window has the text when it is
+rendered.  A rendering is kept, so the second hover over a symbol costs
+no process.  A server that answers plain text is left to eglot, and
+without a converter the Markdown stays as it came.
+
 *** Commands and options
 
 | Command                               | Action                                 |
@@ -415,6 +437,7 @@ and is otherwise empty, so every key is free to bind.
 | =overblock-md-remote-images= | =t=                                              | whether an image named by URL is fetched   |
 | =overblock-md-code-modes=    | eleven languages that do not spell their mode    | the mode that paints a fenced block; nil for none |
 | =overblock-md-code=          | inherits =font-lock-constant-face=               | the face of inline code                    |
+| =overblock-md-eldoc-width=   | 72                                               | the columns a server's documentation is filled to |
 
 A fenced block that names its language — =```python= — is painted by
 that language's major mode, as the editor paints the file:

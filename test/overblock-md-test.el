@@ -906,4 +906,65 @@ reader killed in the meantime is passed over."
           (should-not (overlay-buffer block)))
       (overblock-live-stop 'md-preview))))
 
+;;;; The renderer for eglot
+
+(defconst overblock-md-test--hover
+  "```python\n(function) def f(a, b=1) -> int\n```\n---\nAdd `a` and `b`.\n\n\
+Parameters\n----------\na : int  \n&nbsp;&nbsp;&nbsp;&nbsp;The first operand.  \n\
+b : int, optional  \n&nbsp;&nbsp;&nbsp;&nbsp;The second.\n\n\
+| col | val |\n|-----|-----|\n| a   | 1   |\n"
+  "What basedpyright answers for a numpydoc function, hovered.
+The rule right under the signature fence and the setext underline are
+the two things pandoc read as a table.")
+
+(ert-deftest overblock-md-test-eglot-hover-renders-as-the-server-meant ()
+  "A server's hover text comes out as prose, headings and a table.
+pandoc read the rule under the signature, the first paragraph and the
+setext underline of the next section as one simple table, and a whole
+doc string came out as a padded rectangle.  The signature stays, the
+sections are headings, the entries keep their indent and the pipe table
+is laid out in columns."
+  (skip-unless (overblock-md-program))
+  (clrhash overblock-md--eldoc-cache)
+  (with-temp-buffer
+    (insert overblock-md-test--hover)
+    (overblock-md-eglot-renderer)
+    ;; what eglot does next, and what used to strip every face
+    (font-lock-ensure)
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-search "def f(a, b=1)" text))
+      (should (string-search "Parameters" text))
+      (should (string-match-p "a : int\n[  ]+The first operand\\." text))
+      ;; the rule under the signature is drawn as dashes; the setext
+      ;; underline of the section is not
+      (should-not (string-search "Parameters\n---" text))
+      (should-not (string-search "|" text))
+      (should (string-match-p "col +val" text)))
+    ;; the faces of the rendering are still there
+    (should (text-property-not-all (point-min) (point-max) 'face nil))))
+
+(ert-deftest overblock-md-test-eglot-hover-is-rendered-once ()
+  "The same hover text costs one converter process, however often eldoc asks."
+  (skip-unless (overblock-md-program))
+  (clrhash overblock-md--eldoc-cache)
+  (let ((calls 0)
+        (html (symbol-function 'overblock-md--html)))
+    (cl-letf (((symbol-function 'overblock-md--html)
+               (lambda (&rest args) (setq calls (1+ calls)) (apply html args))))
+      (dotimes (_ 3)
+        (with-temp-buffer
+          (insert "Seen *three* times.")
+          (overblock-md-eglot-renderer)
+          (should (string-search "three" (buffer-string)))))
+      (should (= calls 1)))))
+
+(ert-deftest overblock-md-test-eglot-hover-stays-markdown-without-a-converter ()
+  "No converter, no change: eglot then shows the markdown as it came."
+  (let ((overblock-md-command "there-is-no-such-program-here"))
+    (clrhash overblock-md--eldoc-cache)
+    (with-temp-buffer
+      (insert "Plain *markdown*.")
+      (overblock-md-eglot-renderer)
+      (should (equal (buffer-string) "Plain *markdown*.")))))
+
 ;;; overblock-md-test.el ends here
