@@ -672,7 +672,7 @@ The preview is drawn in the foreground of the theme, so the one on the
 screen is in the old colour until it is rendered again; a rendering
 without a formula is left alone."
   (with-temp-buffer
-    (setq-local overblock-live--specs (list (list 'md-preview #'ignore 0)))
+    (setq-local overblock-live--specs (list (list 'md-preview #'ignore)))
     (insert "one\ntwo\n")
     (overblock-show 1 4 :kind 'md-preview
                     :over (propertize "x" 'overblock-md-math t))

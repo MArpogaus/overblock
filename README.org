@@ -295,6 +295,7 @@ line below them.
 |-----------------------------+---------+---------------------------------------------|
 | =overblock-image-height=    | 0.8     | the share of the window for an inline image |
 | =overblock-terminal-glyphs= | nil     | whether this terminal draws the icon glyphs |
+| =overblock-live-idle=       | 0.2     | the quiet before a live cycle renders again |
 
 A block taller than the window cannot be scrolled past, which is what
 =overblock-image-height= is for.  Zero draws an image at whatever size
@@ -413,7 +414,6 @@ and is otherwise empty, so every key is free to bind.
 | =overblock-md-command=       | a =pandoc= command, and four candidates after it | the shell command from Markdown to HTML    |
 | =overblock-md-remote-images= | =t=                                              | whether an image named by URL is fetched   |
 | =overblock-md-code-modes=    | eleven languages that do not spell their mode    | the mode that paints a fenced block; nil for none |
-| =overblock-md-preview-idle=  | 0.2                                              | the quiet before a block is rendered again |
 | =overblock-md-code=          | inherits =font-lock-constant-face=               | the face of inline code                    |
 
 A fenced block that names its language — =```python= — is painted by
@@ -502,7 +502,6 @@ click.
 | =overblock-pydoc-markup=   | =rst=                          | the markup the doc strings are written in |
 | =overblock-pydoc-command=  | a =pandoc= command per markup  | the shell command for a doc string      |
 | =overblock-pydoc-modes=    | =rst-mode=, =markdown-mode=    | the major mode that reads one, per markup |
-| =overblock-pydoc-idle=     | 0.2                            | the quiet before one is rendered again  |
 | =overblock-pydoc-buttons=  | one edit button                | the buttons on that bar                 |
 | =overblock-pydoc-footer=   | =shadow= with an underline     | the face of the rule under a doc string |
 

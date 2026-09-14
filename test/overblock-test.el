@@ -445,7 +445,7 @@ would ever take them down.  Among the strays are cloaks, which hold
 lines of the buffer invisible."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\nfive\nsix\n")
-    (overblock-live-start 'probe #'ignore 0.1)
+    (overblock-live-start 'probe #'ignore)
     (unwind-protect
         (progn
           (overblock-show 1 4 :kind 'probe :over "A")
