@@ -731,8 +731,11 @@ is left out: there is nothing to render."
           (goto-char to)))
       (nreverse cells))))
 
+(define-obsolete-function-alias 'overblock-pycell-md-render-all
+  #'overblock-pycell-render-buffer "1.0")
+
 ;;;###autoload
-(defun overblock-pycell-md-render-all ()
+(defun overblock-pycell-render-buffer ()
   "Render the markdown cells of the buffer that want it.
 A markdown cell is one whose boundary line reads \"# %% [markdown]\",
 and `overblock-live-wanted-p' says which want rendering: not the ones
@@ -771,7 +774,7 @@ rendered cell, which is the answer the commands that call it give."
 ;;;###autoload
 (defun overblock-pycell-md-render-cell (&optional event)
   "Render the markdown cell at point, or the one whose button EVENT clicked.
-`overblock-pycell-md-render-all' does the whole buffer; this is the button on
+`overblock-pycell-render-buffer' does the whole buffer; this is the button on
 the
 bar of a cell that is showing its source."
   (interactive (list last-input-event))
@@ -1321,7 +1324,7 @@ run either way."
                                             ", "))
                      "this Emacs was built without libxml, which shr reads \
 the converter's HTML with")))
-        (overblock-live-start 'markdown #'overblock-pycell-md-render-all))
+        (overblock-live-start 'markdown #'overblock-pycell-render-buffer))
     (overblock-live-stop 'markdown)
     (overblock-run-detach)
     (kill-local-variable 'overblock-live-source-at-point)

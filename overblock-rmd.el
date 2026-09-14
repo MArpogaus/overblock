@@ -433,10 +433,12 @@ written."
     (mapc #'overblock-rmd--bar opens)
     (mapc #'overblock-rmd--hide-fence closes)))
 
+;;;###autoload
 (defun overblock-rmd-render-buffer ()
   "Bar every chunk of the buffer and render the prose between them.
 Both on the one idle timer: `overblock-live-start' calls this when the
 reader stops, and each of the two walks the buffer once."
+  (interactive)
   (overblock-rmd--bars)
   (overblock-md-preview-render-buffer))
 
