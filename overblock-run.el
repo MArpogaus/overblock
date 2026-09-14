@@ -92,7 +92,7 @@ The commentary of this file lists the slots.  The mode of a notebook
 sets it, and takes it away again when it is turned off: the runner asks
 it whether a buffer is still a notebook it may draw in.
 
-`overblock-run-send' copies it into the shell buffer, where the filter
+`overblock-run--send' copies it into the shell buffer, where the filter
 and the ticker read it.")
 
 (defun overblock-run--call (slot &rest args)
@@ -136,7 +136,7 @@ of a Python notebook and the chunks of an Rmd file alike.
 Point never enters the block, so a key pressed in the region is
 answered by this map through the overlays that carry it.")
 
-(defun overblock-run-shorten (line chars)
+(defun overblock-run--shorten (line chars)
   "Return LINE cut to CHARS characters.
 The cut is marked with an ellipsis.  A CHARS of nil, or of zero, leaves
 the line whole; see the options of the callers for what that costs the
@@ -148,13 +148,13 @@ scroller."
     (concat (substring line 0 chars)
             (overblock-glyph "…" "..."))))
 
-(defconst overblock-run-tick 0.2
+(defconst overblock-run--interval 0.2
   "Seconds between two looks at a running region\'s output.
 The spinner turns one frame a tick, so `overblock-run-header\' divides
 the runtime by this to pick its glyph: the two have to agree, which is
 why the interval has a name.")
 
-(defun overblock-run-body-lines (lines chars)
+(defun overblock-run--body-lines (lines chars)
   "Return LINES as they show inline.
 Each is cut to CHARS characters, and nothing after the first line that
 carries an image it can draw shows: more inline figures would grow the
@@ -176,9 +176,9 @@ instead."
         (push (cond (drawp (overblock-image-cap l))
                     ;; A blank row said nothing about the figure that
                     ;; could not be drawn there.
-                    (imagep (overblock-run-shorten (overblock-image-label l)
+                    (imagep (overblock-run--shorten (overblock-image-label l)
                                                    chars))
-                    (t (overblock-run-shorten l chars)))
+                    (t (overblock-run--shorten l chars)))
               shown)
         (when drawp (setq stop t))))
     (nreverse shown)))
@@ -196,7 +196,7 @@ the region printed nothing at all.  FOLDED, TOTAL, RUNTIME and STATE are
          ;; still glyph.  These ten are one weight and one size among
          ;; themselves, which is what the rest of the row is for.
          (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
-           (string ?\s (aref frames (mod (truncate runtime overblock-run-tick)
+           (string ?\s (aref frames (mod (truncate runtime overblock-run--interval)
                                          (length frames))))))
         ((eq state 'died) (overblock-glyph " " " ⚠" " !"))
         ;; A single line can still be tall: one image is one line, and
@@ -265,7 +265,7 @@ business, and everything before it is not."
     (when proc
       (with-current-buffer (process-buffer proc)
         (overblock-run-abort reason)))
-    (overblock-run-queue-set nil)
+    (overblock-run--queue-set nil)
     (overblock-run-clear-results)
     (funcall restart proc)))
 
@@ -294,7 +294,7 @@ are and how many of them show, and the body is those that show."
            (max (overblock-run--option :lines))
            (chars (overblock-run--option :chars))
            (lines (unless empty (overblock-repl-first-lines text max)))
-           (shown (overblock-run-body-lines lines chars))
+           (shown (overblock-run--body-lines lines chars))
            ;; The count is asked for once and kept: a finished result
            ;; carries none, and a fold would otherwise scan the whole
            ;; output again on every keypress.
@@ -384,7 +384,7 @@ list let a pass in one notebook discard another's regions and then feed
 its own down that notebook's interpreter.  `overblock-run-shell' is how
 to reach it.")
 
-(defvar-local overblock-run-follower nil
+(defvar-local overblock-run--follower nil
   "What a buffer that follows one result knows of it: (SHELL . REGION).
 SHELL is the buffer of the interpreter the result came from, and REGION
 the marker the run holds on its region, or nil where the result had
@@ -410,8 +410,8 @@ prompt — reads the backend there, and only a notebook has one of its
 own; a shell that had not been sent to yet answered as if it had no
 queue at all, so a pass over a notebook whose interpreter was still
 starting never began."
-  (if (local-variable-p 'overblock-run-follower)
-      (let ((shell (car overblock-run-follower)))
+  (if (local-variable-p 'overblock-run--follower)
+      (let ((shell (car overblock-run--follower)))
         (and (buffer-live-p shell) shell))
     (when-let* ((proc (overblock-run--call :process))
                 (shell (process-buffer proc)))
@@ -438,7 +438,7 @@ know what may not move under it."
 a pass over the whole buffer visible.  A pass asked for from one region
 gives point back instead: the reader pressed a button there.")
 
-(defun overblock-run-queued ()
+(defun overblock-run--queued ()
   "Return the regions a pass still has to run, in order."
   (when-let* ((shell (overblock-run-shell)))
     (buffer-local-value 'overblock-run--queue shell)))
@@ -464,7 +464,7 @@ had been scrolled to."
           (set-window-point window home))))
     (set-marker home nil)))
 
-(defun overblock-run-home-set (marker)
+(defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.
 A marker it held before is freed: comint adjusts every marker of the
 shell on every insertion."
@@ -473,7 +473,7 @@ shell on every insertion."
       (when (markerp overblock-run--home) (set-marker overblock-run--home nil))
       (setq overblock-run--home marker))))
 
-(defun overblock-run-queue-set (cells)
+(defun overblock-run--queue-set (cells)
   "Give the shell CELLS to run, and answer them."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell (setq overblock-run--queue cells))))
@@ -520,7 +520,7 @@ renders it only when it is complete."
   "Return as much of the output after FROM as the block can show.
 Call this in the shell, where the backend says how many lines show and
 how long a line may be, and its `:clean' takes the prompts off.
-`overblock-run-body-lines' takes the first lines and stops, so a tick
+`overblock-run--body-lines' takes the first lines and stops, so a tick
 has no reason to read — or clean — everything the region has printed.
 Once those lines are all in, the text cannot change anymore and is
 kept, and the ticks after that read nothing.  A block that shows every
@@ -539,7 +539,7 @@ cell whose first lines are still on their way has more to come."
              (budget (and (natnump chars)
                           (> chars 0)
                           (> lines 0)
-                          ;; what `overblock-run-body-lines' can show, and no
+                          ;; what `overblock-run--body-lines' can show, and no
                           ;; more: the lines it keeps, each cut to the
                           ;; length it cuts them to
                           (* lines (1+ chars))))
@@ -616,7 +616,7 @@ finished cell shows."
         (1+ count)
       count)))
 
-(defun overblock-run-show-in-notebook (beg fin text seconds state &optional total)
+(defun overblock-run--show-in-notebook (beg fin text seconds state &optional total)
   "Show TEXT as the result of the region BEG..FIN, where it can be shown.
 Nothing where the notebook is gone, and nothing where its mode is off
 in it: the mode's own body takes the blocks and the bars away, and a
@@ -651,14 +651,14 @@ was reporting.  `overblock-run-abort' asks the same question."
       ;; The last of the output, and then the whole of it cleaned: the
       ;; tail a follower wrote is raw, and its final lines arrive with
       ;; the closing prompt.
-      (overblock-run-follow-tick)
+      (overblock-run--follow-tick)
       (setq overblock-run--state nil)
       (cancel-timer timer)
       ;; The pass is over, and so is the place it came from: a marker
       ;; left behind would take point there at the end of the next
       ;; single cell to run.
       (when died (setq overblock-run--queue nil overblock-run--home nil))
-      (overblock-run-show-in-notebook beg fin text (- (float-time) start)
+      (overblock-run--show-in-notebook beg fin text (- (float-time) start)
                                       (and died 'died))
       (when-let* ((buffer (car-safe follow))
                   ((buffer-live-p buffer)))
@@ -718,9 +718,9 @@ of it has been copied lives there, in the record of the run."
                                (copy-marker (plist-get overblock-run--state :from)))))
         ;; What the cell has printed already, rather than an empty
         ;; buffer until the next tick.
-        (overblock-run-follow-tick)))))
+        (overblock-run--follow-tick)))))
 
-(defun overblock-run-follow-tick ()
+(defun overblock-run--follow-tick ()
   "Copy what the region has printed since the last look into its buffer.
 Call this in the shell buffer.
 
@@ -752,7 +752,7 @@ it."
 
 (defun overblock-run--tick (buf timer)
   "Mirror the running region's output and stopwatch into its overlay.
-TIMER runs this every `overblock-run-tick' seconds for the shell BUF.
+TIMER runs this every `overblock-run--interval' seconds for the shell BUF.
 It cancels itself when nothing runs there anymore."
   (if (not (and (buffer-live-p buf)
                 (buffer-local-value 'overblock-run--state buf)))
@@ -763,8 +763,8 @@ It cancels itself when nothing runs there anymore."
         (pcase-let (((map (:from from) :beg (:end fin) :start) overblock-run--state))
           (let* ((text (overblock-run-output-head from))
                  (total (if (string-empty-p text) 0 (overblock-run-total from))))
-            (overblock-run-follow-tick)
-            (overblock-run-show-in-notebook beg fin text (- (float-time) start)
+            (overblock-run--follow-tick)
+            (overblock-run--show-in-notebook beg fin text (- (float-time) start)
                                             'running total)))))))
 
 (defun overblock-run--filter (output)
@@ -792,7 +792,7 @@ nothing runs; the live mirroring is the ticker's job."
           (buffer-substring (plist-get overblock-run--state :from)
                             (point-max))))))))
 
-(defun overblock-run-send (proc start end)
+(defun overblock-run--send (proc start end)
   "Send START..END to PROC as the running region and track it.
 Call this with the notebook current, where its backend is: the backend
 travels into the shell buffer from here, because the filter and the
@@ -816,7 +816,7 @@ ticker run there and read it."
       ;; call that makes it, so the closure has it by the first tick.
       (let (timer)
         (setq timer (run-with-timer
-                     overblock-run-tick overblock-run-tick
+                     overblock-run--interval overblock-run--interval
                      (let ((buffer (current-buffer)))
                        (lambda () (overblock-run--tick buffer timer)))))
         ;; The process mark, and not the end of the buffer.  A render
@@ -861,18 +861,18 @@ A loop and not a call back into the command that runs one region: that
 built a frame for every markdown cell in a row, a hundred of them
 reached `max-lisp-eval-depth', and — worse — every frame ran its own
 tail on the way out, so the second one sent a code cell while the first
-was still running.  `overblock-run-send' refused it from inside the
+was still running.  `overblock-run--send' refused it from inside the
 process filter and that cell, already off the queue, never ran at all."
   (catch 'waiting
     (while t
-      (let* ((cells (overblock-run-queued))
+      (let* ((cells (overblock-run--queued))
              (m (car cells)))
         (unless m
           (overblock-run-go-home)
           (throw 'waiting nil))
-        (overblock-run-queue-set (cdr cells))
+        (overblock-run--queue-set (cdr cells))
         (unless (buffer-live-p (marker-buffer m))
-          (overblock-run-queue-set nil)
+          (overblock-run--queue-set nil)
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
           (goto-char m)
@@ -897,21 +897,21 @@ belongs to the shell's buffer, and the first pass of a session had
 none to put it in, so that pass never brought point back.  A shell that
 answers with an error here leaves nothing armed."
   (overblock-run--call :arm #'overblock-run-next)
-  (overblock-run-home-set (point-marker))
-  (overblock-run-queue-set cells)
+  (overblock-run--home-set (point-marker))
+  (overblock-run--queue-set cells)
   (message "%s" message))
 
 (defun overblock-run--pass (cells message)
   "Put CELLS on the shell's queue and start the pass, saying MESSAGE."
-  (overblock-run-home-set (point-marker))
-  (overblock-run-queue-set cells)
+  (overblock-run--home-set (point-marker))
+  (overblock-run--queue-set cells)
   (condition-case err
       (overblock-run-next)
     ;; A region that will not start takes the home with it, or the
     ;; marker of a pass that never ran drags point when the region that
     ;; refused it ends.
-    (error (overblock-run-queue-set nil)
-           (overblock-run-home-set nil)
+    (error (overblock-run--queue-set nil)
+           (overblock-run--home-set nil)
            (signal (car err) (cdr err))))
   (message "%s" message))
 
@@ -943,7 +943,7 @@ starting, the region waits for its first prompt and is sent then."
   (if-let* ((proc (overblock-run--call :process)))
       (if (buffer-local-value 'overblock-run--state (overblock-run-shell))
           (overblock-run--enqueue start)
-        (overblock-run-send proc start end))
+        (overblock-run--send proc start end))
     ;; Mark the region here, while its buffer is still current:
     ;; `copy-marker' on a number answers for whatever buffer that is,
     ;; and the thunk below is called in the shell's.  Markers into the
@@ -951,7 +951,7 @@ starting, the region waits for its first prompt and is sent then."
     (let ((beg (copy-marker start))
           (fin (copy-marker end t)))
       (if-let* ((proc (overblock-run--call :start)))
-          (overblock-run-send proc beg fin)
+          (overblock-run--send proc beg fin)
         (overblock-run--call :arm (overblock-run--sender beg fin))
         (message "%s: starting the interpreter…" (overblock-run--name))))))
 
@@ -960,8 +960,8 @@ starting, the region waits for its first prompt and is sent then."
 Point comes back here when the queue runs out, unless a pass has said
 already where it is to come back to."
   (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
-    (overblock-run-home-set (point-marker)))
-  (overblock-run-queue-set (append (overblock-run-queued)
+    (overblock-run--home-set (point-marker)))
+  (overblock-run--queue-set (append (overblock-run--queued)
                                    (list (copy-marker start))))
   (message "%s: queued behind the running %s"
            (overblock-run--name) (overblock-run--unit)))
@@ -974,7 +974,7 @@ caused the cold start may have moved it on already."
     (when (buffer-live-p (marker-buffer beg))
       (with-current-buffer (marker-buffer beg)
         (when-let* ((proc (overblock-run--call :process)))
-          (overblock-run-send proc beg fin))))))
+          (overblock-run--send proc beg fin))))))
 ;;;; The notebook and its commands
 
 (defun overblock-run-attach (backend)
@@ -984,18 +984,18 @@ The mode of a notebook calls this as it goes on, and
 drawn again whenever the width changes, through
 `overblock-width-functions\'."
   (setq-local overblock-run-backend backend)
-  (add-hook 'overblock-width-functions #'overblock-run-redraw nil t))
+  (add-hook 'overblock-width-functions #'overblock-run--redraw nil t))
 
 (defun overblock-run-detach ()
   "Stop this buffer being a notebook, and take its results and bars down.
 Every block goes, whatever made it: a mode that is off has nothing on
 the screen."
   (kill-local-variable 'overblock-run-backend)
-  (remove-hook 'overblock-width-functions #'overblock-run-redraw t)
+  (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
   (mapc #'delete-overlay (overblock-bars))
   (overblock-clear))
 
-(defun overblock-run-redraw ()
+(defun overblock-run--redraw ()
   "Draw the results and the bars of this notebook again.
 For a width that changed or a button list the reader customized: a
 result is drawn again from the record it already holds, which is what a
@@ -1017,9 +1017,9 @@ that was already open appeared to do nothing at all."
     (with-current-buffer buffer
       (when overblock-run-backend
         (overblock-bars-stale)
-        (overblock-run-redraw)))))
+        (overblock-run--redraw)))))
 
-(defun overblock-run-result-at (event)
+(defun overblock-run--result-at (event)
   "Return the result block at point, or at the click in EVENT.
 Point first, then anywhere in the region around it.  Signals a
 `user-error\' where there is no result, which is the answer the commands
@@ -1031,7 +1031,7 @@ that call it give their reader."
         (car (overblock-in (car region) (cdr region) 'result)))
       (user-error "No result here")))
 
-(defun overblock-run-result-text (block)
+(defun overblock-run--result-text (block)
   "Return the text of the result BLOCK.
 While the region runs, that is only the part that shows — the head the
 tick reads — so copying or saving it says as much rather than handing
@@ -1048,7 +1048,7 @@ over a fraction in silence."
 The file type comes from the image descriptor; `create-image' read it
 from the data's magic bytes."
   (interactive (list last-input-event))
-  (let* ((text (overblock-run-result-text (overblock-run-result-at event)))
+  (let* ((text (overblock-run--result-text (overblock-run--result-at event)))
          (img (or (overblock-image-in text)
                   (user-error "No image in this result")))
          (data (or (plist-get (cdr img) :data)
@@ -1149,12 +1149,12 @@ the end of that buffer follows the output; anywhere else it stays where
 it is.  The buffer is written once more when the region ends, with the
 prompts taken off and a table laid out live."
   (interactive (list last-input-event))
-  (let* ((ov (overblock-run-result-at event))
+  (let* ((ov (overblock-run--result-at event))
          (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
-         ;; Not `overblock-run-result-text': that answers with the head
+         ;; Not `overblock-run--result-text': that answers with the head
          ;; the tick reads and says so.  A buffer that is about to
          ;; follow the region wants everything printed so far instead.
-         (text (if runningp "" (overblock-run-result-text ov)))
+         (text (if runningp "" (overblock-run--result-text ov)))
          (buffer (get-buffer-create
                   (format "*%s: %s:%d*" (overblock-run--name) (buffer-name)
                           (line-number-at-pos (overlay-start ov)))))
@@ -1171,7 +1171,7 @@ prompts taken off and a table laid out live."
       ;; there must not fall through to whatever shell the settings
       ;; point at — that killed another notebook's running cell at a
       ;; keystroke.
-      (setq overblock-run-follower
+      (setq overblock-run--follower
             (cons shell (and runningp shell
                              (plist-get (buffer-local-value
                                          'overblock-run--state shell)
@@ -1184,7 +1184,7 @@ prompts taken off and a table laid out live."
   "Fold or unfold the result at point, or the one clicked in EVENT.
 This is what the fold mark of a result runs."
   (interactive (list last-input-event))
-  (let* ((block (overblock-run-result-at event))
+  (let* ((block (overblock-run--result-at event))
          (data (overblock-get block :data)))
     (overblock-set block :data
                    (plist-put data :folded (not (plist-get data :folded))))
@@ -1194,14 +1194,14 @@ This is what the fold mark of a result runs."
 (defun overblock-run-discard-output (&optional event)
   "Discard the result at point, or the one clicked in EVENT."
   (interactive (list last-input-event))
-  (overblock-delete (overblock-run-result-at event)))
+  (overblock-delete (overblock-run--result-at event)))
 
 ;;;###autoload
 (defun overblock-run-copy-output (&optional event)
   "Copy the result at point, or the one clicked in EVENT.
 The copy keeps its text properties, so images survive a yank."
   (interactive (list last-input-event))
-  (kill-new (overblock-run-result-text (overblock-run-result-at event)))
+  (kill-new (overblock-run--result-text (overblock-run--result-at event)))
   (message "%s: result copied" (overblock-run--name)))
 
 ;;;###autoload
@@ -1233,12 +1233,12 @@ result came from is stopped."
   (overblock-goto-event event)
   ;; What was queued says what to report: a stop pressed with nothing
   ;; left to run said a pass had been stopped that was already over.
-  (let ((queued (length (overblock-run-queued))))
-    (overblock-run-queue-set nil)
+  (let ((queued (length (overblock-run--queued))))
+    (overblock-run--queue-set nil)
     ;; A pass the reader stopped does not take point home when its last
     ;; region ends: they stopped it where they are, and a run-all
     ;; stopped from its stop button jumped back to the top.
-    (overblock-run-home-set nil)
+    (overblock-run--home-set nil)
     (message "%s: %s" (overblock-run--name)
              (if (> queued 0)
                  (format "the pass is stopped, %d %s left unrun"
@@ -1264,8 +1264,8 @@ here instead of being deduced from output that does not exist."
   (overblock-goto-event event)
   (let ((shell (or (overblock-run-shell)
                    (user-error "No interpreter for this buffer"))))
-    (when (local-variable-p 'overblock-run-follower)
-      (let ((mine (cdr overblock-run-follower))
+    (when (local-variable-p 'overblock-run--follower)
+      (let ((mine (cdr overblock-run--follower))
             (running (plist-get (buffer-local-value 'overblock-run--state
                                                     shell)
                                 :beg)))
@@ -1281,7 +1281,7 @@ here instead of being deduced from output that does not exist."
     (with-current-buffer shell (setq overblock-run--queue nil))
     ;; And the pass does not take point home as it ends: the reader
     ;; stopped it where they are.
-    (overblock-run-home-set nil)
+    (overblock-run--home-set nil)
     (interrupt-process (or (get-buffer-process shell)
                            ;; `interrupt-process\' of nil takes the
                            ;; current buffer\'s process, which is not

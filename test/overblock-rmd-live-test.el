@@ -176,7 +176,7 @@ would otherwise end that literal, the line, or both."
     (overblock-rmd-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
-                             (null (overblock-run-queued))
+                             (null (overblock-run--queued))
                              (= (length (overblock-test-common-results)) 2)))
              60))
     (should (equal (overblock-test-common-text
@@ -197,7 +197,7 @@ in the global environment."
     (overblock-rmd-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
-                             (null (overblock-run-queued))
+                             (null (overblock-run--queued))
                              (= (length (overblock-test-common-results)) 2)))
              60))
     ;; the assignment printed nothing, and the chunk after it saw it
@@ -219,12 +219,12 @@ running chunk runs to its end."
     (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (overblock-rmd--process)))
-                 (and (null (overblock-run-queued))
+                 (and (null (overblock-run--queued))
                       (buffer-local-value 'overblock-run--state
                                           (process-buffer proc)))))
              60))
     (overblock-run-stop)
-    (should-not (overblock-run-queued))
+    (should-not (overblock-run--queued))
     (should (overblock-test-common-wait
              #'overblock-rmd-live-test--idle-p 60))
     ;; the running chunk was not cut short: both results arrived
@@ -256,7 +256,7 @@ Point comes back to where the second chunk was asked for."
     (goto-char (point-max))
     (pcase-let ((`(,_open ,beg ,end) (cadr (overblock-rmd-chunks))))
       (overblock-run-region beg end)
-      (should (equal (mapcar #'marker-position (overblock-run-queued))
+      (should (equal (mapcar #'marker-position (overblock-run--queued))
                      (list beg))))
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)

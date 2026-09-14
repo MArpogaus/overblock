@@ -98,19 +98,19 @@ point of it: a test has to wait where a reader does not."
 A doc string rendered as one markup and edited in the mode of another
 is what this is against: the two read the same option."
   (let ((overblock-pydoc-markup 'rst))
-    (should (equal (overblock-pydoc-command-for-markup)
+    (should (equal (overblock-pydoc--command-for-markup)
                    (alist-get 'rst overblock-pydoc-command)))
-    (should (eq (overblock-pydoc-mode-for-markup) 'rst-mode)))
+    (should (eq (overblock-pydoc--mode-for-markup) 'rst-mode)))
   (let ((overblock-pydoc-markup 'markdown))
-    (should (equal (overblock-pydoc-command-for-markup)
+    (should (equal (overblock-pydoc--command-for-markup)
                    (alist-get 'markdown overblock-pydoc-command)))
-    (should (eq (overblock-pydoc-mode-for-markup) 'markdown-mode)))
+    (should (eq (overblock-pydoc--mode-for-markup) 'markdown-mode)))
   ;; A markup the options say nothing about falls back rather than
   ;; rendering with nothing at all.
   (let ((overblock-pydoc-markup 'org)
         (overblock-md-command "cat"))
-    (should (equal (overblock-pydoc-command-for-markup) "cat"))
-    (should (eq (overblock-pydoc-mode-for-markup) #'rst-mode))))
+    (should (equal (overblock-pydoc--command-for-markup) "cat"))
+    (should (eq (overblock-pydoc--mode-for-markup) #'rst-mode))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-opens-its-line ()
   "Every doc string is found, and a string that is data is not one.

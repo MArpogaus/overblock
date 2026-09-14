@@ -85,7 +85,7 @@ timer where the run in BODY never ended."
            ;; the first line is the region that runs, so the result
            ;; hangs on the newline under it and two lines stand below
            (goto-char (point-min))
-           (overblock-run-send proc (point-min) (pos-eol))
+           (overblock-run--send proc (point-min) (pos-eol))
            (with-current-buffer shell ,@body))
        (when-let* ((timer (plist-get (buffer-local-value 'overblock-run--state
                                                          shell)
@@ -190,7 +190,7 @@ it: without them a dead shell left its region running for good."
 Both results would otherwise hang on the second region's markers."
   (overblock-run-test--with-run
     (with-current-buffer notebook
-      (should-error (overblock-run-send proc (point-min) (point-max))
+      (should-error (overblock-run--send proc (point-min) (point-max))
                     :type 'user-error))))
 
 ;;;; What a restart does
@@ -246,7 +246,7 @@ and the follower gets what was printed before it asked as well."
             ;; and then only what is new
             (goto-char (point-max))
             (insert "second\n")
-            (overblock-run-follow-tick)
+            (overblock-run--follow-tick)
             (should (equal (with-current-buffer out (buffer-string))
                            "first\nsecond\n")))
         (kill-buffer out)))))
@@ -276,7 +276,7 @@ four were drawn by no test at all."
   (let ((overblock-run-backend (overblock-run-test--backend)))
     ;; running: a frame of the spinner, and the next tick is another
     (let ((one (overblock-run--mark nil 0 0.0 'running))
-          (two (overblock-run--mark nil 0 overblock-run-tick 'running)))
+          (two (overblock-run--mark nil 0 overblock-run--interval 'running)))
       (should-not (equal one two))
       ;; the four states are four marks, whatever glyphs this display
       ;; can draw: a reader tells them apart at a glance
