@@ -1005,12 +1005,13 @@ whatever bars the mode keeps."
     (overblock-run-update block))
   (overblock-run--call :redraw))
 
-(defun overblock-run-set-buttons (symbol value)
-  "Set SYMBOL to VALUE, and draw the bars of every notebook again.
-The `:set\' of the button options.  A change to one of them showed up
-only when something else drew a bar again — a window changing width, or
-the file opened afresh — so customizing the buttons of a notebook that
-was already open appeared to do nothing at all."
+(defun overblock-run-set-and-redraw (symbol value)
+  "Set SYMBOL to VALUE, and draw every notebook again.
+The `:set\' of the options a block on the screen follows: the buttons
+of a bar, and how much of a result shows.  A change to one of them
+showed up only when something else drew a block again — a window
+changing width, or the file opened afresh — so customizing a notebook
+that was already open appeared to do nothing at all."
   (set-default symbol value)
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer

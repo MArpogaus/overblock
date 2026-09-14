@@ -1,9 +1,0 @@
-.dir-locals.el
-.elpaignore
-.github
-Makefile
-demo
-img
-test
-tools
-docs

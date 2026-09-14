@@ -54,11 +54,14 @@
 (defgroup overblock-pydoc nil
   "Python doc strings rendered where they are written."
   :group 'languages
+  :group 'overblock
   :prefix "overblock-pydoc-")
 
 (defcustom overblock-pydoc-idle 0.2
   "Seconds of quiet before a doc string is rendered again.
-See `overblock-md-preview-idle', which this follows."
+The doc string point leaves is rendered when the reader stops moving,
+not on every command: a held down `C-n\' would otherwise render one
+for every keypress it repeats."
   :type 'number)
 
 ;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)

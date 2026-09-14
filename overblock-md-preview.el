@@ -55,6 +55,7 @@
 (defgroup overblock-md-preview nil
   "Markdown rendered over the lines it is written on."
   :group 'text
+  :group 'overblock
   :prefix "overblock-md-preview-")
 
 (defcustom overblock-md-preview-idle 0.2

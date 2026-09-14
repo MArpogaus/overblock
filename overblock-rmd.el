@@ -113,6 +113,7 @@
 (defgroup overblock-rmd nil
   "Inline results for the R chunks of an Rmd file."
   :group 'ess
+  :group 'overblock
   :prefix "overblock-rmd-")
 
 (defcustom overblock-rmd-result-buttons
@@ -125,7 +126,7 @@ moves a cell — a chunk sits inside prose that reads about it.  The
 fold arrow and the spinner are not buttons of this list: they say
 what the result is doing."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-chunk-buttons
   '((run-above ("" "⇈" "above") "Run every chunk above this one"
@@ -141,7 +142,7 @@ notebook are its top level structure and moving one is an ordinary
 edit, while a chunk sits inside prose that reads about it, and moving
 the code away from its paragraph is not what the reader meant."
   :type overblock-button-type
-  :set #'overblock-run-set-buttons)
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-max-lines 12
   "Number of result lines that show inline.
@@ -150,8 +151,11 @@ A result block is one buffer line however tall it is, so a long result
 makes one long step for `next-line' and for the wheel.  The header says
 how many lines there are in all where it shows fewer.
 
-See `overblock-rmd-max-line-length' for the width."
-  :type 'natnum)
+See `overblock-rmd-max-line-length' for the width.
+
+Customize this and the results already on the screen follow."
+  :type 'natnum
+  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-figure-size '(7 . 5)
   "Width and height of a figure a chunk draws, in inches.
@@ -171,8 +175,11 @@ marked with an ellipsis.
 
 One long line is one line, so `overblock-rmd-max-lines' does not bound
 it, and a block laid out on every redisplay costs what it holds: a
-`print' of a wide matrix or a long vector is one such line."
-  :type 'natnum)
+`print' of a wide matrix or a long vector is one such line.
+
+Customize this and the results already on the screen follow."
+  :type 'natnum
+  :set #'overblock-run-set-and-redraw)
 
 
 ;;;; The result of a chunk
