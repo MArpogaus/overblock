@@ -234,15 +234,16 @@ region that began at the quotes left the `r\' standing to their left —
 a letter of code beside a rendering.  The block covers it, and the
 rendering is padded to the column the block begins at, measured, and
 not to the indentation of the line."
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "class A:\n    r\"\"\"Raw doc, with a \\alpha in it.\n\n    More.\n    \"\"\"\n")
     (python-mode)
-    (let ((overblock-pydoc-renderer 'fontify)
-          (overblock-pydoc-markup 'rst))
+    (let ((overblock-pydoc-markup 'rst))
       (goto-char (point-max))
       ;; the mode and not the render alone: a rendering is wanted only
       ;; where the live cycle of its kind is on
-      (overblock-pydoc-mode 1))
+      (overblock-pydoc-mode 1)
+      (should (= (overblock-pydoc-test--wait 1) 1)))
     (let* ((block (car (overblock-in (point-min) (point-max) 'pydoc)))
            (lines (split-string (substring-no-properties
                                  (overblock-get block :over))
@@ -321,47 +322,6 @@ down stays source, and only while point stays in it."
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4)))
       (overblock-pydoc-mode -1))))
-
-(ert-deftest overblock-pydoc-test-the-fontify-renderer-needs-no-process ()
-  "Font lock renders the doc strings where the reader asks for it.
-Nothing is waited for because nothing is started: the renderings are
-there when the pass returns.  The lines stay as the writer wrote them,
-so the rendering is exactly as tall as its source."
-  (overblock-pydoc-test--with
-    (let ((overblock-pydoc-renderer 'fontify)
-          (overblock-pydoc-markup 'rst))
-      ;; out of the way first: the doc string point is in is the one
-      ;; left alone, and the macro leaves point at the top of the file
-      (goto-char (point-max))
-      (overblock-pydoc-mode 1)
-      (unwind-protect
-          (let ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
-            ;; every doc string, and no waiting
-            (should (= (length blocks) 4))
-            (let* ((block (nth 1 blocks))
-                   (shown (substring-no-properties
-                           (overblock-get block :over)))
-                   (source (overblock-pydoc--source (overlay-start block)
-                                                    (overlay-end block))))
-              ;; the title of a numpydoc section survives, its row of
-              ;; dashes does not
-              (should (string-match-p "Parameters" shown))
-              (should-not (string-match-p "----" shown))
-              ;; and the rendering is no taller than what it covers,
-              ;; the two bars that dress it aside
-              (should (<= (length (split-string shown "\n"))
-                          (+ 2 (length (split-string source "\n")))))))
-        (overblock-pydoc-mode -1)))))
-
-(ert-deftest overblock-pydoc-test-a-fontified-title-carries-its-face ()
-  "The face is the rendering: a section title is painted, not marked up."
-  (with-temp-buffer
-    (let ((shown (overblock-md-fontified
-                  "Parameters\n----------\nxs : int\n" #'rst-mode)))
-      (should (string-match-p "Parameters" shown))
-      (should-not (string-match-p "----" shown))
-      (should (get-text-property (string-match-p "Parameters" shown)
-                                 'face shown)))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-wears-its-bars ()
   "Prose of many lines is dressed in a bar above and a rule below.

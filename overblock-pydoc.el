@@ -103,40 +103,17 @@ spent for nothing."
   :type '(alist :key-type symbol
                 :value-type (choice string (repeat string))))
 
-(defcustom overblock-pydoc-renderer 'converter
-  "How a doc string is rendered.
-
-`converter\' hands it to `overblock-pydoc-command\' and renders the HTML
-that comes back with shr: it knows reStructuredText, lays a table out
-in columns and fills a paragraph to the window, and the rendering is as
-tall as it needs to be.  One process for the buffer, asked and not
-waited for.
-
-`fontify\' runs the mode `overblock-pydoc-modes\' names over the doc
-string and
-keeps what its font lock painted — the way eldoc shows what a language
-server sends it.  No process at all, and the text stays where the
-writer put it, so the rendering is exactly as tall as the source and no
-code below it moves.  The markup characters stay visible, coloured
-rather than replaced."
-  :type '(choice (const :tag "A converter, rendered by shr" converter)
-                 (const :tag "Fontified where it stands" fontify)))
-
 (defcustom overblock-pydoc-modes
   '((rst . rst-mode)
     (markdown . markdown-mode))
   "The major mode that reads a doc string, per markup.
 An alist of (MARKUP . MODE), where MARKUP is a value of
-`overblock-pydoc-markup'.  The mode is used twice, and the two are the
-same on purpose: `overblock-pydoc-edit' opens the source of a doc
-string in it, and the `fontify' renderer of `overblock-pydoc-renderer'
-paints the rendering with its font lock.
+`overblock-pydoc-markup'.  `overblock-pydoc-edit' opens the source of a
+doc string in it.
 
-`rst-mode' is built in and knows what Python's own tools read: a
-numpydoc section title comes back as a title.  `markdown-mode' reads
-what a Markdown project writes.  Name another mode here where you
-prefer one — a `markdown-mode' derivative that hides its markup, say,
-which makes a quieter rendering and a stranger edit buffer."
+`rst-mode' is built in and knows what Python's own tools read;
+`markdown-mode' reads what a Markdown project writes.  Name another
+mode here where you prefer one."
   :type '(alist :key-type symbol :value-type function))
 
 (defun overblock-pydoc-mode-for-markup ()
@@ -492,16 +469,12 @@ quotes, and the rendering of one stood a column out of line."
                ;; holds.
                (let ((overblock-md-width (overblock-md-columns indent))
                      (overblock-md-command (overblock-pydoc-command-for-markup)))
-                 (overblock-pydoc--dressed
-                  (string-trim-right
-                   (if (eq overblock-pydoc-renderer 'fontify)
-                       (overblock-md-fontified
-                        source (overblock-pydoc-mode-for-markup))
-                     (overblock-md-rendered source html))
-                   "\n+")
-                  indent
-                  ;; one line of source, one row
-                  (= (line-number-at-pos beg) (line-number-at-pos end)))))
+                 (when-let* ((prose (overblock-md-rendered source html)))
+                   (overblock-pydoc--dressed
+                    (string-trim-right prose "\n+")
+                    indent
+                    ;; one line of source, one row
+                    (= (line-number-at-pos beg) (line-number-at-pos end))))))
               (block (overblock-show-rendering
                       beg end rendered 'font-lock-doc-face
                       :kind 'pydoc
@@ -511,36 +484,25 @@ quotes, and the rendering of one stood a column out of line."
 
 ;;;; When
 
-(defun overblock-pydoc--render-converted (regions)
-  "Render REGIONS with the converter, in one process, asked not awaited.
-Measured, eight doc strings cost 145 milliseconds one process apiece
-and the reader felt every one; this way they cost 7 and the renderings
-arrive together a moment later.
-
-`overblock-md-render-regions' is the batch, and says what happens to
-a doc string the reader has reached while the process ran."
-  (let ((overblock-md-command (overblock-pydoc-command-for-markup)))
-    (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
-                                 #'overblock-pydoc--show)))
-
 ;;;###autoload
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.
-`overblock-pydoc-renderer' says with what.  This is what
-`overblock-live-start' is given, and it is called again whenever the
-reader stops."
+In one converter process, asked and not waited for: measured, eight doc
+strings cost 145 milliseconds one process apiece and the reader felt
+every one; this way they cost 7 and the renderings arrive together a
+moment later.  `overblock-md-render-regions' is the batch, and says
+what happens to a doc string the reader has reached while the process
+ran.  This is what `overblock-live-start' is given, and it is called
+again whenever the reader stops."
   (interactive)
   (when-let* ((regions (seq-filter
                         (lambda (region)
                           (overblock-live-wanted-p (car region) (cdr region)
                                                    'pydoc))
                         (overblock-pydoc--strings (point-min) (point-max)))))
-    (if (eq overblock-pydoc-renderer 'fontify)
-        ;; Nothing is waited for because nothing is started: the
-        ;; renderings are there when this returns.
-        (dolist (region regions)
-          (overblock-pydoc--show (car region) (cdr region)))
-      (overblock-pydoc--render-converted regions))))
+    (let ((overblock-md-command (overblock-pydoc-command-for-markup)))
+      (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
+                                   #'overblock-pydoc--show))))
 
 (defun overblock-pydoc--put (beg end prose)
   "Write the edited PROSE back into the doc string BEG..END and render it.
@@ -609,10 +571,9 @@ rendered again once point has left it; point moving into one changes
 nothing, so the code around a doc string is edited with the prose in
 view.
 
-`overblock-pydoc-renderer' says how: a converter and shr, which knows
-reStructuredText and lays out a table, or the font lock of
-`overblock-pydoc-modes', which costs no process and leaves every
-line where the writer put it."
+A converter and shr render the prose: `overblock-pydoc-command' names
+the converter for the markup `overblock-pydoc-markup' says the doc
+strings are written in."
   :lighter " PyDoc"
   (when overblock-pydoc-mode
     (overblock-only-in 'overblock-pydoc-mode 'python-base-mode))
