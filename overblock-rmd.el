@@ -756,7 +756,7 @@ Under polymode the buffer stays in its host mode while this mode is on:
 polymode would otherwise show each chunk in an indirect buffer of its
 own and carry the bars and the results back and forth with it, which
 drew them twice.  The chunks are still fontified and indented as R."
-  :lighter " overblock-rmd"
+  :lighter " Rmd"
   (when overblock-rmd-mode
     (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
   (if overblock-rmd-mode
