@@ -60,7 +60,7 @@ and each recipe names that package's files.
 | =overblock=        | the layer.  Nothing to turn on; a library for a caller.     | Emacs 29.1                              |
 | =overblock-md=     | markup to a propertized string, and a Markdown preview mode | =overblock=, latex-to-svg-backend       |
 | =overblock-pydoc=  | Python doc strings rendered in place                        | =overblock-md=                          |
-| =overblock-pycell= | inline results for =# %%= Python cells                      | =overblock-md=, code-cells, comint-mime |
+| =overblock-pycell= | inline results for =# %%= Python cells                      | =overblock-md=, code-cells              |
 | =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file           | =overblock-md=, ess                     |
 
 Install the one you want and its dependencies come with it.  None of
@@ -1100,11 +1100,12 @@ options shape what a block looks like.  Every caller shares them.
     stays text.
 - =overblock-pydoc= also loads =rst=, which Emacs ships.
 - =overblock-pycell= needs
-  [[https://github.com/astoff/code-cells.el][code-cells]] and
-  [[https://github.com/astoff/comint-mime][comint-mime]], which arrive
-  as its dependencies, and an IPython for rich output.  A plain
-  =python3= shell gives text only, because comint-mime installs its
-  renderers through IPython.
+  [[https://github.com/astoff/code-cells.el][code-cells]], which arrives
+  as its dependency.  Text output needs nothing more.  Images and
+  tables need [[https://github.com/astoff/comint-mime][comint-mime]],
+  with =comint-mime-setup= on =inferior-python-mode-hook=, and an
+  IPython: comint-mime installs its renderers through IPython, so a
+  plain =python3= shell gives text only.
 - =overblock-rmd= needs [[https://ess.r-project.org/][ESS]], which
   arrives as its dependency, and an R for ESS to start.
 - A nerd font for the icons on the bars, or nothing: every glyph has a
