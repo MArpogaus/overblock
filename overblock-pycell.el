@@ -716,38 +716,32 @@ See `overblock-pycell--md-show', which renders and calls this."
     (overblock-pycell--stale-when-edited block)
     block))
 
-(defun overblock-pycell--md-cells (beg end)
-  "Return the body of every markdown cell between BEG and END, in order.
+(defun overblock-pycell--md-cells ()
+  "Return the body of every markdown cell of the buffer, in order.
 Each is a cons of where the body starts and where it ends, which is the
 next boundary line or the end of the buffer.  A cell with nothing in it
 is left out: there is nothing to render."
   (save-excursion
-    (goto-char beg)
+    (goto-char (point-min))
     (let (cells)
-      (while (re-search-forward (concat "^" overblock-pycell--md-boundary) end t)
+      (while (re-search-forward (concat "^" overblock-pycell--md-boundary) nil t)
         (forward-line 1)
         (let ((from (point))
               (to (if (re-search-forward code-cells-boundary-regexp nil t)
                       (pos-bol)
                     (point-max))))
           (when (< from to) (push (cons from to) cells))
-          ;; Never past the bound: `re-search-forward' signals on a
-          ;; bound behind point, whatever its NOERROR says, and a cell
-          ;; that reaches past END would leave point there.
-          (goto-char (min to end))))
+          (goto-char to)))
       (nreverse cells))))
 
 ;;;###autoload
-(defun overblock-pycell-md-render-all (&optional beg end)
-  "Render the markdown cells between BEG and END that want it.
-The whole buffer by default.  A markdown cell is one whose boundary line
-reads \"# %% [markdown]\", and `overblock-live-wanted-p' says which
-want rendering: not the ones rendered already, and not the one point is
-in, which the reader is editing.  This is what the live cycle of the
-mode calls whenever the reader stops, and a caller that knows which
-cells changed says so: measured, one moved cell in a file of two hundred
-rendered every one of them, 436 milliseconds against 17.7 for the two
-that moved.
+(defun overblock-pycell-md-render-all ()
+  "Render the markdown cells of the buffer that want it.
+A markdown cell is one whose boundary line reads \"# %% [markdown]\",
+and `overblock-live-wanted-p' says which want rendering: not the ones
+rendered already, and not the one point is in, which the reader is
+editing.  This is what the live cycle of the mode calls whenever the
+reader stops.
 
 One converter process for all of them, and nothing waits for it:
 measured in a notebook of thirty markdown cells, turning the mode on
@@ -757,7 +751,7 @@ without a converter; `overblock-pycell-mode' says so once when it goes
 on."
   (interactive)
   (overblock-md-render-regions
-   (overblock-pycell--md-cells (or beg (point-min)) (or end (point-max)))
+   (overblock-pycell--md-cells)
    'markdown
    (lambda (from to)
      (overblock-pycell--md-uncomment (buffer-substring-no-properties from to)))
@@ -1323,7 +1317,7 @@ run either way."
         ;; Said once, here, rather than once a cell or once an idle
         ;; cycle; and only where there is a cell it would have rendered.
         (when (and (not (overblock-md-program))
-                   (overblock-pycell--md-cells (point-min) (point-max)))
+                   (overblock-pycell--md-cells))
           (message "overblock-pycell: %s, cells stay plain"
                    (if (fboundp 'libxml-parse-html-region)
                        (format "no markdown converter found (%s)"
