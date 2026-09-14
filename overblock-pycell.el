@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Version: 1.0
-;; Package-Requires: ((emacs "29.1") (overblock "1.0") (overblock-md "1.0") (code-cells "0.5") (comint-mime "0.4"))
+;; Package-Requires: ((emacs "29.1") (overblock "1.0") (overblock-md "1.0") (code-cells "0.5"))
 ;; Keywords: convenience, languages, tools
 ;; URL: https://github.com/MArpogaus/overblock
 
@@ -73,7 +73,6 @@
 (require 'overblock-run)
 (require 'code-cells)
 (require 'outline)
-(require 'comint-mime)
 (require 'python)
 (require 'seq)
 (require 'subr-x)
