@@ -395,9 +395,8 @@ The text and not a display property: a piece hangs a whole row on one
 display property, and display properties do not nest — a property
 inside that string is never looked at.
 
-In a table the place the delimiters held is padded with spaces.  A
-table is padded to the width of its text, so a cell that lost four
-characters would pull the columns of its row out of line.
+What a table cell loses here `overblock-md--fit' pads back: a table is
+laid out in columns of characters.
 
 A fragment with a line break in it is left alone.  Display math that
 stays text keeps its rows."
@@ -405,10 +404,7 @@ stays text keeps its rows."
           (not (or (string-prefix-p "\\(" frag)
                    (string-prefix-p "\\[" frag))))
       frag
-    (let ((bare (substring frag 2 -2)))
-      (if (get-text-property 0 'overblock-md--table frag)
-          (concat bare (make-string (- (length frag) (length bare)) ?\s))
-        bare))))
+    (substring frag 2 -2)))
 
 (defconst overblock-md--math-mark ?\N{OBJECT REPLACEMENT CHARACTER}
   "The character that stands in the HTML where a LaTeX fragment was.
