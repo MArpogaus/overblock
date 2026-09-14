@@ -869,4 +869,37 @@ formulas after it came back one run late."
     ;; and the prose is in the order it was written in
     (should (string-match-p "a .* b .* c" rendered))))
 
+(ert-deftest overblock-md-test-a-failed-url-is-asked-for-again-on-request ()
+  "A URL that could not be reached is not asked for again, until told.
+A document opening with a badge would otherwise wait for the network
+on every render; the command is how a reader says the network is back."
+  (puthash "https://example.invalid/badge.svg" t overblock-md--remote-failed)
+  (should (> (hash-table-count overblock-md--remote-failed) 0))
+  (overblock-md-forget-failed-images)
+  (should (= (hash-table-count overblock-md--remote-failed) 0)))
+
+(ert-deftest overblock-md-test-a-preview-that-arrived-draws-its-buffer ()
+  "A formula shown as text is drawn again when its preview arrives.
+The buffers that are waiting are collected and drawn on one timer, so
+a document of fifty formulas is not drawn fifty times; a buffer the
+reader killed in the meantime is passed over."
+  (with-temp-buffer
+    (insert "a formula\n")
+    (overblock-live-start 'md-preview #'ignore)
+    (unwind-protect
+        (let ((block (overblock-show
+                      (point-min) (point-max) :kind 'md-preview
+                      :over (propertize "x" 'overblock-md-pending t)))
+              (gone (generate-new-buffer " *overblock-md-test-gone*")))
+          (kill-buffer gone)
+          (setq overblock-md--latex-arrivals (list gone (current-buffer))
+                overblock-md--latex-arrival-timer 'waiting)
+          (overblock-md--latex-draw-arrivals)
+          ;; the queue and the timer are spent, and the rendering that
+          ;; stood in for the preview is gone, to be made again
+          (should-not overblock-md--latex-arrivals)
+          (should-not overblock-md--latex-arrival-timer)
+          (should-not (overlay-buffer block)))
+      (overblock-live-stop 'md-preview))))
+
 ;;; overblock-md-test.el ends here
