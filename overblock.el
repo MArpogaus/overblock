@@ -1674,6 +1674,9 @@ high, drawn again for nothing."
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
+TEXT itself where it fits, and where ROOM is nil: a buffer no window
+shows has nothing to wrap in, so nothing to cut for.
+
 Pixels and not columns: a header label begins with an icon glyph, and
 one the frame draws from a fallback font is wider than a character cell
 — measured 19 pixels against a cell of 8.  A budget counted in columns
@@ -1681,12 +1684,15 @@ was then 11 pixels short at every width, and the bar took two rows.
 
 The columns are the first guess, which is close, and then a character
 comes off at a time."
-  (let ((cut (truncate-string-to-width
-              text (max 1 (/ room (frame-char-width))) nil nil t)))
-    (while (and (> (length cut) 1)
-                (> (overblock--pixel-width (propertize cut 'face face)) room))
-      (setq cut (concat (substring cut 0 -2) "…")))
-    cut))
+  (if (or (null room)
+          (<= (overblock--pixel-width (propertize text 'face face)) room))
+      text
+    (let ((cut (truncate-string-to-width
+                text (max 1 (/ room (frame-char-width))) nil nil t)))
+      (while (and (> (length cut) 1)
+                  (> (overblock--pixel-width (propertize cut 'face face)) room))
+        (setq cut (concat (substring cut 0 -2) "…")))
+      cut)))
 
 (defun overblock--bar-left (glyph label)
   "Return the left of a bar: GLYPH, a space, LABEL.
@@ -1731,11 +1737,7 @@ what no longer fits."
          (room (and width (- width (* (1+ indent) cell)
                              (overblock--pixel-width (propertize icons 'face face))
                              cell)))
-         (left (if (and room
-                        (> (overblock--pixel-width (propertize left 'face face))
-                           room))
-                   (overblock--cut left face (max room cell))
-                 left))
+         (left (overblock--cut left face room))
          (text (overblock-faced (concat left icons) face))
          (pad (and width (floor (- width
                                    (* (1+ indent) cell)
@@ -1815,13 +1817,7 @@ nothing rebuilds the header after the cell has ended."
       ;; character, which is a second row.
       (when (< available (* 2 (frame-char-width)))
         (setq width 0 slack 0)))
-    (setq left (cond
-                ;; No window to wrap in, so nothing to cut for.
-                ((null room) left)
-                ((> (overblock--pixel-width (propertize left 'face face))
-                    room)
-                 (overblock--cut left face room))
-                (t left)))
+    (setq left (overblock--cut left face room))
     (overblock-faced
      (concat left
              (propertize " " 'display
