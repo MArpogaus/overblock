@@ -881,7 +881,8 @@ glyph your font draws better:
 #+end_src
 
 =setopt= and not =setq=: the buttons of every open notebook are drawn
-again when the option is set that way.
+again when the option is set that way, and so are the results when
+=max-lines= or =max-line-length= is.
 
 A command of your own can sit there as well: it is called with the
 click, so read =last-input-event= as the commands of this package do.
@@ -1089,7 +1090,8 @@ Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=, as
 the other packages here write it, and a glyph means the same thing on a
 chunk bar as it does in a =# %%= notebook: a reader who moves between
 the two reads the same row.  =setopt= and not =setq=: the bars of every
-open Rmd buffer are drawn again when the option is set that way.
+open Rmd buffer are drawn again when the option is set that way, and so
+are the results when =max-lines= or =max-line-length= is.
 
 overblock-rmd renders through the layer and =overblock-md=, and their
 options shape what a block looks like.  Every caller shares them.
