@@ -29,18 +29,18 @@
 ;; Notebook style results for the R chunks of an Rmd file, built from
 ;; ESS alone: no knitr run, no rendered document.
 ;;
-;; Turn `overblock-rmd-mode' on in an Rmd buffer and every
-;; ```{r} chunk gets a bar with a run button, the prose between the
-;; chunks reads as it will look, and running a chunk grows its result
-;; below the code: a header bar with a spinner, a stopwatch and
-;; buttons, and the output of R underneath.
+;; Turn `overblock-rmd-mode' on in an Rmd buffer, and every ```{r}
+;; chunk gets a bar with a run button.  The prose between the chunks
+;; reads as it will look.  Running a chunk grows its result below the
+;; code: a header bar with a spinner, a stopwatch and buttons, and the
+;; output of R underneath.
 ;;
 ;; An Rmd file is the inverse of a Python notebook.  A `.py' notebook
 ;; is code with `# %%' lines cutting it into cells; an Rmd file is
 ;; markdown prose with fenced chunks of code inside it.  So this
-;; package composes: the chunks come from the fence walk of
-;; `overblock-md-preview', the prose renders through the live cycle of
-;; `overblock-md-preview-mode', and the running and the result blocks
+;; package composes.  The chunks come from the fence walk of
+;; `overblock-md-preview', and the prose renders through the live cycle
+;; of `overblock-md-preview-mode'.  The running and the result blocks
 ;; belong to `overblock-run', which `overblock-pycell' uses too.  This
 ;; file holds what knows about R and Rmd: the chunks, the bars, the
 ;; commands, and the calls into ESS that start R and send a chunk.
@@ -51,19 +51,19 @@
 ;;
 ;; That makes the result collectable.  Sent line by line, R prompts
 ;; after every statement, and the prompts land in the middle of the
-;; output, where nothing can tell them from output.  Wrapped, the chunk
+;; output.  There nothing can tell them from output.  Wrapped, the chunk
 ;; is one statement and one prompt comes back at the end.  `source'
 ;; with `print.eval' prints the value of every top level expression, as
 ;; a notebook cell does and a bare `eval' does not.
 ;;
-;; ESS's own send-and-collect does not fit: `ess-command' is synchronous
-;; and freezes Emacs for the length of a chunk, and `ess-async-command'
-;; is for background jobs, and long output escapes into the process
-;; buffer.
+;; ESS's own send-and-collect does not fit.  `ess-command' is
+;; synchronous and freezes Emacs for the length of a chunk.
+;; `ess-async-command' is for background jobs, and long output escapes
+;; into the process buffer.
 ;;
-;; A figure comes back as knitr brings one in: the wrapper opens a PNG
+;; A figure comes back as knitr brings one in.  The wrapper opens a PNG
 ;; device before the chunk, closes it after, and names each file on a
-;; line of its own.  The result reads those lines back as images, and a
+;; line of its own.  The result reads those lines back as images.  A
 ;; figure then behaves as in the Python notebook: capped to the window,
 ;; saved with its button, popped out, and named in a terminal.
 ;; `overblock-rmd-figure-size' is knitr's `fig.width' and `fig.height'.
@@ -71,11 +71,11 @@
 ;; Under polymode (`poly-markdown+r-mode') the buffer stays in its host
 ;; mode while this mode is on.  polymode shows an R chunk in an indirect
 ;; buffer when point enters it, and moves every overlay to that buffer.
-;; The bars and blocks of this mode are overlays whose owners (the live
-;; cycle, the runner) stay in the base buffer, and would draw them all
-;; again.  The mode sets the polymode slot `keep-in-mode' to `host'.
-;; The chunks still get fontification and indentation from polymode;
-;; only the ESS keymap inside a chunk is lost, and
+;; The bars and blocks of this mode are overlays.  Their owners (the
+;; live cycle, the runner) stay in the base buffer, and would draw them
+;; all again.  The mode sets the polymode slot `keep-in-mode' to `host'.
+;; The chunks still get fontification and indentation from polymode.
+;; Only the ESS keymap inside a chunk is lost, and
 ;; `overblock-rmd-mode-map' reaches every line of the file.
 ;;
 ;; `overblock' draws the blocks, `overblock-md' turns markdown into a

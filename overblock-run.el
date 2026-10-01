@@ -27,17 +27,17 @@
 ;; A notebook is a buffer of regions and a shell to send them to.  Send
 ;; one, watch what the shell prints, notice the prompt that says it is
 ;; done, and show the result under the region.  That loop is the same
-;; for every language, and this file holds it: the run state, the queue
-;; of a pass over the buffer, the ticker that mirrors a running region
-;; five times a second, the filter that waits for the prompt, and the
-;; result block.
+;; for every language, and this file holds it.  It holds the run state,
+;; the queue of a pass over the buffer and the result block.  It also
+;; holds the ticker that mirrors a running region five times a second,
+;; and the filter that waits for the prompt.
 ;;
 ;; Nothing here knows a language.  One plist says what one is.
 ;;
-;; `overblock-run-backend' is the notebook: a buffer-local plist that
-;; `overblock-run-attach' sets for the mode of the notebook, and that a
-;; send copies into the shell buffer for the filter and the ticker.  The
-;; shell and the regions:
+;; `overblock-run-backend' is the notebook.  It is a buffer-local plist
+;; that `overblock-run-attach' sets for the mode of the notebook.  A
+;; send copies it into the shell buffer for the filter and the ticker.
+;; The shell and the regions:
 ;;
 ;;   :name      the word messages carry, as in "NAME: stopped at error"
 ;;   :unit      what a region is called in a message: "cell", "chunk"
@@ -69,7 +69,7 @@
 ;;
 ;; `overblock-pycell' sends Python cells to an inferior Python, and
 ;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
-;; Each keeps its own buttons, faces and options.  The commands (run
+;; Each keeps its own buttons and options.  The commands (run
 ;; what is above, stop, interrupt, fold, copy and discard a result) are
 ;; below, the same in both.
 

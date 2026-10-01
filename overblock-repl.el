@@ -26,17 +26,17 @@
 ;;; Commentary:
 
 ;; What a shell prints is not what a block can show.  A copy of it
-;; carries the keymap of the shell, alignment measured in another
-;; window, a live vtable that belongs to that buffer, and images at
-;; whatever size they came in.
+;; carries the keymap of the shell and alignment measured in another
+;; window.  It also carries a live vtable that belongs to that buffer,
+;; and images at whatever size they came in.
 ;;
 ;;     (overblock-repl-detach (buffer-substring beg end))
 ;;
-;; cuts a copy loose from all of that: the properties of the shell go,
-;; the columns of a table are laid out in characters, and the table
-;; keeps its object under `overblock-repl-table' so a caller can show
-;; it live elsewhere, and `overblock-repl-first-lines' takes the head of
-;; a long output without reading the rest of it.  Capping the images of a
+;; cuts a copy loose from all of that.  The properties of the shell go,
+;; and the columns of a table are laid out in characters.  The table
+;; keeps its object under `overblock-repl-table', so a caller can show
+;; it live elsewhere.  `overblock-repl-first-lines' takes the head of a
+;; long output without reading the rest of it.  Capping the images of a
 ;; line belongs to the layer: `overblock-image-cap'.
 ;;
 ;; The prompts are the caller's business: what one looks like belongs

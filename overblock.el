@@ -36,18 +36,18 @@
 ;;
 ;; An anchor overlay covers the region and holds the state.  A second
 ;; overlay covers the newline that ends the region and carries what
-;; shows after it: the header and the body, each on a row of its own, in
-;; the slot that suits it.  A bar puts its icons at the window edge
-;; with `(space :align-to (- right ...))', which a display string
-;; ignores and an overlay string does not, and an image in a display
-;; string is swallowed while one in an overlay string draws.  So the
-;; header is an overlay string, and the body is the display property
+;; shows after it.  That is the header and the body, each on a row of
+;; its own, in the slot that suits it.  A bar puts its icons at the
+;; window edge with `(space :align-to (- right ...))'.  A display string
+;; ignores such a space, and an overlay string does not.  An image in a
+;; display string is swallowed, and one in an overlay string draws.  So
+;; the header is an overlay string, and the body is the display property
 ;; unless it holds an image.
 ;;
 ;; Text shown over the region hangs on its lines, a piece to a line.
-;; Emacs lays a display string out whole on every redisplay, so one
+;; Emacs lays a display string out whole on every redisplay.  Thus one
 ;; string for a tall region costs its full height on every scroll event,
-;; while a piece to a line costs only what the window shows.  Lines of
+;; and a piece to a line costs only what the window shows.  Lines of
 ;; text with no piece left for them go under a cloak; a blank line
 ;; stays, as the gap it is.
 ;;
@@ -766,16 +766,16 @@ end of the last line is an insertion at the end."
 (defvar-local overblock-edit--source nil
   "What this edit buffer feeds, as (BUFFER BEG END PUT).
 PUT is the function that writes the edited text back; see
-`overblock-edit-in-buffer\'.")
+`overblock-edit-in-buffer'.")
 
 (defvar-keymap overblock-edit-mode-map
-  :doc "Keymap of `overblock-edit-mode\'.
+  :doc "Keymap of `overblock-edit-mode'.
 The two keys of `org-edit-special', and no other."
   "C-c C-c" #'overblock-edit-commit
   "C-c C-k" #'overblock-edit-abort)
 
 (define-minor-mode overblock-edit-mode
-  "Edit the text under a block, as `org-edit-special\' edits a source block."
+  "Edit the text under a block, as `org-edit-special' edits a source block."
   ;; The :lighter also keeps the body out of the deprecated positional
   ;; INIT-VALUE argument.
   :lighter " BlockEdit")
@@ -825,7 +825,7 @@ another region is discarded only after the reader confirms."
           ;; the bindings or the prefix change.
           (setq header-line-format
                 (substitute-command-keys
-                 (format " %s — \\[overblock-edit-commit] applies, \
+                 (format " %s: \\[overblock-edit-commit] applies, \
 \\[overblock-edit-abort] discards"
                          (capitalize (plist-get props :label)))))
           (set-buffer-modified-p nil)))
@@ -907,7 +907,7 @@ came off stays source until point leaves it (see
 (defvar-local overblock-live--open nil
   "The region a rendering last came off, as (BEG . END) markers, or nil.
 While point stays in it the region is not rendered again, whatever
-`overblock-live-source-at-point\' says; `overblock-live--settle\' lets
+`overblock-live-source-at-point' says; `overblock-live--settle' lets
 it go once point has left.")
 
 (defun overblock-live-drop-if (pred)

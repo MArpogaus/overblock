@@ -24,16 +24,16 @@
 
 ;;; Commentary:
 
-;; `overblock-md-preview-mode' shows a markdown buffer as it will read
-;; and keeps it editable: the text is rendered over its own source, and
-;; a click on a rendering shows the source it stands on.  Edit it, move
-;; on, and it is rendered again once you have stopped.
+;; `overblock-md-preview-mode' shows a markdown buffer as it will read,
+;; and keeps it editable.  The text is rendered over its own source, and
+;; a click on a rendering shows the source it stands on.  After an edit,
+;; the block renders again when point has left it.
 ;;
 ;; The unit is the markdown block: the run of lines between two blank
 ;; ones, or a whole fenced block of code.  A line of markdown is often
-;; not markdown by itself: a row of a table needs the rows around it, a
+;; not markdown by itself.  A row of a table needs the rows around it, a
 ;; line of a fenced block is code, and an item needs its list.  The
-;; block goes to the converter in one piece and the rendering is dealt
+;; block goes to the converter in one piece.  The rendering is dealt
 ;; back over its lines, a piece to a line, so a tall rendering scrolls
 ;; like text.
 ;;
@@ -58,8 +58,8 @@
   :prefix "overblock-md-preview-")
 
 (defvar-keymap overblock-md-preview-map
-  :doc "Keymap on a rendered line.
-A click shows the source of the line, to edit it."
+  :doc "Keymap on a rendered block.
+A click shows the source of the block, to edit it."
   "<mouse-1>" #'overblock-live-edit)
 
 

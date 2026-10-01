@@ -31,16 +31,16 @@
 ;; no Jupyter kernel and no zmq module.  comint-mime, where it is
 ;; installed, adds figures and tables.
 ;;
-;; Add `overblock-pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
-;; on in every Python buffer with cells.  Evaluating a cell sends it
-;; to the inferior Python process as usual, so the REPL keeps the full
-;; log.  While the cell runs, the result grows below it: a header bar
-;; with a spinner, a stopwatch and buttons, and the output as
-;; comint-mime rendered it, images included.
+;; Add `overblock-pycell-mode-maybe' to `code-cells-mode-hook' and the
+;; mode is on in every Python buffer with cells.  Evaluating a cell
+;; sends it to the inferior Python process as usual, so the REPL keeps
+;; the full log.  While the cell runs, the result grows below it.  It
+;; shows a header bar with a spinner, a stopwatch and buttons, and the
+;; output as comint-mime rendered it, images included.
 ;;
 ;; Markdown cells, the `# %% [markdown]' ones that jupytext writes, are
-;; rendered in place.  An external markdown command and shr produce
-;; the text, which then hangs on the source lines it replaces, a piece
+;; rendered in place.  An external markdown command and shr produce the
+;; text.  The text then hangs on the source lines it replaces, a piece
 ;; to a line, and latex-to-svg-backend turns the formulas into preview
 ;; images.  A click on a rendering shows the source, and the cell
 ;; renders again after the edit, through the live cycle of
@@ -49,19 +49,19 @@
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
 ;;
-;; `overblock' draws the blocks, `overblock-md' turns markdown into a
-;; string, `overblock-repl' cuts the output of a shell loose from it,
-;; and `overblock-run' sends a region to a shell, shows the result and
-;; holds the commands on a result.  This file knows about Python: the
-;; cells, the process, and the commands of a cell.
+;; `overblock' draws the blocks, and `overblock-md' turns markdown into
+;; a string.  `overblock-repl' cuts the output of a shell loose from it.
+;; `overblock-run' sends a region to a shell, shows the result and holds
+;; the commands on a result.  This file knows about Python: the cells,
+;; the process, and the commands of a cell.
 ;;
 ;; A result block is a display string on a single buffer line, and
-;; Emacs cannot place point inside one.  The mouse wheel scrolls
-;; through it a pixel at a time, but `next-line' and `previous-line'
-;; cross it in one step, because a window can only start at a buffer
-;; position.  A rendered markdown cell has lines of its own and moves
-;; like ordinary text; it stands as tall as its source unless the
-;; rendering is shorter, when the lines left over are hidden.
+;; Emacs cannot place point inside one.  The mouse wheel scrolls through
+;; it a pixel at a time.  But `next-line' and `previous-line' cross it
+;; in one step, because a window can only start at a buffer position.  A
+;; rendered markdown cell has lines of its own and moves like ordinary
+;; text.  It stands as tall as its source.  Where the rendering is
+;; shorter, the lines left over are hidden.
 
 ;;; Code:
 

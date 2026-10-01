@@ -27,14 +27,15 @@
 ;;; Commentary:
 
 ;; `overblock-pydoc-mode' shows the doc strings of a Python buffer as
-;; the documentation they are: the triple quotes and the indentation go,
+;; the documentation they are.  The triple quotes and the indentation go,
 ;; the markup is rendered, and the code around them is untouched.  A
-;; click on one gives its source back in an edit buffer; point moving
-;; through one changes nothing.
+;; click on one shows its source in place, through `overblock-live-edit'.
+;; The edit button (`overblock-pydoc-edit') opens the doc string in a
+;; buffer of its own.  Point moving through one changes nothing.
 ;;
-;; Font lock decides which strings are documentation: python.el paints
+;; Font lock decides which strings are documentation.  python.el paints
 ;; the doc string of a module, a definition or an assignment with
-;; `font-lock-doc-face' and every other string with
+;; `font-lock-doc-face', and every other string with
 ;; `font-lock-string-face'.  So the mode needs no parser and no grammar
 ;; of its own, and works in `python-mode' and `python-ts-mode' alike.
 ;;

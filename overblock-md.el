@@ -37,7 +37,7 @@
 ;; shows anything itself.
 ;;
 ;; A rendered table is laid out in characters rather than pixels, so its
-;; columns line up over the fixed-pitch lines of a buffer, and a local
+;; columns line up over the fixed-pitch lines of a buffer.  A local
 ;; image is drawn on the spot rather than fetched.
 ;;
 ;; Rendering a whole buffer of cells calls the program once, with
@@ -193,7 +193,7 @@ the URL, so a badge is fetched once per machine.  See
                  nil))))))
 
 (defvar overblock-md--buffer nil
-  "The buffer whose markdown `overblock-md-rendered\' is rendering.
+  "The buffer whose markdown `overblock-md-rendered' is rendering.
 shr renders in a temporary buffer.  A preview that arrives later is
 shown in this buffer.")
 
@@ -231,7 +231,7 @@ repository installs no hook."
 One redraw for all of them: the engine calls back once per equation.")
 
 (defvar overblock-md--latex-arrival-timer nil
-  "The timer that draws what `overblock-md--latex-arrivals\' holds.")
+  "The timer that draws what `overblock-md--latex-arrivals' holds.")
 
 (defun overblock-md--latex-arrived (buffer)
   "Note that a preview for BUFFER has arrived, and have it drawn.
@@ -1006,7 +1006,7 @@ the block, and plain identifiers keep the default colour."
     (shr-tag-pre dom)))
 
 (defvar overblock-md-width nil
-  "The number of columns a rendering is filled to, or nil for shr\'s own.
+  "The number of columns a rendering is filled to, or nil for shr's own.
 A rendering happens in a temporary buffer, where shr fills to the width
 of the frame.  A block is often narrower (a split window, an indented
 doc string), and a longer row is truncated at the window edge.
