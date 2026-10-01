@@ -189,7 +189,7 @@ doc string carries: sections, math, a table and a code block."
 (defun ob-gif-pydoc--settled ()
   (let ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
     (and (= (length blocks)
-            (length (overblock-pydoc--strings))))
+            (length (overblock-pydoc--strings)))
          (seq-every-p (lambda (block)
                         (eql (overlay-get block 'overblock-columns)
                              (overblock-window-columns)))
