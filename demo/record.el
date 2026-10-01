@@ -159,12 +159,9 @@ whoever reads it."
 
 (defun ob-gif-pydoc ()
   "A module of doc strings, rendered where they stand.
-The class doc string is reStructuredText with everything in it a doc
-string carries — a field list, math, a bullet list, a table and a code
-block — and the converter lays all of that out with shr.  The markup is
-said, because the default is Markdown and this file is not."
+The class doc string is numpy style Markdown with everything in it a
+doc string carries: sections, math, a table and a code block."
   (find-file (ob-gif-file "shapes.py"))
-  (setq overblock-pydoc-markup 'rst)
   (goto-char (point-min))
   (ob-gif-frame 250)
   (overblock-pydoc-mode 1)
@@ -395,7 +392,6 @@ size."
   (ob-gif-frame 300)
   ;; the doc strings of a module
   (find-file (ob-gif-file "shapes.py"))
-  (setq overblock-pydoc-markup 'rst)
   ;; The top of the file, and point on the line of code above the first
   ;; doc string: the one point is in is left as source.
   (goto-char (point-min))
