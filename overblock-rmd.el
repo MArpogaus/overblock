@@ -43,7 +43,7 @@
 ;; `overblock-md-preview-mode', and the running and the result blocks
 ;; belong to `overblock-run', which `overblock-pycell' uses too.  This
 ;; file holds what knows about R and Rmd: the chunks, the bars, the
-;; commands, and a few lines of ESS.
+;; commands, and the calls into ESS that start R and send a chunk.
 ;;
 ;; A chunk reaches R as one statement, not as its own lines:
 ;;
