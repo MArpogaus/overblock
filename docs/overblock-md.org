@@ -318,8 +318,8 @@ source until point leaves it, because the mode keeps
 A block that renders to nothing, such as YAML front matter or a lone
 HTML comment, stays as it is and is not blanked. It gets an empty
 block all the same, so the live cycle does not convert it again. So
-does a block the converter fails on, as on front matter that is no
-valid YAML, until it is edited.
+does a block the converter fails on, until it is edited. Front matter
+goes to the converter as nothing, so a YAML error in it fails no batch.
 
 * The tests
 

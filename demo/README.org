@@ -59,8 +59,9 @@ Copy =family.gif= to =img/demo.gif=, and each other =SCENARIO.gif= to
 =img/overblock-SCENARIO.gif=.
 
 Each scenario asks for the frame height that it needs, so the
-animations share one width and differ in height. The width is 820
-pixels (=ob-gif-width= in =record.el=). The frames are written at the
+animations share one width and differ in height. The text area is 820
+pixels wide (=ob-gif-width= in =record.el=), and the two fringes make
+each animation 836 pixels wide. The frames are written at the
 width they are shown at, because scaled text is blurred.
 
 A scenario takes a picture of the frame after each step, and says how
@@ -87,4 +88,4 @@ the same recording.
 
 =set-frame-size= is a request, and a bare X server with no window
 manager can ignore a size in characters. Thus the frame is asked for in
-pixels, and each animation is 820 pixels wide.
+pixels, and each animation is 836 pixels wide.

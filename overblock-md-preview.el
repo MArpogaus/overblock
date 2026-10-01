@@ -31,7 +31,7 @@
 ;;
 ;; The unit is the markdown block: the front matter, the run of lines
 ;; between two blank lines or fences, a whole fenced block of code, or
-;; an HTML comment outside a paragraph.
+;; an HTML comment, see `overblock-md-preview--comment'.
 ;; A fence indented under a list item is part of that item.  A line of
 ;; markdown is often not markdown by itself.  A row of a table needs the
 ;; rows around it, a line of a fenced block is code, and an item needs
@@ -334,9 +334,9 @@ in order, so one walk does it."
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
 whole fenced block of code, the front matter at the top, an HTML
-comment at the left margin outside a paragraph, or else the run of
-lines between two blank lines or fences.  A fence indented
-under a list item is part of that item.  PROSE-ONLY leaves the fenced
+comment at the left margin (see `overblock-md-preview--comment'), or
+else the run of lines between two blank lines or fences.  A fence
+indented under a list item is part of that item.  PROSE-ONLY leaves the fenced
 blocks and the front matter out, and reads no comments, for a caller
 whose fences hold code, such as the chunks of an Rmd file.
 
