@@ -141,7 +141,6 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
 
-
 ;;;; The result of a chunk
 
 (defun overblock-rmd--strip-prompt (text)
