@@ -765,8 +765,8 @@ renders again once the batch has landed.")
   "Render the REGIONS that want a rendering of KIND, in one process.
 REGIONS are conses of buffer positions.  TEXT is called with the
 bounds of one and returns its markdown.  SHOW is called with the
-bounds and the HTML of one and draws it; the HTML is nil when the
-batch came back without its markers, and SHOW then converts alone.
+bounds and the HTML of one and draws it; the HTML is nil where the
+converter failed for it, and SHOW then converts alone.
 Nothing waits: the renderings arrive later, through
 `overblock-md-html-batch-async'.
 
@@ -818,8 +818,8 @@ TEXT and SHOW are those of `overblock-md-render-regions'."
      (overblock-md--show-batch
       (current-buffer) kind text show
       (overblock-md--in-view-first
-       ;; Not `cl-mapcar': HTMLS is nil where the batch came back
-       ;; without its markers, and each region converts alone.
+       ;; Not `cl-mapcar': HTMLS is nil where the converter failed,
+       ;; and each region converts alone.
        (mapcar (lambda (region)
                  (list region (pop htmls) (pop sources)))
                marked))))))

@@ -63,7 +63,10 @@ the other modes give no message.
 one call, and does not wait for the answer. It puts a marker between
 the texts and cuts the HTML at that marker. One process for a buffer is
 much faster than one for each region. Where the number of pieces is
-not the number of texts, a caller converts each text alone.
+not the number of texts, a text swallowed the markers, and each half
+of the texts goes again in a process of its own. A text alone that
+still fails, or a converter that fails, leaves its text to be converted
+alone.
 
 =overblock-md-render-regions= sends one batch of a kind at a time. A
 cycle that comes while the batch is with the converter waits. When the
@@ -280,8 +283,7 @@ and not rendered. The two walks are public for the same reason.
 ** When, and at what cost
 
 =overblock-md-preview-render-buffer= sends the whole buffer through one
-converter process, and does not wait. A block converts alone where the
-answer does not have a marker between each pair.
+converter process, and does not wait.
 
 =overblock-live-wanted-p= is asked twice: once to choose what to send,
 and again when the answer arrives. The reader can click, type and move
