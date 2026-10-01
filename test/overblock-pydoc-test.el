@@ -463,6 +463,14 @@ A ``` line inside a ~~~ fence does not end that fence."
   (should (equal (overblock-pydoc--fence-doctests "~~~\n```\n>>> g()\n~~~")
                  "~~~\n```\n>>> g()\n~~~")))
 
+(ert-deftest overblock-pydoc-test-a-doctest-in-a-code-block-stays-as-it-is ()
+  "A doctest four spaces in is an indented code block, and gets no fence.
+A longer fence ends only at a mark as long."
+  (should (equal (overblock-pydoc--fence-doctests "Example:\n\n    >>> f()\n    1")
+                 "Example:\n\n    >>> f()\n    1"))
+  (should (equal (overblock-pydoc--fence-doctests "````\n```\n>>> g()\n````")
+                 "````\n```\n>>> g()\n````")))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The prose reaches the edit buffer without the quotes and the

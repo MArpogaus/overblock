@@ -306,9 +306,11 @@ as it is; a fence ends at a line that begins with its own marks."
             (fence
              (when (string-match-p (concat "\\`[ \t]*" (regexp-quote fence)) line)
                (setq fence nil)))
-            ((string-match "\\`[ \t]*\\(```\\|~~~\\)" line)
+            ((string-match "\\`[ \t]*\\(```+\\|~~~+\\)" line)
              (setq fence (match-string 1 line)))
-            ((string-match "\\`\\([ \t]*\\)>>>" line)
+            ;; Four spaces in, a fence is code text: the doctest is in an
+            ;; indented code block already.
+            ((string-match "\\`\\( \\{0,3\\}\\)>>>" line)
              ;; The fence stands at the indent of the doctest, so a
              ;; doctest under a list item stays in the item.
              (setq doctest (match-string 1 line))
