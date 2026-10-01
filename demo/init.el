@@ -45,11 +45,6 @@
       auto-save-default nil
       ring-bell-function #'ignore
       use-short-answers t
-      ;; A block is a tall display string, and a scroll that jumps a
-      ;; whole one is what `overblock' exists to avoid; these two are
-      ;; what let a wheel walk through one.
-      scroll-conservatively 101
-      scroll-step 1
       ;; The animations show them, and they make plain that a block
       ;; stands over source lines rather than replacing them.
       display-line-numbers-width 3)
