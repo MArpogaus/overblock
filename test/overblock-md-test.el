@@ -316,6 +316,24 @@ who kept moving started a converter for every pause."
                 (should (= cycles (1+ before))))))
         (overblock-live-stop 'md-test)))))
 
+(ert-deftest overblock-md-test-a-failed-rendering-ends-the-flight ()
+  "A batch whose rendering signals lets the next cycle send again."
+  (with-temp-buffer
+    (insert "one\n")
+    (let ((overblock-live-source-at-point nil))
+      (unwind-protect
+          (progn
+            (overblock-live-start 'md-test #'ignore)
+            (setq overblock-md--in-flight (list (cons 'md-test nil)))
+            (should-error
+             (overblock-md--show-batch
+              (current-buffer) 'md-test
+              (lambda (beg end) (buffer-substring-no-properties beg end))
+              (lambda (&rest _) (error "No rendering"))
+              (list (list (cons (copy-marker 1) (copy-marker 4)) nil "one"))))
+            (should-not (assq 'md-test overblock-md--in-flight)))
+        (overblock-live-stop 'md-test)))))
+
 (ert-deftest overblock-md-test-a-large-batch-shows-in-slices ()
   "A batch shows a slice at once and the rest from a timer, all of it in the end."
   (skip-unless (executable-find "sh"))

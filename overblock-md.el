@@ -781,6 +781,18 @@ buffer then shows its window at once, and the rest follows in slices."
                        0 1))
                  #'< items)))
 
+(defun overblock-md--show-item (item kind text show)
+  "Show ITEM of a batch of KIND, and free its markers.
+ITEM, TEXT and SHOW are those of `overblock-md--show-batch'."
+  (pcase-let ((`((,beg . ,end) ,html ,source) item))
+    (unwind-protect
+        (when (and (overblock-live-wanted-p beg end kind)
+                   ;; The text is still the text that was sent.
+                   (equal source (funcall text beg end)))
+          (funcall show beg end html))
+      (set-marker beg nil)
+      (set-marker end nil))))
+
 (defun overblock-md--show-batch (buffer kind text show items)
   "Show the ITEMS of a batch of KIND in BUFFER, a slice at a time.
 Each item is (REGION HTML SOURCE).  `overblock-md--slice' of them are
@@ -790,14 +802,14 @@ whole of a large buffer.  TEXT and SHOW are those of
 the live cycle of KIND again where one asked meanwhile."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (dotimes (_ (min overblock-md--slice (length items)))
-        (pcase-let ((`((,beg . ,end) ,html ,source) (pop items)))
-          (when (and (overblock-live-wanted-p beg end kind)
-                     ;; The text is still the text that was sent.
-                     (equal source (funcall text beg end)))
-            (funcall show beg end html))
-          (set-marker beg nil)
-          (set-marker end nil)))
+      (condition-case err
+          (dotimes (_ (min overblock-md--slice (length items)))
+            (overblock-md--show-item (pop items) kind text show))
+        ;; A rendering that fails ends the flight, or the kind would
+        ;; wait for it for good.
+        (error (setq overblock-md--in-flight
+                     (assq-delete-all kind overblock-md--in-flight))
+               (signal (car err) (cdr err))))
       (if items
           (run-with-timer 0 nil #'overblock-md--show-batch
                           buffer kind text show items)
