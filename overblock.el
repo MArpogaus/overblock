@@ -1605,7 +1605,8 @@ nerd glyph draws wider than it counts.  A column of slack keeps the row
 from wrapping.  The row is built for the current width, which the
 layer writes on the block for `overblock--width-changed'."
   (let* ((width (overblock-window-width))
-         (cell (frame-char-width))
+         ;; The buffer's own cell: `text-scale-adjust' widens it.
+         (cell (default-font-width))
          ;; The room of LEFT: the window less the indent, the icons and
          ;; a cell of slack. A longer label is cut with an ellipsis.
          (room (and width (- width (* (1+ indent) cell)
