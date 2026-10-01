@@ -617,14 +617,21 @@ second time.  `overblock-run-abort' checks the same."
         (overblock-run--follow-done buffer text))
       ;; Free the markers of the run.
       (overblock-run--release from beg fin (car-safe count) (cdr-safe follow))
-      ;; Continue the pass, or stop on error. The end of a pass takes
-      ;; point home here: its last region is sent with the queue empty.
-      (cond ((null overblock-run--queue) (overblock-run-go-home))
-            (failed
-             (setq overblock-run--queue nil)
-             (message "%s: stopped at error" (overblock-run--name))
-             (overblock-run-go-home))
-            (t (overblock-run-next))))))
+      (overblock-run--continue failed))))
+
+(defun overblock-run--continue (failed)
+  "Go on with the pass after a region ended, FAILED or not.
+The end of a pass takes point home: its last region is sent with the
+queue empty.  A pass says that it is over, as it says that it began."
+  (cond ((null overblock-run--queue)
+         (when overblock-run--home
+           (message "%s: done" (overblock-run--name)))
+         (overblock-run-go-home))
+        (failed
+         (setq overblock-run--queue nil)
+         (message "%s: stopped at error" (overblock-run--name))
+         (overblock-run-go-home))
+        (t (overblock-run-next))))
 
 (defun overblock-run-abort (&optional reason)
   "End the running cell abnormally, because its prompt will not return.
