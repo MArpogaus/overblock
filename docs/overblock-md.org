@@ -66,7 +66,7 @@ much faster than one for each region. Where the number of pieces is
 not the number of texts, a text swallowed the markers, and each half
 of the texts goes again in a process of its own. A text alone that
 still fails leaves its text to be converted alone. A converter that
-fails on a batch, as pandoc does where a marker lands in a YAML block,
+fails on a batch, as pandoc does where a marker lands in a YAML block below the top,
 halves it the same way. A text that holds the marker itself makes no batch, and each
 text converts alone.
 
@@ -79,8 +79,8 @@ hold the reader. A rendering that signals ends the flight of its batch,
 so the next cycle of that kind does not wait for good. A batch shows
 its regions over the whole buffer, also under a narrowing.
 
-The answer is nil where no converter is installed, and where the
-converter exits with an error. The check is where the program is
+The answer is nil where no converter is installed. A converter that
+exits with an error gives nil for a text alone, and halves a batch. The check is where the program is
 called and not in each caller. A signal from a minor mode body would
 leave the mode on with nothing rendered, and stop the rest of the hook.
 
@@ -244,8 +244,8 @@ each line.
 A block is the front matter at the top of the buffer, a fenced code
 block, an HTML comment at the left margin after a blank line, or else
 the run of lines between two blank lines. Front matter runs from the
-first line of three dashes to the next, whatever blank lines stand in
-it. A
+first line of three dashes to the next line of three dashes or three
+dots, whatever blank lines stand in it. A
 comment runs to its =-->=, whatever blank lines stand in it, and a
 fence in it opens nothing. Inside a paragraph a comment is part of the
 paragraph. In an Rmd file a chunk inside a comment still runs, so there

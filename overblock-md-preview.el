@@ -29,8 +29,9 @@
 ;; a click on a rendering shows the source it stands on.  After an edit,
 ;; the block renders again when point has left it.
 ;;
-;; The unit is the markdown block: the run of lines between two blank
-;; lines or fences, a whole fenced block of code, or an HTML comment.
+;; The unit is the markdown block: the front matter, the run of lines
+;; between two blank lines or fences, a whole fenced block of code, or
+;; an HTML comment after a blank line.
 ;; A fence indented under a list item is part of that item.  A line of
 ;; markdown is often not markdown by itself.  A row of a table needs the
 ;; rows around it, a line of a fenced block is code, and an item needs
@@ -81,7 +82,7 @@ asks this before it hides a line.")
   "A fence line, or the start of an HTML comment at the left margin.")
 
 (defun overblock-md-preview-fences (end &optional comments)
-  "Return the bounds of every fenced block and HTML comment up to END.
+  "Return the bounds of the front matter and every fenced block up to END.
 Each is a cons of the start of the opening fence line and the end of
 the closing one.  Public because `overblock-rmd' takes the R chunks of
 an Rmd file from it.
@@ -121,9 +122,10 @@ in a comment still runs, so `overblock-rmd' asks for none."
 
 (defun overblock-md-preview--front-matter (end)
   "Return a list of the bounds of the front matter, and move past it.
-Front matter is a YAML block at the top of the buffer, between two
-lines of three dashes, before END.  A blank line in it would split it,
-and the converter would read its halves as a rule and a heading.
+Front matter is a YAML block at the top of the buffer, from a line of
+three dashes to one of three dashes or three dots, before END.  A
+blank line in it would split it, and the converter would read its
+halves as a rule and a heading.
 Return nil, and leave point, where there is none."
   (when (looking-at-p "---[ \t]*$")
     (let ((from (point)))
@@ -310,11 +312,12 @@ in order, so one walk does it."
 (defun overblock-md-preview-regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
-whole fenced block of code, an HTML comment at the left margin, or else
-the run of lines between two blank lines or fences.  A fence indented
+whole fenced block of code, the front matter at the top, an HTML
+comment at the left margin after a blank line, or else the run of
+lines between two blank lines or fences.  A fence indented
 under a list item is part of that item.  PROSE-ONLY leaves the fenced
-blocks out, for a caller whose fences hold code, such as the chunks of
-an Rmd file.
+blocks and the front matter out, and reads no comments, for a caller
+whose fences hold code, such as the chunks of an Rmd file.
 
 The unit is the block, not the line: a converter renders each line of
 a table, a fenced block or a list wrongly by itself.  The whole block
