@@ -137,7 +137,8 @@ without a new compile. The colour is the foreground of the face in the
 variable =overblock-md-math-face=, =default= by default.
 =overblock-pydoc= binds it to =font-lock-doc-face=, so the formulas have
 the colour of the doc string. A theme change draws each formula again in
-the new colour.
+the new colour. A code block or a table is painted in the background
+colour of the theme, and a theme change draws it again too.
 
 What the converter renders stays text, and only the rest becomes an
 image. pandoc renders simple math as text. Such text loses its

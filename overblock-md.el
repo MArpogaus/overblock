@@ -226,7 +226,7 @@ background colour of the theme, not with a face."
       (overblock-md--drop-and-settle 'overblock-md-painted))))
 
 (defun overblock-md--watch-themes ()
-  "Have a theme change redraw the formulas, from the first rendering on.
+  "Have a theme change redraw formulas and painted blocks, from now on.
 The first rendering installs the hooks: loading a package of this
 repository installs no hook."
   (add-hook 'enable-theme-functions #'overblock-md--theme-changed)
