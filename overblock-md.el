@@ -790,10 +790,12 @@ buffer then shows its window at once, and the rest follows in slices."
 ITEM, TEXT and SHOW are those of `overblock-md--show-batch'."
   (pcase-let ((`((,beg . ,end) ,html ,source) item))
     (unwind-protect
-        (when (and (overblock-live-wanted-p beg end kind)
-                   ;; The text is still the text that was sent.
-                   (equal source (funcall text beg end)))
-          (funcall show beg end html))
+        ;; The whole buffer: the reader can narrow while the batch is out.
+        (without-restriction
+          (when (and (overblock-live-wanted-p beg end kind)
+                     ;; The text is still the text that was sent.
+                     (equal source (funcall text beg end)))
+            (funcall show beg end html)))
       (set-marker beg nil)
       (set-marker end nil))))
 

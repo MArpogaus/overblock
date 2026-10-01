@@ -334,6 +334,25 @@ who kept moving started a converter for every pause."
             (should-not (assq 'md-test overblock-md--in-flight)))
         (overblock-live-stop 'md-test)))))
 
+(ert-deftest overblock-md-test-a-batch-lands-under-a-narrowing ()
+  "A batch that lands while the reader has narrowed still renders."
+  (with-temp-buffer
+    (insert "one\n\ntwo\n")
+    (let ((overblock-live-source-at-point nil)
+          (shown nil))
+      (unwind-protect
+          (progn
+            (overblock-live-start 'md-test #'ignore)
+            (narrow-to-region 1 4)
+            (overblock-md--show-batch
+             (current-buffer) 'md-test
+             (lambda (beg end) (buffer-substring-no-properties beg end))
+             (lambda (beg _end _html) (push (+ 0 beg) shown))
+             (list (list (cons (copy-marker 6) (copy-marker 9)) nil "two")))
+            (should (equal shown '(6))))
+        (widen)
+        (overblock-live-stop 'md-test)))))
+
 (ert-deftest overblock-md-test-a-large-batch-shows-in-slices ()
   "A batch shows a slice at once and the rest from a timer, all of it in the end."
   (skip-unless (executable-find "sh"))
