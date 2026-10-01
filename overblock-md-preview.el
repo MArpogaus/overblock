@@ -97,7 +97,11 @@ end of the buffer."
     (let (regions open fence)
       (while (re-search-forward overblock-md-preview--fence-regexp end t)
         (let ((this (match-string-no-properties 3))
-              (bare (looking-at-p "[[:blank:]]*$")))
+              ;; Left of the text of the item its block opened on, a
+              ;; fence ends that item: it closes nothing, and opens.
+              (bare (and (looking-at-p "[[:blank:]]*$")
+                         (not (overblock-md-preview--left-of-item-p
+                               (length (match-string 1)) open)))))
           (cond ((overblock-md-preview--too-deep-p
                   (length (match-string 1)) open (match-beginning 2)))
                 ;; A backtick after the marks makes inline code of it.
@@ -114,6 +118,25 @@ end of the buffer."
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
+(defun overblock-md-preview--opener (open)
+  "Return (COLUMN . ITEM) of the fence line that starts at OPEN.
+COLUMN is where its marks begin.  ITEM is non-nil where the fence
+stands on the line of a list item."
+  (save-excursion
+    (save-match-data
+      (goto-char open)
+      (looking-at overblock-md-preview--fence-regexp)
+      (cons (- (match-beginning 3) open) (match-beginning 2)))))
+
+(defun overblock-md-preview--left-of-item-p (indent open)
+  "Return non-nil where a fence INDENT columns in ends the item of OPEN.
+OPEN is the start of the fence line that opened the block, or nil.  A
+block opened on the line of a list item ends with that item, and a
+fence left of the text of the item stands outside it."
+  (when open
+    (pcase-let ((`(,from . ,item) (overblock-md-preview--opener open)))
+      (and item (< indent from)))))
+
 (defun overblock-md-preview--too-deep-p (indent open item)
   "Return non-nil where a fence INDENT columns in is code text.
 OPEN is the start of the fence line that opened the block, or nil.
@@ -128,11 +151,7 @@ hides the indentation from `current-indentation'."
   (cond
    ((and open item))
    (open
-    (pcase-let ((`(,from . ,on-item)
-                 (save-excursion
-                   (goto-char open)
-                   (looking-at overblock-md-preview--fence-regexp)
-                   (cons (- (match-beginning 3) open) (match-beginning 2)))))
+    (pcase-let ((`(,from . ,on-item) (overblock-md-preview--opener open)))
       (> indent (if (or on-item
                         (>= from (or (overblock-md-preview--in-item-p open)
                                      most-positive-fixnum)))
@@ -278,12 +297,32 @@ that tells whether BEG is inside a fence."
 Only under a list item: a later paragraph of an item is indented under
 it, and the converter reads a fence indented deeper than the line
 before it as text.  Elsewhere the indentation makes a code block.
-Only spaces go, so a tab stays the converter's to read."
+Only spaces go, so a tab stays the converter's to read.  A block that
+closes no fence gets one; see `overblock-md-preview--closed'."
   (let* ((text (buffer-substring-no-properties beg end))
          (indent (if (overblock-md-preview--in-item-p beg)
                      (or (string-match-p "[^ ]" text) 0)
                    0)))
-    (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))
+    (overblock-md-preview--closed
+     (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text))))
+
+(defun overblock-md-preview--closed (text)
+  "Return TEXT with a closing fence where it opens a block and closes none.
+A block can end with no closing fence of its own: at a fence that names
+a language, or where a fence ends the item it opened on.  The converter
+would read such a block to the end of all it is sent, markers and all,
+so the batch would fall back to one process for each block."
+  (if (and (string-match "\\` *\\(```+\\|~~~+\\)\\([^\n]*\\)" text)
+           (let ((marks (match-string 1 text)))
+             (not (or (and (eq (aref marks 0) ?`)
+                           (string-search "`" (match-string 2 text)))
+                      (string-match-p
+                       (format "\n *%s\\{%d,\\} *\n?\\'"
+                               (regexp-quote (substring marks 0 1))
+                               (length marks))
+                       text)))))
+      (concat text "\n" (match-string 1 text))
+    text))
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.

@@ -302,6 +302,13 @@ The item is one block, and the fence is not a second one over it."
     (insert "```x``` leads this line.\n\nLast para.\n")
     (should-not (overblock-md-preview-fences (point-max)))))
 
+(ert-deftest overblock-md-preview-test-a-block-goes-out-closed ()
+  "A block that closes no fence goes to the converter with one."
+  (should (equal (overblock-md-preview--closed "```\n\n## S") "```\n\n## S\n```"))
+  (should (equal (overblock-md-preview--closed "~~~~ r\nx\n~~~~") "~~~~ r\nx\n~~~~"))
+  (should (equal (overblock-md-preview--closed "```x``` text") "```x``` text"))
+  (should (equal (overblock-md-preview--closed "Para.") "Para.")))
+
 (ert-deftest overblock-md-preview-test-a-later-paragraph-of-an-item-is-dedented ()
   "The fence under a later paragraph of an item keeps its place in it."
   (with-temp-buffer
@@ -384,6 +391,11 @@ The item is one block, and the fence is not a second one over it."
     (insert "Para.\n\n    - ```bash\n    x\n\n```\ny\n```\n")
     (should (equal (overblock-md-preview-fences (point-max))
                    (list (cons 29 (1- (point-max)))))))
+  ;; A fence at the margin ends the item a block opened on, and opens.
+  (with-temp-buffer
+    (insert "- ```sh\n  x\n```\ny\n```\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   '((1 . 12) (13 . 22)))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")

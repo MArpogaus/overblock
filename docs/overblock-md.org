@@ -252,7 +252,10 @@ three columns in. Under a list item, an opening fence at or right of
 the text of the item can close with a fence up to three columns deeper
 than its own. An opening fence left of that text closes as at the
 margin. A fence on the line of a list item, as in =1. ```bash=, opens
-a block in that item and closes none. The columns are counted in the text, because a rendering hides
+a block in that item and closes none. A fence left of the text of that
+item ends the item and its block, and opens a block of its own. A block
+that closes no fence goes to the converter with a closing fence, so the
+converter reads it as the preview pairs it. The columns are counted in the text, because a rendering hides
 the indentation from =current-indentation=. A later paragraph of a
 list item ends at the next item. In one block with that paragraph, the
 converter reads the item as more text of the paragraph, and the item
