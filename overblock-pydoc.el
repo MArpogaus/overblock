@@ -56,8 +56,6 @@
   :group 'overblock
   :prefix "overblock-pydoc-")
 
-(define-obsolete-variable-alias 'overblock-pydoc-idle 'overblock-live-idle "1.0")
-
 ;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)
 (defcustom overblock-pydoc-markup 'markdown
   "The markup the doc strings of this buffer are written in.

@@ -108,8 +108,6 @@ this list: they say what the result is doing."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(define-obsolete-variable-alias 'overblock-pycell-markdown-buttons
-  'overblock-pycell-md-buttons "1.0")
 (defcustom overblock-pycell-md-buttons
   (append '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
           overblock-pycell-md-edit t))
@@ -332,9 +330,6 @@ result:
                  (overblock-in (max (1- (point)) (point-min)) (point)
                                'result))
        cmd))
-
-(define-obsolete-variable-alias 'overblock-pycell-result-map
-  'overblock-run-result-map "1.0")
 
 ;;;; Moving a cell
 
@@ -730,9 +725,6 @@ is left out: there is nothing to render."
           (when (< from to) (push (cons from to) cells))
           (goto-char to)))
       (nreverse cells))))
-
-(define-obsolete-function-alias 'overblock-pycell-md-render-all
-  #'overblock-pycell-render-buffer "1.0")
 
 ;;;###autoload
 (defun overblock-pycell-render-buffer ()

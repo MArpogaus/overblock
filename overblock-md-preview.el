@@ -58,9 +58,6 @@
   :group 'overblock
   :prefix "overblock-md-preview-")
 
-(define-obsolete-variable-alias 'overblock-md-preview-idle
-  'overblock-live-idle "1.0")
-
 (defvar-keymap overblock-md-preview-map
   :doc "Keymap on a rendered line.
 A click shows the source of the line, which is what a reader wants of

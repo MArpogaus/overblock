@@ -184,9 +184,6 @@ Customize this and the results already on the screen follow."
 
 ;;;; The result of a chunk
 
-(define-obsolete-variable-alias 'overblock-rmd-result-map
-  'overblock-run-result-map "1.0")
-
 (defun overblock-rmd--strip-prompt (text)
   "Return TEXT without the prompt R wrote when the chunk was done.
 Call this in the shell buffer, where `inferior-ess-primary-prompt' has
