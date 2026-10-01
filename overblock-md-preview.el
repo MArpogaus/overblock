@@ -72,6 +72,10 @@ The fence alone: in CommonMark an opening fence can name its language
 and a closing fence cannot.  A caller that hides the fence of a block
 asks this before it hides a line.")
 
+(defconst overblock-md-preview--fence-regexp
+  "^\\( *\\)\\(\\(?:[-+*]\\|[0-9]+[.)]\\) +\\)?\\(```+\\|~~~+\\)"
+  "What a fence line looks like: indentation, a list marker, the marks.")
+
 (defun overblock-md-preview-fences (end)
   "Return the bounds of every fenced code block up to END.
 Each is a cons of the start of the opening fence line and the end of
@@ -91,11 +95,15 @@ end of the buffer."
   (save-excursion
     (goto-char (point-min))
     (let (regions open fence)
-      (while (re-search-forward "^\\( *\\)\\(```+\\|~~~+\\)" end t)
-        (let ((this (match-string-no-properties 2))
+      (while (re-search-forward overblock-md-preview--fence-regexp end t)
+        (let ((this (match-string-no-properties 3))
               (bare (looking-at-p "[[:blank:]]*$")))
-          (cond ((overblock-md-preview--too-deep-p
-                  (length (match-string 1)) open))
+          (cond (;; A fence on the line of a list item opens a block in
+                 ;; the item, and closes none.
+                 (if (match-beginning 2)
+                     open
+                   (overblock-md-preview--too-deep-p
+                    (length (match-string 1)) open)))
                 ;; A backtick after the marks makes inline code of it.
                 ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")))
                 ((null open) (setq open (pos-bol) fence this))
@@ -115,16 +123,19 @@ end of the buffer."
 OPEN is the start of the fence line that opened the block, or nil.  An
 opening fence four columns in opens a block only under a list item.  A
 closing fence is at most three columns in, or three deeper than an
-opening one at the content column of a list item.  The columns are
+opening one at the content column of a list item, or on the line of
+one.  The columns are
 counted in the text: a rendering hides the indentation from
 `current-indentation'."
   (if open
-      (let ((from (save-excursion
-                    (goto-char open)
-                    (skip-chars-forward " ")
-                    (- (point) open))))
-        (> indent (if (>= from (or (overblock-md-preview--in-item-p open)
-                                   most-positive-fixnum))
+      (pcase-let ((`(,from . ,item)
+                   (save-excursion
+                     (goto-char open)
+                     (looking-at overblock-md-preview--fence-regexp)
+                     (cons (- (match-beginning 3) open) (match-beginning 2)))))
+        (> indent (if (or item
+                          (>= from (or (overblock-md-preview--in-item-p open)
+                                       most-positive-fixnum)))
                       (+ from 3)
                     3)))
     (and (> indent 3)
