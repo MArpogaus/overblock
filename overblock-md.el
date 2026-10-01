@@ -984,8 +984,12 @@ The alt text carries the image; `overblock-md-rendered' caps it.  See
       ;; which would hide the label.
       (insert (propertize (if (and file (display-images-p))
                               (propertize label 'display
+                                          ;; As in eww: the baseline at
+                                          ;; the foot, so a link underline
+                                          ;; runs under the image.
                                           (create-image
-                                           file (overblock-md--image-p file)))
+                                           file (overblock-md--image-p file)
+                                           nil :ascent 100))
                             label)
                           'overblock-md-label t)))))
 
