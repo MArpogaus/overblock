@@ -294,20 +294,28 @@ string in a fence: Markdown reads `>>>' as three nested quotes."
 (defun overblock-pydoc--fence-doctests (text)
   "Return TEXT with each doctest outside a fence put in a pycon fence.
 A doctest is a run of lines from one that begins with `>>>' to the
-next blank line.  One that a fence holds already stays as it is."
-  (let (out fenced doctest)
+next blank line, at any indent.  One that a fence holds already stays
+as it is; a fence ends at a line that begins with its own marks."
+  (let (out fence doctest)
+    ;; DOCTEST is the indent of the doctest in hand, FENCE the marks of
+    ;; the fence in hand.
     (dolist (line (split-string text "\n"))
       (cond (doctest
              (when (string-blank-p line)
-               (push "```" out)
+               (push (concat doctest "```") out)
                (setq doctest nil)))
-            ((string-match-p "\\`[ \t]*\\(?:```\\|~~~\\)" line)
-             (setq fenced (not fenced)))
-            ((and (not fenced) (string-prefix-p ">>>" line))
-             (push "```pycon" out)
-             (setq doctest t)))
+            (fence
+             (when (string-match-p (concat "\\`[ \t]*" (regexp-quote fence)) line)
+               (setq fence nil)))
+            ((string-match "\\`[ \t]*\\(```\\|~~~\\)" line)
+             (setq fence (match-string 1 line)))
+            ((string-match "\\`\\([ \t]*\\)>>>" line)
+             ;; The fence stands at the indent of the doctest, so a
+             ;; doctest under a list item stays in the item.
+             (setq doctest (match-string 1 line))
+             (push (concat doctest "```pycon") out)))
       (push line out))
-    (when doctest (push "```" out))
+    (when doctest (push (concat doctest "```") out))
     (string-join (nreverse out) "\n")))
 
 (defun overblock-pydoc--source (beg end)

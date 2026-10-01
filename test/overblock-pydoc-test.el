@@ -460,6 +460,14 @@ and steps the output lines to the right."
                   ">>> f(1)\n2\n\nprose\n```python\n>>> g()\n```")
                  "```pycon\n>>> f(1)\n2\n```\n\nprose\n```python\n>>> g()\n```")))
 
+(ert-deftest overblock-pydoc-test-an-indented-doctest-is-fenced-in-place ()
+  "A doctest under a list item gets a fence at its own indent.
+A ``` line inside a ~~~ fence does not end that fence."
+  (should (equal (overblock-pydoc--fence-doctests "- item\n\n  >>> f()\n  1")
+                 "- item\n\n  ```pycon\n  >>> f()\n  1\n  ```"))
+  (should (equal (overblock-pydoc--fence-doctests "~~~\n```\n>>> g()\n~~~")
+                 "~~~\n```\n>>> g()\n~~~")))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The prose reaches the edit buffer without the quotes and the
