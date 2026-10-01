@@ -167,6 +167,17 @@ plain one, which tells Emacs the kind of image."
                 (concat "." (downcase extension))
               ".img"))))
 
+(defun overblock-md--image-p (file)
+  "Return non-nil where FILE holds an image, whatever its name.
+Not `image-supported-file-p', which reads the name: a URL with a query
+caches as `<md5>.img'.  An SVG with a DOCTYPE subset or a byte-order
+mark has no header that `image-type-from-file-header' knows, so a file
+that holds an svg tag counts too."
+  (or (image-type-from-file-header file)
+      (with-temp-buffer
+        (insert-file-contents file nil 0 4096)
+        (search-forward "<svg" nil t))))
+
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
 The file is kept in the cache beside the LaTeX previews, named after
@@ -184,10 +195,8 @@ the URL, so a badge is fetched once per machine.  See
               (with-timeout (3 (error "Timed out"))
                 (let ((inhibit-message t))
                   (url-copy-file url file t)))
-              ;; Not `image-supported-file-p', which reads the name: a
-              ;; URL with a query caches as `<md5>.img'. A server that
-              ;; answers 404 sends a page, and no error.
-              (unless (image-type-from-file-header file)
+              ;; A server that answers 404 sends a page, and no error.
+              (unless (overblock-md--image-p file)
                 (error "Not an image"))
               file)
           (error (puthash url t overblock-md--remote-failed)

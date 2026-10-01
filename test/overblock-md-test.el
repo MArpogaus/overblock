@@ -211,8 +211,16 @@ that the rendering has already left."
                      (with-temp-file file (insert "Not Found")))))
           (should-not (overblock-md--remote-file url))
           (should (gethash url overblock-md--remote-failed))
-          (should-not (directory-files (expand-file-name "overblock-images" cache)
-                                       nil "\\`[^.]")))
+          ;; An SVG whose header Emacs does not know is kept.
+          (cl-letf (((symbol-function 'url-copy-file)
+                     (lambda (_url file &rest _)
+                       (with-temp-file file
+                         (insert "\ufeff<svg xmlns=\"http://www.w3.org/2000/svg\"/>")))))
+            (should (overblock-md--remote-file "https://example.org/bom.svg")))
+          (should (equal (directory-files (expand-file-name "overblock-images" cache)
+                                          nil "\\`[^.]")
+                         (list (overblock-md--cache-name
+                                "https://example.org/bom.svg")))))
       (delete-directory cache t))))
 
 (ert-deftest overblock-md-test-no-parser-no-program ()
