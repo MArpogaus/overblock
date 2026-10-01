@@ -27,7 +27,7 @@
 ;;; Commentary:
 
 ;; Notebook style results for the R chunks of an Rmd file, built from
-;; ESS alone -- no knitr run, no rendered document.
+;; ESS alone: no knitr run, no rendered document.
 ;;
 ;; Turn `overblock-rmd-mode' on in an Rmd buffer and every
 ;; ```{r} chunk gets a bar with a run button, the prose between the
@@ -38,60 +38,49 @@
 ;; An Rmd file is the inverse of a Python notebook.  A `.py' notebook
 ;; is code with `# %%' lines cutting it into cells; an Rmd file is
 ;; markdown prose with fenced chunks of code inside it.  So this
-;; package composes rather than copies: the chunks come from the fence
-;; walk of `overblock-md-preview', the prose between them is rendered by
-;; the same live cycle that `overblock-md-preview-mode' uses, and the
-;; running and the result blocks are `overblock-run''s -- the layer that
-;; `overblock-pycell' runs its cells through as well.  What is here is
-;; the part that knows about R and about Rmd: the chunks, the bars, the
-;; commands, and eleven lines of ESS.
+;; package composes: the chunks come from the fence walk of
+;; `overblock-md-preview', the prose renders through the live cycle of
+;; `overblock-md-preview-mode', and the running and the result blocks
+;; belong to `overblock-run', which `overblock-pycell' uses too.  This
+;; file holds what knows about R and Rmd: the chunks, the bars, the
+;; commands, and a few lines of ESS.
 ;;
 ;; A chunk reaches R as one statement, not as its own lines:
 ;;
 ;;     source(exprs = parse(text = "..."), print.eval = TRUE)
 ;;
-;; That is what makes the result collectable.  Sent line by line, R
-;; prompts after every statement of the chunk and the prompts land in
-;; the middle of the output, where nothing can tell them from a line
-;; that happens to look like one.  Wrapped like this the chunk is one
-;; statement, one prompt comes back at the end, and `source' with
-;; `print.eval' prints the value of every top level expression -- which
-;; is what a notebook cell does and what a bare `eval' would not.
+;; That makes the result collectable.  Sent line by line, R prompts
+;; after every statement, and the prompts land in the middle of the
+;; output, where nothing can tell them from output.  Wrapped, the chunk
+;; is one statement and one prompt comes back at the end.  `source'
+;; with `print.eval' prints the value of every top level expression, as
+;; a notebook cell does and a bare `eval' does not.
 ;;
-;; The other road was ESS's own send-and-collect: `ess-command' is
-;; synchronous and would freeze Emacs for the length of a chunk, and
-;; `ess-async-command' says in its own docstring that it is for
-;; background jobs and that long output escapes into the process
+;; ESS's own send-and-collect does not fit: `ess-command' is synchronous
+;; and freezes Emacs for the length of a chunk, and `ess-async-command'
+;; is for background jobs, and long output escapes into the process
 ;; buffer.
 ;;
-;; A figure comes back the way knitr brings one in: R draws to a
-;; graphics device rather than to its terminal, so the wrapper opens a
-;; PNG device before the chunk, closes it after, and names each file it
-;; wrote on a line of its own.  The result reads those lines back as
-;; images, and from there a figure is what a figure is in the Python
-;; notebook: capped to the window, saved with its button, popped out,
-;; and named in a terminal.  `overblock-rmd-figure-size' is what knitr
-;; calls `fig.width' and `fig.height'.
+;; A figure comes back as knitr brings one in: the wrapper opens a PNG
+;; device before the chunk, closes it after, and names each file on a
+;; line of its own.  The result reads those lines back as images, and a
+;; figure then behaves as in the Python notebook: capped to the window,
+;; saved with its button, popped out, and named in a terminal.
+;; `overblock-rmd-figure-size' is knitr's `fig.width' and `fig.height'.
 ;;
 ;; Under polymode (`poly-markdown+r-mode') the buffer stays in its host
 ;; mode while this mode is on.  polymode shows an R chunk in an indirect
-;; buffer of its own once point enters one, and carries every overlay
-;; of the buffer it leaves along to the one it shows.  The bars and the
-;; blocks of this mode are overlays, and their owner -- the live cycle,
-;; the runner -- lives in the base buffer: it found its work gone,
-;; drew it all again, and got the old set back on the way out.
-;; Measured, one walk down ten chunks left every prose paragraph
-;; rendered twice and five bars over each chunk.  polymode has a slot
-;; for exactly this, `keep-in-mode', and the mode sets it to `host' on
-;; the object of its own buffer; fontification and indentation of the
-;; chunks still come from polymode, and what is lost is ESS's own keymap
-;; inside a chunk -- which a notebook does not miss, its keys are on
-;; `overblock-rmd-mode-map' and reach every line of the file.
+;; buffer when point enters it, and moves every overlay to that buffer.
+;; The bars and blocks of this mode are overlays whose owners (the live
+;; cycle, the runner) stay in the base buffer, and would draw them all
+;; again.  The mode sets the polymode slot `keep-in-mode' to `host'.
+;; The chunks still get fontification and indentation from polymode;
+;; only the ESS keymap inside a chunk is lost, and
+;; `overblock-rmd-mode-map' reaches every line of the file.
 ;;
-;; What draws a block on the screen is not here: `overblock' puts text
-;; over a region of a buffer with a header above it, `overblock-md'
-;; turns markdown into a string it can show, and `overblock-run' sends a
-;; region to a shell and shows what comes back.
+;; `overblock' draws the blocks, `overblock-md' turns markdown into a
+;; string, and `overblock-run' sends a region to a shell and shows what
+;; comes back.
 
 ;;; Code:
 
@@ -106,8 +95,8 @@
 (require 'seq)
 (require 'subr-x)
 
-;; polymode's slot, set by `overblock-rmd--stay-in-host'; declared so
-;; the compiler knows the name without polymode loaded.
+;; The polymode slot that `overblock-rmd--stay-in-host' sets, declared
+;; for the compiler.
 (eieio-declare-slots keep-in-mode)
 
 (defgroup overblock-rmd nil
@@ -119,12 +108,11 @@
 (defcustom overblock-rmd-result-buttons
   (overblock-run-result-buttons "chunk" "figure")
   "The buttons on the header of a result, left to right.
-An entry is the shape `overblock-buttons' reads, and the five are
-`overblock-run-result-buttons', worded for a chunk: the row a reader
-sees here is the row the `.py' notebook shows, less the pair that
-moves a cell — a chunk sits inside prose that reads about it.  The
-fold arrow and the spinner are not buttons of this list: they say
-what the result is doing."
+An entry has the shape `overblock-buttons' reads.  The default is
+`overblock-run-result-buttons' worded for a chunk: the row of the
+`.py' notebook without the two that move a cell, because a chunk sits
+inside prose about it.  The fold arrow and the spinner are not in this
+list: they show the state of the result."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -133,25 +121,22 @@ what the result is doing."
                overblock-run-above t)
     (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t))
   "The buttons on the bar of an R chunk, left to right.
-An entry is the shape `overblock-buttons' reads.  A chunk bar is
-drawn before the chunk has run, so `lines' says nothing here.
+An entry has the shape `overblock-buttons' reads.  A chunk bar is
+drawn before the chunk runs, so `lines' means nothing here.
 
-Both glyphs are the ones `overblock-pycell-cell-buttons' uses for the
-same two commands.  A chunk has no move buttons: the cells of a `.py'
-notebook are its top level structure and moving one is an ordinary
-edit, while a chunk sits inside prose that reads about it, and moving
-the code away from its paragraph is not what the reader meant."
+The glyphs are those of `overblock-pycell-cell-buttons' for the same
+commands.  A chunk has no move buttons, because it sits inside prose
+about it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-figure-size '(7 . 5)
   "Width and height of a figure a chunk draws, in inches.
-What knitr calls `fig.width' and `fig.height', and the same default,
-for a chunk whose header names neither: ```{r plot, fig.width=8,
-fig.height=3, dpi=120} draws at its own size, as it would under knitr.
-The PNG device is opened at 96 dots an inch unless the header says
-`dpi', so a figure of 7 by 5 inches is 672 by 480 pixels.
-`overblock-image-height' then caps what shows inline, and
+This is knitr's `fig.width' and `fig.height', with the same default,
+for a chunk whose header names neither.  A header such as ```{r plot,
+fig.width=8, fig.height=3, dpi=120} sets its own size, as under knitr.
+The PNG device uses 96 dots an inch unless the header says `dpi'.
+`overblock-image-height' caps what shows inline, and
 `overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
@@ -164,39 +149,34 @@ The PNG device is opened at 96 dots an inch unless the header says
 Call this in the shell buffer, where `inferior-ess-primary-prompt' has
 its value.
 
-The prompt after the output, and nothing in the middle: a chunk goes to
-R as one statement, so one prompt comes back and it comes back last.
-The newlines before the first line of output go as well, but not the
-spaces: R prints its tables with the header indented, and the columns
-of a `summary' line up on exactly those spaces.
+Only the prompt at the end goes: a chunk goes to R as one statement, so
+one prompt comes back, last.  The newlines before the first line of
+output go too, but not the spaces: the columns of a `summary' line up
+on them.
 
-`inferior-ess-primary-prompt' and not `comint-prompt-regexp', which is
-the variable a comint filter would normally ask.  ess-tracebug — on by
-default — hands the prompt to `comint-output-filter' with
-`comint-prompt-regexp' bound to \"^$\", so that comint does not erase a
-prompt tracebug wrote itself; this runs from that same filter, where
-the real value of that variable is therefore out of reach.  Measured: every
-result came back with a bare > on a line of its own."
+This reads `inferior-ess-primary-prompt', not `comint-prompt-regexp'.
+ess-tracebug (on by default) calls `comint-output-filter' with
+`comint-prompt-regexp' bound to \"^$\", and this runs from that
+filter."
   (let ((rx (concat "\\(?:" inferior-ess-primary-prompt "\\)")))
     (setq text (overblock-repl-strip-trailing-prompt
                 text inferior-ess-primary-prompt))
-    ;; A prompt with nothing before it: the chunk printed nothing at
-    ;; all, which is what an assignment does.
+    ;; Only a prompt: the chunk printed nothing, as an assignment does.
     (when (string-match-p (concat "\\`[ \t\n]*" rx "[ \t\n]*\\'") text)
       (setq text ""))
     text))
 
 (defun overblock-rmd--figures (text)
   "Return TEXT with each figure line replaced by the image it names.
-The wrapper `overblock-rmd--send' puts around a chunk writes one line
-for every PNG the chunk drew, `overblock-figure:' and the path.  Each
-becomes what comint-mime hands the Python notebook: one space carrying
-the image, with the file's bytes in it, so the block, the save button
-and the pop-out read a figure of R as they read one of Python.  Where
-this Emacs draws no PNG the line names the file instead.
+The wrapper of `overblock-rmd--send' writes one line for every PNG the
+chunk drew: `overblock-figure:' and the path.  Each becomes what
+comint-mime gives the Python notebook, one space that carries the
+image with the bytes of the file, so the block, the save button and
+the pop-out treat both alike.  Where this Emacs draws no PNG, the line
+names the file instead.
 
-The newline before the line goes with it, so a figure follows the text
-of the chunk without a blank row between them."
+The newline before the line goes too, so no blank row comes before a
+figure."
   (if (not (string-search "overblock-figure:" text))
       text
     (replace-regexp-in-string
@@ -216,9 +196,8 @@ of the chunk without a blank row between them."
 (defun overblock-rmd--clean (text)
   "Return TEXT as a result block can show it.
 The prompt goes, the figures come in, and the copy is cut loose from
-the shell; see `overblock-rmd--strip-prompt', `overblock-rmd--figures'
-and `overblock-repl-detach' for what each of those means.  Call this in
-the shell buffer."
+the shell: see `overblock-rmd--strip-prompt', `overblock-rmd--figures'
+and `overblock-repl-detach'.  Call this in the shell buffer."
   (overblock-repl-detach
    (overblock-rmd--figures (overblock-rmd--strip-prompt text))))
 
@@ -227,22 +206,19 @@ the shell buffer."
 (defconst overblock-rmd-chunk-regexp
   "^[[:blank:]]*```+[[:blank:]]*{[[:blank:]]*[rR][[:blank:],}]"
   "What the opening line of an R chunk looks like.
-The engine name whole and then whatever may follow it — a blank before
-the name of the chunk, a comma before its options, or the closing brace —
-so a ```{python} chunk of the same file is left alone and a
-```{rmarkdown} one is not mistaken for R.")
+The whole engine name, then a blank before the chunk name, a comma
+before the options, or the closing brace.  So a ```{rmarkdown} chunk is
+not taken for R.")
 
 (defun overblock-rmd-chunks ()
   "Return the R chunks of the buffer, in order.
 Each is a list (OPEN CODE-BEG CODE-END): where the opening fence line
 begins, and the code between the two fences.  CODE-END is where the
-closing fence line begins, so the region is the code lines whole, their
-last newline included — the newline a result block hangs on.
+closing fence line begins, so the region holds whole code lines,
+including the last newline, on which a result block hangs.
 
-A chunk with no code in it is left out: there is nothing to run and
-nothing to hang a result on.  The fences come from
-`overblock-md-preview-fences', which is the walk that knows a fence
-from a line that looks like one."
+A chunk with no code is left out.  The fences come from
+`overblock-md-preview-fences'."
   (let (chunks)
     (dolist (fence (overblock-md-preview-fences (point-max)))
       (save-excursion
@@ -253,12 +229,9 @@ from a line that looks like one."
                 (code-end
                  (save-excursion
                    (goto-char (cdr fence))
-                   ;; The closing fence line is not code; where there
-                   ;; is none the code runs to the end of the buffer.
-                   ;; Taking the last line for a fence gave no chunk
-                   ;; at all — no bar and no way to run it — for the
-                   ;; chunk a reader is in the middle of writing when
-                   ;; the file ends without a newline.
+                   ;; The closing fence line is not code. Without one,
+                   ;; the code runs to the end of the buffer, and the
+                   ;; last line is code, not a fence.
                    (if (save-excursion
                          (goto-char (pos-bol))
                          (looking-at-p
@@ -273,10 +246,9 @@ from a line that looks like one."
   "Return the chunk POS, or point, stands in, or nil for none.
 Both fence lines count as part of the chunk, so a click on the bar and
 a point at the end of the code find the same one."
-  ;; ponytail: the whole buffer is walked for one answer, which is what
-  ;; a pass down a file of chunks pays once a chunk. A file where that
-  ;; is too much wants the walk cached against
-  ;; `buffer-chars-modified-tick'.
+  ;; ponytail: the whole buffer is walked for one answer, once per
+  ;; chunk in a pass. Cache the walk against
+  ;; `buffer-chars-modified-tick' if that is too slow.
   (let ((pos (or pos (point))))
     (seq-find (lambda (chunk)
                 (and (<= (nth 0 chunk) pos)
@@ -287,10 +259,10 @@ a point at the end of the code find the same one."
 
 (defun overblock-rmd--chunk-name (bol eol)
   "Return the name written in the chunk header BOL..EOL, or nil.
-The word after the engine and before the first comma or brace, as knitr
-reads it: ```{r plot-one, echo=FALSE} is called plot-one.  An option
-written where a name would stand is not one, which is why the word has
-to end at a comma or a brace: ```{r echo=FALSE} names no chunk."
+The name is the word after the engine and before the first comma or
+brace, as knitr reads it: ```{r plot-one, echo=FALSE} is plot-one.  The
+word must end at a comma or a brace, so ```{r echo=FALSE} names no
+chunk."
   (save-excursion
     (goto-char bol)
     (when (re-search-forward
@@ -301,20 +273,18 @@ to end at a comma or a brace: ```{r echo=FALSE} names no chunk."
 
 (defun overblock-rmd--figure-size (open)
   "Return (WIDTH HEIGHT DPI) for the chunk whose header begins at OPEN.
-knitr\'s `fig.width\', `fig.height\' and `dpi\' where the header writes
-them, and `overblock-rmd-figure-size\' with 96 dots an inch otherwise.
-A number and nothing else: knitr takes an expression there, and an
-expression is R\'s to evaluate, not this file\'s."
+These are the knitr options `fig.width', `fig.height' and `dpi' of the
+header, else `overblock-rmd-figure-size' and 96 dots an inch.  Only a
+literal number counts: an expression is for R to evaluate, so the
+default applies."
   (save-excursion
     (goto-char open)
     (let ((eol (pos-eol)))
       (mapcar (lambda (option)
                 (goto-char open)
                 (if (re-search-forward
-                     ;; Anchored at both ends: a number and nothing
-                     ;; else. Unanchored, `fig.width=2*w' answered 2,
-                     ;; and an expression is knitr's to evaluate, not
-                     ;; this file's — the default stands for one.
+                     ;; Anchored at both ends, so `fig.width=2*w' does
+                     ;; not read as 2.
                      (concat "[,{[:blank:]]" (regexp-quote (car option))
                              "[[:blank:]]*=[[:blank:]]*"
                              "\\([0-9.]+\\)[[:blank:]]*\\(?:[,}]\\|$\\)")
@@ -327,10 +297,9 @@ expression is R\'s to evaluate, not this file\'s."
 
 (defun overblock-rmd--prose (beg end)
   "Return the prose blocks of the buffer between BEG and END, in order.
-The paragraphs, and not the fences: what a fence holds is code, and a
-chunk of R is run rather than rendered.  This is what
-`overblock-md-preview-regions-function' is set to, so the live cycle of
-`overblock-md-preview' renders the prose and leaves the chunks alone."
+The paragraphs, not the fences: a chunk is code that runs.  This is
+the value of `overblock-md-preview-regions-function', so the live
+cycle renders the prose and leaves the chunks alone."
   (overblock-md-preview-regions beg end 'prose-only))
 
 
@@ -338,14 +307,13 @@ chunk of R is run rather than rendered.  This is what
 
 (defun overblock-rmd--bar (open)
   "Draw the bar over the opening fence line that begins at OPEN.
-A bar already there is drawn again rather than replaced, so its own
-state — the label and the width it was cut for — is what
-`overblock-bar-draw' compares against.
+A bar that is already there is drawn again, not replaced, so
+`overblock-bar-draw' compares against its state (the label and the
+width it was cut for).
 
-The glyph in front of the label is the R logo of the devicons, the
-family the Python notebook draws its snake and its markdown mark from;
-the label is the chunk's name, or the language where it has none, as a
-code cell is called python."
+The glyph is the R logo of the devicons, the family of the Python
+notebook glyphs.  The label is the chunk name, or R when there is
+none."
   (save-excursion
     (goto-char open)
     (overblock-bar-line (pos-bol) (pos-eol) 'chunk
@@ -355,24 +323,20 @@ code cell is called python."
 
 (defun overblock-rmd--hide-fence (close)
   "Hide the closing fence line that begins at CLOSE.
-Three backquotes under a result read as litter: the chunk has a bar
-above it and its result a bar of its own, and the fence between them
-says nothing a reader needs.  The line is hidden and not merely blanked,
-so nothing is left standing where it was.
+The chunk has a bar above it and its result has a bar, so the fence
+between them tells the reader nothing.  The line is invisible, not
+blank, so no empty row stays.
 
-Not painted over, either.  Font lock gives the fence the background of
-`markdown-code-face\', and the face of the text under a display string
-is what wins over the string\'s own: measured on a frame, a rule drawn
-there came out as a band of that same grey however the face that drew it
-was written.
+It is not painted over: font lock gives the fence the background of
+`markdown-code-face', and the face of the text under a display string
+wins over the face of the string.
 
-The overlay is one of this mode\'s bars, so `overblock-rmd--bars\' sweeps
-it away with the rest when the chunk it closes is gone."
+The overlay is a bar of this mode, so `overblock-rmd--bars' removes it
+when its chunk is gone."
   (save-excursion
     (goto-char close)
-    ;; Only a line that is a fence and nothing else: a chunk left
-    ;; unclosed ends at the end of the buffer, and the reader's last
-    ;; line of code is not a fence to hide.
+    ;; Only a fence line: an unclosed chunk ends at the end of the
+    ;; buffer, on a line of code.
     (when (looking-at-p overblock-md-preview-closing-fence-regexp)
       (let* ((bol (pos-bol))
              (end (min (point-max) (1+ (pos-eol))))
@@ -387,14 +351,11 @@ it away with the rest when the chunk it closes is gone."
 
 (defun overblock-rmd--bars ()
   "Bar the header of every R chunk, and drop the bars of what is not one.
-Called from the idle cycle rather than from a change hook: a file of
-many chunks is walked once the reader has stopped rather than once a
-keypress, and a bar appears a moment after the header that wants it is
-written."
+The idle cycle calls this, not a change hook, so a file of many chunks
+is walked when the reader stops, not on each keypress."
   (let* ((chunks (overblock-rmd-chunks))
          (opens (mapcar #'car chunks))
-         ;; The line the closing fence begins, which is where
-         ;; `overblock-rmd-chunks' ends the code.
+         ;; Where `overblock-rmd-chunks' ends the code: the closing fence.
          (closes (mapcar (lambda (chunk) (nth 2 chunk)) chunks)))
     (dolist (bar (overblock-bars))
       (let ((kind (overblock-bar-kind bar))
@@ -408,8 +369,7 @@ written."
 ;;;###autoload
 (defun overblock-rmd-render-buffer ()
   "Bar every chunk of the buffer and render the prose between them.
-Both on the one idle timer: `overblock-live-start' calls this when the
-reader stops, and each of the two walks the buffer once."
+`overblock-live-start' calls this when the reader stops."
   (interactive)
   (overblock-rmd--bars)
   (overblock-md-preview-render-buffer))
@@ -419,8 +379,8 @@ reader stops, and each of the two walks the buffer once."
 
 (defun overblock-rmd--r-processes ()
   "Return the names of the R processes ESS has running, dead ones aside.
-Of R and of nothing else: `ess-process-name-list' holds every inferior
-ESS of the session, and a Julia or a Stata is no use to a chunk of R."
+Only R: `ess-process-name-list' holds every inferior ESS of the
+session, Julia and Stata too."
   (update-ess-process-name-list)
   (seq-filter (lambda (name)
                 (when-let* ((proc (get-process name)))
@@ -430,16 +390,13 @@ ESS of the session, and a Julia or a Stata is no use to a chunk of R."
 
 (defun overblock-rmd--process ()
   "Return the live R process of this buffer, or nil for none.
-`ess-local-process-name' is where ESS keeps the answer, and
-`overblock-rmd--start' is what puts it there.
+ESS keeps the name in `ess-local-process-name', and
+`overblock-rmd--start' sets it.
 
-Where this buffer has no answer yet and exactly one R runs, that one is
-adopted and its name written there, as `ess-request-a-process' would
-answer for the same buffer.  A getter with a side effect, and the
-reason is `overblock-rmd-restart': a file that had not run a chunk yet
-found no process of its own to restart, so it quietly joined the R that
-was already open — with everything that session had defined still in
-it, which is the one thing a restart is asked for."
+When this buffer has no name yet and exactly one R runs, this adopts
+that R and sets the name, as `ess-request-a-process' does.  The side
+effect is for `overblock-rmd-restart': a file that has not run a chunk
+must still find the process to restart."
   (unless ess-local-process-name
     (when-let* ((names (overblock-rmd--r-processes))
                 ((null (cdr names))))
@@ -451,68 +408,50 @@ it, which is the one thing a restart is asked for."
 
 (defun overblock-rmd--start ()
   "Attach an R process to this buffer, starting one where none runs.
-The backend's `:start'.  It answers the process rather than nil, unlike
-the Python notebook's: `inferior-ess' waits for the interpreter's first
-prompt before it returns, so R is ready to take a chunk the moment this
-comes back and nothing has to be armed on a prompt that has already
-been.
+This is the `:start' of the backend.  It returns the process, unlike
+the Python notebook: `inferior-ess' waits for the first prompt before
+it returns, so R is ready for a chunk and nothing has to be armed.
 
-`ess-force-buffer-current' is the ESS road in: it takes the one R that
-runs, asks where there are several, and starts one where there is none.
-It reads `ess-dialect', which the mode sets, because an Rmd buffer is
-not an ESS buffer and would otherwise be asked which language to run."
-  ;; The windows stay as they are: `inferior-ess' shows its console
-  ;; when it starts, and in a frame with no room for another window
-  ;; that took the Rmd file out of view — where the Python notebook
-  ;; starts its shell without showing it. The console is a buffer away
-  ;; for a reader who wants it.
+`ess-force-buffer-current' takes the one R that runs, asks when there
+are several, and starts one when there is none.  It reads
+`ess-dialect', which the mode sets, because an Rmd buffer is not an
+ESS buffer."
+  ;; `inferior-ess' shows its console, which can push the Rmd file out
+  ;; of view.
   (save-window-excursion
     (ess-force-buffer-current "R process to use: "))
   (overblock-rmd--process))
 
 (defun overblock-rmd--r-string (text)
   "Return TEXT as an R string literal, escapes and quotes and all.
-The newlines go in escaped, so the whole chunk travels as one line: a
-literal newline inside the string is legal R, but comint would send it
-as a line of its own and R would answer with a continuation prompt in
-the middle of the result."
-  ;; `prin1-to-string' writes exactly this literal: quotes doubled,
-  ;; backslashes doubled, and with `print-escape-newlines' the newlines
-  ;; as \n. Checked against the three regexps this replaced on
-  ;; backslashes, doubled backslashes, quotes, newlines, tabs, carriage
-  ;; returns and non-ASCII text: the same string every time. R reads
-  ;; the same escapes as Lisp prints, which is why one stands for the
-  ;; other here.
+The newlines are escaped, so the chunk travels as one line.  comint
+sends a literal newline as a line of its own, and R answers with a
+continuation prompt in the middle of the result."
+  ;; R reads the escapes that `prin1-to-string' writes.
   (let ((print-escape-newlines t))
     (prin1-to-string text)))
 
 (defun overblock-rmd--send (proc beg end)
   "Send the chunk BEG..END to PROC, as the backend's `:send'.
-Wrapped in a `source' of its own parse, so the chunk is one statement
-and one prompt comes back at the end of it; `print.eval' is what makes
-R print the value of every top level expression, as it does at its own
-prompt and as a notebook cell does.  The commentary of this file says
-why the lines cannot simply be sent.
+The chunk is wrapped in a `source' of its own parse, so it is one
+statement and one prompt comes back at its end.  `print.eval' makes R
+print the value of every top level expression.  The commentary of this
+file says why the lines are not sent one by one.
 
-Around the `source' a PNG device, opened before the chunk at the size
-its header or `overblock-rmd-figure-size' says — see
-`overblock-rmd--figure-size' — and closed after it whatever the chunk did:
-a chunk that draws leaves a file for each page, and the exit names each
-on a line of its own, which `overblock-rmd--figures' reads back.  Only
-where R can draw a PNG at all; a chunk that draws nothing leaves no
-file and names none.  The names are R's own temporary files, and go
-with the session.
+Around the `source', a PNG device opens before the chunk at the size
+of `overblock-rmd--figure-size' and closes after it, whatever the
+chunk did.  The exit names each page file on a line of its own, which
+`overblock-rmd--figures' reads back.  This happens only where R can
+draw a PNG.  The files are temporary files of the R session.
 
-`ess-send-string' and not `ess-send-region': the region is not what
-goes down, and `ess-send-region' hands a chunk to ess-tracebug where
-that is on, which would wrap the wrapper.
+`ess-send-string', not `ess-send-region': the text sent is not the
+region, and `ess-send-region' gives the chunk to ess-tracebug when that
+is on, which wraps the wrapper.
 
-A long chunk on one line is no trouble: R\'s console reads a line of
-any length, and 48 kilobytes of escaped chunk — 700 statements — sent
-to R 4.6 through a real pseudo terminal came back with the right answer
-and no continuation prompt."
+The console of R reads a line of any length, so a long chunk on one
+line is safe."
   (pcase-let ((`(,width ,height ,dpi)
-               ;; the header is the line above the code
+               ;; The header is the line above the code.
                (overblock-rmd--figure-size
                 (save-excursion (goto-char beg) (forward-line -1) (point)))))
     (ess-send-string
@@ -530,9 +469,9 @@ source(exprs = parse(text = %s), print.eval = TRUE)})"
 
 (defun overblock-rmd--prompt-p (tail)
   "Return non-nil where TAIL ends at R's prompt.
-`inferior-ess-primary-prompt' says what one looks like, and ESS's own
-`inferior-ess--set-status' asks this same question of that same
-variable.  Call this in the shell buffer, where it has its value."
+`inferior-ess-primary-prompt' says what a prompt looks like, as in
+`inferior-ess--set-status'.  Call this in the shell buffer, where the
+variable has its value."
   (string-match-p (concat inferior-ess-primary-prompt "\\'") tail))
 
 (defconst overblock-rmd--error-regexp "^Error\\(?: in \\|: \\|\\'\\)"
@@ -543,31 +482,29 @@ the next line.")
 
 (defun overblock-rmd--error-p (text)
   "Return non-nil where TEXT is the output of a chunk that failed.
-A pass over the buffer stops at the first chunk this answers for.
+A pass over the buffer stops at the first such chunk.
 
-A chunk whose own output has a line beginning `Error in ' — one that
-prints a log it read from somewhere — answers as a failure too.  The
-two cannot be told apart: R writes its errors to the same stream, in
-the same shape, as the chunk writes everything else."
+A chunk whose own output has a line that starts with `Error in ' also
+counts as failed: R writes its errors to the same stream, in the same
+shape, as all other output."
   (string-match-p overblock-rmd--error-regexp text))
 
 (defun overblock-rmd--step ()
   "Run the chunk at point, and say whether to wait for its prompt.
-The backend's `:step', which is how `overblock-run-next' walks a pass
-down the buffer.  Every region a pass over an Rmd file queues is a
-chunk that goes to R, so the walk always waits; the prose between the
-chunks is rendered by the live cycle and is never queued.
+This is the `:step' of the backend, with which `overblock-run-next'
+walks a pass down the buffer.  Every region a pass queues is a chunk
+for R, so the walk always waits.  The prose is never queued.
 
-A marker whose chunk the reader has deleted since finds nothing, and
-the walk goes on to the next rather than stopping there."
+A marker whose chunk is deleted finds nothing, and the walk goes on to
+the next one."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))
     t))
 
 (defun overblock-rmd--region-at ()
   "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
-From its opening fence, which is where `overblock-rmd--starts' marks a
-chunk, to the end of its code, where its result hangs."
+From its opening fence, where `overblock-rmd--starts' marks it, to the
+end of its code, where its result hangs."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (cons (nth 0 chunk) (nth 2 chunk))))
 
@@ -579,8 +516,7 @@ chunk, to the end of its code, where its result hangs."
 (defun overblock-rmd--backend ()
   "Return what `overblock-run' needs to drive an inferior R.
 The commentary of `overblock-run' lists the slots.  There is no `:arm':
-`overblock-rmd--start' answers with a process that has already
-prompted, so nothing is ever waiting for one."
+`overblock-rmd--start' returns a process that has already prompted."
   (list :name "overblock-rmd"
         :unit "chunk"
         :process #'overblock-rmd--process
@@ -600,8 +536,7 @@ prompted, so nothing is ever waiting for one."
 
 (defun overblock-rmd--chunk-here (event)
   "Return the chunk at point, or the one whose bar EVENT clicked.
-Signals a `user-error' where there is none: that is the answer the
-commands give their reader."
+Signal a `user-error' when there is none."
   (overblock-goto-event event)
   (or (overblock-rmd--chunk-at)
       (user-error "No R chunk here")))
@@ -618,8 +553,8 @@ another one runs is queued behind it."
 ;;;###autoload
 (defun overblock-rmd-run-chunk-and-step ()
   "Run the chunk at point and move to the next one.
-What `code-cells-eval-and-step' is to a cell.  The last chunk runs and
-point stays."
+The chunk version of `code-cells-eval-and-step'.  After the last
+chunk, point stays."
   (interactive)
   (overblock-rmd-run-chunk)
   (condition-case nil (overblock-rmd-forward-chunk) (user-error nil)))
@@ -627,12 +562,10 @@ point stays."
 ;;;###autoload
 (defun overblock-rmd-forward-chunk (&optional arg)
   "Move point to the code of the next chunk, ARG chunks on.
-A negative ARG moves back, which is all `overblock-rmd-backward-chunk'
-does.  Backwards, the code of the chunk point is in comes first, as
-`code-cells-backward-cell' goes to the start of its own cell first."
+A negative ARG moves back.  Backwards, the code of the current chunk
+comes first, as with `code-cells-backward-cell'."
   (interactive "p")
-  ;; The fences are found once, not once a repeat: `C-u 20' walked the
-  ;; whole buffer twenty times for a walk that answers them all.
+  ;; One walk for all repeats.
   (let* ((arg (or arg 1))
          (chunks (overblock-rmd-chunks)))
     (dotimes (_ (abs arg))
@@ -653,23 +586,19 @@ does.  Backwards, the code of the chunk point is in comes first, as
 ;;;###autoload
 (defun overblock-rmd-restart ()
   "Restart R, and remove every result of this buffer.
-The renderings of the prose stay: a rendering has nothing to do with
-the interpreter.
+The renderings of the prose stay.
 
-The process is killed and a fresh one started in its place.  ESS has no
-restart that asks the reader nothing — `ess-quit' runs `ess-cleanup',
-which offers to kill the buffers of the session — and starting again in
-the same buffer is a case `inferior-ess' is written for."
+The process is killed and a new one starts.  ESS has no restart that
+asks nothing: `ess-quit' runs `ess-cleanup', which offers to kill the
+buffers of the session."
   (interactive)
   (overblock-run-restart
    "R was restarted"
    (lambda (proc)
      (when proc
        (delete-process proc)
-       ;; ESS keeps the names of the processes it started in a list of
-       ;; its own, and reads that list to find a free one. Asked to
-       ;; refresh it here, the dead process leaves its name behind and
-       ;; the new R takes the same name and the same buffer.
+       ;; Refreshed, the list drops the dead process, so the new R
+       ;; takes the same name and buffer.
        (update-ess-process-name-list))
      (overblock-rmd--start))))
 
@@ -686,22 +615,19 @@ The pass stops at the first error, or on `overblock-run-stop'."
 
 (defun overblock-rmd--stay-in-host (&optional off)
   "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
-The commentary of this file says why: polymode carries the overlays of
-the buffer along when it switches, and the bars and the blocks of this
-mode are overlays whose owner stays behind.  Nothing happens where
-polymode is not on in this buffer.
+The commentary of this file says why.  Nothing happens where polymode
+is off.
 
-Called when the mode goes on, and again from `polymode-init-host-hook':
-the mode is put on by `markdown-mode-hook', which polymode runs before
-it has set `pm/polymode' in the buffer."
+Called when the mode goes on and from `polymode-init-host-hook':
+polymode runs `markdown-mode-hook', which turns the mode on, before it
+sets `pm/polymode'."
   (when (bound-and-true-p pm/polymode)
     (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
-overblock-rmd binds no keys; put your own here.  The keys of the Python
-notebook are the natural candidates, so a hand that knows one knows the
-other:
+overblock-rmd binds no keys; put your own here, for example those of
+the Python notebook:
 
   (keymap-set overblock-rmd-mode-map \"C-<return>\"
               #\\='overblock-rmd-run-chunk)
@@ -713,43 +639,32 @@ other:
 (define-minor-mode overblock-rmd-mode
   "Run the R chunks of this buffer and show their results inline.
 Every chunk gets a bar with a run button, the prose between the chunks
-reads as it will look, and a click on a rendering gives its source
-back.  Turn the mode off to remove the bars, the results and the
-renderings.  The mode binds no keys: `overblock-rmd-mode-map' is empty
-and yours to fill.
+shows as it will look, and a click on a rendering shows its source.
+Turn the mode off to remove the bars, the results and the renderings.
+The mode binds no keys: `overblock-rmd-mode-map' is empty.
 
-`overblock-md-command' is what renders the prose, and the prose stays
-as it is where none of its candidates is installed; the chunks run
-either way.
+`overblock-md-command' renders the prose.  When none of its candidates
+is installed, the prose stays as it is and the chunks still run.
 
-Under polymode the buffer stays in its host mode while this mode is on:
-polymode would otherwise show each chunk in an indirect buffer of its
-own and carry the bars and the results back and forth with it, which
-drew them twice.  The chunks are still fontified and indented as R."
+Under polymode the buffer stays in its host mode while this mode is on,
+because polymode moves the overlays to an indirect buffer for each
+chunk.  The chunks are still fontified and indented as R."
   :lighter " Rmd"
   (when overblock-rmd-mode
     (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
   (if overblock-rmd-mode
       (progn
-        ;; Both modes render prose through the same live cycle and the
-        ;; same kind of block, so two of them in one buffer would each
-        ;; take the other's renderings down. This one renders the prose
-        ;; of an Rmd file itself, so it is the one to keep.
+        ;; Both modes use the same live cycle and kind of block, and
+        ;; would remove the renderings of each other.
         (when (bound-and-true-p overblock-md-preview-mode)
           (overblock-md-preview-mode -1)
           (message "overblock-rmd: overblock-md-preview-mode off, %s"
                    "this mode renders the prose itself"))
-        ;; What the runner reads to know this is a notebook it may draw
-        ;; in, and how to reach R.
         (overblock-run-attach (overblock-rmd--backend))
-        ;; ESS asks these of the buffer it starts a process for, and an
-        ;; Rmd buffer is no ESS buffer: without them
-        ;; `ess-force-buffer-current' would ask the reader which
-        ;; language to run before it ran anything.
+        ;; Without these, `ess-force-buffer-current' asks which
+        ;; language to run: an Rmd buffer is no ESS buffer.
         (setq-local ess-dialect "R")
         (setq-local ess-language "S")
-        ;; The chunks are code and are run; the prose is what gets
-        ;; rendered.
         (setq-local overblock-md-preview-regions-function
                     #'overblock-rmd--prose)
         (overblock-rmd--stay-in-host)
@@ -766,12 +681,11 @@ drew them twice.  The chunks are still fontified and indented as R."
 ;;;###autoload
 (defun overblock-rmd-mode-maybe ()
   "Enable `overblock-rmd-mode' in a buffer visiting an Rmd file.
-Made for a major mode hook, where your configuration adds it:
+Add it to a major mode hook:
 
   (add-hook \\='markdown-mode-hook #\\='overblock-rmd-mode-maybe)
 
-The package installs no hook itself: installing it must not change how
-Emacs behaves."
+The package installs no hook itself."
   (when (and buffer-file-name
              (string-match-p "\\.[rR]md\\'" buffer-file-name))
     (overblock-rmd-mode)))
