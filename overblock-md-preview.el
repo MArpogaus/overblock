@@ -138,8 +138,8 @@ it that begins at the left margin begins an item.  With EVERY, each
 fence ends its paragraph.
 
 An item ends a later paragraph of an item, which is indented and no
-item itself: alone, the converter reads the item as more text of that
-paragraph."
+item itself: in one block with it, the converter reads the item as
+more text of that paragraph."
   (cond (fence
          (or every
              (overblock-md-preview--margin-p fence)

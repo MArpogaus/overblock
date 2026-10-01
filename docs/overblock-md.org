@@ -91,13 +91,17 @@ a terminal still tells what is there. An image named by URL is fetched
 once into the folder =overblock-images/= of the XDG cache folder
 (=~/.cache= by default), and drawn from there. A URL that failed is
 not asked for again in the session, until
-=overblock-md-forget-failed-images=. With =overblock-md-remote-images=
+=overblock-md-forget-failed-images=. An answer that is not an image,
+such as the error page of a 404, is a failure too, and the file is not
+kept. With =overblock-md-remote-images=
 nil, the package fetches nothing and shows such an image as its alt
 text. shr does not get it, because shr would fetch it.
 
 A terminal draws no image, and the placeholder of shr is itself an
 image that hides the text under it. Thus where images cannot show, the
-label goes in as text: the alt text, or the file name in brackets.
+label goes in as text: the alt text, or the file name in brackets for a
+local file. A remote image that is not fetched shows only its alt text,
+and nothing where the alt text is empty.
 
 The cap of an image is the work of the layer: =overblock-image-cap= and
 =overblock-image-height=, in [[file:overblock.org][the notes of the
@@ -161,6 +165,10 @@ columns and the bold header carry the table, without rules.
 A table is laid out in characters and not in pixels. Thus its columns
 align over the fixed-pitch lines of a buffer, and a face cannot move
 them.
+
+shr paints the background of a code block or a table row only as far
+as the text of each row. The renderer paints each row to the width of
+the longest row, indentation included.
 
 ** Code blocks
 
@@ -239,8 +247,9 @@ indented code block and opens no block. A closing fence is at most
 three columns in, or three columns deeper than such a deep opening
 fence. The columns are counted in the text, because a rendering hides
 the indentation from =current-indentation=. A later paragraph of a
-list item ends at the next item. Alone, the converter reads that item
-as more text of the paragraph, and the item loses its bullet.
+list item ends at the next item. In one block with that paragraph, the
+converter reads the item as more text of the paragraph, and the item
+loses its bullet.
 
 Under a list item, a block goes to the converter without the spaces
 that indent its first line. Thus a fence under a later paragraph is not
