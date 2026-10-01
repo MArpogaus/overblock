@@ -658,8 +658,7 @@ never looked at."
 A package of this repository does not change how Emacs behaves by
 being loaded, which the two notebook modes promise in their own
 docstrings, and a buffer that renders nothing needs no theme watch."
-  (let ((overblock-md--watching-themes nil)
-        (enable-theme-functions nil)
+  (let ((enable-theme-functions nil)
         (disable-theme-functions nil))
     (should-not (memq #'overblock-md--theme-changed enable-theme-functions))
     (overblock-md--watch-themes)

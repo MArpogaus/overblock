@@ -252,19 +252,14 @@ rendered formula in the old colour until it is rendered again."
     (with-current-buffer buffer
       (overblock-md--drop-and-settle 'overblock-md-math))))
 
-(defvar overblock-md--watching-themes nil
-  "Whether the theme hooks are installed yet.")
-
 (defun overblock-md--watch-themes ()
   "Have a theme change redraw the formulas, from the first rendering on.
 Installed here and not at load: a package of this repository installs
 no hook by being loaded — the two notebooks say so in their own mode
 docstrings — and a buffer that renders nothing needs none of this.
 The first rendering of the session is what asks for it."
-  (unless overblock-md--watching-themes
-    (setq overblock-md--watching-themes t)
-    (add-hook 'enable-theme-functions #'overblock-md--theme-changed)
-    (add-hook 'disable-theme-functions #'overblock-md--theme-changed)))
+  (add-hook 'enable-theme-functions #'overblock-md--theme-changed)
+  (add-hook 'disable-theme-functions #'overblock-md--theme-changed))
 
 (defvar overblock-md--latex-arrivals nil
   "The buffers whose previews have arrived and are not drawn yet.
