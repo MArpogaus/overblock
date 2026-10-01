@@ -27,15 +27,15 @@
 ;; Run with: make scroll
 ;;
 ;; A block is one buffer line and can be taller than the window, which
-;; is the case redisplay gets wrong.  This test scrolls a window up
-;; over such blocks and fails when the window ever moves down.  It
-;; guards the promise the package makes: with the scroll options at
-;; their defaults, the wheel moves through blocks in one direction.
+;; redisplay handles badly.  This test scrolls a window over such
+;; blocks and fails when the window moves the wrong way: with the
+;; scroll options at their defaults, the wheel moves through blocks in
+;; one direction.
 ;;
 ;; The test needs a graphical frame, because only there does a line
 ;; have a pixel height and can a window show part of one.  A batch
-;; session skips it; without a display, run it under `xvfb-run', which
-;; is what the CI does.
+;; session skips it; without a display, run it under `xvfb-run', as the
+;; CI does.
 
 ;;; Code:
 
@@ -62,10 +62,9 @@ Enough prose that each rendered block is taller than the window."
   "Scroll the window up to the top, 40 pixels at a time.
 Return the steps that went wrong, as a list of strings.  Scrolling up
 may only lower the window start, or keep it and lower the vscroll,
-and it may not signal on the way: a line of no height, or a hidden
-run that begins a line, stops `pixel-scroll-precision-scroll-up' with
-a beginning-of-buffer error in the middle of a cell, which is a
-refusal to scroll and not the end of the buffer."
+and it must not signal on the way: a line of no height, or a hidden
+run that starts a line, makes `pixel-scroll-precision-scroll-up'
+signal beginning-of-buffer in the middle of a cell."
   (goto-char (point-max))
   (set-window-start nil (point))
   (set-window-vscroll nil 0 t)
@@ -91,8 +90,7 @@ refusal to scroll and not the end of the buffer."
                         (line-number-at-pos (car previous)) (cdr previous)
                         (line-number-at-pos (car now)) (cdr now))
                 reversals))
-        ;; Stop at the top; what the scroll command does once there is
-        ;; not this test's business.
+        ;; Stop at the top.
         (when (= (car now) (point-min))
           (setq steps 999))
         (setq previous now)))
@@ -101,9 +99,8 @@ refusal to scroll and not the end of the buffer."
 (defun overblock-pycell-scroll-test--stalls ()
   "Scroll the window down from the top, 40 pixels at a time.
 Return the steps that went wrong.  Scrolling down may only raise the
-window start, or keep it and raise the vscroll: a block the wheel
-bounces off keeps the window where it is, or throws it back, and the
-buffer below stays out of reach."
+window start, or keep it and raise the vscroll; a block the wheel
+bounces off keeps the buffer below out of reach."
   (goto-char (point-min))
   (set-window-start nil (point))
   (set-window-vscroll nil 0 t)
@@ -131,9 +128,8 @@ buffer below stays out of reach."
         (when (pos-visible-in-window-p (point-max))
           (setq steps 999))
         (setq previous now)))
-    ;; Reaching the end is the point: a wheel that inches forward for
-    ;; 250 events without arriving is stuck as surely as one that
-    ;; bounces, and an empty list would call that a pass.
+    ;; The end must be reached: a wheel that does not arrive in 250
+    ;; events is stuck too.
     (unless (> steps 900)
       (push (format "the end stayed out of reach, at line %d"
                     (line-number-at-pos (window-start)))
@@ -158,9 +154,7 @@ a short one after them, which is where redisplay changes lines."
           (python-mode)
           (code-cells-mode)
           (overblock-pycell-mode 1)
-          ;; The renderings are asked of a process and not waited for,
-          ;; which is the point of it; a test has to wait where a reader
-          ;; does not.
+          ;; The renderings come from an asynchronous process.
           (overblock-test-common-converted)
           (redisplay t)
           ;; The blocks are the point of the test.
@@ -169,28 +163,20 @@ a short one after them, which is where redisplay changes lines."
                               (overblock-in (point-min) (point-max) 'markdown)))
                      3))
           (should (equal (overblock-pycell-scroll-test--stalls) nil))
-          ;; The wheel goes one way from Emacs 30 on; see
-          ;; `overblock-pycell-scroll-test-one-way' for what 29 does.
+          ;; One way only from Emacs 30; see
+          ;; `overblock-pycell-scroll-test-one-way'.
           (when (>= emacs-major-version 30)
             (should (equal (overblock-pycell-scroll-test--reversals) nil))))
       (kill-buffer buffer))))
 
 (ert-deftest overblock-pycell-scroll-test-one-way ()
   "Scrolling up over a tall block never moves the window down.
-Emacs 29 does move it down, and the fault is `pixel-scroll.el''s, not
-this package's: its `pixel-scroll-precision-scroll-up-page' sets the
-window start and leaves point wherever its own walk put it, and where
-that is outside the window redisplay recenters — which puts the start
-back below where it was.  Measured on the CI, Ubuntu's Emacs 29.3 in a
-frame of 1032 by 697: the start jumped forward from line 39 to line 65
-at step 23 of the walk.
-
-Emacs 30 rewrote the function to end with \"Move point to a position
-where redisplay will not recenter, if it is now outside the window\",
-and the walk has gone one way since; the emacs-29 branch never took
-that fix.  So this asks Emacs 30 and later, and
-`overblock-pycell-scroll-test-defaults' asks every version whether the
-top is still reachable, which it is."
+In Emacs 29, `pixel-scroll-precision-scroll-up-page' of pixel-scroll.el
+sets the window start and can leave point outside the window, and
+redisplay then recenters, below the old start.  Emacs 30 moves point
+where redisplay does not recenter.  So this runs on Emacs 30 and
+later, and `overblock-pycell-scroll-test-defaults' tests on every
+version that the end is reachable."
   (skip-unless (display-graphic-p))
   (skip-unless (overblock-md-program))
   (skip-unless (>= emacs-major-version 30))
@@ -211,18 +197,14 @@ top is still reachable, which it is."
 
 (ert-deftest overblock-pycell-scroll-test-figures ()
   "A wheel passes a result that holds a figure, in both directions.
-The rows of such a result ride a string, because a display property
-swallows an image.  Measured while this test was written: with those rows
-on the after-string of the newline and the newline itself replaced by an
-empty display string, `pixel-scroll-precision-scroll-up' refused to
-pass the block — 280 refusals with a beginning-of-buffer error over six
-figures — where the same buffer with the newline left alone scrolls to
-the top without one.  The rows therefore ride the anchor, and this test
-is what says so."
+The rows of such a result are an overlay string, because a display
+string swallows an image.  They are on the anchor, and the newline is
+not hidden: with the newline replaced by an empty display string,
+`pixel-scroll-precision-scroll-up' cannot pass the block."
   (skip-unless (display-graphic-p))
   (skip-unless (image-type-available-p 'svg))
   (let ((buffer (generate-new-buffer "*overblock-pycell figures*"))
-        ;; A square of a colour, as tall as a figure from matplotlib.
+        ;; A coloured rectangle as tall as a figure from matplotlib.
         (figure (create-image
                  (concat "<svg xmlns=\"http://www.w3.org/2000/svg\" "
                          "width=\"300\" height=\"600\">"
@@ -248,7 +230,7 @@ is what says so."
           (redisplay t)
           (should (= (length (overblock-in (point-min) (point-max) 'result))
                      6))
-          ;; every one of them holds a figure, or the test proves nothing
+          ;; Every result holds a figure, or the test proves nothing.
           (should (seq-every-p (lambda (block)
                                  (overblock-image-in
                                   (or (overlay-get block 'after-string) "")))
