@@ -1103,6 +1103,17 @@ line does, left that row empty and the rest one row off."
                              (overlays-at (point)))
                    "beta four"))))
 
+(ert-deftest overblock-test-a-block-drawn-unseen-is-drawn-again-when-seen ()
+  "A block drawn with no window makes the next width check redraw.
+A buffer in another tab during a theme change kept renderings built
+for no width: the width it came back at was the width it had before."
+  (with-temp-buffer
+    (insert "one\n")
+    (setq-local overblock--columns 80)
+    (cl-letf (((symbol-function 'overblock-window-columns) #'ignore))
+      (overblock-show (point-min) (point-max) :over "A"))
+    (should-not overblock--columns)))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

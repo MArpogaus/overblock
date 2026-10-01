@@ -180,6 +180,11 @@ this, because an orphan has no kind."
 Extended, because past the end of a line only a face with `:extend'
 paints, and the face of the source's newline showed there instead.")
 
+(defvar-local overblock--columns nil
+  "The columns this buffer was last drawn at, or nil before the first look.
+`overblock--width-changed' compares with it, so its hooks, which run
+for every kind of change, redraw only when the width changed.")
+
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
 Return nil where BEG..END holds nothing to hang a block on: an anchor
@@ -247,8 +252,12 @@ by every `overblock-refresh'."
         (overlay-put block 'face overblock--plain))
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, for
-      ;; `overblock--width-changed'.
-      (overlay-put block 'overblock-columns (overblock-window-columns))
+      ;; `overblock--width-changed'.  Built with no window to measure,
+      ;; the buffer forgets its width, so the next window that shows it
+      ;; draws it again.
+      (let ((columns (overblock-window-columns)))
+        (overlay-put block 'overblock-columns columns)
+        (unless columns (setq overblock--columns nil)))
       ;; `modification-hooks' belong to the caller. The two slots of the
       ;; layer exist from the start, so every `plist-put' changes the
       ;; list in place.
@@ -1509,11 +1518,6 @@ window, which `text-scale-adjust' makes differ from that of the frame.
 Return nil where no window shows the buffer; see
 `overblock--window-min'."
   (overblock--window-min #'window-max-chars-per-line))
-
-(defvar-local overblock--columns nil
-  "The columns this buffer was last drawn at, or nil before the first look.
-`overblock--width-changed' compares with it, so its hooks, which run
-for every kind of change, redraw only when the width changed.")
 
 (defvar-local overblock-width-functions nil
   "Functions called with no arguments when this buffer changes width.
