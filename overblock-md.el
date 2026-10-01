@@ -38,7 +38,8 @@
 ;;
 ;; A rendered table is laid out in characters rather than pixels, so its
 ;; columns line up over the fixed-pitch lines of a buffer.  A local
-;; image is drawn on the spot rather than fetched.
+;; image is drawn on the spot rather than fetched.  An image named by
+;; URL is fetched once into a cache, and drawn from there.
 ;;
 ;; Rendering a whole buffer of cells calls the program once, with
 ;; `overblock-md-html-batch-async'.

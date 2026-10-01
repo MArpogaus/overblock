@@ -43,8 +43,8 @@
 ;; text.  The text then hangs on the source lines it replaces, a piece
 ;; to a line, and latex-to-svg-backend turns the formulas into preview
 ;; images.  A click on a rendering shows the source, and the cell
-;; renders again after the edit, through the live cycle of
-;; `overblock-md-preview-mode'.
+;; renders again after the edit, through the live cycle of the layer,
+;; as in `overblock-md-preview-mode'.
 ;;
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.

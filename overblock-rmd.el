@@ -625,8 +625,8 @@ sets `pm/polymode'."
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
-overblock-rmd binds no keys; put your own here, for example those of
-the Python notebook:
+overblock-rmd binds no keys; put your own here.  The Python notebook
+binds none either.  For example:
 
   (keymap-set overblock-rmd-mode-map \"C-<return>\"
               #\\='overblock-rmd-run-chunk)
