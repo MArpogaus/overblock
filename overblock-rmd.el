@@ -479,9 +479,8 @@ call on the next line, `Error: ' where there is none, and a bare
   "Return non-nil where TEXT is the output of a chunk that failed.
 A pass over the buffer stops at the first such chunk.
 
-A chunk whose own output has a line that starts with `Error in ' also
-counts as failed: R writes its errors to the same stream, in the same
-shape, as all other output."
+A line of the output that matches `overblock-rmd--error-regexp' marks
+it: R writes its errors to the same stream as all other output."
   (string-match-p overblock-rmd--error-regexp text))
 
 (defun overblock-rmd--step ()
