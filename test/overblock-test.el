@@ -1045,6 +1045,17 @@ lines in order put every line after it one row too high."
       (should (equal (funcall shown 3) "text one"))
       (should (equal (funcall shown 4) "text two")))))
 
+(ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
+  "The blank line shr puts after a heading does not make its row taller."
+  (with-temp-buffer
+    (insert "Head\nbody one\nbody two\n")
+    (overblock-show (point-min) (point-max)
+                    :over "Head\n\nbody one\nbody two")
+    (goto-char (point-min))
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "Head"))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the bounds of the region while the reader
