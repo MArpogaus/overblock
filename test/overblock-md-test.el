@@ -309,6 +309,15 @@ An HTML comment split at a blank line takes the marker between its halves."
     ;; The whole, then each half.
     (should (= runs 3))))
 
+(ert-deftest overblock-md-test-a-block-with-no-language-wears-the-code-face ()
+  "A fenced block that names no language still looks like code."
+  (skip-unless (overblock-md-program))
+  (let* ((shown (overblock-md-rendered "```\nplain\n```\n"))
+         (at (string-search "plain" shown)))
+    (should at)
+    (should (memq 'overblock-md-code
+                  (ensure-list (get-text-property at 'face shown))))))
+
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
 `:stderr nil' would mix the warnings of pandoc into the HTML."

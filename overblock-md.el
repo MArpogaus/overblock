@@ -692,8 +692,8 @@ HTML comment across a blank line does.  Each half of TEXTS then goes
 again in a process of its own, and a text alone gets nil, for the
 caller to convert alone.  One such text costs a few processes in the
 background, not one in the foreground for each text.  A PAGE of nil is
-a converter that failed, as pandoc does on front matter cut by a
-marker, and halves the same way."
+a converter that failed, as pandoc does where a marker lands in a YAML
+block, and halves the same way."
   (if-let* ((pieces (or (overblock-md--batch-pieces page texts)
                          (null (cdr texts)))))
       (funcall callback (and (consp pieces) pieces))
@@ -714,7 +714,7 @@ marker, and halves the same way."
 CALLBACK gets the list in the order of TEXTS.  A batch that loses its
 markers goes again in halves, and a text that still fails alone gets
 nil in the list; see `overblock-md--batch-answer'.  CALLBACK gets nil
-where the converter is missing or failed, or a text holds the marker.
+where the converter is missing or a text holds the marker.
 
 Nothing waits for the process, so Emacs does not freeze.  When the
 buffer that asked dies first, the answer is dropped."
@@ -1025,7 +1025,7 @@ The language is in the class of the <pre> or of its <code>: pandoc
 writes `python', markdown_py and cmark `language-python'.
 `overblock-md-code-modes' maps it to a mode, else LANGUAGE-mode through
 `major-mode-remap-alist'.  A mode that this Emacs does not have gives
-nil, and shr draws the block."
+nil, and the block wears `overblock-md-code'."
   (when-let* ((overblock-md-code-modes)
               (class (or (dom-attr dom 'class)
                          (dom-attr (dom-child-by-tag dom 'code) 'class)))
@@ -1051,7 +1051,7 @@ and `dom-inner-text' is not in Emacs 29.1."
 The code goes through a buffer in that mode and comes back with its
 faces.  The indentation of shr comes before each line, so a block in a
 list item keeps its place.  A block whose language this Emacs does not
-have, or that names none, keeps the default faces.
+have, or that names none, wears `overblock-md-code'.
 
 Under the faces of the language goes only the background of
 `overblock-md-code', so `overblock-md--squared' makes a rectangle of
@@ -1060,11 +1060,13 @@ the block, and plain identifiers keep the default colour."
          (shr-folding-mode 'none)
          (code (with-temp-buffer
                  (insert (string-trim-right (overblock-md--text dom)))
-                 (when mode
-                   (let ((inhibit-message t)
-                         (message-log-max nil))
-                     (ignore-errors (delay-mode-hooks (funcall mode)))
-                     (font-lock-ensure)))
+                 (if mode
+                     (let ((inhibit-message t)
+                           (message-log-max nil))
+                       (ignore-errors (delay-mode-hooks (funcall mode)))
+                       (font-lock-ensure))
+                   (add-face-text-property (point-min) (point-max)
+                                           'overblock-md-code))
                  (let ((code (buffer-string)))
                    (when-let* ((background (overblock-md--background
                                             'overblock-md-code)))
