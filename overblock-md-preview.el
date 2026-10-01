@@ -115,14 +115,16 @@ end of the buffer."
 OPEN is the start of the fence line that opened the block, or nil.  An
 opening fence four columns in opens a block only under a list item.  A
 closing fence is at most three columns in, or three deeper than an
-opening one under a list item.  The columns are counted in the text: a
-rendering hides the indentation from `current-indentation'."
+opening one at the content column of a list item.  The columns are
+counted in the text: a rendering hides the indentation from
+`current-indentation'."
   (if open
       (let ((from (save-excursion
                     (goto-char open)
                     (skip-chars-forward " ")
                     (- (point) open))))
-        (> indent (if (and (> from 0) (overblock-md-preview--in-item-p open))
+        (> indent (if (>= from (or (overblock-md-preview--in-item-p open)
+                                   most-positive-fixnum))
                       (+ from 3)
                     3)))
     (and (> indent 3)
@@ -153,12 +155,16 @@ more text of that paragraph."
                    (overblock-md-preview--in-item-p from)))))
 
 (defun overblock-md-preview--in-item-p (pos)
-  "Return non-nil where the indented line at POS belongs to a list item."
+  "Return the content column of the list item the line at POS is under.
+That is the column of the text after the marker of the nearest line
+above POS that begins at the left margin, where that line begins an
+item.  Return nil elsewhere."
   (save-excursion
     (goto-char pos)
     (while (and (zerop (forward-line -1))
                 (looking-at-p "[ \t]\\|[ \t]*$")))
-    (overblock-md-preview--item-p (point))))
+    (when (looking-at "[ \t]*\\(?:[-+*]\\|[0-9]+[.)]\\)[ \t]+")
+      (- (match-end 0) (point)))))
 
 (defun overblock-md-preview--item-p (pos)
   "Return non-nil where the line at POS begins a list item."

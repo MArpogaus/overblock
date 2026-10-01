@@ -369,6 +369,11 @@ The item is one block, and the fence is not a second one over it."
     (insert "- a\n\n  ```\n  x\n     ```\n\nEnd.\n")
     (should (equal (overblock-md-preview-fences (point-max))
                    '((6 . 24)))))
+  ;; A fence left of the item's text is no part of the item.
+  (with-temp-buffer
+    (insert "1. a\n\n  ```\n  x\n     ```\n  y\n  ```\n\nEnd.\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   (list (cons 7 (- (point-max) 7))))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")
