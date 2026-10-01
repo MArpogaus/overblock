@@ -178,6 +178,12 @@ that holds an svg tag counts too."
         (insert-file-contents file nil 0 4096)
         (search-forward "<svg" nil t))))
 
+(defun overblock-md--create-image (file)
+  "Return the image of FILE, an SVG where its header says nothing.
+`overblock-md--image-p' takes such a file for an SVG, and its name in
+the cache can end in `.img'."
+  (create-image file (unless (image-type-from-file-header file) 'svg)))
+
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
 The file is kept in the cache beside the LaTeX previews, named after
@@ -975,7 +981,8 @@ still names the figure."
       ;; display property either: the placeholder of shr is an image,
       ;; which would hide the label.
       (insert (propertize (if (and file (display-images-p))
-                              (propertize label 'display (create-image file))
+                              (propertize label 'display
+                                          (overblock-md--create-image file))
                             label)
                           'overblock-md-label t)))))
 

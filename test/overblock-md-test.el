@@ -216,11 +216,20 @@ that the rendering has already left."
                      (lambda (_url file &rest _)
                        (with-temp-file file
                          (insert "\ufeff<svg xmlns=\"http://www.w3.org/2000/svg\"/>")))))
-            (should (overblock-md--remote-file "https://example.org/bom.svg")))
+            (should (overblock-md--remote-file "https://example.org/bom.svg"))
+            ;; Under a query URL the file is `<md5>.img', and still an SVG.
+            (let ((file (overblock-md--remote-file "https://example.org/b?s=1")))
+              (should (string-suffix-p ".img" file))
+              (should (eq (image-property (overblock-md--create-image file)
+                                          :type)
+                          'svg))))
           (should (equal (directory-files (expand-file-name "overblock-images" cache)
                                           nil "\\`[^.]")
-                         (list (overblock-md--cache-name
-                                "https://example.org/bom.svg")))))
+                         (sort (list (overblock-md--cache-name
+                                      "https://example.org/bom.svg")
+                                     (overblock-md--cache-name
+                                      "https://example.org/b?s=1"))
+                               #'string<))))
       (delete-directory cache t))))
 
 (ert-deftest overblock-md-test-no-parser-no-program ()
