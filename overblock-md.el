@@ -1173,8 +1173,8 @@ caller then leaves the markdown as it is."
         (overblock-md--own-links)
         (overblock-flatten-alignment)
         ;; Trim whole blank lines, never the indentation of the first
-        ;; line: a table at the start keeps its columns. Capped here
-        ;; too, because shr draws a `data:' or `cid:' image itself.
+        ;; line: a table at the start keeps its columns. Every image of
+        ;; the rendering is capped here.
         (overblock-image-cap
          (overblock-md--squared
           (overblock-md--unstow-math
