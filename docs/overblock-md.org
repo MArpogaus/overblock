@@ -242,10 +242,12 @@ converter, and the rendering is put back over its lines, one piece for
 each line.
 
 A block is the front matter at the top of the buffer, a fenced code
-block, an HTML comment at the left margin after a blank line, or else
-the run of lines between two blank lines. Front matter runs from the
-first line of three dashes to the next line of three dashes or three
-dots, whatever blank lines stand in it. A
+block, an HTML comment at the left margin outside a paragraph, or else
+the run of lines between two blank lines. Front matter runs from a
+first line of three dashes, with text right under it, to the next line
+of three dashes or three dots, whatever blank lines stand in it. A
+comment is outside a paragraph after a blank line, a heading, a fence
+or the end of front matter. A
 comment runs to its =-->=, whatever blank lines stand in it, and a
 fence in it opens nothing. Inside a paragraph a comment is part of the
 paragraph. In an Rmd file a chunk inside a comment still runs, so there

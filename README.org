@@ -177,7 +177,7 @@ buffer whose major mode derives from =markdown-mode=.
 
 The unit of the preview is a Markdown block. A block is the front
 matter at the top of the file, a fenced code block, an HTML comment
-after a blank line, or the run of lines between two blank lines or
+outside a paragraph, or the run of lines between two blank lines or
 fences. A fence
 indented under a list item is part of that item. A click on
 a rendered block shows its source, and a click on a link opens the link.

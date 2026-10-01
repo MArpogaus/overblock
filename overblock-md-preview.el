@@ -31,7 +31,7 @@
 ;;
 ;; The unit is the markdown block: the front matter, the run of lines
 ;; between two blank lines or fences, a whole fenced block of code, or
-;; an HTML comment after a blank line.
+;; an HTML comment outside a paragraph.
 ;; A fence indented under a list item is part of that item.  A line of
 ;; markdown is often not markdown by itself.  A row of a table needs the
 ;; rows around it, a line of a fenced block is code, and an item needs
@@ -99,7 +99,7 @@ chunk as its closing fence.  A fence that is never closed runs to the
 end of the buffer.
 
 With COMMENTS, an HTML comment that begins a block at the left margin,
-after a blank line, is one region up to its end, and a fence in it
+outside a paragraph, is one region up to its end, and a fence in it
 opens nothing.  Split at a blank line, its closing half would show as
 text, and a fence in it would open a block.  In an Rmd file a chunk
 in a comment still runs, so `overblock-rmd' asks for none."
@@ -321,7 +321,7 @@ in order, so one walk does it."
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
 whole fenced block of code, the front matter at the top, an HTML
-comment at the left margin after a blank line, or else the run of
+comment at the left margin outside a paragraph, or else the run of
 lines between two blank lines or fences.  A fence indented
 under a list item is part of that item.  PROSE-ONLY leaves the fenced
 blocks and the front matter out, and reads no comments, for a caller
