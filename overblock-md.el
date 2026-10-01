@@ -168,7 +168,7 @@ plain one, which tells Emacs the kind of image."
               ".img"))))
 
 (defconst overblock-md--svg-start-regexp
-  (concat "\\`\ufeff?\\(?:[ \t\r\n]+\\|<\\?[^>]*>\\|<!--\\(?:[^-]\\|-[^-]\\)*-->"
+  (concat "\\`\ufeff?\\(?:[ \t\r\n]\\|<\\?[^>]*>\\|<!--\\(?:[^-]\\|-[^-]\\)*-->"
           "\\|<!DOCTYPE[^[>]*\\(?:\\[[^]]*\\]\\)?[ \t\r\n]*>\\)*<svg")
   "What the start of an SVG file looks like: the svg tag comes first.
 Before it only a byte-order mark, blanks, the XML declaration, comments
@@ -179,11 +179,12 @@ and a DOCTYPE stand.  An error page that holds an svg icon is no SVG.")
 Not `image-supported-file-p', which reads the name: a URL with a query
 caches as `<md5>.img'.  An SVG with a DOCTYPE subset or a byte-order
 mark has no header that `image-type-from-file-header' knows, so a file
-that begins with an svg tag counts too."
-  (or (image-type-from-file-header file)
-      (with-temp-buffer
-        (insert-file-contents file nil 0 4096)
-        (and (looking-at-p overblock-md--svg-start-regexp) 'svg))))
+that begins with an svg tag counts too.  A directory holds no image."
+  (and (file-regular-p file)
+       (or (image-type-from-file-header file)
+           (with-temp-buffer
+             (insert-file-contents file nil 0 4096)
+             (and (looking-at-p overblock-md--svg-start-regexp) 'svg)))))
 
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.

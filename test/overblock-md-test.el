@@ -860,7 +860,12 @@ without a formula stays."
         (let ((default-directory (file-name-as-directory dir)))
           (with-temp-file "shot.png"
             (insert "version https://git-lfs.github.com/spec/v1\n"))
-          (should-not (overblock-md--image-file "shot.png")))
+          (should-not (overblock-md--image-file "shot.png"))
+          ;; Blanks before the text are read in linear time.
+          (with-temp-file "blank.png" (insert (make-string 200 ?\n) "text"))
+          (should-not (overblock-md--image-file "blank.png"))
+          (make-directory "figs")
+          (should-not (overblock-md--image-file "figs")))
       (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
