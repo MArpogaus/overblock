@@ -52,16 +52,16 @@
 
 (ert-deftest overblock-test-a-trusted-terminal-gets-the-icons ()
   "A terminal draws the best candidate where the reader says it can.
-Emacs cannot ask a terminal what its font holds, so the icons are kept
-from it until `overblock-terminal-glyphs' says otherwise.  Then the
-coding system decides, which is the one thing a terminal can be asked."
+Emacs cannot test the font of a terminal, so a terminal gets no icons
+unless `overblock-terminal-glyphs' is non-nil.  Then the coding system
+decides."
   (let ((overblock-terminal-glyphs nil))
     (overblock--forget-glyphs)
     (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "copy")))
   (let ((overblock-terminal-glyphs t))
     (overblock--forget-glyphs)
     (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "\uEBCC"))
-    ;; and what this terminal cannot encode it still does not get
+    ;; What the terminal cannot encode, it still does not get.
     (cl-letf (((symbol-function 'char-displayable-p)
                (lambda (ch) (not (eq ch ?\uEBCC)))))
       (overblock--forget-glyphs)
@@ -70,8 +70,8 @@ coding system decides, which is the one thing a terminal can be asked."
 
 (ert-deftest overblock-test-the-glyph-answer-is-forgotten-on-a-change ()
   "An answer kept from before the option changed is not reused.
-The answers are memoized per display, font and option, and the option
-is what a reader turns on once the bars are already drawn."
+The answers are memoized per display, font and option, and a reader
+can change the option after the bars are drawn."
   (let ((overblock-terminal-glyphs nil))
     (should (equal (overblock-glyph "\uEBCC" "◫" "copy") "copy")))
   (let ((overblock-terminal-glyphs t))
@@ -79,10 +79,10 @@ is what a reader turns on once the bars are already drawn."
 
 (ert-deftest overblock-test-glyph-weighs-every-character ()
   "A leading space must not answer for the glyph behind it.
-Several candidates lead with one, and a space is always there, so
-asking the first character alone accepted every candidate."
+Some candidates start with a space, which is always drawable, so every
+character is tested."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
-            ;; a frame with the space and two of the three arrows
+            ;; A frame with the space and two of the three arrows.
             ((symbol-function 'char-displayable-p)
              (lambda (ch) (memq ch '(?\s ?▶ ?>)))))
     (should (equal (overblock-glyph " ▸" " ▶" " >") " ▶"))
@@ -95,9 +95,9 @@ asking the first character alone accepted every candidate."
 
 (ert-deftest overblock-test-slots ()
   "Each row of a block lands in the slot that suits it.
-The header is a string, where a bar can put its icons at
-the window edge; a plain body rides the display property, the cheapest
-slot; a body with an image rides a string, because a display property
+The header is an overlay string, where a bar can put its icons at the
+window edge; a plain body is the display property, the cheapest slot;
+a body with an image is an overlay string, because a display property
 swallows an image."
   (with-temp-buffer
     (insert "one\ntwo\n")
@@ -106,9 +106,9 @@ swallows an image."
            (nl (overblock-get block :newline)))
       (should (equal (overlay-get block 'after-string) "\nH"))
       (should (equal (overlay-get nl 'display) "\nB\n"))
-      ;; a body with an image moves off the display property and joins
-      ;; the header on the anchor, where an image draws; the newline keeps
-      ;; its own character, which is what lets a wheel pass the block
+      ;; A body with an image joins the header on the anchor, where an
+      ;; image draws. The newline keeps its character, so the wheel can
+      ;; pass the block.
       (overblock-set block :body (concat "B" overblock-test-common-image))
       (overblock-refresh block)
       (should-not (overlay-get nl 'display))
@@ -116,9 +116,9 @@ swallows an image."
 
 (ert-deftest overblock-test-body-without-a-newline ()
   "A body shows even where the region ends without a newline.
-The cheap slot is the display property of that newline, and a region at
-the end of a buffer may have none: the body then joins the rows on the
-anchor rather than going missing, which is what it did."
+The cheap slot is the display property of that newline, and a region
+at the end of a buffer can have none: the body then joins the rows on
+the anchor."
   (with-temp-buffer
     (insert "one\ntwo")
     (let ((block (overblock-show 1 (point-max) :header "H" :body "B")))
@@ -187,11 +187,9 @@ ends in text has not, and the row starts with a break."
 
 (ert-deftest overblock-test-a-cloak-is-invisible-not-a-display ()
   "The lines a cloak hides are invisible text, never a display string.
-A run replaced by a display string is so many positions that all show
-one glyph: `next-line\' stood still for a step and the window start
-crept a character at a time, and the wheel bounced off it.  Invisible
-text is walked over.  Only the guard on the newline the cloak leaves
-draws, and it draws one newline."
+Point stops on each position of a run under a display string, and
+moves over invisible text.  Only the guard on the newline the cloak
+leaves draws, and it draws one newline."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
     (goto-char (point-min))
@@ -205,9 +203,8 @@ draws, and it draws one newline."
 
 (ert-deftest overblock-test-no-final-newline-draws-no-newline ()
   "A file that ends without a newline gets no guard on its last line.
-The guard is put where the cloak leaves a newline standing.  Where
-there is none, the character there is the reader\'s own, and drawing
-it as a newline left a blank row under the last cell for good."
+The guard goes where the cloak leaves a newline.  Where there is none,
+the character there is text, and a guard would add a blank row."
   (with-temp-buffer
     (insert "one\ntwo\nthree")
     (let ((block (overblock-show 1 (point-max) :over "row one")))
@@ -222,33 +219,32 @@ it as a newline left a blank row under the last cell for good."
 The anchor stops before the newline that ends the region, and a cloak
 that stopped there with it would leave the last line on the screen."
   (with-temp-buffer
-    ;; the last line is blank, so no row is left for it
+    ;; The last line is blank, so no row is left for it.
     (insert "one\ntwo\n\n")
     (let* ((block (overblock-show 1 (point-max) :over "row one\nrow two"))
            (cloaks (seq-filter (lambda (ov) (overlay-get ov 'overblock-cloak))
                                (overblock-get block :parts))))
       (should cloaks)
-      ;; through the newline that ends the region, and not one line
-      ;; short: the guard on that newline is the cloak's last part
+      ;; Through the newline that ends the region: the guard on that
+      ;; newline is the last part of the cloak.
       (should (= (apply #'max (mapcar #'overlay-end cloaks))
                  (point-max))))))
 
 (ert-deftest overblock-test-pieces-lose-no-line ()
   "The pieces together show the rendering, whole and in order.
-A cell has as many lines as its author wrote and the rendering has as
-many as it needs, so the two rarely match either way."
+The region and the rendering rarely have the same number of lines."
   (let ((shown (lambda (parts)
                  (mapconcat (lambda (p) (overlay-get p 'display))
                             (seq-remove (lambda (p) (overlay-get p 'overblock-cloak))
                                         parts)
                             "\n"))))
-    ;; more rendering than lines to put it on
+    ;; More rendering than lines.
     (with-temp-buffer
       (insert "aaa\nbbb\n")
       (let ((text "one\ntwo\nthree\nfour\nfive"))
         (should (equal (funcall shown (overblock-test--pieces (point-min) (point-max) text))
                        text))))
-    ;; more lines than rendering
+    ;; More lines than rendering.
     (with-temp-buffer
       (insert "aaa\nbbb\nccc\nddd\neee\n")
       (let* ((text "one\ntwo")
@@ -258,13 +254,9 @@ many as it needs, so the two rarely match either way."
 
 (ert-deftest overblock-test-the-first-row-shows-the-first-line ()
   "The first line of a rendering stands on the first row of the region.
-It is the only row that begins where the block does — every row after
-it begins at a line start — and a rendering whose first line is
-written for that column has nowhere else to go.  Dealt out with the
-remainder rounded down, a rendering of fewer lines than the region has
-rows left the first row empty and under a cloak: the bar of a rendered
-doc string then hung at column 0, as many columns left of its own
-prose as the doc string was indented.  Measured, and reported."
+It is the only row that starts where the block does, and the first
+line of a rendering is written for that column.  A rendering with
+fewer lines than the region must not leave the first row empty."
   (with-temp-buffer
     (insert "    aaa
     bbb
@@ -289,12 +281,9 @@ The rendered markdown keeps the keymap that shr gave its links."
 
 (ert-deftest overblock-test-the-overlays-answer-for-point ()
   "Every overlay a block draws carries its keymap and its help echo.
-A click resolves its keymap from the string it landed on, and a
-rendering may put shr's own map on a link there.  Point is the other
-half: it never enters a display string, so a key pressed in a block is
-answered by the overlays alone.  Taking these off them left RET in a
-rendered cell running `newline', which split the source line and took
-the rendering with it."
+A click finds the keymap of the string it lands on, such as the map of
+shr on a link.  Point never enters a display string, so a key pressed
+in a block is answered by the overlays alone."
   (with-temp-buffer
     (insert "one\ntwo\n")
     (let ((block (overblock-show (point-min) (point-max)
@@ -309,10 +298,9 @@ the rendering with it."
 
 (ert-deftest overblock-test-bar-slack-on-a-terminal ()
   "The stretch ends three columns short of the right edge on a terminal.
-A bar that runs into the last column makes the line a continuation, and
-the final icon wraps onto a line of its own.  The third column is for
-the ellipsis an outline fold hangs after the line: with `truncate-lines'
-off, which is Emacs's own default, every folded bar took two rows."
+A bar that runs into the last column wraps its final icon.  The third
+column is for the ellipsis of an outline fold, with `truncate-lines'
+off (the default)."
   (cl-letf (((symbol-function 'display-graphic-p) #'ignore))
     (let* ((bar (overblock-bar "" "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -327,10 +315,8 @@ off, which is Emacs's own default, every folded bar took two rows."
 
 (ert-deftest overblock-test-bar-slack-in-a-frame ()
   "The stretch ends a column short of the right edge in a graphic frame.
-Icons that end at the right edge exactly leave redisplay to decide
-whether the row wraps: measured in one window at one width, the same bar
-drew all its icons when the buffer was opened and put the last one on
-a row of its own after the first command."
+Icons that end at the right edge exactly can wrap or not, at the whim
+of redisplay."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
     (let* ((bar (overblock-bar "" "label" "^  x " 'shadow))
            (spec (get-text-property
@@ -343,12 +329,10 @@ a row of its own after the first command."
 
 (ert-deftest overblock-test-the-bar-label-is-cut-to-fit ()
   "A label wider than the room the icons leave is cut, not wrapped.
-The stretch between the two collapses to nothing once the label has
-passed its target: in a narrow window the label ran into the first icon
-and the last icons wrapped onto a row of their own.  The room is
-`window-max-chars-per-line', which counts the line-number area and the
-margins, less the icons and one column of slack — a label cut to the
-room exactly still put the last icon on a row of its own."
+The stretch between the two shrinks to nothing after the label passes
+its target, and the icons would wrap.  The room is
+`window-max-chars-per-line', less the icons, the slack and one more
+column, because a label cut exactly still wraps."
   (with-temp-buffer
     (set-window-buffer nil (current-buffer))
     (let* ((icons "uu")
@@ -362,22 +346,20 @@ room exactly still put the last icon on a row of its own."
                     1))
            (bar (substring-no-properties
                  (overblock-bar "" (make-string (* 4 room) ?x) icons 'default))))
-      ;; the icons are still there, the label is cut, and to the room
+      ;; The icons are there, and the label is cut to the room.
       (should (string-suffix-p icons bar))
       (should (string-search "…" bar))
       (should (= (string-width (substring bar 0 (string-search "…" bar)))
                  (1- room)))
-      ;; a label that fits is left whole
+      ;; A label that fits stays whole.
       (should (string-prefix-p
                "ok" (substring-no-properties
                      (overblock-bar "" "ok" icons 'default)))))))
 
 (ert-deftest overblock-test-a-bar-for-no-window-is-not-cut ()
   "A buffer in no window has its label left whole.
-There is nothing to wrap in, and the cut is baked into the string: a
-long cell running while the reader looked at another buffer had its
-header cut to the width of that buffer's window, and the cut stayed
-when the buffer came back."
+There is nothing to wrap in, and a cut would stay in the string after
+the buffer shows again."
   (with-temp-buffer
     (let ((label (make-string 400 ?x)))
       (should-not (get-buffer-window-list nil nil 'visible))
@@ -388,16 +370,13 @@ when the buffer came back."
 (ert-deftest overblock-test-pieces-carry-an-image ()
   "A piece with an image rides the before-string, the others a display.
 Display properties do not nest, so a piece with an image in a display
-string would lose it.  Hiding the line with a display string of
-nothing and hanging the piece on a string keeps the image and the
-line, and a cell with a preview then scrolls a line at a time like any
-other.
+string would lose it.  An empty display string hides the line, and an
+overlay string carries the piece, so the image shows and the cell
+scrolls a line at a time.
 
-The before-string and not the after-string: an after-string draws at
-the end of the piece, where the next cloak begins, and Emacs leaves
-out an overlay string inside invisible text.  Measured on a frame by
-the pixels of the image itself: 0 with the cloak there, 32 on the
-before-string."
+The before-string, not the after-string: an after-string draws at the
+end of the piece, where the next cloak starts, and Emacs does not draw
+an overlay string inside invisible text."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let* ((image '(image :type png :data "x"))
@@ -411,38 +390,36 @@ before-string."
                                   (overlay-get ov 'after-string)))
                           parts)))
       (should (= (length parts) 3))
-      ;; the first and the last carry their text as a display string
+      ;; The first and the last carry their text as a display string.
       (should (equal (nth 0 specs) '("plain piece" nil nil)))
       (should (equal (nth 2 specs) '("plain again" nil nil)))
-      ;; the middle one hides its line and shows the image beside it
+      ;; The middle one hides its line and shows the image.
       (should (equal (car (nth 1 specs)) ""))
       (should (overblock-image-in (cadr (nth 1 specs))))
-      ;; and never on the after-string, which a cloak would swallow
+      ;; Never on the after-string, which a cloak would hide.
       (should-not (nth 2 (nth 1 specs))))))
 
 (ert-deftest overblock-test-space-columns-counts-pixels-and-characters ()
   "A space stretch answers with the columns it covers.
-vtable, which is how comint-mime shows a DataFrame, sets the width of
-a stretch; shr says where it ends.  A list counts pixels, a bare
-number characters."
+vtable, with which comint-mime shows a DataFrame, sets the width of a
+stretch; shr says where it ends.  A list counts pixels, a bare number
+characters."
   (cl-letf (((symbol-function 'frame-char-width) (lambda (&rest _) 8)))
-    ;; a width in pixels, and one that is not a whole character
+    ;; A width in pixels, and one that is not a whole character.
     (should (= (overblock--space-columns '(space :width (16)) 0) 2))
     (should (= (overblock--space-columns '(space :width (5.5)) 0) 1))
-    ;; a width in characters
+    ;; A width in characters.
     (should (= (overblock--space-columns '(space :width 3) 0) 3))
-    ;; a target counts from where the line starts
+    ;; A target counts from the start of the line.
     (should (= (overblock--space-columns '(space :align-to (104)) 3) 10))
-    ;; nothing to say about a stretch of another kind
+    ;; Nothing for a stretch of another kind.
     (should-not (overblock--space-columns '(space :relative-width 2) 0))))
 
 (ert-deftest overblock-test-a-narrowed-stop-still-takes-every-block ()
   "Turning a cycle off under a narrowing leaves nothing behind.
-`overblock-clear' reads the bounds a caller gives it in the caller's
-own view, so the bounds of a narrowed buffer left every block outside
-the accessible region standing — and the mode was gone, so nothing
-would ever take them down.  Among the strays are cloaks, which hold
-lines of the buffer invisible."
+The bounds of a narrowed buffer would leave the blocks outside it, and
+with the mode off nothing removes them.  A stray cloak keeps lines
+invisible."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\nfive\nsix\n")
     (overblock-live-start 'probe #'ignore)
@@ -462,23 +439,20 @@ lines of the buffer invisible."
 (ert-deftest overblock-test-a-button-row-is-kept-per-display ()
   "The row a display draws is not the row another display draws.
 `overblock-glyph' answers by the kind of display, the frame font and
-`overblock-terminal-glyphs', so a row built from its answers is only
-good for those three.  Keyed without them, a daemon serving a graphic
-frame and an `emacsclient -nw' frame drew one row in both, and a
-plain `setq' of the option changed nothing — only
-`customize-set-variable' reaches the `:set' that empties the table."
+`overblock-terminal-glyphs', so the key of a row holds those three.
+Then a graphic frame and a terminal frame of one daemon get their own
+rows, and a plain `setq' of the option takes effect."
   (skip-unless (not (display-graphic-p)))
   (let ((descriptors '((one ("\uEA76 " "x ") "first" ignore t))))
     (overblock--forget-glyphs)
     (let ((overblock-terminal-glyphs nil))
-      ;; a private use glyph is refused where the terminal is not
-      ;; trusted with the icons
+      ;; A private use glyph is refused in an untrusted terminal.
       (should (equal (substring-no-properties (overblock-buttons descriptors))
                      "x  ")))
     (let ((overblock-terminal-glyphs t))
       (should (equal (substring-no-properties (overblock-buttons descriptors))
                      "\uEA76  ")))
-    ;; and the first answer is still the first answer
+    ;; The first answer is still the same.
     (let ((overblock-terminal-glyphs nil))
       (should (equal (substring-no-properties (overblock-buttons descriptors))
                      "x  ")))))
@@ -494,7 +468,7 @@ The header of a running result asks five times a second."
                 (lambda (&rest args) (setq built (1+ built)) (apply real args))))
       (dotimes (_ 5) (overblock-buttons descriptors nil 3 t))
       (should (= built 1))
-      ;; another question, another answer
+      ;; Another question, another build.
       (overblock-buttons descriptors nil 0 t)
       (should (= built 2)))))
 
@@ -513,22 +487,22 @@ A descriptor whose WHEN is `image' or `lines' waits for those."
     (should (equal (substring-no-properties
                     (overblock-buttons descriptors t 3))
                    "1  2  3 "))
-    ;; the order is the order of the list
+    ;; The order is the order of the list.
     (should (equal (substring-no-properties
                     (overblock-buttons (reverse descriptors) t 3))
                    "3  2  1 "))
-    ;; and a button carries its command and its tooltip
+    ;; A button carries its tooltip.
     (let ((row (overblock-buttons descriptors nil 0)))
       (should (equal (get-text-property 0 'help-echo row) "first")))))
 
 (ert-deftest overblock-test-pieces-keep-a-multiline-image-whole ()
   "An image run that covers several lines becomes one piece.
 Display math renders as three lines under one image run, and a piece
-for each of them drew the same image three times."
+for each would draw the image three times."
   (let* ((image '(image :type png :data "x"))
          (block (propertize "$$\na = b\n$$" 'display image))
          (text (concat "before\n" block "\nafter")))
-    ;; three pieces: the prose, the whole block, the prose
+    ;; Three pieces: the prose, the whole block, the prose.
     (should (equal (mapcar #'substring-no-properties (overblock--lines text))
                    '("before" "$$\na = b\n$$" "after")))
     (with-temp-buffer
@@ -539,7 +513,7 @@ for each of them drew the same image three times."
                            (overblock-image-in (or (overlay-get ov 'before-string)
                                                    (overlay-get ov 'display) "")))
                          parts)))
-        ;; the image is on one piece, and only one
+        ;; The image is on exactly one piece.
         (should (= (length withimage) 1))
         (should (equal (substring-no-properties
                         (overlay-get (car withimage) 'before-string))
@@ -547,8 +521,8 @@ for each of them drew the same image three times."
 
 (ert-deftest overblock-test-image-in-sees-a-slice ()
   "Emacs 31 slices a tall image, and a slice of an image is an image.
-The spec is then ((slice X Y W H) IMAGE), and what answers is the image
-inside it, so a caller can still read its `:data' and cap its height."
+The spec is then ((slice X Y W H) IMAGE), and the image inside it is
+returned, so a caller can read its `:data' and cap its height."
   (let* ((image '(image :type png :data "x"))
          (sliced (propertize " " 'display (list '(slice 0.0 0.0 1.0 0.25)
                                                 image))))
@@ -559,8 +533,7 @@ inside it, so a caller can still read its `:data' and cap its height."
 
 (ert-deftest overblock-test-refresh-leaves-a-dead-block-alone ()
   "A block that is no longer in a buffer draws nothing and signals nothing.
-`delete-overlay' leaves an overlay that is still an overlay and answers
-nil to `overlay-start', which is the position the drawing reads."
+A deleted overlay has no start, which the drawing reads."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let ((block (overblock-show (point-min) (point-max) :over "A\nB")))
@@ -596,19 +569,14 @@ reach of `overblock-clear' in the buffer they belong to."
 
 (ert-deftest overblock-test-refresh-under-a-narrowing-terminates ()
   "A block that reaches past a narrowing is still drawn line by line.
-An overlay's positions know nothing of a narrowing, and the walk over
-the region used to run until the machine was out of memory: the end was
-outside the accessible portion, and `forward-line' stops at its edge
-without moving."
+Overlay positions ignore a narrowing, and `forward-line' stops at its
+edge without moving, so the walk must not loop."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\nfive\n")
     (let ((block (overblock-show 1 (point-max) :over "A\nB")))
       (narrow-to-region 1 8)
-      ;; Bounded rather than timed: `with-timeout' schedules a timer, and
-      ;; a timer does not preempt a tight Lisp loop, so the old shape of
-      ;; this test could only hang the suite or die of memory. The region
-      ;; is five lines, so the walk makes at most five rows and the parts
-      ;; that come out of it cannot outnumber them.
+      ;; Bounded, not timed: a timer does not preempt a tight Lisp
+      ;; loop. The region is five lines, so at most five rows.
       (overblock-refresh block)
       (let ((parts (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
                                (overblock-get block :parts))))
@@ -619,9 +587,7 @@ without moving."
 
 (ert-deftest overblock-test-a-dead-newline-overlay-keeps-the-body ()
   "The body of a block shows even when the newline overlay is gone.
-The slot that says where the body rides was tested for an overlay and
-not for a live one: a deleted overlay took the body off the anchor and
-then refused the write, and the body showed nowhere at all."
+A deleted newline overlay sends the body to the anchor."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let* ((block (overblock-show 1 (point-max) :body "RESULT BODY"))
@@ -635,11 +601,11 @@ then refused the write, and the body showed nowhere at all."
 
 (ert-deftest overblock-test-show-under-a-narrowing-keeps-its-shape ()
   "A block made under a narrowing has the anchor and the newline it needs.
-`char-before' answers nil past the accessible portion, so the anchor
-swallowed the region's last newline and no newline overlay was made."
+`char-before' returns nil outside the accessible portion, so the
+shape is read without the narrowing."
   (with-temp-buffer
-    ;; A region that ends in a blank line: that line is the one the
-    ;; header stands on, so a correct `lead' is the empty string.
+    ;; A region that ends in a blank line, on which the header goes, so
+    ;; the lead is the empty string.
     (insert "one\ntwo\nthree\n\n")
     (let ((end (point-max)))
       (narrow-to-region 1 8)
@@ -648,23 +614,20 @@ swallowed the region's last newline and no newline overlay was made."
 (defun overblock-test--narrowed-shape (end)
   "Check the shape of a block over 1..END made under a narrowing."
   (let ((block (overblock-show 1 end :body "BODY")))
-    ;; The anchor stops before the region's last newline, and the
-    ;; newline has an overlay of its own — both read with `char-before'
-    ;; and `char-after', which answer nil past the accessible portion.
+    ;; The anchor stops before the last newline of the region, and the
+    ;; newline has an overlay of its own.
     (should (= (overlay-end block) (1- end)))
     (should (overlay-buffer (overblock-get block :newline)))
     (overblock-set block :header "HDR")
     (overblock-refresh block)
-    ;; The row above the header is the region's blank last line, so the
-    ;; header needs no break of its own — `char-before' answering nil
-    ;; past the accessible portion put one there.
+    ;; The row above the header is the blank last line of the region,
+    ;; so the header needs no break.
     (should-not (string-prefix-p "\n"
                                  (or (overlay-get block 'after-string) "")))))
 
 (ert-deftest overblock-test-clear-sweeps-the-whole-buffer-however-asked ()
   "A sweep follows the range, not whether the arguments were given.
-Every caller but one passes a range, and the whole buffer named
-explicitly used to skip the sweep."
+The whole buffer, named or by default, sweeps."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (dolist (args (list (list (point-min) (point-max)) (list (point-min))
@@ -674,8 +637,7 @@ explicitly used to skip the sweep."
         (should (overlays-in (point-min) (point-max)))
         (apply #'overblock-clear args)
         (should-not (overlays-in (point-min) (point-max)))))
-    ;; A kind still spares the other kinds: an orphan says nothing about
-    ;; which kind it belonged to.
+    ;; A clear of one kind does not sweep: an orphan has no kind.
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
       (delete-overlay block)
       (overblock-clear (point-min) (point-max) 'markdown)
@@ -699,8 +661,7 @@ explicitly used to skip the sweep."
 
 (ert-deftest overblock-test-a-blank-last-line-takes-no-row ()
   "A rendering that ends in a blank line does not spend a row on it.
-`string-trim' with \"\\n\" took one newline, and a blank line that
-carries a space or a tab is still a blank line."
+A blank line that carries a space or a tab is still a blank line."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
     (dolist (text '("A\nB\n   \n" "A\nB\n\n   \n\n" "\t\nA\nB"))
@@ -713,14 +674,12 @@ carries a space or a tab is still a blank line."
 
 
 (ert-deftest overblock-test-a-dead-newline-overlay-is-no-newline ()
-  "The slot for the region's last newline can hold a deleted overlay.
-Deleting that newline kills the overlay without touching the anchor,
-whose range does not cover it, and the drawing then read nil as the end
-of the region."
+  "The slot for the last newline of the region can hold a deleted overlay.
+Deleting that newline deletes the overlay but not the anchor, whose
+range does not cover it, and a deleted overlay has no end."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
-    ;; A region that ends on a newline: that newline is what the slot is
-    ;; for, and the anchor stops in front of it.
+    ;; A region that ends on a newline, before which the anchor stops.
     (let* ((block (overblock-show 1 (point-max) :over "A"))
            (newline (overblock-get block :newline)))
       (should (overlay-buffer newline))
@@ -731,9 +690,8 @@ of the region."
 
 (ert-deftest overblock-test-clear-sweeps-what-lost-its-anchor ()
   "An overlay of the layer whose anchor is gone is swept by a clear.
-A package that deletes the overlays it finds in a region can take the
-anchor and leave a cloak, which keeps lines of the buffer invisible with
-nothing left that knows to take it off."
+A package that deletes the overlays of a region can remove the anchor
+and leave a cloak, which keeps lines invisible."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
@@ -759,9 +717,8 @@ nothing left that knows to take it off."
 
 (ert-deftest overblock-test-the-walk-stops-at-the-end-of-the-buffer ()
   "The row walk ends even where the block reaches past what it can read.
-It used to test the position alone, so an end it could never reach spun
-the loop and grew its list until the machine was out of memory — which a
-test can only report if the loop stops."
+A test of the position alone loops for ever on an end it cannot
+reach."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
     (let ((block (overblock-show (point-min) (point-max) :over "A\nB")))
@@ -775,9 +732,8 @@ test can only report if the loop stops."
 
 (ert-deftest overblock-test-orphans-go-and-the-living-stay ()
   "The sweep takes what no live block owns, and only that.
-A caller that cleared one kind of block reaches for it: an orphan says
-nothing about the kind it belonged to.  A bare `overblock-clear' in
-its place deleted every live block of every kind first."
+A caller that cleared one kind of block calls it, because an orphan
+has no kind.  Live blocks of every kind stay."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (let ((block (overblock-show (point-min) 8 :over "A"))
@@ -791,19 +747,17 @@ its place deleted every live block of every kind first."
 
 (ert-deftest overblock-test-an-image-is-named-where-none-draws ()
   "`overblock-image-label' says which figure a display cannot draw.
-An image rides a character, and that character is a space: the row was
-blank and said nothing at all."
+An image is on a space, which shows as a blank row."
   (let ((text (concat "before "
                       (propertize " " 'display '(image :type png :data "x"))
                       " after")))
     (should (equal (overblock-image-label text) "before [figure] after"))
-    ;; nothing to name, nothing changed
+    ;; Nothing to name, nothing changed.
     (should (equal (overblock-image-label "plain") "plain"))))
 
 (ert-deftest overblock-test-image-cap-caps-an-image ()
   "An image drawn inline is capped to a share of the window.
-A block taller than the window bounces the wheel backwards off itself
-and cannot be scrolled past at all."
+A block taller than the window cannot be scrolled past."
   (let ((buffer (get-buffer-create "*overblock test fit*")))
     (unwind-protect
         (with-current-buffer buffer
@@ -814,9 +768,9 @@ and cannot be scrolled past at all."
               (should (= (plist-get (cdr (overblock-image-in fitted)) :max-height)
                          (round (* 0.5 (window-body-height
                                         (selected-window) t)))))
-              ;; the line kept for the popup is not touched
+              ;; The line kept for the pop-out is not changed.
               (should-not (plist-get (cdr (overblock-image-in line)) :max-height)))
-            ;; zero draws it at its own size
+            ;; Zero draws it at its own size.
             (let* ((overblock-image-height 0)
                    (fitted (overblock-image-cap line)))
               (should-not (plist-get (cdr (overblock-image-in fitted))
@@ -825,9 +779,8 @@ and cannot be scrolled past at all."
 
 (ert-deftest overblock-test-image-cap-caps-from-an-unshown-buffer ()
   "A block drawn while its buffer is elsewhere is capped too.
-A caller works down a buffer while the reader looks at something else,
-and no window at all would leave the figure at full size, which is the
-block the wheel cannot get past."
+Without a window the figure would be at full size, and could not be
+scrolled past."
   (let ((elsewhere (get-buffer-create "*overblock test elsewhere*"))
         (offscreen (get-buffer-create "*overblock test offscreen*")))
     (unwind-protect
@@ -848,9 +801,8 @@ block the wheel cannot get past."
   "A run of slices becomes the whole image, capped, on its first row.
 Emacs 31 slices an image taller than `shr-sliced-image-height' into a
 row for each line of the window it was rendered in.  Slicing does not
-make an image smaller, so leaving the slices alone left the cap with
-nothing to cap — and the image cannot be capped under the slice either,
-because the fractions were worked out against the height it had."
+make an image smaller, and an image cannot be capped under its slices,
+whose fractions are for the old height."
   (let* ((image '(image :type png :data "x"))
          (rows (list '(slice 0.0 0.0 1.0 0.5) '(slice 0.0 0.5 1.0 0.5)))
          (line (concat (propertize " " 'display (list (nth 0 rows) image))
@@ -868,16 +820,14 @@ because the fractions were worked out against the height it had."
 
 (ert-deftest overblock-test-a-window-too-narrow-for-the-icons-loses-them ()
   "Where not even the icons fit, they go and the label is an ellipsis.
-The label alone was cut there, so the icons wrapped onto a row of their
-own: measured in a terminal, a bar of four buttons took two rows at 16
-columns and one at 20.  A wrapped bar is two rows of almost nothing."
+Else the icons wrap, and the bar takes two rows."
   (cl-letf (((symbol-function 'overblock-window-width) (lambda () 12)))
     (let ((bar (substring-no-properties
                 (overblock-bar "" "a long label indeed" "u  d  a  r " 'default))))
       (should (string-prefix-p "…" (string-trim bar)))
       (should-not (string-search "u" bar))
       (should-not (string-search "r" bar))))
-  ;; and where they do fit, they are all there
+  ;; Where they fit, they are all there.
   (cl-letf (((symbol-function 'overblock-window-width) (lambda () 400)))
     (let ((bar (substring-no-properties
                 (overblock-bar "" "label" "u  d  a  r " 'default))))
@@ -886,25 +836,23 @@ columns and one at 20.  A wrapped bar is two rows of almost nothing."
 
 (ert-deftest overblock-test-a-button-is-wider-than-its-glyph ()
   "The space after a glyph belongs to its button.
-Measured in a window of 1554 pixels, the places a reader could press
-were ten pixels wide with twenty pixels of nothing between them."
+This makes each target two columns wide."
   (let* ((icons (overblock-buttons
                  '((one ("A") "First" first-command t)
                    (two ("B") "Second" second-command t))))
          (at (lambda (pos) (get-text-property pos 'keymap icons))))
-    ;; the glyph and the space after it answer to the same command
+    ;; The glyph and the space after it run the same command.
     (should (funcall at 0))
     (should (eq (funcall at 0) (funcall at 1)))
-    ;; and the next button is a different one
+    ;; The next button is a different one.
     (should (funcall at 3))
     (should-not (eq (funcall at 0) (funcall at 3)))))
 
 (ert-deftest overblock-test-a-block-keeps-out-of-the-way-of-hl-line ()
   "The plain paint of a rendering sits below `hl-line\', which draws at -50.
 The source under a rendering is painted plain so that the face of a
-newline does not run its background out to the window; with no priority
-at all that outranked the stripe of `hl-line', and the stripe
-disappeared wherever a block stood."
+newline does not extend its background to the window edge.  A higher
+priority would hide the stripe of `hl-line'."
   (with-temp-buffer
     (insert "one\ntwo\nthree\n")
     (goto-char (point-min))
@@ -917,8 +865,8 @@ disappeared wherever a block stood."
 
 (ert-deftest overblock-test-an-active-region-shows-its-source ()
   "The renderings an active region reaches come down, and stay down while it lasts.
-What the reader marks is what they copy, and a rendering is never in
-the buffer.  Once the mark is gone the region wants its rendering again."
+The reader copies what the region marks, and a rendering is never in
+the buffer.  When the mark is gone the region wants its rendering again."
   (with-temp-buffer
     (insert "one\ntwo\nthree\nfour\n")
     (transient-mark-mode 1)
@@ -927,7 +875,7 @@ the buffer.  Once the mark is gone the region wants its rendering again."
     (let ((first (overblock-show 1 (pos-eol 1) :kind 'test :body "ONE"))
           (last (overblock-show (pos-bol 4) (pos-eol 4) :kind 'test :body "FOUR")))
       (should (and first last))
-      ;; a region over the first two lines
+      ;; A region over the first two lines.
       (push-mark (pos-eol 2) t t)
       (should (use-region-p))
       (overblock-live--settle)
@@ -942,9 +890,8 @@ the buffer.  Once the mark is gone the region wants its rendering again."
 
 (ert-deftest overblock-test-a-result-leaves-the-faces-of-its-region-alone ()
   "Only a rendering paints the source under it plain.
-A result hangs below its region and leaves the code in view, and the
-same paint took every colour off a cell the moment it ran: an
-overlay's face outranks what font lock wrote, `default' included."
+A result hangs below its region and leaves the code in view.  The face
+of an overlay, `default' included, outranks font lock."
   (with-temp-buffer
     (insert "import os\nprint(1)\n")
     (goto-char (point-min))
@@ -955,9 +902,8 @@ overlay's face outranks what font lock wrote, `default' included."
 
 (ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
   "A block carries the columns it was built for, and loses them to a change.
-A rendering is filled to the width it is shown at, so one built for
-another width has to go; the mode that made it renders it again on its
-own idle cycle."
+A rendering is filled to its width, so one built for another width
+goes; the live cycle renders it again."
   (let ((buffer (generate-new-buffer "overblock-width")))
     (unwind-protect
         (progn
@@ -967,19 +913,18 @@ own idle cycle."
             (let ((block (overblock-show (point-min) (pos-eol 2)
                                          :kind 'test :body "over"))
                   (redrawn 0))
-              ;; a live cycle of that kind, which is what drops them
+              ;; A live cycle of that kind drops them.
               (overblock-live-start 'test #'ignore)
               (add-hook 'overblock-width-functions
                         (lambda () (cl-incf redrawn)) nil t)
-              ;; what the window says, which in a batch frame is a number
+              ;; In a batch frame the window gives a number.
               (should (eql (overlay-get block 'overblock-columns)
                            (overblock-window-columns)))
-              ;; a width that is still the same drops nothing and
-              ;; redraws nothing
+              ;; The same width drops and redraws nothing.
               (overblock--width-changed)
               (should (overlay-buffer block))
               (should (= redrawn 0))
-              ;; and one that is not takes the block down and redraws
+              ;; Another width drops the block and redraws.
               (overlay-put block 'overblock-columns 12)
               (setq overblock--columns 12)
               (overblock--width-changed)
@@ -990,13 +935,9 @@ own idle cycle."
 
 (ert-deftest overblock-test-a-strange-event-raises-nothing ()
   "An event that is not a click leaves point where it is, and raises nothing.
-A command reads its event from `last-input-event\', which can hold
-anything at all: a bare cons — measured, `(1 . 0)\' — which
-`event-start\' reads as a list and answers `wrong-type-argument listp 0\'
-for, and a click whose window slot is no window, which
-`select-window\' answers `wrong-type-argument\' for.  Both
-came out of a keyboard macro, in a command that had nothing to do with
-the mouse."
+A command reads its event from `last-input-event', which can hold
+anything, for example a bare cons such as `(1 . 0)', or a click whose
+window slot is no window, as from a keyboard macro."
   (with-temp-buffer
     (insert "one\ntwo\n")
     (goto-char (point-min))
@@ -1007,14 +948,14 @@ the mouse."
 
 (ert-deftest overblock-test-indent-leaves-the-indentation-in-view ()
   "With `:indent' a piece begins that many columns in, and the anchor paints nothing.
-The indentation stays the buffer's own text, so what an indentation
-guide painted on it stays too; a line indented deeper is covered from
-that column on, and a line shorter than that carries nothing."
+The indentation stays buffer text, with any indentation guide on it.
+A line indented deeper is covered from that column on, and a shorter
+line carries nothing."
   (with-temp-buffer
     (insert "    a\n        deeper\n  x\n    c\n")
-    (put-text-property 1 5 'face 'bold)   ; what a guide would leave
-    ;; from the first character after the indentation, as a doc string
-    ;; begins at its quote: the first row hangs where the block does
+    (put-text-property 1 5 'face 'bold)   ; as a guide would
+    ;; From the first character after the indentation, as a doc string
+    ;; starts at its quote.
     (let* ((block (overblock-show (+ (point-min) 4) (point-max)
                                   :over "A\nB\nC" :indent 4))
            (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
@@ -1024,29 +965,28 @@ that column on, and a line shorter than that carries nothing."
         (goto-char (overlay-start ov))
         (should (= (current-column) 4))
         (should (equal (overlay-get ov 'face) 'default)))
-      ;; the short line has no piece and is cloaked
+      ;; The short line has no piece and is cloaked.
       (goto-char (point-min)) (forward-line 2)
       (should (invisible-p (point)))
-      ;; the anchor leaves the indentation's own face alone
+      ;; The anchor leaves the face of the indentation alone.
       (should-not (overlay-get block 'face))
       (should (eq (get-char-property 1 'face) 'bold)))
-    ;; two lines on one row: the second is padded to the same column,
-    ;; and the piece still begins after the indentation
+    ;; Two lines on one row: the second is padded to the same column,
+    ;; and the piece starts after the indentation.
     (overblock-clear)
     (let* ((block (overblock-show (+ (point-min) 4) (+ (point-min) 5)
                                   :over "A\nB" :indent 4))
            (piece (car (overblock-get block :parts))))
       (should (= (overlay-start piece) (+ (point-min) 4)))
       (should (equal (overlay-get piece 'display) "A\n    B")))
-    ;; without `:indent' the anchor paints the whole region plain
+    ;; Without `:indent' the anchor paints the whole region plain.
     (overblock-clear)
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
       (should (eq (overlay-get block 'face) 'default)))))
 
 (ert-deftest overblock-test-indent-counts-columns-past-a-tab ()
   "`:indent' is a column, so a tab-indented line is covered from there.
-Counted as characters, two tabs left fourteen columns of source text in
-view beside the rendering."
+Counted as characters, two tabs would leave source text in view."
   (with-temp-buffer
     (setq-local tab-width 8)
     (insert "\t\ta\n\t\tb\n")
@@ -1061,9 +1001,8 @@ view beside the rendering."
 
 (ert-deftest overblock-test-a-piece-with-an-image-wears-its-own-face ()
   "A piece that rides a before-string carries `default' under its faces.
-An overlay string without a face wears the face of the buffer text it
-stands on, so an indentation guide's stipple ran through the prose of
-every row that held a formula."
+An overlay string without a face takes the face of the text under it,
+such as the stipple of an indentation guide."
   (with-temp-buffer
     (insert "    a\n        b\n")
     (let* ((block (overblock-show (+ (point-min) 4) (point-max)
@@ -1079,8 +1018,7 @@ every row that held a formula."
 
 (ert-deftest overblock-test-the-last-line-without-a-newline-is-cloaked ()
   "A short rendering at the end of a buffer with no final newline hides it all.
-The last cloak stopped one short of the end, so the reader's last
-character stood beside the rendering."
+The last cloak reaches the last character."
   (with-temp-buffer
     (insert "one\ntwo\nthree")
     (overblock-show (point-min) (point-max) :over "A")
@@ -1089,8 +1027,8 @@ character stood beside the rendering."
 
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
-The edit buffer holds the region's bounds while the reader writes, and
-the source can change meanwhile."
+The edit buffer holds the bounds of the region while the reader
+writes, and the source can change meanwhile."
   (with-temp-buffer
     (insert "one\nREGION\nthree\n")
     (let ((source (current-buffer))
