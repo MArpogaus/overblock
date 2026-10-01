@@ -110,12 +110,22 @@ end of the buffer."
   "Return non-nil where the line at POS begins at the left margin."
   (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
 
-(defun overblock-md-preview--interrupts-p (fence from)
+(defun overblock-md-preview--ends-p (fence from every)
+  "Return non-nil where the line at point ends the paragraph from FROM.
+A blank line does, and so does FENCE, the start of a fence reached
+here, unless it is indented under a list item.  EVERY is that of
+`overblock-md-preview-paragraphs'."
+  (if fence
+      (overblock-md-preview--interrupts-p fence from every)
+    (looking-at-p "[[:blank:]]*$")))
+
+(defun overblock-md-preview--interrupts-p (fence from &optional every)
   "Return non-nil where the FENCE ends the paragraph that began at FROM.
 It does unless it is indented under a list item: the nearest line
 above it that begins at the left margin begins an item.  FROM nil is
-no paragraph."
-  (or (not from)
+no paragraph.  With EVERY, each fence ends its paragraph."
+  (or every
+      (not from)
       (overblock-md-preview--margin-p fence)
       (not (overblock-md-preview--in-item-p fence))))
 
@@ -133,11 +143,12 @@ no paragraph."
     (goto-char pos)
     (looking-at-p "[ \t]*\\(?:[-+*]\\|[0-9]+[.)]\\)[ \t]")))
 
-(defun overblock-md-preview-paragraphs (end fences)
+(defun overblock-md-preview-paragraphs (end fences &optional every)
   "Return the bounds of every paragraph up to END, FENCES aside.
 A paragraph is the run of lines between two blank ones, or between a
 blank line and a fence: a fence ends the paragraph that touches it,
-unless it is indented under a list item, to which it belongs.
+unless it is indented under a list item, to which it belongs.  With
+EVERY, each fence ends one: the fences of an Rmd file are chunks.
 The lines a fence holds are not read here:
 `overblock-md-preview-fences' has them already, and a blank line inside
 one ends no paragraph."
@@ -148,21 +159,19 @@ one ends no paragraph."
         ;; FENCES and this walk are both in order, so each fence is
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
-          (cond
-           ((or (and fence (overblock-md-preview--interrupts-p (caar fences) from))
-                (and (not fence) (looking-at-p "[[:blank:]]*$")))
-            ;; A blank line ends a paragraph, and so does a fence that
-            ;; touches it, unless the fence is indented under an item.
-            (when from (push (cons from last) regions))
-            (setq from nil))
-           ((not fence)
-            (setq last (pos-eol)
-                  from (or from (pos-bol)))))
+          (cond ((overblock-md-preview--ends-p (and fence (caar fences))
+                                                from every)
+                 (when from (push (cons from last) regions))
+                 (setq from nil))
+                ((not fence) (setq last (pos-eol)
+                                   from (or from (pos-bol)))))
           ;; A fence indented under a list item belongs to it: the walk
-          ;; jumps over it and the item goes on.
+          ;; jumps over it and the item goes on, to its end at least.
           (when fence
             (goto-char (cdar fences))
-            (setq fences (cdr fences))))
+            ;; Read only by a paragraph that goes on over the fence.
+            (setq last (cdar fences)
+                  fences (cdr fences))))
         (forward-line 1))
       (when from (push (cons from last) regions))
       (nreverse regions))))
@@ -206,7 +215,7 @@ over its lines.
 The walk starts at the top of the buffer whatever BEG is, because only
 that tells whether BEG is inside a fence."
   (let* ((all (overblock-md-preview-fences end))
-         (paragraphs (overblock-md-preview-paragraphs end all))
+         (paragraphs (overblock-md-preview-paragraphs end all prose-only))
          (fences (overblock-md-preview--outside all paragraphs)))
     (seq-filter (lambda (region)
                   (and (< (car region) (cdr region))

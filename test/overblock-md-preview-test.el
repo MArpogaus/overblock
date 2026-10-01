@@ -274,5 +274,22 @@ The item is one block, and the fence is not a second one over it."
                                                          (buffer-substring (car p) (min (point-max) (+ (car p) 14)))))
                             (overblock-md-preview-paragraphs (point-max) fences))))))
 
+(ert-deftest overblock-md-preview-test-a-chunk-under-an-item-is-no-prose ()
+  "With PROSE-ONLY each fence ends a paragraph: in an Rmd file it is a chunk."
+  (with-temp-buffer
+    (insert "1. Load the data:\n   ```{r}\n   x <- 1\n   ```\n   then look.\n")
+    (let ((chunk (car (overblock-md-preview-fences (point-max)))))
+      (should-not (seq-some (lambda (p) (and (<= (car p) (car chunk))
+                                             (>= (cdr p) (cdr chunk))))
+                            (overblock-md-preview-regions (point-min) (point-max) t))))))
+
+(ert-deftest overblock-md-preview-test-an-item-that-ends-in-its-fence-takes-it ()
+  "An item whose last lines are its fence is one block with that fence."
+  (with-temp-buffer
+    (insert "1. Clone it:\n   ```sh\n   git clone x\n   ```\n\n2. Next.\n")
+    (should (equal (car (overblock-md-preview-regions (point-min) (point-max)))
+                   (cons 1 (save-excursion (goto-char (point-min))
+                                           (forward-line 3) (pos-eol)))))))
+
 (provide 'overblock-md-preview-test)
 ;;; overblock-md-preview-test.el ends here
