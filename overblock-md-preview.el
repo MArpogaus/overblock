@@ -176,6 +176,19 @@ A mode that reads part of the buffer as something else sets this.  In
 an Rmd file the fenced chunks are R code that runs, so `overblock-rmd'
 returns the prose alone.")
 
+(defun overblock-md-preview--outside (fences paragraphs)
+  "Return the FENCES that no paragraph of PARAGRAPHS holds.
+A fence under a list item is part of the item's paragraph, and two
+blocks over the same lines would let neither render.  Both lists are
+in order, so one walk does it."
+  (let (out)
+    (dolist (fence fences)
+      (while (and paragraphs (<= (cdar paragraphs) (car fence)))
+        (pop paragraphs))
+      (unless (and paragraphs (<= (caar paragraphs) (car fence)))
+        (push fence out)))
+    (nreverse out)))
+
 (defun overblock-md-preview-regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
@@ -190,8 +203,9 @@ over its lines.
 
 The walk starts at the top of the buffer whatever BEG is, because only
 that tells whether BEG is inside a fence."
-  (let* ((fences (overblock-md-preview-fences end))
-         (paragraphs (overblock-md-preview-paragraphs end fences)))
+  (let* ((all (overblock-md-preview-fences end))
+         (paragraphs (overblock-md-preview-paragraphs end all))
+         (fences (overblock-md-preview--outside all paragraphs)))
     (seq-filter (lambda (region)
                   (and (< (car region) (cdr region))
                        (<= beg (car region) end)))

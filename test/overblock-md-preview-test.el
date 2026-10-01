@@ -250,11 +250,12 @@ then stays source."
                      '((1 . 12) (29 . 40)))))))
 
 (ert-deftest overblock-md-preview-test-an-indented-fence-stays-in-its-item ()
-  "A fence inside a list item does not cut the item in two."
+  "A fence inside a list item does not cut the item in two.
+The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "- item *one*\n  ```python\n  x = 1\n  ```\n  tail of **item**\n- item two\n")
     (should (equal (overblock-md-preview-regions (point-min) (point-max))
-                   '((1 . 69) (14 . 39))))))
+                   '((1 . 69))))))
 
 (ert-deftest overblock-md-preview-test-an-indented-fence-outside-a-list-ends-a-paragraph ()
   "A fence a few spaces in, with no list around it, still ends the paragraph."
