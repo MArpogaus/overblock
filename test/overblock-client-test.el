@@ -23,15 +23,12 @@
 
 ;;; Commentary:
 
-;; The block layer is meant to carry callers this package never wrote.
-;; This file is a caller of that kind: it renders the math in a Python
-;; docstring over the lines of that docstring.  There is no process
-;; behind it, no cell and no markdown, and it asks the layer for nothing
-;; that is not there.
+;; The block layer must serve callers outside this package.  This file
+;; is such a caller: it renders the math of a Python docstring over the
+;; lines of that docstring, with no process, no cell and no markdown.
 ;;
-;; It is a test, not a feature.  What it is worth is the answer to one
-;; question: does a caller of another shape need anything the layer does
-;; not have?
+;; It is a test, not a feature: it shows that a caller of another shape
+;; needs nothing the layer does not have.
 
 ;;; Code:
 
@@ -52,11 +49,8 @@ A formula becomes an image where Org can make one, and stands out in a
 face where it cannot: a caller renders, and a block shows what it gets."
   (replace-regexp-in-string
    docmath--regexp
-   ;; The dollars are the first and the last character of the match, so
-   ;; the match data is not asked for them. It is saved all the same: a
-   ;; renderer calls Org, Org matches things of its own, and
-   ;; `replace-regexp-in-string' reads the match data again after this
-   ;; function returns to find where to go on.
+   ;; The renderer searches too, and `replace-regexp-in-string' reads
+   ;; the match data after this returns.
    (lambda (match)
      (let ((frag (substring match 1 -1)))
        (save-match-data
@@ -94,12 +88,10 @@ A docstring here is what lies between two lines of three quotes."
 
 (defmacro docmath-test--with-docstring (&rest body)
   "Run BODY in a buffer with a Python docstring in it.
-No LaTeX runs: `overblock-md--latex-image' answers nil, so the client
-falls back to the face it names for a formula and these tests measure
-the same thing wherever they run.  Without the stub they passed only
-because a batch session draws no image, and they left compiles behind
-in the engine's cache.  A test that wants an image stubs one of its
-own, and the inner binding wins."
+No LaTeX runs: `overblock-md--latex-image' returns nil, so the client
+uses its face for a formula, and the tests do the same everywhere and
+leave nothing in the cache of the engine.  A test that wants an image
+stubs one of its own, and the inner binding wins."
   `(progn
      (cl-letf (((symbol-function 'overblock-md--latex-image)
                 (lambda (&rest _) nil)))
@@ -126,7 +118,7 @@ The source stays as it is: the block shows text, it does not write any."
                               parts "\n")))
        (should block)
        (should (> (length parts) 1))
-       ;; the dollars are gone from what shows, and the math is there
+       ;; The dollars are gone, and the math is there.
        (should-not (string-match-p "\\$" shown))
        (should (string-match-p "x\\^2" shown))
        (should (equal (buffer-string) before))))))
@@ -149,7 +141,7 @@ The source stays as it is: the block shows text, it does not write any."
      (docmath-plain)
      (should-not (overblock-in (point-min) (point-max) 'docmath))
      (should (equal (buffer-string) before))
-     ;; and nothing of the block is left behind
+     ;; Nothing of the block stays.
      (should-not (seq-some (lambda (ov) (overlay-get ov 'display))
                            (overlays-in (point-min) (point-max)))))))
 
