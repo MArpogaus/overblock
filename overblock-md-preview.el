@@ -202,10 +202,11 @@ when the answer comes back without the marker between every pair.
 
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode
-  "Render every line of this buffer over its own markdown source.
-The line at point shows its source, so it can be edited in place.  The
-rest of the buffer shows as it will look.  A click on a rendered line
-puts point there.
+  "Render every block of this buffer over its own markdown source.
+A block without a rendering stays source while point is in it, so it
+can be written in place, and renders when point leaves it.  A rendered
+block stays rendered when point moves through it.  A click on a
+rendering shows its source to edit it.
 
 `overblock-md-command' converts the markdown.  The mode does nothing
 when none of its candidates is installed."
