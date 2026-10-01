@@ -541,8 +541,11 @@ and it goes to the next row."
     (while (and lines
                 (not (string-blank-p (car lines)))
                 (null (overblock--ahead (car lines) keys))
+                ;; a line further on in the paragraph belongs to the next row
                 (seq-some (lambda (line) (eql (overblock--ahead line keys) 0))
-                          (take 3 (cdr lines))))
+                          (seq-take-while (lambda (line)
+                                            (not (string-blank-p line)))
+                                          (cdr lines))))
       (setq chunk (append chunk (list (pop lines)))))
     (cons chunk lines)))
 

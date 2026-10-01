@@ -1078,6 +1078,19 @@ line does, left that row empty and the rest one row off."
                              (overlays-at (point)))
                    "Summary here."))))
 
+(ert-deftest overblock-test-a-long-wrap-keeps-to-its-row ()
+  "A source line the renderer wraps into many lines keeps all of them."
+  (with-temp-buffer
+    (insert "apple\ncherry " (mapconcat #'number-to-string (number-sequence 0 20) " ")
+            "\ndurian\nelder\n")
+    (overblock-show (point-min) (point-max)
+                    :over "apple\ncherry 0 1 2\n3 4 5\n6 7 8\n9 10 11\n12 13 14\ndurian\nelder")
+    (goto-char (point-min))
+    (forward-line 2)
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "durian"))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer
