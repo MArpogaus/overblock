@@ -1556,12 +1556,8 @@ font, and `overblock-bar-draw' does not redraw a label it has seen."
   (when-let* ((columns (overblock-window-columns))
               ((not (eql columns overblock--columns))))
     (setq overblock--columns columns)
-    (when overblock-live--specs
-      (dolist (spec overblock-live--specs)
-        (dolist (block (overblock-in (point-min) (point-max) (car spec)))
-          (unless (eql columns (overlay-get block 'overblock-columns))
-            (overblock-delete block))))
-      (overblock-live--settle))
+    (overblock-live-drop-if
+     (lambda (block) (not (eql columns (overlay-get block 'overblock-columns)))))
     (overblock-bars-stale)
     (run-hooks 'overblock-width-functions)))
 

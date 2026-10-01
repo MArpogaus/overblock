@@ -937,14 +937,12 @@ still names the figure."
                    (overblock-md--remote-file src))))
     (cond
      (file
+      ;; Not capped here: `overblock-md-rendered' caps every image.
       (let ((label (if (and alt (not (string-empty-p alt)))
                        alt
-                     (format "[%s]" (file-name-nondirectory file))))
-            (limit (overblock-image-limit)))
+                     (format "[%s]" (file-name-nondirectory file)))))
         (insert (if (display-images-p)
-                    (propertize label 'display
-                                (apply #'create-image file nil nil
-                                       (and limit (list :max-height limit))))
+                    (propertize label 'display (create-image file))
                   ;; No display property: the placeholder of shr is an
                   ;; image, which would hide the label.
                   label))))
