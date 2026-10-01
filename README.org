@@ -654,6 +654,8 @@ These limits apply to each package, unless a limit names one.
 - One converter run renders all blocks of a buffer. A footnote of
   Markdown therefore shows under the last block of the run, and its
   definition stays as source.
+- A table column aligned with =:---:= or =---:= shows left aligned,
+  because shr reads no cell style.
 
 For the two notebooks:
 
