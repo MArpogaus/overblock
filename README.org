@@ -506,21 +506,18 @@ Declare the recipes of [[#overblock-the-block-layer][overblock]] and
 [[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
 the =:hook= of overblock-md where the preview is not wanted.
 
-#+begin_src emacs-lisp
-  (use-package markdown-mode
-    :ensure t
-    :mode ("\\.[rR]md\\'" . markdown-mode))
+Add =:mode ("\\.[rR]md\\'" . markdown-mode)= to the markdown-mode form
+of overblock-md. That line opens an =.Rmd= file in =markdown-mode=.
+Without use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
+=auto-mode-alist=. =poly-markdown+r-mode= of polymode also works.
 
+#+begin_src emacs-lisp
   (use-package overblock-rmd
     :ensure (overblock-rmd :host github
                            :repo ("MArpogaus/overblock" . "overblock-rmd")
                            :files ("overblock-rmd.el"))
     :hook (markdown-mode . overblock-rmd-mode-maybe))
 #+end_src
-
-The =:mode= line opens an =.Rmd= file in =markdown-mode=. Without
-use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
-=auto-mode-alist=. =poly-markdown+r-mode= of polymode also works.
 
 =overblock-rmd-mode-maybe= turns the mode on in a buffer whose file ends
 in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode works

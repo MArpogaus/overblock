@@ -566,7 +566,7 @@ cannot start inside an overlay string. Thus:
   A block with an image ends lower than it started after a series of
   crossings.
 - A block taller than the window throws the wheel back. See
-  [[*The image cap][the image cap]].
+  [[#the-image-cap][the image cap]].
 - =scroll-up-line= does not pass such a block at all.
 
 =scroll-up=, =scroll-down=, =next-line= and a folded block pass.
