@@ -318,6 +318,13 @@ An HTML comment split at a blank line takes the marker between its halves."
     (should (memq 'overblock-md-code
                   (ensure-list (get-text-property at 'face shown))))))
 
+(ert-deftest overblock-md-test-raw-pre-keeps-its-markup ()
+  "A raw HTML <pre> keeps its tags and its line breaks."
+  (skip-unless (overblock-md-program))
+  (let ((shown (overblock-md-rendered
+                "<pre><b>bold</b> and\nline2<br>line3</pre>\n")))
+    (should (string-match-p "line2\n *line3" shown))))
+
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
 `:stderr nil' would mix the warnings of pandoc into the HTML."

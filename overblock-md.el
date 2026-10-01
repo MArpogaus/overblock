@@ -1047,6 +1047,17 @@ and `dom-inner-text' is not in Emacs 29.1."
     (mapconcat #'overblock-md--text (dom-children dom) "")))
 
 (defun overblock-md--tag-pre (dom)
+  "Render the preformatted block DOM: a fenced block, or raw HTML.
+A <pre> that holds markup other than <code> is raw HTML, and its tags
+and line breaks are shr's to draw.  The rest is a fenced block; see
+`overblock-md--code-block'."
+  (if (seq-some (lambda (child)
+                  (and (consp child) (not (eq (dom-tag child) 'code))))
+                (dom-children dom))
+      (shr-tag-pre dom)
+    (overblock-md--code-block dom)))
+
+(defun overblock-md--code-block (dom)
   "Render the fenced block DOM with the font lock of its language.
 The code goes through a buffer in that mode and comes back with its
 faces.  The indentation of shr comes before each line, so a block in a
