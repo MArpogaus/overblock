@@ -27,7 +27,7 @@
 ;; Run with: make test
 ;;
 ;; The output of a shell, cut loose from that shell: the properties
-;; that go, the tables laid out again, the images capped.
+;; that go, and the tables laid out again.
 
 ;;; Code:
 

@@ -232,7 +232,8 @@ CommonMark. Thus prose with no blank line before a fence is a block of
 its own. A fence indented under a list item belongs to that item, and
 the item goes on after it.
 
-Outside a list item, a fence four or more spaces in is the text of an
+A backtick fence with another backtick on its line is inline code and
+opens no block. Outside a list item, a fence four or more spaces in is the text of an
 indented code block and opens no block. A closing fence is at most
 three columns deeper than its opening fence. A later paragraph of a
 list item ends at the next item. Alone, the converter reads that item
