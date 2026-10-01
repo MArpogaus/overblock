@@ -703,6 +703,14 @@ is killed when the buffer that asked dies first."
     (funcall callback nil)
     nil))
 
+(defvar-local overblock-md--in-flight nil
+  "The kinds whose batch is still with the converter, each as (KIND . AGAIN).
+AGAIN is non-nil where a cycle asked for KIND meanwhile: that cycle
+renders again once the batch has landed.")
+
+(defconst overblock-md--slice 50
+  "How many renderings a batch shows before it lets the reader in.")
+
 (defun overblock-md-render-regions (regions kind text show)
   "Render the REGIONS that want a rendering of KIND, in one process.
 REGIONS are conses of buffer positions.  TEXT is called with the
@@ -712,38 +720,92 @@ batch came back without its markers, and SHOW then converts alone.
 Nothing waits: the renderings arrive later, through
 `overblock-md-html-batch-async'.
 
+One batch of KIND at a time: a cycle that comes while one is with the
+converter would send the same regions again, so it waits, and the live
+cycle of KIND runs once more when the batch has landed.
+
 `overblock-live-wanted-p' says which regions want rendering, and is
 asked again when the answer arrives, because the reader can click,
 type and move meanwhile.  A region whose markdown changed since it was
 sent keeps its text.  The regions are markers, so text typed above
 them does not move the renderings.  Nothing happens where no converter
 is installed."
-  (when-let* (((overblock-md-program))
-              (wanted (seq-filter (lambda (region)
-                                    (overblock-live-wanted-p (car region)
-                                                             (cdr region) kind))
-                                  regions))
-              (marked (mapcar (lambda (region)
-                                (cons (copy-marker (car region))
-                                      (copy-marker (cdr region) t)))
-                              wanted)))
-    (let ((sources (mapcar (lambda (region)
-                             (funcall text (car region) (cdr region)))
-                           marked)))
-      (overblock-md-html-batch-async
-       sources
-       (lambda (htmls)
-         (dolist (region marked)
-           (let ((html (pop htmls))
-                 (source (pop sources)))
-             (when (and (overblock-live-wanted-p (car region) (cdr region)
-                                                 kind)
-                        ;; The text is still the text that was sent.
-                        (equal source
-                               (funcall text (car region) (cdr region))))
-               (funcall show (car region) (cdr region) html)))
-           (set-marker (car region) nil)
-           (set-marker (cdr region) nil)))))))
+  (if-let* ((flight (assq kind overblock-md--in-flight)))
+      (setcdr flight t)
+    (when-let* (((overblock-md-program))
+                (wanted (seq-filter (lambda (region)
+                                      (overblock-live-wanted-p
+                                       (car region) (cdr region) kind))
+                                    regions))
+                (marked (mapcar (lambda (region)
+                                  (cons (copy-marker (car region))
+                                        (copy-marker (cdr region) t)))
+                                wanted)))
+      (let ((sources (mapcar (lambda (region)
+                               (funcall text (car region) (cdr region)))
+                             marked)))
+        (push (cons kind nil) overblock-md--in-flight)
+        (condition-case err
+            (overblock-md--send-batch kind marked sources text show)
+          (error (setq overblock-md--in-flight
+                       (assq-delete-all kind overblock-md--in-flight))
+                 (signal (car err) (cdr err))))))))
+
+(defun overblock-md--send-batch (kind marked sources text show)
+  "Send the SOURCES of the MARKED regions of KIND, and show what comes back.
+TEXT and SHOW are those of `overblock-md-render-regions'."
+  (overblock-md-html-batch-async
+   sources
+   (lambda (htmls)
+     (overblock-md--show-batch
+      (current-buffer) kind text show
+      (overblock-md--in-view-first
+       ;; Not `cl-mapcar': HTMLS is nil where the batch came back
+       ;; without its markers, and each region converts alone.
+       (mapcar (lambda (region)
+                 (list region (pop htmls) (pop sources)))
+               marked))))))
+
+(defun overblock-md--in-view-first (items)
+  "Return ITEMS with those a window shows first, in order otherwise.
+Each item starts with the (BEG . END) markers of its region.  A large
+buffer then shows its window at once, and the rest follows in slices."
+  (let ((windows (mapcar (lambda (window)
+                           (cons (window-start window) (window-end window)))
+                         (get-buffer-window-list nil nil 'visible))))
+    (seq-sort-by (lambda (item)
+                   (if (seq-some (lambda (shown)
+                                   (and (< (caar item) (cdr shown))
+                                        (> (cdar item) (car shown))))
+                                 windows)
+                       0 1))
+                 #'< items)))
+
+(defun overblock-md--show-batch (buffer kind text show items)
+  "Show the ITEMS of a batch of KIND in BUFFER, a slice at a time.
+Each item is (REGION HTML SOURCE).  `overblock-md--slice' of them are
+shown, and a timer shows the rest, so the reader is never held for the
+whole of a large buffer.  TEXT and SHOW are those of
+`overblock-md-render-regions'.  The last slice ends the flight and runs
+the live cycle of KIND again where one asked meanwhile."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (dotimes (_ (min overblock-md--slice (length items)))
+        (pcase-let ((`((,beg . ,end) ,html ,source) (pop items)))
+          (when (and (overblock-live-wanted-p beg end kind)
+                     ;; The text is still the text that was sent.
+                     (equal source (funcall text beg end)))
+            (funcall show beg end html))
+          (set-marker beg nil)
+          (set-marker end nil)))
+      (if items
+          (run-with-timer 0 nil #'overblock-md--show-batch
+                          buffer kind text show items)
+        (let ((flight (assq kind overblock-md--in-flight)))
+          (setq overblock-md--in-flight (delq flight overblock-md--in-flight))
+          (when-let* (((cdr flight))
+                      (spec (assq kind overblock-live--specs)))
+            (funcall (nth 1 spec))))))))
 
 (defun overblock-md--verbatim-math (md)
   "Return MD with its display-math blocks wrapped in <pre>.

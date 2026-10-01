@@ -285,6 +285,68 @@ stay, because nothing renders a region that has a rendering."
             (should (equal shown '("two"))))
         (overblock-live-stop 'md-test)))))
 
+(ert-deftest overblock-md-test-one-batch-of-a-kind-at-a-time ()
+  "A cycle that comes while a batch is out sends nothing, and runs again later.
+Each idle cycle sent the regions of a slow batch once more, so a reader
+who kept moving started a converter for every pause."
+  (skip-unless (executable-find "sh"))
+  (with-temp-buffer
+    (insert "one\n\ntwo\n")
+    (let ((overblock-md-command "sh -c cat")
+          (overblock-live-source-at-point nil)
+          (cycles 0) (sent 0) (shown nil))
+      (unwind-protect
+          (cl-letf* ((send (symbol-function 'overblock-md-html-batch-async))
+                     ((symbol-function 'overblock-md-html-batch-async)
+                      (lambda (&rest args) (setq sent (1+ sent)) (apply send args))))
+            (overblock-live-start 'md-test (lambda () (setq cycles (1+ cycles))))
+            (let ((render (lambda ()
+                            (overblock-md-render-regions
+                             '((1 . 4) (6 . 9)) 'md-test
+                             (lambda (beg end) (buffer-substring-no-properties beg end))
+                             (lambda (beg end _html)
+                               (push beg shown)
+                               (overblock-show beg end :kind 'md-test :over "x"))))))
+              (let ((before cycles))
+                (funcall render)
+                (funcall render)
+                (should (= sent 1))
+                (overblock-test-common-wait (lambda () (= (length shown) 2)) 10)
+                ;; the cycle that waited runs once more
+                (should (= cycles (1+ before))))))
+        (overblock-live-stop 'md-test)))))
+
+(ert-deftest overblock-md-test-a-large-batch-shows-in-slices ()
+  "A batch shows a slice at once and the rest from a timer, all of it in the end."
+  (skip-unless (executable-find "sh"))
+  (with-temp-buffer
+    (dotimes (i 120) (insert (format "line %d\n\n" i)))
+    (let ((overblock-md-command "sh -c cat")
+          (overblock-live-source-at-point nil)
+          (regions (let (all)
+                     (goto-char (point-min))
+                     (while (re-search-forward "^line .*$" nil t)
+                       (push (cons (match-beginning 0) (match-end 0)) all))
+                     (nreverse all)))
+          (counts nil) (shown 0))
+      (unwind-protect
+          (progn
+            (overblock-live-start 'md-test #'ignore)
+            (cl-letf* ((slices (symbol-function 'overblock-md--show-batch))
+                       ((symbol-function 'overblock-md--show-batch)
+                        (lambda (&rest args)
+                          (push shown counts)
+                          (apply slices args))))
+              (overblock-md-render-regions
+               regions 'md-test
+               (lambda (beg end) (buffer-substring-no-properties beg end))
+               (lambda (_beg _end _html) (setq shown (1+ shown))))
+              (overblock-test-common-wait (lambda () (= shown 120)) 10))
+            (should (= shown 120))
+            ;; three slices of at most fifty
+            (should (equal (reverse counts) '(0 50 100))))
+        (overblock-live-stop 'md-test)))))
+
 (ert-deftest overblock-md-test-a-nested-list-is-one-list ()
   "A list with a nested one in it renders as tall as its source.
 shr puts a blank line before and after every list, also a nested one."
