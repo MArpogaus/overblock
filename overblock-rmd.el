@@ -144,19 +144,6 @@ the code away from its paragraph is not what the reader meant."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-rmd-max-lines 12
-  "Number of result lines that show inline.
-Zero shows all of them.
-A result block is one buffer line however tall it is, so a long result
-makes one long step for `next-line' and for the wheel.  The header says
-how many lines there are in all where it shows fewer.
-
-See `overblock-rmd-max-line-length' for the width.
-
-Customize this and the results already on the screen follow."
-  :type 'natnum
-  :set #'overblock-run-set-and-redraw)
-
 (defcustom overblock-rmd-figure-size '(7 . 5)
   "Width and height of a figure a chunk draws, in inches.
 What knitr calls `fig.width' and `fig.height', and the same default,
@@ -168,18 +155,6 @@ The PNG device is opened at 96 dots an inch unless the header says
 `overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
-(defcustom overblock-rmd-max-line-length 2000
-  "Number of characters of a result line that show inline.
-Zero shows all of them.  A line longer than this is cut, and the cut is
-marked with an ellipsis.
-
-One long line is one line, so `overblock-rmd-max-lines' does not bound
-it, and a block laid out on every redisplay costs what it holds: a
-`print' of a wide matrix or a long vector is one such line.
-
-Customize this and the results already on the screen follow."
-  :type 'natnum
-  :set #'overblock-run-set-and-redraw)
 
 
 ;;;; The result of a chunk
@@ -618,9 +593,7 @@ prompted, so nothing is ever waiting for one."
         :region-at #'overblock-rmd--region-at
         :starts #'overblock-rmd--starts
         :redraw #'overblock-rmd--bars
-        :buttons 'overblock-rmd-result-buttons
-        :lines 'overblock-rmd-max-lines
-        :chars 'overblock-rmd-max-line-length))
+        :buttons 'overblock-rmd-result-buttons))
 
 
 ;;;; The commands

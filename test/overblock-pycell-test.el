@@ -143,8 +143,8 @@ outside the suite ever called."
 The package has no wrapper of its own for this — the runner takes the
 budgets as arguments — so the tests supply them here."
   (overblock-run--body-lines
-   (overblock-repl-first-lines (string-join lines "\n") overblock-pycell-max-lines)
-   overblock-pycell-max-line-length))
+   (overblock-repl-first-lines (string-join lines "\n") overblock-run-max-lines)
+   overblock-run-max-line-length))
 
 (defun overblock-run-header-of-pycell (folded total shown runtime state imagep)
   "Return the header bar of a result of the notebook.
@@ -193,15 +193,15 @@ left a cell whose only output is a figure with an empty block."
 ;;;; Tests
 
 (ert-deftest overblock-pycell-test-body-lines-cap ()
-  "At most `overblock-pycell-max-lines' lines show inline."
-  (let ((overblock-pycell-max-lines 3)
+  "At most `overblock-run-max-lines' lines show inline."
+  (let ((overblock-run-max-lines 3)
         (lines '("1" "2" "3" "4" "5")))
     (should (equal (overblock-run-body-lines-of-pycell lines) '("1" "2" "3")))))
 
 (ert-deftest overblock-pycell-test-body-lines-stop-after-image ()
   "Nothing after the first image line shows inline."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
-    (let ((overblock-pycell-max-lines 10))
+    (let ((overblock-run-max-lines 10))
       (should (equal (overblock-run-body-lines-of-pycell (list "text" overblock-test-common-image "more"))
                      (list "text" overblock-test-common-image))))))
 
@@ -212,7 +212,7 @@ would hide the rest of the output and buy no height back.  The image is
 named where it cannot be drawn: the space alone was a blank row, and a
 reader could not tell it from a result with no output."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
-    (let ((overblock-pycell-max-lines 10))
+    (let ((overblock-run-max-lines 10))
       (should (equal (overblock-run-body-lines-of-pycell
                       (list "before" overblock-test-common-image "after"))
                      (list "before" "[figure]" "after"))))))
@@ -335,7 +335,7 @@ full of those; only a real image belongs in the after-string."
 
 (ert-deftest overblock-pycell-test-body-lines-keep-raised-text ()
   "Raised text does not cut the inline part short; an image does."
-  (let ((overblock-pycell-max-lines 10))
+  (let ((overblock-run-max-lines 10))
     (should (equal (overblock-run-body-lines-of-pycell
                     (list "x" (propertize "2" 'display '(raise 0.2)) "y"))
                    (list "x" (propertize "2" 'display '(raise 0.2)) "y")))))
@@ -727,8 +727,8 @@ writes between cells belongs to it and has to be written back."
 One long line is one line, so the line cap does not bound it, and the
 block costs what it holds: a hundred thousand characters on one line
 were a fifth of a second a wheel event."
-  (let ((overblock-pycell-max-lines 12)
-        (overblock-pycell-max-line-length 10))
+  (let ((overblock-run-max-lines 12)
+        (overblock-run-max-line-length 10))
     (should (equal (overblock-run-body-lines-of-pycell (list "short" (make-string 30 ?x)))
                    (list "short" (concat (make-string 10 ?x)
                                          (overblock-glyph "…" "...")))))
@@ -739,8 +739,8 @@ were a fifth of a second a wheel event."
       (let ((line (concat (make-string 30 ?x) overblock-test-common-image)))
         (should (equal (overblock-run-body-lines-of-pycell (list line)) (list line))))))
   ;; zero cuts nothing
-  (let ((overblock-pycell-max-lines 12)
-        (overblock-pycell-max-line-length 0))
+  (let ((overblock-run-max-lines 12)
+        (overblock-run-max-line-length 0))
     (should (equal (overblock-run-body-lines-of-pycell (list (make-string 30 ?x)))
                    (list (make-string 30 ?x))))))
 
@@ -955,7 +955,7 @@ a result of no characters at all, which is why the bound asks first."
     (let* ((from (copy-marker (point)))
            ;; what the body can show: the lines it keeps, each cut to
            ;; the length it cuts them to
-           (budget (* overblock-pycell-max-lines (1+ overblock-pycell-max-line-length))))
+           (budget (* overblock-run-max-lines (1+ overblock-run-max-line-length))))
       (setq-local overblock-run--state (list :from from :beg (point-min-marker)
                                     :end (point-max-marker) :tail ""
                                     :start (float-time)))
@@ -976,7 +976,7 @@ output five times a second, which grows with the cell: 25ms a tick at
 the start of a sixty thousand line cell and 101ms at its end,
 measured against ipython, where the bounded mirror stays at 1ms
 throughout."
-  (let ((overblock-pycell-max-lines 4))
+  (let ((overblock-run-max-lines 4))
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
       (setq-local overblock-run-backend (overblock-pycell--backend))
@@ -1004,7 +1004,7 @@ throughout."
 An escape sequence that has not arrived in full swallows everything
 after it until it does, and comint-mime renders it only when it is
 complete."
-  (let ((overblock-pycell-max-lines 2))
+  (let ((overblock-run-max-lines 2))
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
       (setq-local overblock-run-backend (overblock-pycell--backend))
@@ -1614,7 +1614,7 @@ one: `overblock-md--image-file' answers nil for every path there."
 
 (ert-deftest overblock-pycell-test-a-pop-out-follows-a-running-cell ()
   "A popped-out result keeps filling while the cell runs.
-The block shows `overblock-pycell-max-lines' of the output and no more; the
+The block shows `overblock-run-max-lines' of the output and no more; the
 buffer takes the whole of it, so a long run can be followed in a window
 of its own.  Only what is new is copied each time, and the cell's end
 writes the whole of it again with the prompts off."

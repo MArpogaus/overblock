@@ -150,40 +150,6 @@ of five, and trailing it stands in one column down the window."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-pycell-max-lines 12
-  "Number of result lines that show inline.
-Zero shows all of them.
-A result block is one buffer line however tall it is, so a long
-result makes one long step for `next-line' and for the wheel.  Use
-`overblock-run-pop-output' to see the whole of it.  Customize this
-and the results already on the screen follow.
-
-Length is not what costs redisplay its time.  Measured in a 1000x700
-window, forty lines of plain output scroll as cheaply as none, while
-twelve lines full of face changes cost three times as much: the work
-follows the number of face runs the text carries, not its size.
-
-Width is another matter: see `overblock-pycell-max-line-length'."
-  :type 'natnum
-  :set #'overblock-run-set-and-redraw)
-
-(defcustom overblock-pycell-max-line-length 2000
-  "Number of characters of a result line that show inline.
-Zero shows all of them.  A line longer than this is cut, and the cut
-is marked with an ellipsis; `overblock-run-pop-output' has the whole of it.
-
-One long line is one line, so `overblock-pycell-max-lines' does not bound it,
-and a block laid out on every redisplay costs what it holds.
-Measured in a 1200x800 window: a thousand characters on one line cost
-1.4 milliseconds a wheel event, five thousand 2.4, twenty thousand
-12.8, and a hundred thousand 226 — a fifth of a second an event, with
-the wheel sending them by the dozen.  A `print' of a wide row, a long
-list or a base64 blob is one such line.
-
-Customize this and the results already on the screen follow."
-  :type 'natnum
-  :set #'overblock-run-set-and-redraw)
-
 ;;;; Blocks of every kind
 
 (defun overblock-pycell--drop-rendering (block)
@@ -1176,9 +1142,7 @@ The commentary of `overblock-run' lists the slots."
         :starts #'overblock-pycell--cell-starts
         :redraw (lambda () (mapc #'overblock-pycell--bar-redraw (overblock-bars)))
         :buttons 'overblock-pycell-result-buttons
-        :stale #'overblock-pycell--stale-when-edited
-        :lines 'overblock-pycell-max-lines
-        :chars 'overblock-pycell-max-line-length))
+        :stale #'overblock-pycell--stale-when-edited))
 
 (defun overblock-pycell--dedicated ()
   "Return what a new shell is dedicated to, as the reader asked.

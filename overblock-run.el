@@ -60,13 +60,11 @@
 ;; And the look of a result block, which `overblock-run-show' draws:
 ;;
 ;;   :buttons      the option that holds the button descriptors, a symbol
-;;   :lines        the option that says how many lines show, a symbol
-;;   :chars        the option that says how long a line may be, a symbol
 ;;   :stale        what to do with the block when its region is edited,
 ;;                 `overblock-delete' where the backend names none
 ;;
-;; The three options are named and not copied, because the reader may
-;; customize them while the notebook is open.  The bar wears
+;; The button option is named and not copied, because the reader may
+;; customize it while the notebook is open.  The bar wears
 ;; `overblock-bar' and the body `overblock-body', in every notebook.
 ;;
 ;; Two consumers live here: `overblock-pycell' sends Python cells to an
@@ -114,15 +112,60 @@ nothing in silence."
 
 (defun overblock-run--option (slot)
   "Return the value of the option this buffer's backend names in SLOT.
-For `:buttons', `:lines' and `:chars', which name a variable rather than
-hold a value: the reader customizes those while the notebook is open,
-and a block drawn later shows what they say now."
+For `:buttons', which names a variable rather than holding a value:
+the reader customizes it while the notebook is open, and a block drawn
+later shows what it says now."
   (symbol-value (plist-get overblock-run-backend slot)))
 
 (defun overblock-run--unit (&optional plural)
   "Return what this backend calls a region, PLURAL where that is asked."
   (concat (or (plist-get overblock-run-backend :unit) "region")
           (if plural "s" "")))
+
+(defun overblock-run-set-and-redraw (symbol value)
+  "Set SYMBOL to VALUE, and draw every notebook again.
+The `:set\' of the options a block on the screen follows: the buttons
+of a bar, and how much of a result shows.  A change to one of them
+showed up only when something else drew a block again — a window
+changing width, or the file opened afresh — so customizing a notebook
+that was already open appeared to do nothing at all."
+  (set-default symbol value)
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when overblock-run-backend
+        (overblock-bars-stale)
+        (overblock-run--redraw)))))
+
+(defcustom overblock-run-max-lines 12
+  "Number of result lines that show inline, in every notebook.
+Zero shows all of them.
+A result block is one buffer line however tall it is, so a long
+result makes one long step for `next-line' and for the wheel.  Use
+`overblock-run-pop-output' to see the whole of it.
+
+Length is not what costs redisplay its time: the work follows the
+number of face runs the text carries, not its size.  Width is another
+matter: see `overblock-run-max-line-length'.
+
+Customize this and the results already on the screen follow."
+  :type 'natnum
+  :group 'overblock
+  :set #'overblock-run-set-and-redraw)
+
+(defcustom overblock-run-max-line-length 2000
+  "Number of characters of a result line that show inline.
+Zero shows all of them.  A line longer than this is cut, and the cut
+is marked with an ellipsis; `overblock-run-pop-output' has the whole
+of it.
+
+One long line is one line, so `overblock-run-max-lines' does not bound
+it, and a block laid out on every redisplay costs what it holds.  A
+`print' of a wide row, a long list or a base64 blob is one such line.
+
+Customize this and the results already on the screen follow."
+  :type 'natnum
+  :group 'overblock
+  :set #'overblock-run-set-and-redraw)
 
 (defvar-keymap overblock-run-result-map
   :doc "Keymap inside a region that shows a result, empty on purpose.
@@ -295,8 +338,8 @@ are and how many of them show, and the body is those that show."
          (text (plist-get data :text))
          (total (plist-get data :total)))
     (let* ((empty (string-empty-p text))
-           (max (overblock-run--option :lines))
-           (chars (overblock-run--option :chars))
+           (max overblock-run-max-lines)
+           (chars overblock-run-max-line-length)
            (lines (unless empty (overblock-repl-first-lines text max)))
            (shown (overblock-run--body-lines lines chars))
            ;; The count is asked for once and kept: a finished result
@@ -538,8 +581,8 @@ Nothing is kept while the head is empty: an escape sequence that has
 not arrived in full swallows everything after it until it does, and a
 cell whose first lines are still on their way has more to come."
   (or (plist-get overblock-run--state :head)
-      (let* ((lines (overblock-run--option :lines))
-             (chars (overblock-run--option :chars))
+      (let* ((lines overblock-run-max-lines)
+             (chars overblock-run-max-line-length)
              (budget (and (natnump chars)
                           (> chars 0)
                           (> lines 0)
@@ -1008,20 +1051,6 @@ whatever bars the mode keeps."
   (dolist (block (overblock-in (point-min) (point-max) 'result))
     (overblock-run-update block))
   (overblock-run--call :redraw))
-
-(defun overblock-run-set-and-redraw (symbol value)
-  "Set SYMBOL to VALUE, and draw every notebook again.
-The `:set\' of the options a block on the screen follows: the buttons
-of a bar, and how much of a result shows.  A change to one of them
-showed up only when something else drew a block again — a window
-changing width, or the file opened afresh — so customizing a notebook
-that was already open appeared to do nothing at all."
-  (set-default symbol value)
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer
-      (when overblock-run-backend
-        (overblock-bars-stale)
-        (overblock-run--redraw)))))
 
 (defun overblock-run--result-at (event)
   "Return the result block at point, or at the click in EVENT.

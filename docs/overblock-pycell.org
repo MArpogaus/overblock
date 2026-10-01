@@ -241,7 +241,7 @@ that keeps it cheap, are the runner's:
 
 What this package answers there is what a prompt of IPython looks like
 and how to clean it away: =overblock-run-output-head= hands
-=overblock-pycell-max-lines=, =overblock-pycell-max-line-length= and
+=overblock-run-max-lines=, =overblock-run-max-line-length= and
 =overblock-pycell--clean= to that bounded read, and
 =overblock-pycell--clean= takes the prompts and the =Out[N]= labels off
 and cuts the copy loose from the shell.

@@ -43,9 +43,6 @@
     (discard ("" "✕" "drop") "Discard" overblock-run-discard-output t))
   "Two buttons, which is enough to tell a running header from a done one.")
 
-(defvar overblock-run-test-max-lines 12 "Lines a test result shows.")
-(defvar overblock-run-test-max-chars 0 "Columns a test result line shows.")
-
 (defvar overblock-run-test--shell nil
   "The shell buffer of the run in hand, for the backend's `:process'.")
 
@@ -59,9 +56,7 @@
         :prompt-p (lambda (tail) (string-suffix-p ">>> " tail))
         :clean (lambda (text) (string-trim (string-remove-suffix ">>> " text)))
         :error-p (lambda (text) (string-match-p "Error" text))
-        :buttons 'overblock-run-test-buttons
-        :lines 'overblock-run-test-max-lines
-        :chars 'overblock-run-test-max-chars))
+        :buttons 'overblock-run-test-buttons))
 
 (defmacro overblock-run-test--with-run (&rest body)
   "Run BODY with a region of the notebook running in a shell over `cat'.

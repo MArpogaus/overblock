@@ -292,15 +292,19 @@ line below them.
 | =overblock-edit-commit= | put an edit back and render it again   |
 | =overblock-edit-abort=  | discard an edit                        |
 
-| Option                      | Default | Meaning                                     |
-|-----------------------------+---------+---------------------------------------------|
-| =overblock-image-height=    | 0.8     | the share of the window for an inline image |
-| =overblock-terminal-glyphs= | nil     | whether this terminal draws the icon glyphs |
-| =overblock-live-idle=       | 0.2     | the quiet before a live cycle renders again |
+| Option                          | Default | Meaning                                          |
+|---------------------------------+---------+--------------------------------------------------|
+| =overblock-image-height=        |     0.8 | the share of the window for an inline image      |
+| =overblock-terminal-glyphs=     |     nil | whether this terminal draws the icon glyphs      |
+| =overblock-live-idle=           |     0.2 | the quiet before a live cycle renders again      |
+| =overblock-run-max-lines=       |      12 | the result lines that show inline                |
+| =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
 
 A block taller than the window cannot be scrolled past, which is what
 =overblock-image-height= is for. Zero draws an image at whatever size
-it came in.
+it came in. The two result limits apply to both notebooks. Zero shows
+every line, or a line whole. Set them with =setopt=, and the results on
+the screen follow.
 
 ** overblock-md: markup rendered to text
 
@@ -604,7 +608,7 @@ figures. Markdown cells render in place, LaTeX fragments included.
     :custom
     ;; A block is one buffer line.  A long result therefore makes a
     ;; long jump.  Keep the inline part short.
-    (overblock-pycell-max-lines 12))
+    (overblock-run-max-lines 12))
 
   ;; IPython gives rich output, if the project has one.
   (use-package python
@@ -731,7 +735,7 @@ read-only, so a plain key is free.
 
 =overblock-run-pop-output= on a cell that is still running keeps
 writing there as the cell prints. The block shows
-=overblock-pycell-max-lines= of the output; the buffer takes all of it,
+=overblock-run-max-lines= of the output; the buffer takes all of it,
 so a long run can be followed in a window of its own. Point at the end
 of that buffer follows the output, and anywhere else it stays where you
 left it. The buffer is written once more when the cell ends, with the
@@ -855,16 +859,10 @@ of the cell needs, such as =TAB= for folding:
 
 | Option                              | Default                           | Meaning                                          |
 |-------------------------------------+-----------------------------------+--------------------------------------------------|
-| =overblock-pycell-max-lines=        | 12                                | the result lines that show inline                |
-| =overblock-pycell-max-line-length=  | 2000                              | the characters of a result line that show inline |
 | =overblock-pycell-result-buttons=   | seven buttons                     | the buttons on the header of a result            |
 | =overblock-pycell-md-buttons=       | three buttons                     | the buttons on the header of a markdown cell     |
 | =overblock-pycell-cell-buttons=     | four buttons                      | the buttons on the bar of a code cell            |
 | =overblock-pycell-source-buttons=   | three buttons                     | the buttons on an unrendered markdown cell       |
-
-Zero is a legal value for both limits, and means the same in each:
-=max-lines= of zero shows every line of the output inline, and
-=max-line-length= of zero shows a line whole.
 
 overblock-pycell renders through the layer and =overblock-md=, and
 their options shape what a block looks like: =overblock-image-height=
@@ -894,8 +892,7 @@ glyph your font draws better:
 #+end_src
 
 =setopt= and not =setq=: the buttons of every open notebook are drawn
-again when the option is set that way, and so are the results when
-=max-lines= or =max-line-length= is.
+again when the option is set that way.
 
 A command of your own can sit there as well: it is called with the
 click, so read =last-input-event= as the commands of this package do.
@@ -1090,22 +1087,15 @@ key is free to bind:
 
 | Option                          | Default                   | Meaning                                          |
 |---------------------------------+---------------------------+--------------------------------------------------|
-| =overblock-rmd-max-lines=       | 12                        | the result lines that show inline                |
-| =overblock-rmd-max-line-length= | 2000                      | the characters of a result line that show inline |
 | =overblock-rmd-figure-size=     | =(7 . 5)=                 | width and height of a figure, in inches          |
 | =overblock-rmd-chunk-buttons=   | two buttons               | the buttons on the bar of a chunk                |
 | =overblock-rmd-result-buttons=  | five buttons              | the buttons on the header of a result            |
-
-Zero is a legal value for both limits, and means the same in each:
-=max-lines= of zero shows every line of the output inline, and
-=max-line-length= of zero shows a line whole.
 
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=, as
 the other packages here write it, and a glyph means the same thing on a
 chunk bar as it does in a =# %%= notebook: a reader who moves between
 the two reads the same row. =setopt= and not =setq=: the bars of every
-open Rmd buffer are drawn again when the option is set that way, and so
-are the results when =max-lines= or =max-line-length= is.
+open Rmd buffer are drawn again when the option is set that way.
 
 overblock-rmd renders through the layer and =overblock-md=, and their
 options shape what a block looks like. Every caller shares them.
@@ -1174,8 +1164,8 @@ here.
 
 And for the two notebooks:
 
-- A result block shows =overblock-pycell-max-lines=, or
-  =overblock-rmd-max-lines=, of the output and no more.
+- A result block shows =overblock-run-max-lines= of the output and no
+  more.
   =overblock-run-pop-output= shows the whole of it, and keeps up
   with a cell that is still printing; =overblock-rmd= has no such
   buffer.
