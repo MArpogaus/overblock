@@ -476,11 +476,24 @@ lines, and the blank lines of the source stay in view instead."
     (mapcar (lambda (row) (and (overblock--carries-p row) (pop dealt)))
             rows)))
 
+(defvar overblock--keys nil
+  "The keys `overblock--align' has made, by line, or nil outside it.")
+
 (defun overblock--key (text)
   "Return what TEXT and its rendering have in common: its first letters.
 Markup goes (quotes, bullets, pipes, dollars, comment marks), and so
 does case, so a source line and the line it renders to have one key."
-  (let ((bare (downcase (replace-regexp-in-string "[^[:alnum:]]+" "" text))))
+  (if overblock--keys
+      (with-memoization (gethash text overblock--keys)
+        (overblock--key-of text))
+    (overblock--key-of text)))
+
+(defun overblock--key-of (text)
+  "Return the `overblock--key' of TEXT, made afresh."
+  ;; The head of the line is enough: the key is six letters long.
+  (let ((bare (downcase (replace-regexp-in-string
+                         "[^[:alnum:]]+" ""
+                         (substring text 0 (min 40 (length text)))))))
     (substring bare 0 (min 6 (length bare)))))
 
 (defun overblock--keys-match-p (key row-key)
@@ -493,9 +506,14 @@ does case, so a source line and the line it renders to have one key."
 (defun overblock--ahead (line keys)
   "Return the index in KEYS of the row LINE was rendered from.
 Only the first four rows count; nil where none of them matches."
-  (let ((key (overblock--key line)))
-    (seq-position (take 4 keys) key
-                  (lambda (row-key key) (overblock--keys-match-p key row-key)))))
+  (let ((key (overblock--key line))
+        (index 0)
+        found)
+    (while (and keys (< index 4) (not found))
+      (if (overblock--keys-match-p key (pop keys))
+          (setq found index)
+        (setq index (1+ index))))
+    found))
 
 (defun overblock--carries-p (row)
   "Return non-nil where ROW has text to carry a piece."
@@ -512,13 +530,25 @@ Only the first four rows count; nil where none of them matches."
 
 (defun overblock--line-by-line-p (lines keys)
   "Return non-nil where half the LINES with text match one of KEYS."
-  (let ((text (seq-remove #'string-blank-p lines)))
-    (>= (* 2 (seq-count (lambda (line)
-                          (let ((key (overblock--key line)))
-                            (seq-some (lambda (row-key)
-                                        (overblock--keys-match-p key row-key))
-                                      keys)))
-                        text))
+  (let ((text (seq-remove #'string-blank-p lines))
+        (whole (make-hash-table :test #'equal))
+        short)
+    ;; Keys of six letters match only when equal; a shorter one can
+    ;; begin another, and those are few.
+    (dolist (row-key keys)
+      (when (and row-key (not (string-empty-p row-key)))
+        (puthash row-key t whole)
+        (when (< (length row-key) 6) (push row-key short))))
+    (>= (* 2 (seq-count
+              (lambda (line)
+                (let ((key (overblock--key line)))
+                  (or (gethash key whole)
+                      (and (not (string-empty-p key))
+                           (or (< (length key) 6) short)
+                           (seq-some (lambda (row-key)
+                                       (overblock--keys-match-p key row-key))
+                                     (if (< (length key) 6) keys short))))))
+              text))
         (length text))))
 
 (defun overblock--no-false-gap (lines keys)
@@ -562,9 +592,10 @@ takes whatever is left.  See `overblock--take' for a wrapped line.
 Nil as a whole where fewer than half the lines with text match a row:
 the rendering is no line by line one of its source, and
 `overblock--spread' deals it instead."
-  (let ((carry (seq-count #'overblock--carries-p rows))
-        (keys (overblock--row-keys rows))
-        chunks)
+  (let* ((overblock--keys (make-hash-table :test #'eq))
+         (carry (seq-count #'overblock--carries-p rows))
+         (keys (overblock--row-keys rows))
+         chunks)
     (when (overblock--line-by-line-p lines keys)
       (while rows
         (let ((row (pop rows))
