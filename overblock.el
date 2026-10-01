@@ -252,7 +252,7 @@ by every `overblock-refresh'."
         (overlay-put block 'face overblock--plain))
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, for
-      ;; `overblock--width-changed'.  Built with no window to measure,
+      ;; `overblock--width-changed'. Built with no window to measure,
       ;; the buffer forgets its width, so the next window that shows it
       ;; draws it again.
       (let ((columns (overblock-window-columns)))
