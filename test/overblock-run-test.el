@@ -285,6 +285,17 @@ So a .py file and an Rmd file show the same row."
 
 ;;;; The mark at the head of a result bar
 
+(ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
+  "A folded result claims to show nothing.
+A folded result of thirty lines read showing 12."
+  (let ((overblock-run-backend (overblock-run-test--backend)))
+    (should (string-search
+             "showing 12" (substring-no-properties
+                           (overblock-run-header nil 30 12 0.1 nil nil))))
+    (should-not (string-search
+                 "showing" (substring-no-properties
+                            (overblock-run-header t 30 12 0.1 nil nil))))))
+
 (ert-deftest overblock-run-test-the-mark-says-which-state-it-is-in ()
   "Four states, four marks: a spinner, a warning, a fold arrow, a tick.
 The four marks differ on every display."

@@ -266,7 +266,7 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
          (mark (overblock-run--mark folded total runtime state))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")
-                               (if (< shown total)
+                               (if (and (not folded) (< shown total))
                                    (format ", showing %d" shown) "")))
                       ((not state) "no output")))
          (time (format "%.1fs" runtime)))
