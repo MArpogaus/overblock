@@ -283,6 +283,12 @@ The item is one block, and the fence is not a second one over it."
                                              (>= (cdr p) (cdr chunk))))
                             (overblock-md-preview-regions (point-min) (point-max) t))))))
 
+(ert-deftest overblock-md-preview-test-inline-code-opens-no-fence ()
+  "A line that begins with triple-backtick inline code is prose."
+  (with-temp-buffer
+    (insert "```x``` leads this line.\n\nLast para.\n")
+    (should-not (overblock-md-preview-fences (point-max)))))
+
 (ert-deftest overblock-md-preview-test-an-item-that-ends-in-its-fence-takes-it ()
   "An item whose last lines are its fence is one block with that fence."
   (with-temp-buffer

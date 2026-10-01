@@ -91,10 +91,13 @@ end of the buffer."
   (save-excursion
     (goto-char (point-min))
     (let (regions open fence)
-      (while (re-search-forward "^[[:blank:]]*\\(```+\\|~~~+\\)" end t)
+      ;; Four spaces in, a fence line is code text.
+      (while (re-search-forward "^ \\{0,3\\}\\(```+\\|~~~+\\)" end t)
         (let ((this (match-string-no-properties 1))
               (bare (looking-at-p "[[:blank:]]*$")))
-          (cond ((null open) (setq open (pos-bol) fence this))
+          (cond ;; A backtick after the marks makes inline code of it.
+                ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")))
+                ((null open) (setq open (pos-bol) fence this))
                 ;; Of another kind, or shorter than the opening fence:
                 ;; content of the block.
                 ((or (not (eq (aref this 0) (aref fence 0)))
