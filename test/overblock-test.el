@@ -857,10 +857,10 @@ priority would hide the stripe of `hl-line'."
     (insert "one\ntwo\nthree\n")
     (goto-char (point-min))
     (let ((block (overblock-show (point-min) (pos-eol 2) :over "over")))
-      (should (eq (overlay-get block 'face) 'default))
+      (should (equal (overlay-get block 'face) overblock--plain))
       (should (< (overlay-get block 'priority) -50))
       (let ((newline (overblock-get block :newline)))
-        (should (eq (overlay-get newline 'face) 'default))
+        (should (equal (overlay-get newline 'face) overblock--plain))
         (should (< (overlay-get newline 'priority) -50))))))
 
 (ert-deftest overblock-test-an-active-region-shows-its-source ()
@@ -898,7 +898,7 @@ of an overlay, `default' included, outranks font lock."
     (let ((result (overblock-show 1 (pos-eol 1) :kind 'result :body "1"))
           (rendering (overblock-show (pos-bol 2) (point-max) :kind 'md :over "one")))
       (should-not (overlay-get result 'face))
-      (should (eq (overlay-get rendering 'face) 'default)))))
+      (should (equal (overlay-get rendering 'face) overblock--plain)))))
 
 (ert-deftest overblock-test-a-block-built-for-another-width-is-dropped ()
   "A block carries the columns it was built for, and loses them to a change.
@@ -964,7 +964,7 @@ line carries nothing."
       (dolist (ov pieces)
         (goto-char (overlay-start ov))
         (should (= (current-column) 4))
-        (should (equal (overlay-get ov 'face) 'default)))
+        (should (equal (overlay-get ov 'face) overblock--plain)))
       ;; The short line has no piece and is cloaked.
       (goto-char (point-min)) (forward-line 2)
       (should (invisible-p (point)))
@@ -982,7 +982,7 @@ line carries nothing."
     ;; Without `:indent' the anchor paints the whole region plain.
     (overblock-clear)
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
-      (should (eq (overlay-get block 'face) 'default)))))
+      (should (equal (overlay-get block 'face) overblock--plain)))))
 
 (ert-deftest overblock-test-indent-counts-columns-past-a-tab ()
   "`:indent' is a column, so a tab-indented line is covered from there.

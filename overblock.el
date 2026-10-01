@@ -175,6 +175,11 @@ this, because an orphan has no kind."
                    (not (gethash ov owned)))
           (delete-overlay ov))))))
 
+(defconst overblock--plain '(:inherit default :extend t)
+  "The face that paints the source under a rendering plain.
+Extended, because past the end of a line only a face with `:extend'
+paints, and the face of the source's newline showed there instead.")
+
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
 Return nil where BEG..END holds nothing to hang a block on: an anchor
@@ -239,7 +244,7 @@ by every `overblock-refresh'."
       ;; whole lines: a result leaves its code in view, and `:indent'
       ;; leaves the indentation guide. Below `hl-line' (-50).
       (when (and (plist-get props :over) (not (plist-get props :indent)))
-        (overlay-put block 'face 'default))
+        (overlay-put block 'face overblock--plain))
       (overlay-put block 'priority -60)
       ;; The width the rendering was built for, for
       ;; `overblock--width-changed'.
@@ -254,7 +259,7 @@ by every `overblock-refresh'."
           (overlay-put ov 'evaporate t)
           (overlay-put ov 'overblock-part t)
           ;; Plain, as the anchor.
-          (overlay-put ov 'face 'default)
+          (overlay-put ov 'face overblock--plain)
           (overlay-put ov 'priority -60)
           (overblock-set block :newline ov)))
       (overblock-refresh block)
@@ -362,7 +367,7 @@ position is inside invisible text."
     ;; Plain, as the anchor: a display string also has the face of the
     ;; text under it. Needed here because a block with `:indent' paints
     ;; no anchor. Below `hl-line'.
-    (overlay-put ov 'face 'default)
+    (overlay-put ov 'face overblock--plain)
     (overlay-put ov 'priority -60)
     (if (overblock-image-in text)
         (let ((text (copy-sequence text)))
