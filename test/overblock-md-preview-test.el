@@ -314,6 +314,15 @@ The item is one block, and the fence is not a second one over it."
   (should (equal (overblock-md-preview--closed "- ```sh\n  x\n```\t")
                  "- ```sh\n  x\n  ```")))
 
+(ert-deftest overblock-md-preview-test-a-failed-conversion-is-a-block ()
+  "A region the converter fails on gets an empty block, and goes no more."
+  (with-temp-buffer
+    (insert "---\ntitle: x: y\n---\n")
+    (setq-local overblock-live--specs (list (list 'md-preview #'ignore)))
+    (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
+      (should (overblock-md-preview--show 1 (1- (point-max)))))
+    (should-not (overblock-live-wanted-p 1 (1- (point-max)) 'md-preview))))
+
 (ert-deftest overblock-md-preview-test-a-later-paragraph-of-an-item-is-dedented ()
   "The fence under a later paragraph of an item keeps its place in it."
   (with-temp-buffer

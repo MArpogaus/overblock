@@ -393,8 +393,12 @@ when a caller sent the whole buffer through one process.
 piece to a line, so a tall block scrolls like text."
   (when-let* ((source (overblock-md-preview--source beg end))
               ((not (string-blank-p source)))
-              (rendered (let ((overblock-md-width (overblock-md-columns)))
-                          (overblock-md-rendered source html))))
+              ;; A conversion that fails gives an empty block, which
+              ;; keeps the source in view and the region from going to
+              ;; the converter again on every idle pass.
+              (rendered (or (let ((overblock-md-width (overblock-md-columns)))
+                              (overblock-md-rendered source html))
+                            "")))
     (overblock-show-rendering beg end rendered 'default
                               :kind 'md-preview
                               :keymap overblock-md-preview-map
