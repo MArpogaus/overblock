@@ -598,6 +598,9 @@ cell whose first lines are still on their way has more to come."
                         (point-max)
                       (save-excursion
                         (goto-char from)
+                        ;; `:clean' trims the blank lines a region
+                        ;; prints first, so they count for nothing
+                        (skip-chars-forward " \t\n")
                         (forward-line (+ lines 4))
                         (point))))
              ;; A cell that prints much on few lines never reaches that

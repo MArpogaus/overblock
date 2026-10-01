@@ -994,6 +994,22 @@ throughout."
         (insert "line 201\nline 202")
         (should (= (overblock-run-total from) 202))))))
 
+(ert-deftest overblock-pycell-test-leading-blank-lines-do-not-shorten-the-head ()
+  "Output that begins with blank lines still shows the lines it may.
+The head was cut a few lines past FROM and then cleaned of its leading
+blank lines, so it froze with fewer lines than the block shows."
+  (let ((overblock-run-max-lines 4))
+    (with-temp-buffer
+      (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
+      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (let ((from (point-max-marker)))
+        (setq-local overblock-run--state (list :from from :tail "" :start 0.0))
+        (insert (make-string 8 ?\n)
+                (mapconcat (lambda (i) (format "line %d" i))
+                           (number-sequence 1 20) "\n")
+                "\n")
+        (should (string-search "line 4" (overblock-run-output-head from)))))))
+
 (ert-deftest overblock-pycell-test-mirror-keeps-nothing-while-it-has-nothing ()
   "An empty head is not kept, so the text can still arrive.
 An escape sequence that has not arrived in full swallows everything
