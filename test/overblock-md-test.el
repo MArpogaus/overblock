@@ -962,5 +962,23 @@ is laid out in columns."
       (overblock-md-eglot-renderer)
       (should (equal (buffer-string) "Plain *markdown*.")))))
 
+(ert-deftest overblock-md-test-a-click-on-a-rendered-link-browses-it ()
+  "A click on a link of a rendering browses its URL.
+A rendering is a display string, and `shr-browse-url' reads the URL at
+point, which is buffer text: every click said there was no link."
+  (skip-unless (overblock-md-program))
+  (let* ((text (overblock-md-rendered "A [link](https://example.com/x) here."))
+         (index (seq-find (lambda (i) (get-text-property i 'shr-url text))
+                          (number-sequence 0 (1- (length text)))))
+         (event `(mouse-2 (,(selected-window) 1 (0 . 0) 0 (,text . ,index)
+                           1 nil nil nil nil)))
+         opened)
+    (should index)
+    (should (eq (lookup-key (get-text-property index 'keymap text) [mouse-2])
+                #'overblock-md-follow-link))
+    (cl-letf (((symbol-function 'browse-url) (lambda (url &rest _) (setq opened url))))
+      (overblock-md-follow-link event))
+    (should (equal opened "https://example.com/x"))))
+
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

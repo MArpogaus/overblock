@@ -1136,6 +1136,35 @@ what it can show."
   (when-let* ((columns (overblock-window-columns)))
     (max 20 (- columns (or indent 0) 1))))
 
+(defun overblock-md-follow-link (event)
+  "Browse the URL of the rendered link clicked in EVENT.
+A rendering is a display string, and `shr-browse-url' reads the URL at
+point, which is buffer text: this reads it from the string the click
+landed in."
+  (interactive "e")
+  (let* ((posn (event-start event))
+         (url (pcase (posn-string posn)
+                (`(,string . ,index) (get-text-property index 'shr-url string))
+                (_ (with-current-buffer (window-buffer (posn-window posn))
+                     (get-char-property (posn-point posn) 'shr-url))))))
+    (if url
+        (browse-url url)
+      (message "No link here"))))
+
+(defvar-keymap overblock-md-link-map
+  :doc "Keymap on a rendered link: `shr-map' with a click that works.
+See `overblock-md-follow-link'."
+  :parent shr-map
+  "<mouse-2>" #'overblock-md-follow-link)
+
+(defun overblock-md--own-links ()
+  "Give every link of this buffer `overblock-md-link-map' for `shr-map'."
+  (let ((pos (point-min)))
+    (while (setq pos (text-property-any pos (point-max) 'keymap shr-map))
+      (let ((end (next-single-property-change pos 'keymap nil (point-max))))
+        (put-text-property pos end 'keymap overblock-md-link-map)
+        (setq pos end)))))
+
 (defun overblock-md-rendered (md &optional html)
   "Render the markdown MD to a propertized string.
 `overblock-md-command' produces HTML, shr renders it, and LaTeX
@@ -1194,6 +1223,7 @@ without a converter has to see."
               ,@shr-external-rendering-functions)))
       (with-temp-buffer
         (shr-insert-document dom)
+        (overblock-md--own-links)
         (overblock-flatten-alignment)
         ;; Trim whole blank lines, never a first line's indent: the
         ;; columns are literal now, and a table that starts the cell
