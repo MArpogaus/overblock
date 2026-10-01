@@ -529,26 +529,29 @@ Only the first four rows count; nil where none of them matches."
           rows))
 
 (defun overblock--line-by-line-p (lines keys)
-  "Return non-nil where half the LINES with text match one of KEYS."
-  (let ((text (seq-remove #'string-blank-p lines))
+  "Return non-nil where half the rows of KEYS with text match one of LINES.
+The rows, and not the lines: a source line the renderer wrapped makes
+lines that match no row, and a short block with wide lines would fail."
+  (let ((rows (seq-filter (lambda (key) (and key (not (string-empty-p key))))
+                          keys))
         (whole (make-hash-table :test #'equal))
         short)
     ;; Keys of six letters match only when equal; a shorter one can
     ;; begin another, and those are few.
-    (dolist (row-key keys)
-      (when (and row-key (not (string-empty-p row-key)))
-        (puthash row-key t whole)
-        (when (< (length row-key) 6) (push row-key short))))
+    (dolist (line lines)
+      (let ((key (overblock--key line)))
+        (unless (string-empty-p key)
+          (puthash key t whole)
+          (when (< (length key) 6) (push key short)))))
     (>= (* 2 (seq-count
-              (lambda (line)
-                (let ((key (overblock--key line)))
-                  (or (gethash key whole)
-                      (and (not (string-empty-p key))
-                           (seq-some (lambda (row-key)
-                                       (overblock--keys-match-p key row-key))
-                                     (if (< (length key) 6) keys short))))))
-              text))
-        (length text))))
+              (lambda (row-key)
+                (or (gethash row-key whole)
+                    (seq-some (lambda (key) (overblock--keys-match-p key row-key))
+                              (if (< (length row-key) 6)
+                                  (hash-table-keys whole)
+                                short))))
+              rows))
+        (length rows))))
 
 (defun overblock--no-false-gap (lines keys)
   "Return LINES without the blank lines before the line of the first of KEYS.

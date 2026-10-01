@@ -1146,6 +1146,20 @@ The first row of a block carries only where it cannot be cloaked."
                                (overlays-at (point)))
                      "x = 1")))))
 
+(ert-deftest overblock-test-a-short-block-of-wide-lines-is-aligned ()
+  "Rows that all match keep their lines, however many lines wrapping adds.
+Counted by lines, the continuations of two wrapped rows put the block
+under the half, and its lines were dealt evenly instead."
+  (with-temp-buffer
+    (insert "alpha beta\ngamma delta\nepsilon\n")
+    (overblock-show (point-min) (point-max)
+                    :over "alpha\nx1\nx2\nx3\nx4\ngamma\nepsilon")
+    (goto-char (point-min))
+    (forward-line 1)
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "gamma"))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer
