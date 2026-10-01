@@ -671,7 +671,8 @@ eglot renders in a temporary buffer that is gone by then."
               (overblock-md--eldoc-rendering "A formula $x$ here."))
             (should (functionp callback))
             (funcall callback)
-            (should (equal asked-again (list reader t)))))
+            ;; Not interactive: that pops up the *eldoc* buffer.
+            (should (equal asked-again (list reader nil)))))
       (kill-buffer reader))))
 
 (ert-deftest overblock-md-test-a-formula-wears-the-colour-of-its-prose ()

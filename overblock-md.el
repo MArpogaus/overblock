@@ -66,6 +66,7 @@
 ;; `overblock-md-program' returns nil there. A build without image
 ;; support has no `image-size'; the calls are behind `display-images-p'.
 (declare-function eldoc-print-current-symbol-info "eldoc" (&optional interactive))
+(defvar eldoc--last-request-state)
 (declare-function image-size "image.c" (spec &optional pixels frame))
 (declare-function libxml-parse-html-region "ext:xml.c"
                   (start end &optional base-url discard-comments))
@@ -269,7 +270,10 @@ arrives, so the hover is asked for again in this buffer.")
              (setq overblock-md--eldoc-timer nil)
              (when (and (buffer-live-p asker) (eq (window-buffer) asker))
                (with-current-buffer asker
-                 (eldoc-print-current-symbol-info t)))))))
+                 ;; Not interactive, which would pop up *eldoc*; eldoc
+                 ;; has no public way to forget the request it answered.
+                 (setq eldoc--last-request-state nil)
+                 (eldoc-print-current-symbol-info)))))))
   nil)
 
 (defun overblock-md--latex-draw-arrivals ()
