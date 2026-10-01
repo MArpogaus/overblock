@@ -124,9 +124,10 @@ lint: $(STAMP)
 
 # What checkdoc and package-lint both let through: a docstring escape
 # written \= rather than \\=, which the reader eats, so `describe-function'
-# shows the reader the = as text.
+# shows the reader the = as text. The demo scripts are read here too, as
+# nothing else reads them.
 relint: $(STAMP)
-	@$(BATCH) -l relint -f relint-batch $(SRC) $(TEST)
+	@$(BATCH) -l relint -f relint-batch $(SRC) $(TEST) $(wildcard demo/*.el)
 
 # A fifth of the suite renders markdown and skips itself where no
 # converter is installed. On a machine that is meant to have one that
