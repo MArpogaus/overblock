@@ -211,6 +211,12 @@ that the rendering has already left."
                      (with-temp-file file (insert "Not Found")))))
           (should-not (overblock-md--remote-file url))
           (should (gethash url overblock-md--remote-failed))
+          ;; An error page with an svg icon is no image.
+          (cl-letf (((symbol-function 'url-copy-file)
+                     (lambda (_url file &rest _)
+                       (with-temp-file file
+                         (insert "<html><body><svg/>Not Found</body></html>")))))
+            (should-not (overblock-md--remote-file "https://example.org/x.png")))
           ;; An SVG whose header Emacs does not know is kept.
           (cl-letf (((symbol-function 'url-copy-file)
                      (lambda (_url file &rest _)
@@ -849,6 +855,16 @@ without a formula stays."
     (should (equal (mapcar (lambda (b) (overblock-get b :over))
                            (overblock-in (point-min) (point-max) 'md-preview))
                    '("plain")))))
+
+(ert-deftest overblock-md-test-a-file-that-holds-no-image-is-its-label ()
+  "A file named like an image that holds text, as a git-lfs pointer does."
+  (let ((dir (make-temp-file "overblock-lfs" t)))
+    (unwind-protect
+        (let ((default-directory (file-name-as-directory dir)))
+          (with-temp-file "shot.png"
+            (insert "version https://git-lfs.github.com/spec/v1\n"))
+          (should-not (overblock-md--image-file "shot.png")))
+      (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
   "An image whose file is not there shows its label, and nothing is fetched."

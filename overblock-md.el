@@ -167,16 +167,23 @@ plain one, which tells Emacs the kind of image."
                 (concat "." (downcase extension))
               ".img"))))
 
+(defconst overblock-md--svg-start-regexp
+  (concat "\\`\ufeff?\\(?:[ \t\r\n]+\\|<\\?[^>]*>\\|<!--\\(?:[^-]\\|-[^-]\\)*-->"
+          "\\|<!DOCTYPE[^[>]*\\(?:\\[[^]]*\\]\\)?[ \t\r\n]*>\\)*<svg")
+  "What the start of an SVG file looks like: the svg tag comes first.
+Before it only a byte-order mark, blanks, the XML declaration, comments
+and a DOCTYPE stand.  An error page that holds an svg icon is no SVG.")
+
 (defun overblock-md--image-p (file)
   "Return non-nil where FILE holds an image, whatever its name.
 Not `image-supported-file-p', which reads the name: a URL with a query
 caches as `<md5>.img'.  An SVG with a DOCTYPE subset or a byte-order
 mark has no header that `image-type-from-file-header' knows, so a file
-that holds an svg tag counts too."
+that begins with an svg tag counts too."
   (or (image-type-from-file-header file)
       (with-temp-buffer
         (insert-file-contents file nil 0 4096)
-        (search-forward "<svg" nil t))))
+        (looking-at-p overblock-md--svg-start-regexp))))
 
 (defun overblock-md--create-image (file)
   "Return the image of FILE, an SVG where its header says nothing.
@@ -906,7 +913,8 @@ URL name the file directly.  Another scheme returns nil."
               ((not (string-empty-p path)))
               (file (expand-file-name path))
               ((file-readable-p file))
-              ((image-supported-file-p file)))
+              ;; The content, not the name: a git-lfs pointer is text.
+              ((overblock-md--image-p file)))
     file))
 
 (defun overblock-md--tag-list (dom)
