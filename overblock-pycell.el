@@ -470,8 +470,8 @@ With one, it is followed; with several, the reader chooses."
          (links (overblock-pycell--md-links block)))
     (cond
      ((null links) (user-error "No link in this cell"))
-     ((null (cdr links)) (browse-url (cdar links)))
-     (t (browse-url
+     ((null (cdr links)) (overblock-md-browse (cdar links)))
+     (t (overblock-md-browse
          (cdr (assoc (completing-read "Follow link: " (mapcar #'car links)
                                       nil t)
                      links)))))))

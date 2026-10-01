@@ -127,6 +127,11 @@ URL from the clicked string. The parent is =shr-map=, whose
 (=mouse-1= or =mouse-2=) on a rendered link opens it. A click on other
 text of a block shows its source.
 
+=overblock-md-browse= opens the link. A URL with a scheme goes to
+=browse-url=. A link of a README is often relative: =#slug= moves to
+the heading of the buffer whose id pandoc makes =slug=, and a path opens
+its file, relative to the file of the buffer.
+
 An image inside a link keeps the link. shr puts the link around what
 the renderer inserted, and =overblock-fill-props= writes the keymap of
 a block only where the rendering has none.

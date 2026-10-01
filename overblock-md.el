@@ -1180,7 +1180,7 @@ window, so `text-scale-adjust' is respected."
     (max 20 (- columns (or indent 0) 1))))
 
 (defun overblock-md-follow-link (event)
-  "Browse the URL of the rendered link clicked in EVENT.
+  "Follow the rendered link clicked in EVENT; see `overblock-md-browse'.
 A rendering is a display string, and `shr-browse-url' reads the URL
 from buffer text at point.  This reads it from the clicked string."
   (interactive "e")
@@ -1190,8 +1190,36 @@ from buffer text at point.  This reads it from the clicked string."
                 (_ (with-current-buffer (window-buffer (posn-window posn))
                      (get-char-property (posn-point posn) 'shr-url))))))
     (if url
-        (browse-url url)
+        (progn (select-window (posn-window posn))
+               (overblock-md-browse url))
       (message "No link here"))))
+
+(defun overblock-md-browse (url)
+  "Open URL, the target of a link in the markdown of this buffer.
+A URL with a scheme goes to `browse-url'.  A link of a README is often
+relative: #SLUG goes to the heading of this buffer whose id pandoc
+makes SLUG, and a path opens its file, relative to this buffer."
+  (cond ((string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url) (browse-url url))
+        ((string-prefix-p "#" url) (overblock-md--goto-heading (substring url 1)))
+        (t (find-file (expand-file-name
+                       (url-unhex-string (car (split-string url "#"))))))))
+
+(defun overblock-md--slug (heading)
+  "Return the id pandoc gives the HEADING text: lower case, dashes."
+  (replace-regexp-in-string
+   " +" "-" (replace-regexp-in-string "[^[:alnum:] _.-]" ""
+                                      (downcase (string-trim heading)))))
+
+(defun overblock-md--goto-heading (slug)
+  "Move to the heading of this buffer whose id is SLUG."
+  (if-let* ((pos (save-excursion
+                   (goto-char (point-min))
+                   (catch 'found
+                     (while (re-search-forward "^#+[ \t]+\\(.*?\\)[ \t#]*$" nil t)
+                       (when (equal (overblock-md--slug (match-string 1)) slug)
+                         (throw 'found (pos-bol))))))))
+      (progn (push-mark) (goto-char pos))
+    (message "No heading #%s here" slug)))
 
 (defvar-keymap overblock-md-link-map
   :doc "Keymap on a rendered link: `shr-map' with a click that works.

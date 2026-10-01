@@ -325,6 +325,27 @@ An HTML comment split at a blank line takes the marker between its halves."
                 "<pre><b>bold</b> and\nline2<br>line3</pre>\n")))
     (should (string-match-p "line2\n *line3" shown))))
 
+(ert-deftest overblock-md-test-a-relative-link-opens-here ()
+  "A #slug link goes to its heading, a path to its file, a URL out."
+  (let ((browsed nil) (found nil)
+        (dir (make-temp-file "overblock-links" t)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'browse-url)
+                   (lambda (url &rest _) (setq browsed url)))
+                  ((symbol-function 'find-file)
+                   (lambda (file &rest _) (setq found file))))
+          (with-temp-buffer
+            (setq default-directory (file-name-as-directory dir))
+            (insert "# Top\n\n## Getting Started!\n\nText.\n")
+            (goto-char (point-max))
+            (overblock-md-browse "#getting-started")
+            (should (looking-at-p "## Getting"))
+            (overblock-md-browse "docs/guide.md#usage")
+            (should (equal found (expand-file-name "docs/guide.md" dir)))
+            (overblock-md-browse "https://example.org")
+            (should (equal browsed "https://example.org"))))
+      (delete-directory dir t))))
+
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
 `:stderr nil' would mix the warnings of pandoc into the HTML."
