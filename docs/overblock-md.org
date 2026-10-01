@@ -69,7 +69,9 @@ cycle that comes while the batch is with the converter waits. When the
 batch lands, the live cycle of that kind runs again. A batch first
 shows the regions that a window shows. A timer then shows the rest,
 =overblock-md--slice= (fifty) at a time, so a large buffer does not
-hold the reader.
+hold the reader. A rendering that signals ends the flight of its batch,
+so the next cycle of that kind does not wait for good. A batch shows
+its regions over the whole buffer, also under a narrowing.
 
 The answer is nil where no converter is installed, and where the
 converter exits with an error. The check is where the program is
@@ -85,8 +87,9 @@ grey placeholder of shr.
 Thus =overblock-md--tag-img= draws a file itself, through
 =shr-external-rendering-functions=. The alt text carries the image, so
 a terminal still tells what is there. An image named by URL is fetched
-once into =~/.cache/overblock-images= and drawn from there. A URL that
-failed is not asked for again in the session, until
+once into the folder =overblock-images/= of the XDG cache folder
+(=~/.cache= by default), and drawn from there. A URL that failed is
+not asked for again in the session, until
 =overblock-md-forget-failed-images=. With =overblock-md-remote-images=
 nil, the package fetches nothing and leaves such an image to shr.
 

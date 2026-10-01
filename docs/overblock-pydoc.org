@@ -145,9 +145,9 @@ each piece has a line of its own, and two doc strings of the same shape
 render the same way.
 
 A doc string of one line is all bar, without a rule under it. The prose
-is filled narrower by the room that the glyph and the buttons take, so
-the first line fits on the bar. A summary that is still too long is cut
-with an ellipsis.
+of each doc string is filled narrower by the room that the glyph and the
+buttons take, so the first line fits on the bar. A summary that is
+still too long is cut with an ellipsis.
 
 ** The width one is built for
 
@@ -155,7 +155,8 @@ A rendering is built for a width. The prose is filled to it, and the
 rule of the bar is spaces up to it.
 
 The prose has the columns of the narrowest window that shows the
-buffer, less the indent of the doc string, less one.
+buffer, less the indent of the doc string, less the room of the bar
+(=overblock-pydoc--bar-room=), less one.
 =overblock-md-width= carries that number to the renderer; see
 [[file:overblock-md.org][the notes of overblock-md]].
 
