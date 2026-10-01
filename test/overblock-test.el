@@ -1045,6 +1045,17 @@ lines in order put every line after it one row too high."
       (should (equal (funcall shown 3) "text one"))
       (should (equal (funcall shown 4) "text two")))))
 
+(ert-deftest overblock-test-a-line-stays-on-its-row-when-a-later-row-looks-alike ()
+  "Two source lines that begin alike keep their own rendered lines."
+  (with-temp-buffer
+    (insert "beta0 is one\nbeta0 is two\n")
+    (overblock-show (point-min) (point-max)
+                    :over "beta0 is one\nbeta0 is two")
+    (goto-char (point-min))
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "beta0 is one"))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer
