@@ -111,8 +111,9 @@ doc string in it.
 
 (defun overblock-pydoc--mode-for-markup ()
   "Return the major mode that reads a doc string of this buffer.
-`overblock-pydoc-modes' says which.  The default is `rst-mode', and
-`text-mode' replaces a mode that is not installed."
+`overblock-pydoc-modes' says which.  A markup the option does not
+name gets `rst-mode', and `text-mode' replaces a mode that is not
+installed."
   (let ((mode (or (alist-get overblock-pydoc-markup overblock-pydoc-modes)
                   #'rst-mode)))
     (if (fboundp mode) mode #'text-mode)))

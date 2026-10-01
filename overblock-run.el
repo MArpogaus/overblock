@@ -477,8 +477,10 @@ A plist:
           longer change
   :count  (POSITION . LINES) counted up to POSITION, so a tick reads
           only what arrived since the one before it
+  :follow (BUFFER . MARKER), the buffer that follows the run and how
+          far it has copied
 
-The last two belong to the live mirror.")
+The :head and :count slots belong to the live mirror.")
 
 (defun overblock-run--whole-escapes (text)
   "Return TEXT without an escape sequence that has not arrived in full.
