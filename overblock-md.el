@@ -315,7 +315,7 @@ refuses an `align' inside `\\=\\['.  Environments that live inside math,
 such as `aligned', keep their delimiters."
   (if (string-match (rx bos "\\[" (* space)
                         (group "\\begin{"
-                               (or "align" "equation" "gather" "multline"
+                               (or "align" "alignat" "equation" "gather" "multline"
                                    "flalign" "eqnarray")
                                (? "*") "}"
                                (* anychar))

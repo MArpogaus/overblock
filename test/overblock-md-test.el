@@ -659,6 +659,8 @@ display delimiters pandoc puts around it."
             (overblock-md--latex-image "\\[\\begin{align}a\\end{align}\\]"))
           (should (eq asked-in buffer))
           (should (equal asked "\\begin{align}a\\end{align}"))
+          (overblock-md--latex-image "\\[\\begin{alignat}{2}a\\end{alignat}\\]")
+          (should (equal asked "\\begin{alignat}{2}a\\end{alignat}"))
           (overblock-md--latex-image "\\[\\begin{aligned}a\\end{aligned}\\]")
           (should (equal asked "\\[\\begin{aligned}a\\end{aligned}\\]")))
       (kill-buffer buffer))))
