@@ -158,7 +158,7 @@ because nothing else can tell whether the region opened in a fence."
       (should (equal (string-trim (substring-no-properties shown))
                      "A heading")))))
 
-(ert-deftest overblock-md-preview-test-the-line-at-point-shows-its-source ()
+(ert-deftest overblock-md-preview-test-an-edited-block-shows-its-source ()
   "A block taken down with `overblock-live-edit' shows its source.
 With point elsewhere, the next pass renders it again."
   (skip-unless (overblock-md-program))
