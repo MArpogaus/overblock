@@ -651,6 +651,8 @@ These limits apply to each package, unless a limit names one.
   markers that split one batch for the converter. Each region of that
   buffer then converts on its own, which is slow in a large file. Close
   the comment.
+- At a text scale of -2 or below, the bar of a doc string can run a few
+  pixels past the edge of the window.
 - One converter run renders all blocks of a buffer. A footnote of
   Markdown therefore shows under the last block of the run, and its
   definition stays as source.
