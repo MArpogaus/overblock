@@ -206,7 +206,8 @@ The live cycle of the layer renders the cells, as it renders the prose
 of a Markdown file. =overblock-pycell-render-buffer= renders what is
 not rendered yet. The whole buffer goes to the converter in one
 process, through =overblock-md-render-regions=, and nothing waits for
-it. The mode sets =overblock-live-source-at-point= to nil, so a rendered
+it. A cell that the converter fails on shows its markdown as it is,
+and goes to the converter again only after an edit. The mode sets =overblock-live-source-at-point= to nil, so a rendered
 cell stays rendered when point moves into it. A click with =mouse-1=
 shows the source until point leaves the cell. A moved cell renders at
 once.

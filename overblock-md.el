@@ -687,9 +687,10 @@ Return nil where the marker did not come back once between every pair."
 
 (defun overblock-md--batch-answer (page texts callback)
   "Hand CALLBACK the HTML of each of TEXTS out of PAGE.
-Where the markers did not all come back, a text swallowed them, as an
-HTML comment across a blank line does.  Each half of TEXTS then goes
-again in a process of its own, and a text alone gets nil, for the
+Where the markers did not all come back, a text swallowed them: the
+converter read it on to the end of all it was sent.  Each
+half of TEXTS then goes again in a process of its own, and a text
+alone gets nil, for the
 caller to convert alone.  One such text costs a few processes in the
 background, not one in the foreground for each text.  A PAGE of nil is
 a converter that failed, as pandoc does where a marker lands in a YAML

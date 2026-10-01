@@ -647,10 +647,6 @@ These limits apply to each package, unless a limit names one.
   is the only change =overblock-pycell= makes to the text.
 - Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
   not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
-- An HTML comment that is not closed (=<!--= with no =-->=) hides the
-  markers that split one batch for the converter. The batch then goes
-  again in halves, a few more processes in the background. Close the
-  comment.
 - At a text scale of -2 or below, the bar of a doc string can run a few
   pixels past the edge of the window.
 - One converter run renders all blocks of a buffer. A footnote of
