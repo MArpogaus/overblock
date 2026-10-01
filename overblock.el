@@ -685,7 +685,7 @@ Without a face of its own a row wears that of the line it ends,
 `hl-line' beside a figure among them.  The break that ends the line
 itself keeps it."
   (let ((rows (concat lead (string-join strings "\n"))))
-    (add-face-text-property (min 1 (length rows)) (length rows)
+    (add-face-text-property (length lead) (length rows)
                             overblock--plain t rows)
     rows))
 
