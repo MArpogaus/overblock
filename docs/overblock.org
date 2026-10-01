@@ -416,7 +416,7 @@ It changes three things:
 | =overblock-repl-strip-trailing-prompt= | remove the prompt at the end of an output       |
 
 =overblock-repl-first-lines= stops at its limit, and a limit of zero
-reads nothing more. To cap the images is the work of
+reads every line. To cap the images is the work of
 =overblock-image-cap=. The file needs =vtable=, which Emacs ships.
 
 * The run loop
@@ -592,7 +592,7 @@ text of many lines scrolls as fast as none.
   a line looks four source lines ahead, so its cost is linear in the
   lines of a region.
 - =overblock-fill-props= takes a plist and walks the rendering once.
-- =overblock-show= keeps the block that it has when only the data
+- =overblock-run-show= keeps the block that it has when only the data
   changed, which is each tick of a growing output.
 - =overblock-repl-first-lines= and =overblock-repl-count-lines= are
   bounded.
@@ -607,8 +607,8 @@ suite of the code that it checks. These suites belong to the layer:
   one region, what a delete removes, the cloak of the last line and the
   sweep. Other tests check the image cap, the slices, and the bars,
   buttons and glyphs.
-- =test/overblock-repl-test.el=: a copied table laid out again, its
-  getter, and the image cap.
+- =test/overblock-repl-test.el=: a copied table laid out again, and its
+  getter.
 - =test/overblock-run-test.el=: the runner with a process at the other
   end and no language. Its backend is a plist over =cat=. It tests a
   prompt that ends a run, an error that stops a pass, and a dead, killed

@@ -79,8 +79,8 @@ the same recording.
 - *pycell*: a =# %%= notebook. A markdown cell renders, and a cell runs
   with its output under it. A matplotlib figure shows in the buffer, and
   an output folds to its bar.
-- *rmd*: an R Markdown file with its prose rendered, two R chunks run
-  in place, and one result folded to its bar.
+- *rmd*: an R Markdown file with its prose rendered, three R chunks run
+  in place, and two results folded to their bars.
 - *family*: all four in one session, each picture the same size.
 
 * Why the frame is asked for in pixels

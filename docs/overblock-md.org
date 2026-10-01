@@ -92,7 +92,8 @@ once into the folder =overblock-images/= of the XDG cache folder
 (=~/.cache= by default), and drawn from there. A URL that failed is
 not asked for again in the session, until
 =overblock-md-forget-failed-images=. With =overblock-md-remote-images=
-nil, the package fetches nothing and leaves such an image to shr.
+nil, the package fetches nothing and shows such an image as its alt
+text. shr does not get it, because shr would fetch it.
 
 A terminal draws no image, and the placeholder of shr is itself an
 image that hides the text under it. Thus where images cannot show, the
@@ -142,8 +143,8 @@ What the converter renders stays text, and only the rest becomes an
 image. pandoc renders simple math as text. Such text loses its
 =\(= and =\)= delimiters, and keeps the dollars.
 
-A formula inside a table stays text. A table is padded to the width of
-its text, and an image is never as wide as the text that it replaces.
+A formula inside a table is an image with a stretch after it. The
+stretch makes up the width of the marks, so the row keeps its columns.
 
 A formula that fails stays text. The engine reports the failure once,
 with the log of LaTeX. =latex-to-svg-backend-invalidate= forgets one

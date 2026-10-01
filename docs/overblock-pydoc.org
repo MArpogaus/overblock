@@ -54,7 +54,7 @@ The scan starts after the opening quotes and not between the first two.
 =python-mode= gives the first of three quotes the syntax of a plain
 string delimiter. Two quotes are added back at the end, because the
 scan stops at the first of the three closing quotes. An unterminated
-doc string ends where the walk was told to stop.
+doc string is not rendered.
 
 * What to render them with
 

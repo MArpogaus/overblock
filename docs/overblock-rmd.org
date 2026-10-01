@@ -85,9 +85,8 @@ and counts lines from the top of the chunk, not of the file.
 
 ** The chunk as an R string
 
-=overblock-rmd--r-string= escapes the backslashes, then the quotes, then
-the newlines. The newlines are escaped so that the whole chunk goes as
-one line. A literal newline inside the string is legal R. But comint
+=overblock-rmd--r-string= prints the chunk as a string literal, with
+the newlines escaped, so that the whole chunk goes as one line. A literal newline inside the string is legal R. But comint
 would send it as a line of its own, and R would answer with a
 continuation prompt in the middle of the result.
 
