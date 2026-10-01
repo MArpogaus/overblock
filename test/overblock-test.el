@@ -1171,6 +1171,32 @@ under the half, and its lines were dealt evenly instead."
                              (overlays-at (point)))
                    "Head"))))
 
+(ert-deftest overblock-test-text-typed-after-an-edited-region-stays ()
+  "Text typed right after a region while its edit is open is not overwritten."
+  (with-temp-buffer
+    (insert "one\nREGION\nthree\n")
+    (let ((source (current-buffer)))
+      (overblock-edit-in-buffer
+       5 11 (list :name " *overblock-test-edit*" :label "region"
+                  :mode #'text-mode
+                  :text #'buffer-substring-no-properties
+                  :put (lambda (beg end text)
+                         (goto-char beg)
+                         (delete-region beg end)
+                         (insert text))))
+      (unwind-protect
+          (progn
+            (with-current-buffer source
+              (goto-char 11)
+              (insert " typed"))
+            (erase-buffer)
+            (insert "EDITED")
+            (overblock-edit-commit)
+            (with-current-buffer source
+              (should (equal (buffer-string) "one\nEDITED typed\nthree\n"))))
+        (when (get-buffer " *overblock-test-edit*")
+          (kill-buffer " *overblock-test-edit*"))))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the bounds of the region while the reader

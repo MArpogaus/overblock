@@ -855,7 +855,9 @@ another region is discarded only after the reader confirms."
          ;; Markers, so a commit lands on the region even after the
          ;; source buffer changed above it.
          (beg (copy-marker beg))
-         (end (copy-marker end t))
+         ;; Not advancing: text typed right after the region while the
+         ;; edit is open is not part of it, and the commit keeps it.
+         (end (copy-marker end))
          (text (funcall (plist-get props :text) beg end))
          (put (plist-get props :put))
          (buffer (get-buffer-create (plist-get props :name))))
