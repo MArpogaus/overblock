@@ -249,5 +249,12 @@ then stays source."
       (should (equal (overblock-md-preview-paragraphs (point-max) fences)
                      '((1 . 12) (29 . 40)))))))
 
+(ert-deftest overblock-md-preview-test-an-indented-fence-stays-in-its-item ()
+  "A fence inside a list item does not cut the item in two."
+  (with-temp-buffer
+    (insert "- item *one*\n  ```python\n  x = 1\n  ```\n  tail of **item**\n- item two\n")
+    (should (equal (overblock-md-preview-regions (point-min) (point-max))
+                   '((1 . 69) (14 . 39))))))
+
 (provide 'overblock-md-preview-test)
 ;;; overblock-md-preview-test.el ends here

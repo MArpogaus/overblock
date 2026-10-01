@@ -105,10 +105,15 @@ end of the buffer."
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
+(defun overblock-md-preview--margin-p (pos)
+  "Return non-nil where the line at POS begins at the left margin."
+  (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
+
 (defun overblock-md-preview-paragraphs (end fences)
   "Return the bounds of every paragraph up to END, FENCES aside.
 A paragraph is the run of lines between two blank ones, or between a
-blank line and a fence: a fence ends the paragraph that touches it.
+blank line and a fence: a fence at the left margin ends the paragraph
+that touches it, and an indented one belongs to the list item around it.
 The lines a fence holds are not read here:
 `overblock-md-preview-fences' has them already, and a blank line inside
 one ends no paragraph."
@@ -119,16 +124,21 @@ one ends no paragraph."
         ;; FENCES and this walk are both in order, so each fence is
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
-          (if (not (or fence (looking-at-p "[[:blank:]]*$")))
-              (setq last (pos-eol)
-                    from (or from (pos-bol)))
-            ;; A blank line ends a paragraph, and so does a fence that
-            ;; touches it; the walk jumps over the fence.
+          (cond
+           ((or (and fence (overblock-md-preview--margin-p (caar fences)))
+                (and (not fence) (looking-at-p "[[:blank:]]*$")))
+            ;; A blank line ends a paragraph, and so does a fence at
+            ;; the left margin that touches it.
             (when from (push (cons from last) regions))
-            (setq from nil)
-            (when fence
-              (goto-char (cdar fences))
-              (setq fences (cdr fences)))))
+            (setq from nil))
+           ((not fence)
+            (setq last (pos-eol)
+                  from (or from (pos-bol)))))
+          ;; An indented fence belongs to a list item: the walk jumps
+          ;; over it and the paragraph goes on.
+          (when fence
+            (goto-char (cdar fences))
+            (setq fences (cdr fences))))
         (forward-line 1))
       (when from (push (cons from last) regions))
       (nreverse regions))))
