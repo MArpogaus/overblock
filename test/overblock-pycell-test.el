@@ -560,7 +560,7 @@ cell."
                         ((symbol-function 'run-python) (lambda (&rest _) shell)))
                 (overblock-pycell-eval-region beg end)))
             ;; The cell now waits on the shell's first prompt, in a
-            ;; thunk of its own.  Let that prompt arrive.
+            ;; thunk of its own. Let that prompt arrive.
             (should (buffer-local-value 'python-shell-first-prompt-hook shell))
             (cl-letf (((symbol-function 'python-shell-get-process)
                        (lambda (&rest _) proc))
@@ -702,7 +702,7 @@ writes between cells belongs to it and has to be written back."
             (forward-line 1)
             (let ((prefix (format "*overblock-pycell md: %s:" (buffer-name))))
               ;; `overblock-pycell-md-edit' pops to its buffer, which leaves that
-              ;; buffer current for the rest of this form.  The buffer
+              ;; buffer current for the rest of this form. The buffer
               ;; is named after the cell, so look it up by its prefix.
               (save-window-excursion (overblock-pycell-md-edit))
               (setq edit (seq-find (lambda (b)
@@ -712,7 +712,7 @@ writes between cells belongs to it and has to be written back."
           ;; `overblock-edit-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
           ;; whatever the selected window holds — and the next test
-          ;; would find a marker into a dead buffer.  The round trip
+          ;; would find a marker into a dead buffer. The round trip
           ;; is what this checks.
           (cl-letf (((symbol-function 'quit-window) #'ignore))
             (with-current-buffer edit (overblock-edit-commit)))
@@ -733,7 +733,7 @@ were a fifth of a second a wheel event."
                    (list "short" (concat (make-string 10 ?x)
                                          (overblock-glyph "…" "...")))))
     ;; a line with an image on it keeps every character: the image may
-    ;; sit past the cut.  Only where the display can draw one — in a
+    ;; sit past the cut. Only where the display can draw one — in a
     ;; terminal it is a space like any other and the line is cut.
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
       (let ((line (concat (make-string 30 ?x) overblock-test-common-image)))
@@ -891,7 +891,7 @@ it into a bare #, so a commit that changed nothing changed the file."
           ;; `overblock-edit-commit' ends by quitting its window, and the
           ;; edit buffer is not displayed here, so that would kill
           ;; whatever the selected window holds — and the next test
-          ;; would find a marker into a dead buffer.  The round trip
+          ;; would find a marker into a dead buffer. The round trip
           ;; is what this checks.
           (cl-letf (((symbol-function 'quit-window) #'ignore))
             (with-current-buffer edit (overblock-edit-commit)))
@@ -1043,7 +1043,7 @@ complete."
             ;; the same buffer with the batch turned down: the joined
             ;; text is what the one process is made of, and without it
             ;; every cell converts on its own, which is the comparison
-            ;; this test is named for.  The stub used to sit on a
+            ;; this test is named for. The stub used to sit on a
             ;; function no caller reached, so both halves were batched.
             (cl-letf (((symbol-function 'overblock-md--batch-text)
                        (lambda (_texts) nil)))
@@ -1259,7 +1259,7 @@ refuses to insert one vtable into a second buffer."
                                                   'overblock-repl-table nil text)
                            'overblock-repl-table text)))
           ;; A copy carries the table object as well, so the object says
-          ;; nothing about whether the table works.  A drawn table knows
+          ;; nothing about whether the table works. A drawn table knows
           ;; which column is under point and can sort by it; a copy of
           ;; the text of one cannot.
           (forward-line 1)
@@ -1771,7 +1771,7 @@ so `overblock-run-interrupt' works there wherever the reader binds it."
               (should-error (overblock-run-interrupt) :type 'user-error)
               (should-not asked))
             ;; A killed notebook leaves the run's marker and this
-            ;; buffer's — the same object — pointing nowhere.  `eq' on
+            ;; buffer's — the same object — pointing nowhere. `eq' on
             ;; two nil buffers passed the test that `=' then signalled
             ;; "Marker does not point anywhere" on, and the cell was
             ;; left running with the pop-out the only place to stop it.
@@ -1866,7 +1866,7 @@ the process filter, and the cell, already off the queue, never ran."
             (overblock-run-next)
             ;; The two markdown cells are rendered, the first code cell
             ;; is sent, and the walk stops there: the second code cell
-            ;; waits for the prompt of the first.  The old shape sent
+            ;; waits for the prompt of the first. The old shape sent
             ;; both, and the second was refused and lost.
             (should (= (length (overblock-in (point-min) (point-max)
                                              'markdown))
@@ -2003,7 +2003,7 @@ A markdown boundary line is left to the rendering, which brings its own."
       (should (equal (overlay-get bar 'overblock-bar) 'code))
       ;; The bar rides the before-string; the line's own text draws as
       ;; the bar's last glyph, which carries `cursor' so the caret has
-      ;; somewhere to be.  Never the after-string: a rendering's cloak
+      ;; somewhere to be. Never the after-string: a rendering's cloak
       ;; covers the place a string after the overlay would draw in.
       (should (overlay-get bar 'before-string))
       (should (eq (get-text-property 0 'cursor (overlay-get bar 'display)) t))
@@ -2175,8 +2175,8 @@ the row a frame with a font and no nerd glyphs draws."
     ;; A frame draws no row whole: `overblock-glyph' answers for one
     ;; button at a time, so a frame with a font that has some of the
     ;; symbols draws those and falls to the plain characters for the
-    ;; rest.  Measured in a frame with the nerd font truly absent:
-    ;; `u d a ▷ / u d m / u d e s / u d ↓ ◫ ^ x' — two rows at once.  So
+    ;; rest. Measured in a frame with the nerd font truly absent:
+    ;; `u d a ▷ / u d m / u d e s / u d ↓ ◫ ^ x' — two rows at once. So
     ;; a glyph stands for one command whichever row it comes from.
     (let (seen)
       (dolist (buttons bars)
@@ -2217,7 +2217,7 @@ bar that was not there."
                     (overblock-bar-kind (overblock-bar-on-line))))))
       ;; `should' and not `skip-unless': the kind of that bar is what
       ;; this test measures, and a skip would hide the regression it
-      ;; guards.  The converter is asked for above.
+      ;; guards. The converter is asked for above.
       (should (eq (funcall kind) 'markdown))
       (goto-char (point-min))
       (forward-line 1)

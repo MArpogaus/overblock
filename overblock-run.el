@@ -168,7 +168,7 @@ instead."
     (while (and lines (not stop))
       (let* ((l (pop lines))
              (imagep (overblock-image-in l))
-             ;; Only where an image can be drawn.  A terminal shows
+             ;; Only where an image can be drawn. A terminal shows
              ;; the space it rides on and nothing else, so stopping
              ;; there would cost the rest of the output and buy no
              ;; height back.
@@ -197,7 +197,7 @@ of a result stood one column right of the glyph of the cell above it."
          ;; The stopwatch drives the spinner: one frame for each tick.
          ;; Braille and not a codicon like every other mark here: a
          ;; spinner needs a frame for each tick and the set has one
-         ;; still glyph.  These ten are one weight and one size among
+         ;; still glyph. These ten are one weight and one size among
          ;; themselves, which is what the rest of the row is for.
          (let ((frames (overblock-glyph "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" "|/-\\")))
            (string (aref frames (mod (truncate runtime overblock-run--interval)
@@ -336,14 +336,14 @@ counted."
                      :text text :runtime runtime :state state :total total)))
     (if (and old (= (overlay-start old) beg))
         ;; The ticker of a running cell comes here five times a second
-        ;; with nothing new but its data.  Keeping the block it has saves
+        ;; with nothing new but its data. Keeping the block it has saves
         ;; two overlays and a scan of the region on every tick, and it
         ;; leaves redisplay alone.
         (progn (overblock-set old :data data)
                (overblock-run-update old)
                old)
       ;; The newline that ends the cell carries the result; give the
-      ;; last cell of the buffer one.  The whole buffer: under a
+      ;; last cell of the buffer one. The whole buffer: under a
       ;; narrowing `point-max' is the end of the accessible part, and
       ;; the newline went into the middle of the buffer — measured, it
       ;; cut a `print(2)' in two.
@@ -366,7 +366,7 @@ counted."
         ;; An empty cell — a boundary line directly followed by the
         ;; next — has no newline of its own to hang a block on, and
         ;; `overblock-show' answers nil rather than anchor a
-        ;; zero-length overlay that would evaporate.  The cell was
+        ;; zero-length overlay that would evaporate. The cell was
         ;; evaluated either way, and the caller that counts results
         ;; takes the nil; what it must not do is crash inside the
         ;; process filter, where the signal left the shell busy for
@@ -456,7 +456,7 @@ had been scrolled to."
   (when-let* ((shell (overblock-run-shell))
               (home (buffer-local-value 'overblock-run--home shell)))
     ;; The marker goes whatever happens next, so a notebook that was
-    ;; killed while its pass ran leaves nothing behind to act on.  Freed
+    ;; killed while its pass ran leaves nothing behind to act on. Freed
     ;; and not merely dropped: a marker stays in its buffer's chain
     ;; until it is set to nowhere, and comint adjusts that whole chain
     ;; on every insertion.
@@ -558,12 +558,12 @@ cell whose first lines are still on their way has more to come."
              ;; cleans everything printed so far: measured, 68
              ;; milliseconds a tick over a hundred thousand characters on
              ;; one line, five times a second, for the two thousand
-             ;; characters that show.  The body cuts each line to
+             ;; characters that show. The body cuts each line to
              ;; CHARS anyway, so a bound in characters
              ;; loses nothing that shows — except where it would cut an
-             ;; escape sequence in two.  comint-mime sends an image as
+             ;; escape sequence in two. comint-mime sends an image as
              ;; one, and a cut inside it drops the figure: measured, a
-             ;; result of no characters at all.  So the bound holds only
+             ;; result of no characters at all. So the bound holds only
              ;; where no escape begins inside it.
              (limit (if (and budget
                              (> (- limit from) budget)
@@ -600,13 +600,13 @@ finished cell shows."
       ;; `count-lines' between two beginnings of lines counts the
       ;; newlines between them, and it counts them in C: measured over
       ;; 60000 lines, twenty passes cost 0.014 seconds against 0.596 for
-      ;; a `search-forward' loop.  The line that has arrived only in
+      ;; a `search-forward' loop. The line that has arrived only in
       ;; part is counted by the caller below, as it always was.
       (goto-char (point-max))
       (let ((bol (pos-bol)))
         (setq count (+ count (count-lines (car state) bol)))
         (goto-char bol))
-      ;; The marker is moved rather than made again.  Every marker left
+      ;; The marker is moved rather than made again. Every marker left
       ;; behind stays in the buffer's chain until a garbage collection,
       ;; and comint adjusts the whole chain on every insertion: 2000
       ;; ticks over 60000 inserted lines measured 0.144 seconds with a
@@ -785,7 +785,7 @@ nothing runs; the live mirroring is the ticker's job."
                        (string-limit tail 256 t)))
       (when (overblock-run--call :prompt-p tail)
         ;; Copy to the end of the buffer and let the backend's `:clean'
-        ;; take the prompt off.  `comint-last-prompt' cannot serve as the
+        ;; take the prompt off. `comint-last-prompt' cannot serve as the
         ;; end: comint calls the last line without a newline a prompt,
         ;; so a chunk that arrives split leaves the marker inside the
         ;; output, and everything after it would be dropped without a
@@ -823,11 +823,11 @@ ticker run there and read it."
                      overblock-run--interval overblock-run--interval
                      (let ((buffer (current-buffer)))
                        (lambda () (overblock-run--tick buffer timer)))))
-        ;; The process mark, and not the end of the buffer.  A render
+        ;; The process mark, and not the end of the buffer. A render
         ;; comint-mime finishes after the closing prompt sits past the
         ;; mark, and a cell that started from the end of the buffer
         ;; would have had its own output — which comint inserts AT the
-        ;; mark, before that render — fall outside its own region.  So
+        ;; mark, before that render — fall outside its own region. So
         ;; a late render is still swept into the next cell's result;
         ;; that is a fault of its own and not one to cure here.
         (setq overblock-run--state (list :from (copy-marker (process-mark proc))
@@ -837,9 +837,9 @@ ticker run there and read it."
     (overblock-run-show beg fin "" 0.0 'running nil)
     ;; The bookkeeping above says a region is running, and the send below
     ;; can fail — a signal from the shell, or `C-g' while the region is
-    ;; written to its temporary file.  Without this the shell stays busy
+    ;; written to its temporary file. Without this the shell stays busy
     ;; for the rest of the session: the ticker counts up, and every later
-    ;; cell is refused.  So a failed send ends the cell as a death, which
+    ;; cell is refused. So a failed send ends the cell as a death, which
     ;; also empties the queue of a run-all.
     (condition-case error
         (overblock-run--call :send proc beg fin)
@@ -882,7 +882,7 @@ process filter and that cell, already off the queue, never ran at all."
           (goto-char m)
           ;; The region goes to the top of every window showing the
           ;; notebook, so the whole of the code that is about to run
-          ;; is visible.  `overblock-run-go-home' gives point back when the
+          ;; is visible. `overblock-run-go-home' gives point back when the
           ;; pass ends.
           (dolist (window (get-buffer-window-list nil nil t))
             (set-window-point window m)
@@ -950,7 +950,7 @@ starting, the region waits for its first prompt and is sent then."
         (overblock-run--send proc start end))
     ;; Mark the region here, while its buffer is still current:
     ;; `copy-marker' on a number answers for whatever buffer that is,
-    ;; and the thunk below is called in the shell's.  Markers into the
+    ;; and the thunk below is called in the shell's. Markers into the
     ;; shell would send its start-up banner as the region.
     (let ((beg (copy-marker start))
           (fin (copy-marker end t)))
@@ -1156,7 +1156,7 @@ prompts taken off and a table laid out live."
   (let* ((ov (overblock-run--result-at event))
          (runningp (eq (plist-get (overblock-get ov :data) :state) 'running))
          ;; Not `overblock-run--result-text': that answers with the head
-         ;; the tick reads and says so.  A buffer that is about to
+         ;; the tick reads and says so. A buffer that is about to
          ;; follow the region wants everything printed so far instead.
          (text (if runningp "" (overblock-run--result-text ov)))
          (buffer (get-buffer-create
@@ -1273,7 +1273,7 @@ here instead of being deduced from output that does not exist."
             (running (plist-get (buffer-local-value 'overblock-run--state
                                                     shell)
                                 :beg)))
-        ;; Both have to point somewhere.  A killed notebook leaves the
+        ;; Both have to point somewhere. A killed notebook leaves the
         ;; run\'s marker and this buffer\'s — the same object — pointing
         ;; nowhere, and `eq\' on two nil buffers passed the test while
         ;; `=\' signalled "Marker does not point anywhere".

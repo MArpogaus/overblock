@@ -1,6 +1,6 @@
 # The overblock family
 
-A **block** is a rendering that sits over the text it came from.  The
+A **block** is a rendering that sits over the text it came from. The
 text is untouched: it is still there, and the buffer still saves as
 what it always was.
 

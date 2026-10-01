@@ -246,7 +246,7 @@ empty string."
                                         'syntax-table)))
           ;; Still in the string where the walk stopped: the closing
           ;; quotes are not there, and a doc string that ends nowhere
-          ;; is not one to render.  Answered `limit' before, and the
+          ;; is not one to render. Answered `limit' before, and the
           ;; block was drawn over the rest of the file — the two lines
           ;; under a half-typed """ among them.
           (unless (nth 3 done)
@@ -274,7 +274,7 @@ them ends.  `font-lock-ensure\' first: jit lock has painted only what
 has been on the screen, and a doc string below the window would
 otherwise be no doc string at all."
   ;; The whole buffer and nothing else is asked for by every caller
-  ;; here, so that is what is kept.  A narrower question walks as it
+  ;; here, so that is what is kept. A narrower question walks as it
   ;; always did — and a narrowing makes every question a narrow one,
   ;; whatever the bounds say: `buffer-chars-modified-tick' does not
   ;; change when the buffer is widened again, so the answer for one
@@ -347,7 +347,7 @@ and reads as prose one column from the left."
          ;; has, so a line of one non-breaking space passed the
          ;; filter and then answered nil to the match — and `min'
          ;; over a nil signalled, from mode-on, from the idle timer
-         ;; and from the converter's sentinel.  A line pasted out of
+         ;; and from the converter's sentinel. A line pasted out of
          ;; a browser is how one gets there.
          (indents (seq-keep (lambda (line)
                               (string-match-p "[^[:blank:]]" line))

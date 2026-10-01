@@ -237,7 +237,7 @@ not, and why it stays.  Call this in the shell buffer, where that
 variable has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop if the prompt regexp
-    ;; matches the empty string.  The last one keeps a figure: a cell
+    ;; matches the empty string. The last one keeps a figure: a cell
     ;; whose only output is one arrives as a space carrying it, which
     ;; the whitespace before the prompt would otherwise swallow, and
     ;; the block would come out empty.
@@ -247,7 +247,7 @@ variable has its value."
       (setq text (substring text (match-end 0))))
     (setq text (overblock-repl-strip-trailing-prompt text comint-prompt-regexp))
     ;; A plain python3 shell leaves a prompt on the same line after a
-    ;; `sys.stdout.write' without a newline.  Take that one off.
+    ;; `sys.stdout.write' without a newline. Take that one off.
     (when (string-match (concat "\\(?:" (string-remove-prefix
                                          "^" comint-prompt-regexp)
                                 "\\)[ \t]*\\'")
@@ -258,15 +258,15 @@ variable has its value."
   ;; copies its argument twice even when nothing matches, and a plain
   ;; python3 shell never writes a label at all.
   ;;
-  ;; Anchored to a line start, which is where the shell writes one.  A
+  ;; Anchored to a line start, which is where the shell writes one. A
   ;; label the shell wrote after output that stopped without a newline
   ;; sits on that same line and stays: unanchored, this took `Out[1]: '
   ;; out of the middle of a value that held those characters itself —
   ;; `'a value that says Out[1]: inside it'' came out as `'a value that
   ;; says inside it'', and `overblock-run-copy-output' hands that to
-  ;; the reader, who yanked the hole as well.  The
+  ;; the reader, who yanked the hole as well. The
   ;; two cannot be told apart: a trailing prompt takes the newline after
-  ;; a `print' with it, so "ends the text" says nothing either.  A label
+  ;; a `print' with it, so "ends the text" says nothing either. A label
   ;; left on the screen is the cheaper fault of the two.
   (if (string-search "Out[" text)
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
@@ -398,7 +398,7 @@ cell."
                      last-input-event))
   (setq arg (or arg 1))
   ;; The click first, so the cell that moves is the one whose button was
-  ;; pressed.  A header answers for its own cell wherever point is: with
+  ;; pressed. A header answers for its own cell wherever point is: with
   ;; point left where it was, clicking the arrow of one cell moved
   ;; another.
   (overblock-goto-event event)
@@ -421,7 +421,7 @@ cell."
     ;; stayed where it was.
     (goto-char beg)
     ;; This signals when there is nowhere to move, before anything is
-    ;; taken off.  Any error puts point back where the reader had it:
+    ;; taken off. Any error puts point back where the reader had it:
     ;; outline walks point before it refuses, and an error of a kind
     ;; not named here — one from a mode whose headings are in
     ;; `outline-regexp' beside the cells — left the reader inside
@@ -616,7 +616,7 @@ Only the word =markdown= of the boundary line carries the header, so
 `outline-minor-mode' still finds a heading line where it expects one."
   (when-let* (;; Still a markdown cell: the line above BEG is the
               ;; boundary that says so, and an edit of that line drops
-              ;; the cell's block.  `overblock-edit-commit' rewrites the
+              ;; the cell's block. `overblock-edit-commit' rewrites the
               ;; body and renders it again, and a reader who changed
               ;; the boundary in the notebook meanwhile reached
               ;; `overblock-pycell--md-block' with no start for its bar.
@@ -624,7 +624,7 @@ Only the word =markdown= of the boundary line carries the header, so
               ;; A cell with nothing in it — one just inserted, a
               ;; `# %% [markdown]' line with the next boundary under
               ;; it — has no region to hang a block on, and
-              ;; `overblock-show' rightly answers nil for one.  It used
+              ;; `overblock-show' rightly answers nil for one. It used
               ;; to get here all the same, because an empty rendering
               ;; is the empty string and not nil, and `--md-block' then
               ;; asked the layer to set a property on nothing: a signal
@@ -649,7 +649,7 @@ the width, and the label of the bar does."
     ;; The overlay does not grow at its end, so a title typed at the end
     ;; of the boundary line fell outside it: the label was read from the
     ;; stale region and the text beyond it drew after the bar, which
-    ;; made the row two rows.  The code and source bars move theirs to
+    ;; made the row two rows. The code and source bars move theirs to
     ;; the line first; this one now does too.
     (save-excursion
       (goto-char (overlay-start hov))
@@ -677,12 +677,12 @@ See `overblock-pycell--md-show', which renders and calls this."
          (hov (let ((from (overblock-pycell--md-cell-start beg)))
                 (overblock-pycell--sole-bar from start nil)
                 (overblock-bar-over from start)))
-         ;; The block covers the source of the cell.  The pieces hang
+         ;; The block covers the source of the cell. The pieces hang
          ;; on those lines, and the bar above them is not part of it.
          (block (overblock-show beg end
                                 :kind 'markdown
                                 ;; Where the source of the cell is, for
-                                ;; the editor.  Markers and not
+                                ;; the editor. Markers and not
                                 ;; positions: an edit above the cell
                                 ;; moves the text without touching the
                                 ;; block, and the editor would then
@@ -706,7 +706,7 @@ See `overblock-pycell--md-show', which renders and calls this."
     (overlay-put hov 'overblock-pycell-main block)
     (overblock-pycell--md-bar hov)
     ;; An edit of the source takes the rendering with it, the bar
-    ;; included.  The block itself evaporates with the text it covers,
+    ;; included. The block itself evaporates with the text it covers,
     ;; and the bar sits on the boundary line above, where no edit of the
     ;; cell reaches it: it would be left behind, and `overblock-edit-commit'
     ;; would draw a second bar beside it.
@@ -831,7 +831,7 @@ it back and renders it; `overblock-edit-abort' discards the edit."
            :mode (if (fboundp 'markdown-mode) #'markdown-mode #'text-mode)
            ;; Trimmed on the right: the cell reaches to the next
            ;; boundary line, so it holds the blank line jupytext writes
-           ;; between cells.  With that line in the edit buffer a
+           ;; between cells. With that line in the edit buffer a
            ;; paragraph typed at the end landed after it, and the
            ;; commit put the gap back below — three comment lines a
            ;; round, compounding.
@@ -978,7 +978,7 @@ and a code boundary."
         (eol (pos-eol)))
     (cond
      ;; Not a boundary line any more — a space typed before the comment,
-     ;; a marker half deleted.  Whatever bar it carries goes: its
+     ;; a marker half deleted. Whatever bar it carries goes: its
      ;; buttons would act on the cell that now encloses the line.
      ((not (looking-at-p code-cells-boundary-regexp))
       (overblock-pycell--sole-bar bol eol nil))
@@ -1081,7 +1081,7 @@ be sent down it."
                           (goto-char eol)
                           ;; To the start of the line, but never past
                           ;; the start of the region: with point as the
-                          ;; limit this could not move at all, so `df?  '
+                          ;; limit this could not move at all, so `df? '
                           ;; took the plain Python road and IPython
                           ;; answered with a syntax error — and with the
                           ;; line's start alone it read a `?' from text
@@ -1301,7 +1301,7 @@ run either way."
         ;; into one changes nothing, a click gives its source back.
         (setq-local overblock-live-source-at-point nil)
         ;; One piece of advice for the session, put on by the first
-        ;; notebook and taken off by the last.  Added while this file
+        ;; notebook and taken off by the last. Added while this file
         ;; loaded, it changed how `outline-flag-region' behaves in every
         ;; outline buffer of a session that had never turned the mode on
         ;; — and completing the name of one command loads the file.
@@ -1329,7 +1329,7 @@ the converter's HTML with")))
     (overblock-run-detach)
     (kill-local-variable 'overblock-live-source-at-point)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
-    ;; The last notebook takes the advice with it.  This buffer does not
+    ;; The last notebook takes the advice with it. This buffer does not
     ;; count itself: the mode's own variable is already nil here.
     (unless (seq-some (lambda (buffer)
                         (buffer-local-value 'overblock-pycell-mode buffer))

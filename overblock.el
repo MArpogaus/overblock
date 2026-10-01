@@ -257,7 +257,7 @@ every `overblock-refresh'."
                               (> (1- end) beg))
                          (1- end)
                        end))
-         ;; Nothing to hang a block on answers nothing.  `evaporate'
+         ;; Nothing to hang a block on answers nothing. `evaporate'
          ;; deletes a zero-length overlay the moment it goes on, so the
          ;; caller was handed an anchor that was already dead and that
          ;; `overblock-in' and `overblock-clear' could never find
@@ -269,15 +269,15 @@ every `overblock-refresh'."
       (overlay-put block 'evaporate t)
       (overlay-put block 'overblock-part t)
       ;; The source under a rendering is painted plain, newlines and
-      ;; all.  The face of a newline is drawn across the rest of its
+      ;; all. The face of a newline is drawn across the rest of its
       ;; screen line, and the source keeps what font lock gave it: a
       ;; rendered table row ended in a stripe of `markdown-table-face'
       ;; running to the window and a fenced block in a stripe of
-      ;; `markdown-code-face', one ragged edge per row.  What a rendering
+      ;; `markdown-code-face', one ragged edge per row. What a rendering
       ;; paints itself outranks this, so only the columns nothing claims
       ;; come out plain.
       ;;
-      ;; Only under a rendering that covers whole lines.  A result hangs
+      ;; Only under a rendering that covers whole lines. A result hangs
       ;; below its region and leaves the code in view, and the same
       ;; paint took every colour off a cell the moment it ran: an
       ;; overlay's face outranks what font lock wrote, `default'
@@ -295,13 +295,13 @@ every `overblock-refresh'."
       ;; `overblock--width-changed' can tell a block that is drawn for
       ;; this window from one that is not.
       (overlay-put block 'overblock-columns (overblock-window-columns))
-      ;; `modification-hooks' is left to the caller.  What an edit of the
+      ;; `modification-hooks' is left to the caller. What an edit of the
       ;; region means is the caller's business — a stale result goes, a
       ;; rendering goes with its source — and a hook of the layer's own was
       ;; both unreachable and overwritten: every route that empties the
       ;; anchor takes it down through `evaporate' first, so it is never
       ;; live and empty at once, and each caller writes the property
-      ;; wholesale.  What the layer carries is the mark above, so
+      ;; wholesale. What the layer carries is the mark above, so
       ;; `overblock-clear' can sweep an overlay whose anchor is gone.
       ;; The two slots the layer writes itself are there from the start, so
       ;; every `plist-put' after this mutates the list in place and no
@@ -317,7 +317,7 @@ every `overblock-refresh'."
           ;; what font lock painted the source: a rendered table row
           ;; ended in a stripe of `markdown-table-face' running to the
           ;; window, one edge per row, and a fenced block in a stripe of
-          ;; `markdown-code-face'.  An overlay face outranks a text
+          ;; `markdown-code-face'. An overlay face outranks a text
           ;; property, and what a rendering paints itself outranks this,
           ;; so only the columns nothing else claims come out plain.
           (overlay-put ov 'face 'default)
@@ -453,9 +453,9 @@ cloak at the piece's end, 32 for the same image on a before-string."
     (overlay-put ov 'overblock-part t)
     ;; The source under the piece is painted plain, as the anchor
     ;; paints its region: what a display string shows wears the face of
-    ;; the text it stands on as well as its own.  Here as well, because
+    ;; the text it stands on as well as its own. Here as well, because
     ;; a block with `:indent' paints no anchor, so that the indentation
-    ;; it leaves in view keeps its own faces.  Below `hl-line', as the
+    ;; it leaves in view keeps its own faces. Below `hl-line', as the
     ;; anchor is.
     (overlay-put ov 'face 'default)
     (overlay-put ov 'priority -60)
@@ -668,7 +668,7 @@ Each string carries the line breaks that its own rows need."
                           ;; A live overlay, tested by its buffer: without
                           ;; a newline there is nothing to hang a display
                           ;; property on, so the body joins the rows on
-                          ;; the anchor.  A deleted overlay is still an
+                          ;; the anchor. A deleted overlay is still an
                           ;; overlay, and testing the slot alone took the
                           ;; body off the anchor and then skipped the
                           ;; write below — the body showed nowhere at all.
@@ -1069,7 +1069,7 @@ came off under the window made the text grow and shrink as they went."
   (add-hook 'post-command-hook #'overblock-live--settle nil t)
   ;; The width, too: a rendering is built for the columns it is shown
   ;; at, and `overblock--width-changed\' says what happens when they
-  ;; change.  Buffer-local, both of them: the first runs for every
+  ;; change. Buffer-local, both of them: the first runs for every
   ;; window showing this buffer whose frame changed, which is every
   ;; change of width there is, and the second for this buffer\'s scale.
   (add-hook 'window-configuration-change-hook #'overblock--width-changed nil t)
@@ -1083,7 +1083,7 @@ The hooks and the timer go with the last cycle of the buffer."
   ;; Nil and not the bounds of the buffer: under a narrowing those are
   ;; the narrowed ones, and the mode is going — nothing would ever take
   ;; the blocks outside the accessible region down again, cloaks
-  ;; holding lines invisible among them.  `overblock-run' has always
+  ;; holding lines invisible among them. `overblock-run' has always
   ;; asked this way; the mode-on path is already wrapped in
   ;; `without-restriction'.
   (overblock-clear nil nil kind)
@@ -1267,7 +1267,7 @@ number; a terminal's pixel is a column, a graphic frame's is
          ;; also read `(- right (N))', which is the shape
          ;; `overblock-bar' writes, and `round' on the symbol raised —
          ;; inside a process filter, where an error takes the rest of the
-         ;; filters with it and leaves the shell busy for good.  Such a
+         ;; filters with it and leaves the shell busy for good. Such a
          ;; spec is left as it is: it aligns to the window, and there is
          ;; no column to answer for it here.
          ;;
@@ -1429,7 +1429,7 @@ candidate never gets it."
   :type 'boolean
   ;; `custom-initialize-reset', which a `defcustom' takes by default,
   ;; calls the `:set' function as the option is defined — before the
-  ;; bars this one asks about are defined at all.  There is nothing to
+  ;; bars this one asks about are defined at all. There is nothing to
   ;; forget at that moment, so the value is simply set.
   :initialize #'custom-initialize-default
   :set (lambda (symbol value)
@@ -1462,13 +1462,13 @@ several of them lead with a space, and a space always is."
              (seq-find #'overblock--glyph-drawn-p candidates))
         (car (last candidates)))))
 
-;; The press answers, not the release.  A block is in the text area,
+;; The press answers, not the release. A block is in the text area,
 ;; where a press reaches `mouse-drag-region', which follows the mouse
-;; and keeps the release to itself.  Measured with real clicks at the
+;; and keeps the release to itself. Measured with real clicks at the
 ;; centre of every button of a cell bar, a keymap that bound the release
 ;; alone ran `mouse-set-point' and nothing else — while `key-binding' at
 ;; those same pixels answered with the command, which is how this
-;; survived every test that asked the keymap instead of clicking.  A
+;; survived every test that asked the keymap instead of clicking. A
 ;; header line has no drag to lose, which is why the buttons of one
 ;; always worked.
 ;;
@@ -1579,7 +1579,7 @@ older one measures without any, and the icons of a notebook under
 they are not drawn at."
   ;; Through `apply' with a computed list, so an Emacs whose
   ;; `string-pixel-width' takes one argument does not reject the
-  ;; two-argument call while compiling this file.  The arity is read
+  ;; two-argument call while compiling this file. The arity is read
   ;; once: asked on every call it is both a cost on the ticker and a
   ;; question about whatever has advised the function since.
   (apply #'string-pixel-width string
@@ -1610,7 +1610,7 @@ and then wrapped it."
     ;; `save-excursion': the measures select the window they measure,
     ;; which sets this buffer's point to that window's point, and
     ;; nothing puts it back when the buffer is not the selected
-    ;; window's.  A caller that walks the buffer with point — the walk
+    ;; window's. A caller that walks the buffer with point — the walk
     ;; that draws the bars does — was sent back to a line it had passed
     ;; and drew for ever: measured at 99.5% of a core and 91 GB of
     ;; memory in a notebook edited while the reader looked elsewhere.
@@ -1746,7 +1746,7 @@ what no longer fits."
   (let* ((width (overblock-window-width))
          (cell (frame-char-width))
          ;; The room LEFT has: the window less the indent, the icons
-         ;; and a cell of slack.  A label longer than that is cut with
+         ;; and a cell of slack. A label longer than that is cut with
          ;; an ellipsis, as `overblock--bar-stretched' cuts one: left
          ;; whole, the row wrapped and the icons stood on a row of their
          ;; own — a doc string's summary is as long as its writer made
@@ -1804,7 +1804,7 @@ nothing rebuilds the header after the cell has ended."
 (defun overblock--bar-stretched (left icons face)
   "Return LEFT and ICONS in FACE, held apart by a stretch to the edge."
   (let* (;; A column of slack, in a graphic frame as well as in a
-         ;; terminal.  Without it the icons end at the right edge
+         ;; terminal. Without it the icons end at the right edge
          ;; exactly, and whether such a row wraps is decided by
          ;; redisplay: measured in one window at one width, the same bar
          ;; drew all its icons when the notebook was opened and dropped
@@ -1813,7 +1813,7 @@ nothing rebuilds the header after the cell has ended."
          ;; A terminal keeps three columns: two for the reason below,
          ;; and one more for the ellipsis an outline fold hangs after
          ;; the line — measured with `truncate-lines' off, which is
-         ;; Emacs's own default, every folded bar took two rows.  A
+         ;; Emacs's own default, every folded bar took two rows. A
          ;; graphic frame needs no third: the same fold there stays on
          ;; one row.
          (slack (if (display-graphic-p) (frame-char-width) 3))
@@ -1824,7 +1824,7 @@ nothing rebuilds the header after the cell has ended."
          ;; to the room exactly still put the last icon on a row of its
          ;; own.
          (room (and available (- available width (frame-char-width)))))
-    ;; Not even the icons fit.  They go: such a window can show a bar or
+    ;; Not even the icons fit. They go: such a window can show a bar or
     ;; a wrapped bar, and a wrapped bar is two rows of almost nothing.
     ;; Measured at 16 columns, two rows with the icons and one without.
     (when (and room (<= room 0))
@@ -1857,7 +1857,7 @@ and the icons then sit beside the label instead of at the window edge."
     (overlay-put ov 'display "")
     ;; Marked as a bar of this layer from the start, with `t' — no
     ;; caller's kind, so `overblock-bar-kind' answers and a caller
-    ;; asking for its own kind does not.  A `C-g' between this and
+    ;; asking for its own kind does not. A `C-g' between this and
     ;; `overblock-bar-draw' used to leave an overlay that drew its line
     ;; as nothing and that no registry could see: not
     ;; `overblock-bars', not `overblock-sweep-orphans', not a mode's

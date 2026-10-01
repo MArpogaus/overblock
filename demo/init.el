@@ -86,7 +86,7 @@ missing, so a system without one shows words instead of icons."
 (require 'overblock-pydoc)
 ;; Each of these needs a package from an archive — code-cells and
 ;; comint-mime for the notebook, ESS for the R chunks — so a checkout
-;; without them still demonstrates the rest.  `ignore-errors' and not
+;; without them still demonstrates the rest. `ignore-errors' and not
 ;; the NOERROR of `require': what is missing is the sibling those files
 ;; require, and a nested `require' signals whatever the outer one says.
 (dolist (feature '(overblock-pycell overblock-rmd))
@@ -104,7 +104,7 @@ missing, so a system without one shows words instead of icons."
 (when (require 'comint-mime nil t)
   (add-hook 'inferior-python-mode-hook #'comint-mime-setup))
 
-;; Nothing above turns anything on, which is how the packages ship.  The
+;; Nothing above turns anything on, which is how the packages ship. The
 ;; animations turn each mode on where they show it; these hooks are the
 ;; ordinary way to do it in a configuration of your own.
 (add-hook 'markdown-mode-hook #'overblock-md-preview-mode)

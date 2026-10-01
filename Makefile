@@ -1,4 +1,4 @@
-# Development tasks.  Run `make' to check everything, as the CI does.
+# Development tasks. Run `make' to check everything, as the CI does.
 #
 #   make compile   byte-compile, warnings are errors
 #   make lint      package-lint, the MELPA rules
@@ -27,7 +27,7 @@ DEPS    ?= package-lint relint code-cells comint-mime ess markdown-mode \
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
 TEST := $(wildcard test/*.el)
 # The live suites drive a real IPython and a real R, so the batch suite
-# does not load them; `test-live' below is their target.  They are still
+# does not load them; `test-live' below is their target. They are still
 # in TEST, so they are byte-compiled and relinted with the rest.
 LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el
 # The scroll tests need a real frame to give a line a pixel height, so
@@ -49,7 +49,7 @@ bootstrap = (progn (package-refresh-contents) \
                    (dolist (p (quote ($(DEPS)))) \
                      (unless (package-installed-p p) (package-install p))))
 # Every condition the batch suite skips on that a machine running it is
-# meant to satisfy.  Image support is not among them: five of the six
+# meant to satisfy. Image support is not among them: five of the six
 # CI Emacsen are built without it, and a test that needs a PNG can only
 # skip there — honestly, which is what the rest of this guards against.
 strict = (dolist (want (list \
@@ -79,7 +79,7 @@ compile: $(STAMP)
 # package-lint reads one main file and calls every symbol outside its
 # prefix an error, so it is run once for each package.
 # Five packages live here, each with a main file of its own carrying its
-# version and its dependencies.  These lists are the whole of each one,
+# version and its dependencies. These lists are the whole of each one,
 # and `lint' reads every file against the main file of its own package —
 # as MELPA does, one recipe per list.
 LAYER  := overblock.el overblock-repl.el overblock-run.el
@@ -91,7 +91,7 @@ PACKAGES := overblock overblock-md overblock-pydoc overblock-pycell \
             overblock-rmd
 
 # A package here that requires another one here finds it uninstallable:
-# none of them has a MELPA recipe yet.  They are in this checkout, so
+# none of them has a MELPA recipe yet. They are in this checkout, so
 # they are registered from here — a descriptor apiece, no copy of the
 # sources, or the copy would shadow the working tree on the load path.
 # This goes when they are published and the sandbox can install them
@@ -129,7 +129,7 @@ relint: $(STAMP)
 	@$(BATCH) -l relint -f relint-batch $(SRC) $(TEST)
 
 # A fifth of the suite renders markdown and skips itself where no
-# converter is installed.  On a machine that is meant to have one that
+# converter is installed. On a machine that is meant to have one that
 # silence is a lie, so STRICT=1 makes it a failure instead.
 test: $(STAMP)
 	@$(BATCH) $(addprefix -l ,$(SUITE)) \
@@ -137,7 +137,7 @@ test: $(STAMP)
 
 # What only a live interpreter can prove: two faults — a read-only
 # notebook wedging the pass, and a result painted as a prompt — survived
-# every batch check, because no batch test starts a process.  Not part
+# every batch check, because no batch test starts a process. Not part
 # of `all', because a machine without an interpreter can only skip it;
 # the CI installs both and runs this with STRICT=1, where a skip is a
 # failure rather than a line nobody reads.
@@ -158,7 +158,7 @@ test-live: $(STAMP)
 	$(call live,test/overblock-rmd-live-test.el,R)
 
 # A block is one buffer line and can be taller than the window, and only
-# a graphical frame gives a line a pixel height.  These tests therefore
+# a graphical frame gives a line a pixel height. These tests therefore
 # run in a real frame, under `xvfb-run' where there is no display.
 # With -a: xvfb-run picks a free display instead of exiting 1 over a
 # stale lock file, which reads like a test failure.

@@ -56,7 +56,7 @@
                (run-scroll--say "  FAIL %-40s %.1fs" name seconds)
                (run-scroll--say
                 "%S" (ert-test-result-with-condition-condition result))))))
-    ;; A skipped test is not a passed one.  Both tests open with
+    ;; A skipped test is not a passed one. Both tests open with
     ;; `skip-unless (display-graphic-p)', so a run without xvfb-run
     ;; skipped them both, printed "scrolling tests passed" and exited
     ;; 0: the one promise this suite guards was never exercised and the
@@ -74,7 +74,7 @@
 ;; Only in the session `make scroll' starts, which is a graphical one.
 ;; `make test' loads every file of test/, this runner among them, and a
 ;; batch session runs its timers whenever it waits for a process —
-;; which every run against a real interpreter does.  The suite then died
+;; which every run against a real interpreter does. The suite then died
 ;; part way through, with the exit status of a scrolling run that had
 ;; never happened.
 (unless noninteractive

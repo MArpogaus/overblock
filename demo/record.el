@@ -72,7 +72,7 @@ has a warning to show and every one of them opened a window."
   (unless (window-minibuffer-p)
     (ignore-errors (window-toggle-side-windows))
     ;; The demonstration's own windows stay — an edit opens one, and the
-    ;; picture is of the source and the edit side by side.  A window
+    ;; picture is of the source and the edit side by side. A window
     ;; showing a buffer with no file and no block is a profile's own
     ;; noise and goes.
     (dolist (window (window-list nil 'no-mini))
@@ -428,7 +428,7 @@ plot(cars, pch = 19, col = \"steelblue\")
     (ob-gif-settle 0.4)
     (ob-gif-frame 400))
   ;; and the chunk that plots: R draws to the PNG device the wrapper
-  ;; opened, and the figure comes back into the result.  The second
+  ;; opened, and the figure comes back into the result. The second
   ;; result folds too, so the figure has the room of the frame.
   (when-let* ((block (cadr (sort (overblock-in (point-min) (point-max) 'result)
                                  (lambda (a b) (< (overlay-start a)

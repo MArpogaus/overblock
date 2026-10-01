@@ -28,11 +28,11 @@
 ** About The Project
 
 One idea, five packages: a *block* shows text over a region of a
-buffer, or after it, and the buffer text does not change.  Files, undo
+buffer, or after it, and the buffer text does not change. Files, undo
 and a language server see nothing.
 
 A block is dealt out a piece to a line, so a tall rendering scrolls
-like text rather than jumping past in one step.  That is the whole
+like text rather than jumping past in one step. That is the whole
 trick, and everything here is a caller of it: markup rendered where it
 is written, Python doc strings read as prose, the output of a Python
 cell shown under the cell, the output of an R chunk shown under the
@@ -50,7 +50,7 @@ them — a built-in theme, one font, these packages and nothing else.
 [[file:demo/README.org][=demo/README.org=]] says how to record them
 again.
 
-The packages install one at a time out of this one repository.  Each
+The packages install one at a time out of this one repository. Each
 has a main file of its own carrying its version and its dependencies,
 and each recipe names that package's files.
 
@@ -64,26 +64,26 @@ and each recipe names that package's files.
 | =overblock-pycell= | inline results for =# %%= Python cells                      | =overblock-md=, code-cells              |
 | =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file           | =overblock-md=, ess                     |
 
-Install the one you want and its dependencies come with it.  None of
+Install the one you want and its dependencies come with it. None of
 them is on MELPA yet, so the recipes below name this repository; any
 package manager that reads a MELPA style recipe takes the same
-=:repo= and =:files=.  The snippets are written for
+=:repo= and =:files=. The snippets are written for
 [[https://github.com/progfolio/elpaca][elpaca]] and =use-package=.
 
-No package here installs a hook or binds a key.  An installation must
+No package here installs a hook or binds a key. An installation must
 not change how Emacs behaves.
 
 ** overblock: the block layer
 
 =overblock= puts a block on the screen and knows nothing about any
-language, about cells or about markup.  A caller renders text and hands
+language, about cells or about markup. A caller renders text and hands
 it over:
 
 #+begin_src emacs-lisp
   (overblock-show BEG END :kind 'result :body TEXT :header TEXT)
 #+end_src
 
-It also carries the run loop that both notebooks here share.  This
+It also carries the run loop that both notebooks here share. This
 section shows no animation: the layer draws nothing of its own.
 
 Install it on its own only to write such a caller; the four packages
@@ -112,11 +112,11 @@ below pull it in.
                   :attached OVERLAYS)    ; the caller's own
 #+end_src
 
-- =:kind= tells the blocks of one caller from those of another.  A
+- =:kind= tells the blocks of one caller from those of another. A
   block without a kind is anonymous.
-- =:data= is the caller's own.  The layer keeps it and never reads it.
-- =:over= hangs on the lines of the region, a piece to a line.  A line
-  with no piece left for it goes under a cloak.  This is what lets a
+- =:data= is the caller's own. The layer keeps it and never reads it.
+- =:over= hangs on the lines of the region, a piece to a line. A line
+  with no piece left for it goes under a cloak. This is what lets a
   tall rendering scroll like text.
 - =:body= rides the newline that ends the region, and =:header= stands
   above it.
@@ -150,20 +150,20 @@ rendering carries none of its own, so a link keeps its own keymap.
 
 *** Bars, buttons and glyphs
 
-A bar is a header line inside the buffer.  =overblock-bar= builds one
+A bar is a header line inside the buffer. =overblock-bar= builds one
 from a label, a group of icons and a face, and holds the icons at the
-right window edge.  It is cut to the narrowest window that shows the
+right window edge. It is cut to the narrowest window that shows the
 buffer.
 
 A bar can also stand in place of a line, which is what a marker line
 wants: =overblock-bar-over= makes the overlay and =overblock-bar-draw=
-draws on it.  A draw where nothing has changed costs a comparison, so a
-caller may draw from a change hook.  =overblock-bar-in=, =-bars= and
+draws on it. A draw where nothing has changed costs a comparison, so a
+caller may draw from a change hook. =overblock-bar-in=, =-bars= and
 =-kind= find them again, and =overblock-bar-stale= makes one forget
 what it was drawn from.
 
 =overblock-buttons= turns a list of descriptors into the icon group.
-Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=.  GLYPHS are the
+Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=. GLYPHS are the
 candidates for the label: the first one the frame can draw wins, and
 the last one always answers, so keep a plain character at the end.
 WHEN is =t=, or =image=, =lines= or =running= for a button that waits
@@ -172,7 +172,7 @@ for an image, for text, or for a block still being written.
 caller that offers one as an option.
 
 =overblock-glyph= asks the frame which of several candidates it can
-draw.  A terminal is given the plain last candidate, because Emacs
+draw. A terminal is given the plain last candidate, because Emacs
 cannot ask a terminal what its font holds; a reader whose terminal does
 carry an icon font sets =overblock-terminal-glyphs=.
 
@@ -187,9 +187,9 @@ answers only: which regions, what to render them with, and when.
 #+end_src
 
 The render function is called with no arguments, once at the start and
-then whenever the reader stops moving.  It must leave alone what is
+then whenever the reader stops moving. It must leave alone what is
 rendered already and the region point is in — the reader is editing
-that one.  A rendering comes off when the reader clicks it
+that one. A rendering comes off when the reader clicks it
 (=overblock-live-edit=) and when the text under it is edited.
 =overblock-live-wanted-p= answers whether a region still wants one, and
 =overblock-live-stop= ends the cycle and clears the buffer.
@@ -197,9 +197,9 @@ that one.  A rendering comes off when the reader clicks it
 *** The edit buffer
 
 =overblock-edit-in-buffer= opens the text under a block in a buffer of
-its own, as =org-edit-special= opens a source block.  The caller says
+its own, as =org-edit-special= opens a source block. The caller says
 what the buffer is called, which major mode it wears, how to read the
-plain text out and how to write it back.  =overblock-edit-commit= and
+plain text out and how to write it back. =overblock-edit-commit= and
 =overblock-edit-abort= end the edit, on =C-c C-c= and =C-c C-k= in
 =overblock-edit-mode-map=, the keys of =org-edit-special=.
 
@@ -209,10 +209,10 @@ rather than replaced.
 
 *** The output of a shell
 
-What a shell prints is not what a block can show.  A copy of it carries
+What a shell prints is not what a block can show. A copy of it carries
 the keymap of the shell, alignment measured in another window, a live
 vtable that belongs to that buffer, and images at whatever size they
-came in.  =overblock-repl.el= cuts a copy loose from all of that:
+came in. =overblock-repl.el= cuts a copy loose from all of that:
 
 #+begin_src emacs-lisp
   (overblock-repl-detach (buffer-substring beg end))
@@ -222,16 +222,16 @@ The columns of a table are laid out in characters, and the table keeps
 its object under the =overblock-repl-table= text property, so a caller
 can show it live elsewhere with =overblock-repl-table-copy=.
 =overblock-repl-first-lines= takes the head of a long output without
-reading the rest, and =overblock-repl-count-lines= counts it.  Capping
+reading the rest, and =overblock-repl-count-lines= counts it. Capping
 the images is the layer's part: =overblock-image-cap=.
 
 This file needs =vtable=, which Emacs ships.
 
 *** The run loop
 
-A notebook is a buffer of regions and a shell to send them to.  Send
+A notebook is a buffer of regions and a shell to send them to. Send
 one, watch what the shell prints, wait for the prompt that says it is
-done, and show what came back under the region it came from.  That loop
+done, and show what came back under the region it came from. That loop
 is the same whatever language is at the other end, so it lives here.
 =overblock-run.el= holds the run state, the queue of a pass over the
 buffer, the ticker that mirrors a running region five times a second,
@@ -240,8 +240,8 @@ Nothing in it knows a language: =overblock-pycell= sends Python cells
 to an inferior Python and =overblock-rmd= sends R chunks to an
 inferior R, and both are callers of this file.
 
-Two plists say what a language is.  =overblock-run-backend= is the
-shell.  A notebook's mode sets it in its own buffer, and a send copies
+Two plists say what a language is. =overblock-run-backend= is the
+shell. A notebook's mode sets it in its own buffer, and a send copies
 it into the shell buffer, where the filter and the ticker read it:
 
 | Slot        | What it answers                                   |
@@ -261,9 +261,9 @@ it into the shell buffer, where the filter and the ticker read it:
 
 The same plist carries the look of a result block: =:keymap=,
 =:buttons=, =:fold=, =:header-face=, =:output-face=, =:lines= and
-=:chars=.  The buttons and the two limits name an option rather than
+=:chars=. The buttons and the two limits name an option rather than
 hold a value, so one the reader has just customized is read when the
-block is drawn.  =overblock-run-attach= makes a buffer a notebook with
+block is drawn. =overblock-run-attach= makes a buffer a notebook with
 such a plist, and =overblock-run-detach= takes it back.
 
 | Function                         | What it does                                            |
@@ -280,7 +280,7 @@ such a plist, and =overblock-run-detach= takes it back.
 The commands a reader presses on a result are here as well, the same
 in every notebook: =overblock-run-toggle-output=, =-copy-output=,
 =-discard-output=, =-clear-results=, =-above=, =-stop= and
-=-interrupt=.  Each package keeps its own buttons, faces and limits, and
+=-interrupt=. Each package keeps its own buttons, faces and limits, and
 the commands that know its cells; what they share is every
 line below them.
 
@@ -299,7 +299,7 @@ line below them.
 | =overblock-live-idle=       | 0.2     | the quiet before a live cycle renders again |
 
 A block taller than the window cannot be scrolled past, which is what
-=overblock-image-height= is for.  Zero draws an image at whatever size
+=overblock-image-height= is for. Zero draws an image at whatever size
 it came in.
 
 ** overblock-md: markup rendered to text
@@ -319,7 +319,7 @@ nothing itself:
 =overblock-md-command= names the converter, shr renders the HTML, and
 LaTeX fragments become preview images by way of
 [[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]],
-which the package depends on.  A table is laid
+which the package depends on. A table is laid
 out in characters rather than pixels, so its columns line up over the
 fixed-pitch lines of a buffer, and a local image is drawn on the spot
 rather than fetched.
@@ -347,11 +347,11 @@ Markdown buffer over its own source.
 One process for a whole buffer costs much less than one for each
 region, which is what the batch calls are for.
 
-A rendering is built for the window it is shown in.  shr fills a
+A rendering is built for the window it is shown in. shr fills a
 paragraph to a width, and the rendering is made in a temporary buffer
 that no window shows, so a caller that renders has to say how much room
 its block has: bind =overblock-md-width= to that many columns, or leave
-it nil and shr decides.  =overblock-md-columns= measures the room — the
+it nil and shr decides. =overblock-md-columns= measures the room — the
 narrowest window that shows the buffer, less the columns the block is
 indented by — and answers nil where no window shows the buffer at all.
 A caller that keeps its renderings has to make them again when the
@@ -362,37 +362,37 @@ a preview image, capped by =overblock-image-height=.
 [[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
 makes it: it compiles with =latex= and =dvisvgm= in a process of its
 own, so nothing waits, and keeps one compile per equation however many
-buffers ask for it.  The SVG carries neither the colour nor the size,
+buffers ask for it. The SVG carries neither the colour nor the size,
 which are given to it when it is drawn — a theme change and a
-=text-scale-adjust= cost no LaTeX at all.  A fragment still compiling
+=text-scale-adjust= cost no LaTeX at all. A fragment still compiling
 stands as its own text and is drawn when it arrives; one that fails
 stays text, and the engine reports it with a link to the log LaTeX
 left.
 
 An image named by URL is fetched once and drawn from the file, kept in
-=~/.cache/overblock-images=.  Set =overblock-md-remote-images= to nil
+=~/.cache/overblock-images=. Set =overblock-md-remote-images= to nil
 to ask the network for nothing.
 
 *** Markdown preview
 
 =overblock-md-preview-mode= shows a Markdown buffer as it will read and
-keeps it editable.  The text is rendered over its own source.  Click a
+keeps it editable. The text is rendered over its own source. Click a
 rendering and its source comes back; move on and it is rendered again
-once you have stopped.  Mark a region and the renderings it reaches show
+once you have stopped. Mark a region and the renderings it reaches show
 their source too, so what you see is what you copy or cut; they come
 back when the mark goes.
 
 The unit is the Markdown block: the run of lines between two blank
-ones, and a fenced piece of code whole.  A line of Markdown is often
+ones, and a fenced piece of code whole. A line of Markdown is often
 not Markdown by itself — a row of a table needs the rows around it — so
 the block goes to the converter in one piece and the rendering is dealt
 back over its lines.
 
 =overblock-md-preview-regions-function= says which regions of the
-buffer are Markdown.  The default answers with every block of it.  A
+buffer are Markdown. The default answers with every block of it. A
 mode that reads part of the buffer as something else sets it, which is
 how =overblock-rmd= renders the prose of an =.Rmd= file and leaves the
-fenced chunks to R.  =overblock-md-preview-fences= and
+fenced chunks to R. =overblock-md-preview-fences= and
 =overblock-md-preview-paragraphs= are the two walks behind that answer,
 and a caller may use either on its own.
 
@@ -403,7 +403,7 @@ installed.
 
 eglot shows what a language server answers for the symbol at point
 through eldoc, and renders the server's Markdown with a Markdown mode's
-font lock.  Font lock cannot lay out a table, draw a formula or paint a
+font lock. Font lock cannot lay out a table, draw a formula or paint a
 fenced block in its own language; this renderer can, and eglot has the
 hook for it:
 
@@ -414,10 +414,10 @@ hook for it:
 The documentation then reads the same wherever eldoc shows it — the
 echo area, the =*eldoc*= buffer, an eldoc-box child frame — with a pipe
 table in columns, the signature painted as code and a formula as an
-image.  =overblock-md-eldoc-width= is the width the text is filled to,
+image. =overblock-md-eldoc-width= is the width the text is filled to,
 72 columns by default, since no window has the text when it is
-rendered.  A rendering is kept, so the second hover over a symbol costs
-no process.  A server that answers plain text is left to eglot, and
+rendered. A rendering is kept, so the second hover over a symbol costs
+no process. A server that answers plain text is left to eglot, and
 without a converter the Markdown stays as it came.
 
 *** Commands and options
@@ -444,11 +444,11 @@ A fenced block that names its language — =```python= — is painted by
 that language's major mode, as the editor paints the file:
 =overblock-md-code-modes= maps the names that do not spell their mode
 (=elisp=, =bash=, =r= …), and every other name is tried as
-=LANGUAGE-mode= through =major-mode-remap-alist=.  Set it to nil and
+=LANGUAGE-mode= through =major-mode-remap-alist=. Set it to nil and
 every block wears =overblock-md-code=.
 
 =overblock-md-command= is one shell command, or a list of candidates of
-which the first one installed is used.  The default list is
+which the first one installed is used. The default list is
 =pandoc=, =markdown_py -x tables -x fenced_code=, =cmark-gfm -e table=,
 =markdown= and =cmark=, in that order: the ones that carry a table and
 a code fence first, each told to leave the math alone and to paint no
@@ -463,15 +463,15 @@ one of them opened in a buffer of its own, edited and committed.
 
 =overblock-pydoc-mode= shows the doc strings of a Python buffer as the
 documentation they are: the triple quotes and the indentation go, the
-markup is rendered, and the code around them is untouched.  Click one
+markup is rendered, and the code around them is untouched. Click one
 and its source comes back to be edited; move away and it reads as
-documentation again.  Point moving into a rendered doc string changes
+documentation again. Point moving into a rendered doc string changes
 nothing, so the code around it is edited with the prose in view.
 
 Which strings are documentation is what font lock has already decided.
 python.el paints the doc string of a module, a definition or an
 assignment with =font-lock-doc-face= and every other string with
-=font-lock-string-face=, so a string that is data is left alone.  Its
+=font-lock-string-face=, so a string that is data is left alone. Its
 tree-sitter fontifier paints the same face, and the mode therefore
 needs no grammar and works in =python-mode= and =python-ts-mode=
 alike.
@@ -492,15 +492,15 @@ at, so the prose stands where the code stands.
 
 A doc string wears a bar: the glyph, its first line, and the buttons
 of =overblock-pydoc-buttons= at the window's edge, under the bar's own
-rule.  The rest of the prose stands below it, and a rule closes it; a
-doc string of one line is all bar.  The first line rides the bar
+rule. The rest of the prose stands below it, and a rule closes it; a
+doc string of one line is all bar. The first line rides the bar
 because the bar is the one row the rendering adds: with the summary on
 it the rendering has exactly as many rows as the doc string, so nothing
 shares a line, and a doc string of one line and one of twenty read
-alike.  A summary longer than the room is cut with an ellipsis.
+alike. A summary longer than the room is cut with an ellipsis.
 
 A rendering is built for the width of the window it is shown in: the
-prose is filled to it, and the rule of a bar reaches its edge.  Each
+prose is filled to it, and the rule of a bar reaches its edge. Each
 doc string remembers the width it was built for and is rendered again
 when a window changes width, and when the buffer comes back into a
 window — one rendered while no window showed the buffer was filled to
@@ -517,7 +517,7 @@ nothing in particular.
 
 =overblock-pydoc-edit= opens the prose without the quotes and without
 the indentation; =overblock-edit-commit= puts it back and
-=overblock-edit-abort= discards it.  The commit writes PEP 257 quoting:
+=overblock-edit-abort= discards it. The commit writes PEP 257 quoting:
 the closing quotes go on a line of their own where the doc string has
 more than one line.
 
@@ -538,9 +538,9 @@ written in, and everything else follows it: which command of
 =overblock-pydoc-modes= =overblock-pydoc-edit= opens the source in.
 Markdown is the default, because that is what a numpy style doc string
 carries under its section titles today, as mkdocstrings reads it: a
-fenced block, a pipe table, bold.  The Markdown command keeps every
+fenced block, a pipe table, bold. The Markdown command keeps every
 source line a line, so a parameter entry and its description stay
-apart.  A project whose doc strings are reStructuredText for Sphinx
+apart. A project whose doc strings are reStructuredText for Sphinx
 says so once, per project:
 
 #+begin_src emacs-lisp
@@ -550,7 +550,7 @@ says so once, per project:
 
 One doc string is one markup: given the other reader, a pipe table
 runs together into a paragraph of pipes, and a =:class:`x`= role stands
-in the prose as it is written.  Both mode entries are yours to change.
+in the prose as it is written. Both mode entries are yours to change.
 
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=.
 Drop a button you never press, put them in another order, or give one a
@@ -569,7 +569,7 @@ glyph your font draws better:
 when the option is set that way.
 
 A click on a rendered doc string shows its source, which is why no
-button does.  The first candidate of every glyph is a codicon — a name
+button does. The first candidate of every glyph is a codicon — a name
 that begins =nf-cod-= in nerd-icons — so that one family draws one
 weight and one size.
 
@@ -582,13 +582,13 @@ under it, a matplotlib figure drawn in the buffer, and an output folded
 to its bar.
 
 =overblock-pycell= shows the results of Python code cells in the buffer,
-in the style of a notebook.  It needs no Jupyter kernel: the cells go
+in the style of a notebook. It needs no Jupyter kernel: the cells go
 to the inferior Python process that =python.el= starts, so the
 =*Python*= buffer keeps the full log, and there is no =zmq= module and
 no =.ipynb= file.
 
 Evaluate a cell and the result appears below it: text, tables and
-figures.  Markdown cells render in place, LaTeX fragments included.
+figures. Markdown cells render in place, LaTeX fragments included.
 
 #+begin_src emacs-lisp
   ;; Cells in plain Python files, with the "# %%" convention.
@@ -618,40 +618,40 @@ figures.  Markdown cells render in place, LaTeX fragments included.
 #+end_src
 
 Open a Python file with =# %%= cells and evaluate one with
-=code-cells-eval=.  The result appears below the cell.  Turn
+=code-cells-eval=. The result appears below the cell. Turn
 =overblock-pycell-mode= off, and the blocks go and the evaluation falls
 back to =python-shell-send-region=.
 
 *** Scrolling
 
-The package does not change the scroll options.  With their default
+The package does not change the scroll options. With their default
 values the window moves through the blocks in one direction, and
-=make scroll= tests this — from Emacs 30 on.  Emacs 29 scrolls a block
+=make scroll= tests this — from Emacs 30 on. Emacs 29 scrolls a block
 taller than the window and then recenters, so the wheel goes up and
 the window comes down a little: the fault is
 =pixel-scroll-precision-scroll-up-page='s, which leaves point outside
 the window, and Emacs 30 rewrote it to put point back before redisplay
-sees it.  The emacs-29 branch never took that fix, and nothing this
+sees it. The emacs-29 branch never took that fix, and nothing this
 package can do stands in for it.
 
 Two settings are yours to make:
 
-1. Turn pixel scrolling on.  Without it the wheel crosses a whole
+1. Turn pixel scrolling on. Without it the wheel crosses a whole
    result block in one step.
 
    #+begin_src emacs-lisp
      (pixel-scroll-precision-mode 1)
    #+end_src
 
-2. Keep =scroll-conservatively= at 100 or below.  Above 100 the
-   redisplay must not recenter.  Two blocks that are taller than the
+2. Keep =scroll-conservatively= at 100 or below. Above 100 the
+   redisplay must not recenter. Two blocks that are taller than the
    window then hand the window from one to the other with each scroll
-   event, without an end.  A =scroll-margin= of 1 or more also stops
+   event, without an end. A =scroll-margin= of 1 or more also stops
    that loop.
 
 *** Cells
 
-Every cell carries a bar in place of its =# %%= line.  The bar names
+Every cell carries a bar in place of its =# %%= line. The bar names
 the cell and holds buttons at the right edge:
 
 | Button | Action                        |
@@ -662,7 +662,7 @@ the cell and holds buttons at the right edge:
 | =⌄=    | move this cell down           |
 
 The name is what you write after the marker, so =# %% Load the data=
-reads as /Load the data/.  A cell without a name is called /python/,
+reads as /Load the data/. A cell without a name is called /python/,
 and a rendered markdown cell /markdown/.
 
 A markdown cell that is not rendered — one you just wrote, or one you
@@ -670,15 +670,15 @@ took back to its source — carries a bar of its own, which says
 /source/ and holds the buttons of =overblock-pycell-source-buttons=:
 =⟳= renders the cell, and the move pair follows.
 
-The bar stays where it is, whatever point does.  The line under it is
+The bar stays where it is, whatever point does. The line under it is
 still there: point rests on it, you write a name, add a tag or make the
 cell a markdown cell as you would in any other buffer, and the bar
-follows what you write.  Folding works from that line too.
+follows what you write. Folding works from that line too.
 
-The buttons of a code cell are =overblock-pycell-cell-buttons=.  A
-button acts on the cell whose bar you press, wherever point is.  The
+The buttons of a code cell are =overblock-pycell-cell-buttons=. A
+button acts on the cell whose bar you press, wherever point is. The
 move pair closes every kind of bar, so the order is the same one
-everywhere.  The buttons themselves are held at the window edge, so a
+everywhere. The buttons themselves are held at the window edge, so a
 bar with more of them starts further left.
 
 *** Results
@@ -686,9 +686,9 @@ bar with more of them starts further left.
 Evaluate a cell with =code-cells-eval= or =code-cells-eval-and-step=.
 
 The header bar shows a spinner and a stopwatch while the cell runs.
-It shows the line count and the runtime after the cell.  A cell that
+It shows the line count and the runtime after the cell. A cell that
 printed nothing keeps a header that says /no output/, so you can see
-which cells ran.  The header shows =⚠= if the interpreter dies while
+which cells ran. The header shows =⚠= if the interpreter dies while
 the cell runs, and the result ends with a note.
 
 The fold arrow stands at the left of the bar and the buttons at its
@@ -705,20 +705,20 @@ right, in the order of =overblock-pycell-result-buttons=:
 | =⌃=    | move this cell up                      |
 | =⌄=    | move this cell down                    |
 
-The stop button shows only while the cell runs.  It is
+The stop button shows only while the cell runs. It is
 =overblock-run-interrupt= as a click, which is what a notebook's stop
 does: the cell is interrupted and the cells queued after it do not
-start.  =overblock-run-stop= is the softer stop, from the keyboard: the
+start. =overblock-run-stop= is the softer stop, from the keyboard: the
 running cell runs to its end and only the queue is emptied.
 
 A pass over several cells — =overblock-pycell-restart-and-run-all= or
 =overblock-run-above= — scrolls each cell it starts to the top
-of the window, so the code that runs is visible.  Point comes back to
+of the window, so the code that runs is visible. Point comes back to
 where you asked for the pass when it ends.
 
 A table, a DataFrame among them, gets its columns laid out again for
 the block: literal columns that stand where they are whatever face the
-block wears.  =overblock-run-pop-output= gives you that table live,
+block wears. =overblock-run-pop-output= gives you that table live,
 in its own buffer, where every binding of vtable works: =S= or a click
 on a column name sorts, ={= and =}= narrow and widen a column, and
 =M-left= and =M-right= move one.
@@ -726,31 +726,31 @@ on a column name sorts, ={= and =}= narrow and widen a column, and
 =overblock-run-interrupt= and =overblock-run-stop= work in such a
 buffer as they do in the notebook — the buffer remembers the shell it
 came from — so a run being watched can be stopped where you are
-watching it.  Bind them in =overblock-run-pop-map=; the buffer is
+watching it. Bind them in =overblock-run-pop-map=; the buffer is
 read-only, so a plain key is free.
 
 =overblock-run-pop-output= on a cell that is still running keeps
-writing there as the cell prints.  The block shows
+writing there as the cell prints. The block shows
 =overblock-pycell-max-lines= of the output; the buffer takes all of it,
-so a long run can be followed in a window of its own.  Point at the end
+so a long run can be followed in a window of its own. Point at the end
 of that buffer follows the output, and anywhere else it stays where you
-left it.  The buffer is written once more when the cell ends, with the
+left it. The buffer is written once more when the cell ends, with the
 shell's prompts off.
 
 With =outline-minor-mode= a fold of the cell hides the code and keeps
-the result below the heading.  The fold button of the result still
-works there.  Code and output fold apart from each other.
+the result below the heading. The fold button of the result still
+works there. Code and output fold apart from each other.
 
 A cell can hold syntax that only IPython reads: =%matplotlib inline=
-and the other magics, =!ls= and =print?=.  jupytext files hold such
-cells.  overblock-pycell sends such a cell to the reader of IPython,
-and it runs as if you typed it.  Two things follow: the tracebacks
+and the other magics, =!ls= and =print?=. jupytext files hold such
+cells. overblock-pycell sends such a cell to the reader of IPython,
+and it runs as if you typed it. Two things follow: the tracebacks
 count the lines from the top of the cell, and a shell without IPython
 reports that it does not know =get_ipython=.
 
 *** Markdown cells
 
-A cell with the marker =# %% [markdown]= renders in place.  The
+A cell with the marker =# %% [markdown]= renders in place. The
 rendering hangs on the commented source lines, one piece to a line.
 The bar of the cell says /markdown/, or the name you wrote after the
 tag, and carries the buttons of =overblock-pycell-md-buttons=:
@@ -761,20 +761,20 @@ point has left — the same live cycle that keeps a Markdown file
 rendered.
 
 The cell moves as normal text, and an outline fold takes the whole
-cell with it.  The cell keeps the height of its source.  It becomes
+cell with it. The cell keeps the height of its source. It becomes
 shorter if the rendering is shorter, for example a table of three
-lines that renders as one line.  The spare lines then go under a
+lines that renders as one line. The spare lines then go under a
 cloak.
 
 What a cell can hold and what it costs is =overblock-md='s to answer:
 the formulas that become preview images, the figures a cell names by
 path or by URL, the caches under =~/.cache/=, and the converter that
-leaves the math alone.  See
+leaves the math alone. See
 [[#overblock-md-markup-rendered-to-text][overblock-md]] above.
 
 An =![alt](figure.png)= draws the file it names, beside the notebook or
-at an absolute path.  A terminal draws no image and shows the alt text
-instead.  A link keeps its click: =mouse-1= and =mouse-2= on a link, an
+at an absolute path. A terminal draws no image and shows the alt text
+instead. A link keeps its click: =mouse-1= and =mouse-2= on a link, an
 image with a link around it included, follow the URL.
 
 Point cannot be put on a link — the rendering is shown over the source
@@ -787,8 +787,8 @@ does for a source block; =overblock-pycell-md-edit= is the same from
 the keyboard, once you bind it in =overblock-pycell-md-map=.
 =overblock-edit-commit= puts the text back and renders it again, and
 =overblock-edit-abort= discards the edit; both belong in
-=overblock-edit-mode-map=.  Each cell has an edit buffer of its own, so
-you can open several cells at the same time.  =mouse-1= shows the plain
+=overblock-edit-mode-map=. Each cell has an edit buffer of its own, so
+you can open several cells at the same time. =mouse-1= shows the plain
 source of one cell, to edit it where it stands.
 
 *** Commands
@@ -817,8 +817,8 @@ source of one cell, to edit it where it stands.
 | =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                           |
 | =overblock-pycell-md-follow-link=      | follow a link of the rendered cell                                 |
 
-overblock-pycell binds no keys.  It binds the mouse on its buttons and
-blocks only.  The maps are there, empty, so every place has one to bind
+overblock-pycell binds no keys. It binds the mouse on its buttons and
+blocks only. The maps are there, empty, so every place has one to bind
 into:
 
 | Map                           | Where it answers                        |
@@ -831,7 +831,7 @@ into:
 The edit buffer of a markdown cell wears =overblock-edit-mode=, so its
 keys go in =overblock-edit-mode-map=.
 
-Bind the commands that you use.  The two to start with are the
+Bind the commands that you use. The two to start with are the
 interrupt and the stop, in the notebook and in the pop-out:
 
 #+begin_src emacs-lisp
@@ -842,7 +842,7 @@ interrupt and the stop, in the notebook and in the pop-out:
 
 Both commands resolve the shell of the buffer they are pressed in — a
 pop-out remembers the one it came from — so they act on the run you are
-looking at.  =overblock-pycell-tab-filter= guards a key that the rest
+looking at. =overblock-pycell-tab-filter= guards a key that the rest
 of the cell needs, such as =TAB= for folding:
 
 #+begin_src emacs-lisp
@@ -869,15 +869,15 @@ Zero is a legal value for both limits, and means the same in each:
 overblock-pycell renders through the layer and =overblock-md=, and
 their options shape what a block looks like: =overblock-image-height=
 caps an inline figure, =overblock-md-command= names the converter, and
-=overblock-md-code= is the face of inline code.  Every caller shares
+=overblock-md-code= is the face of inline code. Every caller shares
 them.
 
 Each entry of the four button options is =(KEY GLYPHS HELP COMMAND
-WHEN)=.  GLYPHS are the candidates for the label: the first one your
+WHEN)=. GLYPHS are the candidates for the label: the first one your
 frame can draw wins, and the last one always answers, so keep a plain
-word at the end.  The first candidate is always a codicon — a glyph
+word at the end. The first candidate is always a codicon — a glyph
 whose nerd-icons name begins =nf-cod-= — because one family draws one
-weight and one size.  WHEN is =t=, or =image= for a button that waits
+weight and one size. WHEN is =t=, or =image= for a button that waits
 for an image in the result, =lines= for one that waits for output, or
 =running= for one that shows while the cell runs.
 
@@ -903,19 +903,19 @@ click, so read =last-input-event= as the commands of this package do.
 *** Comparison with other packages
 
 [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the
-Jupyter protocol and needs the =zmq= module.  It gives you kernels for
-many languages and a notebook interface.  =overblock-pycell= uses the
+Jupyter protocol and needs the =zmq= module. It gives you kernels for
+many languages and a notebook interface. =overblock-pycell= uses the
 inferior Python process that =python.el= starts, started the way
 =python-shell-dedicated= asks — one shell for the project, one for the
-buffer, or one shared.  This costs one build dependency less and keeps
+buffer, or one shared. This costs one build dependency less and keeps
 the REPL in reach.
 
 [[https://github.com/astoff/code-cells.el][code-cells]] gives the cells,
-the navigation and the evaluation command.  =overblock-pycell= adds what
+the navigation and the evaluation command. =overblock-pycell= adds what
 happens to the output.
 
 [[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits
-=.ipynb= files.  =overblock-pycell= works on plain Python files with
+=.ipynb= files. =overblock-pycell= works on plain Python files with
 cell markers in the style of jupytext, and these files stay easy to
 diff.
 
@@ -927,17 +927,17 @@ An =.Rmd= file with its prose rendered and two R chunks run in place.
 
 =overblock-rmd-mode= runs the R chunks of an =.Rmd= file and shows what
 R printed under the code, and the prose between the chunks reads as it
-will look.  There is no knitr run and no rendered document: the chunks
+will look. There is no knitr run and no rendered document: the chunks
 go to the inferior R that ESS starts, so the R buffer keeps the full
 log.
 
-An Rmd file is the inverse of a =# %%= notebook.  A Python notebook is
+An Rmd file is the inverse of a =# %%= notebook. A Python notebook is
 code with markers cutting it into cells; an Rmd file is Markdown prose
-with fenced chunks of code inside it.  So this package composes rather
+with fenced chunks of code inside it. So this package composes rather
 than copies: the chunks come from the fence walk of
 =overblock-md-preview=, the prose is rendered by the same live cycle
 that =overblock-md-preview-mode= uses, and the running and the result
-blocks are =overblock-run='s.  What is left here is the part that knows
+blocks are =overblock-run='s. What is left here is the part that knows
 about R.
 
 #+begin_src emacs-lisp
@@ -950,17 +950,17 @@ about R.
 
 =overblock-rmd-mode-maybe= turns the mode on in a buffer whose file
 ends =.Rmd= and does nothing in any other, so one hook serves every
-Markdown file.  The mode works under polymode
+Markdown file. The mode works under polymode
 (=poly-markdown+r-mode=) and under plain =markdown-mode= alike: the
 chunks are found in the text of the buffer, and no mode has to know
-that any of it is R.  Under polymode the buffer stays in its host mode
+that any of it is R. Under polymode the buffer stays in its host mode
 while the mode is on — the chunks are still fontified and indented as
 R, but point entering one no longer switches to an indirect buffer,
 which carried the bars and the results along and drew them twice.
 
 *** Chunks
 
-Every chunk that opens =```{r}= carries a bar over its fence line.  The
+Every chunk that opens =```{r}= carries a bar over its fence line. The
 bar names the chunk — the word knitr reads, so =```{r plot-one,
 echo=FALSE}= reads as /plot-one/ — and holds the buttons of
 =overblock-rmd-chunk-buttons= at the right window edge:
@@ -972,11 +972,11 @@ echo=FALSE}= reads as /plot-one/ — and holds the buttons of
 
 The closing fence is hidden: three backquotes under a result read as
 litter, and the chunk has a bar above it and its result a bar of its
-own.  Nothing is written to the file — the fence is still there, and it
+own. Nothing is written to the file — the fence is still there, and it
 comes back the moment the mode goes off.
 
 A chunk of another engine is left alone, so a =```{python}= chunk of
-the same file keeps its source.  A chunk with nothing in it gets no
+the same file keeps its source. A chunk with nothing in it gets no
 bar: there is nothing to run.
 
 The bars are drawn when you stop typing, on the same idle timer as the
@@ -997,17 +997,17 @@ bar with a spinner, a stopwatch and the buttons of
 | =✕=    | discard the result             |
 
 The fold arrow stands at the left of the bar and the buttons at its
-right.  The header says how many lines there are, how many of them
+right. The header says how many lines there are, how many of them
 show, and how long the chunk took; a chunk that printed nothing keeps a
-header that says /no output/, so you can see which chunks ran.  The
+header that says /no output/, so you can see which chunks ran. The
 header shows =⚠= if R dies while a chunk runs.
 
 A chunk that plots answers with its figure, drawn under what it
-printed.  R draws to a graphics device and not to its terminal, so the
+printed. R draws to a graphics device and not to its terminal, so the
 chunk runs with a PNG device open — at the =fig.width=, =fig.height=
 and =dpi= its header writes, as under knitr, or at
 =overblock-rmd-figure-size=, 7 by 5 inches, where it writes none — and
-each page it drew comes back into the result.  From there a figure is
+each page it drew comes back into the result. From there a figure is
 what it is in the Python notebook: capped to the window, saved with
 =↧=, shown whole in a pop-out, and named in a terminal.
 
@@ -1017,19 +1017,19 @@ A chunk reaches R as one statement:
   source(exprs = parse(text = "..."), print.eval = TRUE)
 #+end_src
 
-That is what makes the result collectable.  Sent line by line, R
+That is what makes the result collectable. Sent line by line, R
 prompts after every statement of the chunk and the prompts land in the
-middle of the output.  Wrapped like this the chunk is one statement and
+middle of the output. Wrapped like this the chunk is one statement and
 one prompt comes back at the end of it, and =print.eval= prints the
-value of every top level expression, as a cell of a notebook does.  One
+value of every top level expression, as a cell of a notebook does. One
 thing follows for the reader: R parses the chunk out of a string, so a
 fault in the syntax of one names =<text>= and a line counted from the
 top of the chunk, rather than the file.
 
 =overblock-run-above= and =overblock-rmd-restart-and-run-all= run
-several chunks in order.  Each chunk goes to the top of the window as
+several chunks in order. Each chunk goes to the top of the window as
 it starts, so the code that runs is visible, and point comes back to
-where you asked for the pass when it ends.  The pass stops at the first
+where you asked for the pass when it ends. The pass stops at the first
 chunk that fails.
 
 =overblock-run-stop= ends the pass after the chunk that is running now.
@@ -1037,7 +1037,7 @@ chunk that fails.
 with a fresh prompt and nothing else, so the result holds what the
 chunk had printed and no more, and the pass stops with it.
 
-One chunk runs at a time.  A chunk sent while another one runs is
+One chunk runs at a time. A chunk sent while another one runs is
 queued behind it, and point comes back when the queue is done.
 
 *** Prose
@@ -1047,8 +1047,8 @@ The lines between the chunks are rendered by the live cycle of
 gives its source back, and it is rendered again once you have stopped.
 What a block may hold and what it costs is =overblock-md='s to answer —
 the tables, the formulas that become preview images, the figures a line
-names by path or by URL, and the converter.  See
-[[#overblock-md-markup-rendered-to-text][overblock-md]] above.  Where
+names by path or by URL, and the converter. See
+[[#overblock-md-markup-rendered-to-text][overblock-md]] above. Where
 none of the candidates of =overblock-md-command= is installed the prose
 stays as it is; the chunks run either way.
 
@@ -1075,8 +1075,8 @@ stays as it is; the chunks run either way.
 | =overblock-run-clear-results=       | remove every result                                       |
 | =overblock-live-edit=               | show the source of the prose at point                     |
 
-overblock-rmd binds no keys.  It binds the mouse on its bars and blocks
-only.  =overblock-rmd-mode-map= answers in the buffer and
+overblock-rmd binds no keys. It binds the mouse on its bars and blocks
+only. =overblock-rmd-mode-map= answers in the buffer and
 =overblock-run-result-map= inside a chunk that shows a result, as it
 does in a cell of the Python notebook; both are there, empty, so every
 key is free to bind:
@@ -1103,35 +1103,35 @@ Zero is a legal value for both limits, and means the same in each:
 Each entry of a button option is =(KEY GLYPHS HELP COMMAND WHEN)=, as
 the other packages here write it, and a glyph means the same thing on a
 chunk bar as it does in a =# %%= notebook: a reader who moves between
-the two reads the same row.  =setopt= and not =setq=: the bars of every
+the two reads the same row. =setopt= and not =setq=: the bars of every
 open Rmd buffer are drawn again when the option is set that way, and so
 are the results when =max-lines= or =max-line-length= is.
 
 overblock-rmd renders through the layer and =overblock-md=, and their
-options shape what a block looks like.  Every caller shares them.
+options shape what a block looks like. Every caller shares them.
 
 ** Prerequisites
 
-- Emacs 29.1 or later.  =overblock= needs nothing else.
+- Emacs 29.1 or later. =overblock= needs nothing else.
 - For anything that renders markup — =overblock-md= and the three
   packages built on it:
-  - A converter from Markdown or reStructuredText to HTML.  The
+  - A converter from Markdown or reStructuredText to HTML. The
     candidates of =overblock-md-command= are =pandoc --mathjax
     --no-highlight -f markdown-implicit_figures=, =markdown_py -x
     tables -x fenced_code=, =cmark-gfm -e table=, =markdown= and
     =cmark=, and the first one on your =exec-path= is used.
   - An Emacs with libxml2, because shr reads the converter's HTML with
-    it.  Without a converter or without libxml2 the text stays as it
+    it. Without a converter or without libxml2 the text stays as it
     is.
   - =latex= and =dvisvgm= for the formulas the converter leaves alone,
     which is what
     [[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
-    runs; it arrives with the package.  A fragment whose preview fails
+    runs; it arrives with the package. A fragment whose preview fails
     stays text.
 - =overblock-pydoc= also loads =rst=, which Emacs ships.
 - =overblock-pycell= needs
   [[https://github.com/astoff/code-cells.el][code-cells]], which arrives
-  as its dependency.  Text output needs nothing more.  Images and
+  as its dependency. Text output needs nothing more. Images and
   tables need [[https://github.com/astoff/comint-mime][comint-mime]],
   with =comint-mime-setup= on =inferior-python-mode-hook=, and an
   IPython: comint-mime installs its renderers through IPython, so a
@@ -1140,7 +1140,7 @@ options shape what a block looks like.  Every caller shares them.
   arrives as its dependency, and an R for ESS to start.
 - A nerd font for the icons on the bars, or nothing: every glyph has a
   plain character and a plain word behind it, and =overblock-glyph=
-  asks the frame which it can draw.  A terminal takes the plain
+  asks the frame which it can draw. A terminal takes the plain
   candidate unless =overblock-terminal-glyphs= says its font carries
   the icons.
 
@@ -1149,27 +1149,27 @@ options shape what a block looks like.  Every caller shares them.
 These follow from how a block is drawn, so they hold for every package
 here.
 
-- A bar is one overlay in the buffer, not one for each window.  Two
+- A bar is one overlay in the buffer, not one for each window. Two
   windows on the same buffer therefore show the same line raw: the one
   point is on in the selected window.
 - A bar is cut to the narrowest window that shows the buffer, because
-  the string is shared.  A 20-column side window beside a wide one
+  the string is shared. A 20-column side window beside a wide one
   leaves every label an ellipsis in both.
-- A =:body= is one buffer line.  =next-line= and =previous-line= cross
-  it in one step.  Text shown =:over= a region keeps a height in lines
+- A =:body= is one buffer line. =next-line= and =previous-line= cross
+  it in one step. Text shown =:over= a region keeps a height in lines
   and moves as normal text.
 - A body with an image is harder to scroll through than one of text.
   The wheel does not cross it in a symmetric way, and
   =scroll-up-line= does not cross it at all.
   =overblock-image-height= keeps such a block small enough for the
-  wheel.  =scroll-up=, =scroll-down= and =next-line= do pass, and so
+  wheel. =scroll-up=, =scroll-down= and =next-line= do pass, and so
   does a folded block.
 - A rendering makes each scroll event more expensive, because rendered
-  markup holds many face runs in a line.  The cost comes from the face
-  runs and not from the height.  Turn the mode off to get the plain
+  markup holds many face runs in a line. The cost comes from the face
+  runs and not from the height. Turn the mode off to get the plain
   source and the speed back.
 - A block needs a newline to hang a body on, so the last cell of a
-  notebook gets a final newline if it has none.  That is the one change
+  notebook gets a final newline if it has none. That is the one change
   =overblock-pycell= makes to the text.
 
 And for the two notebooks:
@@ -1179,12 +1179,12 @@ And for the two notebooks:
   =overblock-run-pop-output= shows the whole of it, and keeps up
   with a cell that is still printing; =overblock-rmd= has no such
   buffer.
-- One region runs at a time for each inferior process.  A cell or a
+- One region runs at a time for each inferior process. A cell or a
   chunk sent while another one runs is queued behind it.
 - A block shows a copy of what the shell rendered, with the columns of
-  a table made literal so that they survive the move.  A DataFrame
+  a table made literal so that they survive the move. A DataFrame
   comes out aligned, and the header of one can stand a column left of
-  its data.  A copy cannot be sorted: the buttons of the live table are
+  its data. A copy cannot be sorted: the buttons of the live table are
   gone rather than dead.
 
 The measurements behind all of this are in
@@ -1194,27 +1194,27 @@ it.
 ** Development
 
 =make= runs what the CI runs: byte-compilation with warnings as errors,
-package-lint, relint and the batch tests.  =make scroll= needs a
-display and measures the scrolling.  =make test-live= runs the suites
+package-lint, relint and the batch tests. =make scroll= needs a
+display and measures the scrolling. =make test-live= runs the suites
 that need a real interpreter — one against IPython and one against R —
 and skips each with a word where its interpreter is not installed.
 
 Three of those are worth a word:
 
 - package-lint runs once for each package, because five live in this
-  repository.  It reads one main file and calls every symbol outside
+  repository. It reads one main file and calls every symbol outside
   its prefix an error, so each package is linted against its own main
-  file.  The five file lists at the top of the =lint= target are the
+  file. The five file lists at the top of the =lint= target are the
   whole of each package, and they are the lists the install recipes
   above name, and the recipes the melpazoid workflow reads.
 - None of these packages is on an archive yet, so a package here that
-  requires another one here is uninstallable to the tools.  The =lint=
+  requires another one here is uninstallable to the tools. The =lint=
   target answers that by writing a descriptor into the sandbox for each
   package the others depend on — no copy of the sources, or the copy
-  would shadow the working tree on the load path.  The melpazoid legs
+  would shadow the working tree on the load path. The melpazoid legs
   that name such a package may fail without reddening the run.
 - =make test STRICT=1= refuses to run where no markdown converter is
-  installed, rather than skipping a fifth of the suite in silence.  The
+  installed, rather than skipping a fifth of the suite in silence. The
   CI sets it.
 
 The internals are written down one document per package:
@@ -1231,20 +1231,20 @@ The complexity check is a pre-commit hook rather than a target here:
 [[https://github.com/MArpogaus/emacs-pre-commit-hooks][elisp-complexity]]
 scores every function by how much of it a reader must hold at once, by
 the rules of the SonarSource paper read as Lisp, and stops a commit at
-fifteen.  Comments and doc strings count for nothing there, so a long
+fifteen. Comments and doc strings count for nothing there, so a long
 explanation is free and a dense line is not.
 
 The hooks of =.pre-commit-config.yaml= run the whitespace and YAML
 checks, and the indent, checkdoc, check-declare and relint hooks before
 a commit, the commit message through commitizen, and package-lint, the
-compilation and the tests before a push.  Indent and checkdoc come from
+compilation and the tests before a push. Indent and checkdoc come from
 [[https://github.com/MArpogaus/emacs-pre-commit-hooks][emacs-pre-commit-hooks]]
 as well: indent gives Lisp the indentation =indent-region= gives it, no
 form rewritten and no line reflowed, and loads each file first, so a
 macro of this repository indents its body the way its =declare= says;
 checkdoc reads the documentation strings and treats any output at all
 as a failure; check-declare says where a =declare-function= no longer
-points at the file that defines its function.  Melpazoid reads each
+points at the file that defines its function. Melpazoid reads each
 package as a MELPA reviewer would, in a workflow of its own.
 
 #+begin_src shell
@@ -1256,13 +1256,13 @@ commit made without them is still checked.
 
 ** Contributions
 
-Contributions are greatly appreciated!  Feel free to check the
+Contributions are greatly appreciated! Feel free to check the
 [[https://github.com/MArpogaus/overblock/issues][issues page]] or submit a [[https://github.com/MArpogaus/overblock/pulls][pull request]].
 
 ** Use of LLM Coding Tools
 
 Parts of this package were written with the help of a large
-language model (LLM) coding assistant.  A person reviewed and tested
+language model (LLM) coding assistant. A person reviewed and tested
 every change before it was committed.
 
 ** License

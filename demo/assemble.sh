@@ -4,7 +4,7 @@
 #     sh demo/assemble.sh SCENARIO [SPEED] [FRAMES-DIR]
 #
 # Every frame becomes a single-frame GIF, and gifsicle puts them
-# together with the hold each one asked for.  SPEED scales those holds,
+# together with the hold each one asked for. SPEED scales those holds,
 # for a reader who wants the animation quicker or slower than the
 # scenario asked for.
 set -u
@@ -12,7 +12,7 @@ S=${1:?a scenario: md, pydoc, pycell or rmd}
 SPEED=${2:-1.0}
 DIR=${3:-${TMPDIR:-/tmp}/overblock-demo/$S}
 [ -f "$DIR/holds.txt" ] || { echo "no frames in $DIR"; exit 1; }
-# One palette for the whole animation.  A palette a frame gets to
+# One palette for the whole animation. A palette a frame gets to
 # itself is a palette the next frame does not have: the colours then
 # shift from frame to frame, and text drawn in one grey came out in
 # another.

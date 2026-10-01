@@ -50,7 +50,7 @@
 ;; the markdown renderer and has no use without them.
 (require 'shr)
 (require 'dom)
-;; `xdg-cache-home' is where the fetched images live.  It reads
+;; `xdg-cache-home' is where the fetched images live. It reads
 ;; XDG_CACHE_HOME as the specification says to, which a bare `getenv'
 ;; does not: a relative value there names no directory.
 (require 'xdg)
@@ -70,7 +70,7 @@
 
 ;; shr parses the converter's HTML with this, and an Emacs built
 ;; without libxml2 does not have it; `overblock-md-program' answers nil
-;; there and no markdown cell is rendered at all.  Declared so the
+;; there and no markdown cell is rendered at all. Declared so the
 ;; file still compiles on such a build.
 ;; A build without image support has no `image-size'; the calls stand
 ;; behind `display-images-p'.
@@ -91,7 +91,7 @@ says nothing there, so this face says it with a color.")
 
 (defcustom overblock-md-command
   ;; In the order of what they can do, and each one told to leave the
-  ;; math alone.  Measured: `pandoc' on its own renders a formula itself
+  ;; math alone. Measured: `pandoc' on its own renders a formula itself
   ;; — "$x_1 \\to x_2$" comes back as markup for "x1 → x2" — so nothing
   ;; reaches the preview machinery and a notebook loses every inline
   ;; formula; with `--mathjax' the fragment is passed through as
@@ -103,7 +103,7 @@ says nothing there, so this face says it with a color.")
   ;; `--no-highlight' because nothing here reads what the highlighting
   ;; says: shr knows no CSS class, so the colours pandoc encodes in
   ;; them are dropped and only the line anchors it hangs on every row
-  ;; survive, as links to nowhere.  Measured on a document of three
+  ;; survive, as links to nowhere. Measured on a document of three
   ;; fenced blocks, pandoc spent 785 milliseconds of which 720 were
   ;; the syntax definitions it loaded to paint them.
   '("pandoc --mathjax --no-highlight -f markdown-implicit_figures"
@@ -205,14 +205,14 @@ machine.  See `overblock-md--fetchable-p' for what is fetched at all."
             (progn
               (make-directory dir t)
               ;; Three seconds: the fetch happens while the cell
-              ;; renders, so this is time the reader waits.  A fetch
+              ;; renders, so this is time the reader waits. A fetch
               ;; that times out leaves the alt text, and the URL is not
               ;; asked for again in this session.
               (with-timeout (3 (error "Timed out"))
                 (url-copy-file url file t))
               ;; Not `image-supported-file-p': it answers from the
               ;; name, and a URL with a query string caches as
-              ;; `<md5>.img'.  It said no on the fetch and the
+              ;; `<md5>.img'. It said no on the fetch and the
               ;; cache-hit path above never asked, so the same badge
               ;; showed alt text once and a picture every time after.
               ;; `create-image' identifies the file from its header.
@@ -367,7 +367,7 @@ reports the failure with the log LaTeX left, and
           ;; No space just inside either delimiter, which is the rule
           ;; CommonMark and GitHub use: guarding the opening one alone
           ;; made a formula of the prose between two prices — "costs $100
-          ;; and that one $200" — and of "`$HOME` and then `$PATH`".  The
+          ;; and that one $200" — and of "`$HOME` and then `$PATH`". The
           ;; `opt' is what keeps "$x$" matching.
           ;; `in' rather than `any': the two are one rx form, and
           ;; package-lint reads the `any' inside a `not' as the Emacs
@@ -432,7 +432,7 @@ shr drops — takes nothing with it."
      ;; `save-match-data': `replace-regexp-in-string' reads the match
      ;; back after this returns, and asking how wide the preview is
      ;; goes all the way into the engine, which searches on its own
-     ;; account.  Measured with the engine in place: the marks were
+     ;; account. Measured with the engine in place: the marks were
      ;; inserted and the fragment left standing beside them, so every
      ;; formula showed its image and its own LaTeX next to it.
      (save-match-data
@@ -523,7 +523,7 @@ pull the columns of its row out of line."
            (cond
             ;; A mark the writer typed, or one a paste out of a word
             ;; processor brought: it carries no fragment and stands
-            ;; for nothing.  Read as a stowed run, it was dropped and
+            ;; for nothing. Read as a stowed run, it was dropped and
             ;; every formula after it came back one run late.
             ((null frag) marks)
             ((eq image 'pending)
@@ -544,7 +544,7 @@ pull the columns of its row out of line."
                 ;; rendering is then the formula, not a row of marks.
                 ;; Inline math on one line: the converter wraps its
                 ;; HTML, and a line break of its own inside the
-                ;; fragment is no row of the rendering.  Measured, the
+                ;; fragment is no row of the rendering. Measured, the
                 ;; full stop after a formula stood on a row of its own.
                 (overblock-md--place-image
                  (if (string-search "\n" marks) marks (overblock-md--as-text frag))
@@ -553,7 +553,7 @@ pull the columns of its row out of line."
             (t
              ;; Padded inside a table and nowhere else: a table is laid
              ;; out in columns of characters, and text shorter than the
-             ;; marks it replaces would pull the row out of line.  In
+             ;; marks it replaces would pull the row out of line. In
              ;; prose the shorter text simply takes less room.
              (overblock-md--fit
               (overblock-md--bare-math (overblock-md--as-text frag)) marks
@@ -686,7 +686,7 @@ One wrong argument in `overblock-md-command' was enough."
             (insert md)
             ;; Standard error to a file of its own: pandoc warns there
             ;; about the math it will not convert, and that text would
-            ;; land in the HTML.  It is also the only place the reason
+            ;; land in the HTML. It is also the only place the reason
             ;; for a failure lives, so a failure says its last line.
             (let ((status (apply #'call-process-region
                                  (point-min) (point-max) (car program)
@@ -751,7 +751,7 @@ The process is killed where the buffer that asked dies first."
                :command program
                :noquery t
                :connection-type 'pipe
-               ;; Standard error to a pipe that throws it away.  Not
+               ;; Standard error to a pipe that throws it away. Not
                ;; `:stderr nil', which mixes it into the output: pandoc
                ;; warns there about the math it leaves alone and about
                ;; the arguments it means to retire, and one such line
@@ -972,7 +972,7 @@ placeholder is an image and would swallow it."
                   label))))
      ;; A remote image this package did not fetch — the option is off,
      ;; the display draws none, or the fetch failed before — stays its
-     ;; alt text.  Not handed to shr: `shr-tag-img' fetches it with
+     ;; alt text. Not handed to shr: `shr-tag-img' fetches it with
      ;; `url-queue-retrieve' whatever this package decided, so the
      ;; option that says to ask the network for nothing asked anyway,
      ;; and the answer came long after the cell was rendered.
@@ -1155,7 +1155,7 @@ flattened to real spaces for the same reason.
 The answer is nil where no converter is installed and no HTML is given.
 A caller leaves the markdown as it stands then, which is what a reader
 without a converter has to see."
-  ;; Only the converter's absence answers nil.  An empty cell converts to
+  ;; Only the converter's absence answers nil. An empty cell converts to
   ;; empty HTML, which parses to no document at all, and shr renders that
   ;; as the empty string — a cell with a bar and nothing under it, which
   ;; is what an empty cell has to be.
@@ -1175,7 +1175,7 @@ without a converter has to see."
            ;; read exactly like its source.
            (shr-bullet "• ")
            ;; Emacs 31 slices an image taller than this into a row for
-           ;; each line of the window it is drawn in.  There is no window
+           ;; each line of the window it is drawn in. There is no window
            ;; here — the rendering happens in a temporary buffer and is
            ;; laid out over source lines afterwards — and a slice is
            ;; measured against one, so the images come whole and

@@ -302,7 +302,7 @@ from a line that looks like one."
 Both fence lines count as part of the chunk, so a click on the bar and
 a point at the end of the code find the same one."
   ;; ponytail: the whole buffer is walked for one answer, which is what
-  ;; a pass down a file of chunks pays once a chunk.  A file where that
+  ;; a pass down a file of chunks pays once a chunk. A file where that
   ;; is too much wants the walk cached against
   ;; `buffer-chars-modified-tick'.
   (let ((pos (or pos (point))))
@@ -340,7 +340,7 @@ expression is R\'s to evaluate, not this file\'s."
                 (goto-char open)
                 (if (re-search-forward
                      ;; Anchored at both ends: a number and nothing
-                     ;; else.  Unanchored, `fig.width=2*w' answered 2,
+                     ;; else. Unanchored, `fig.width=2*w' answered 2,
                      ;; and an expression is knitr's to evaluate, not
                      ;; this file's — the default stands for one.
                      (concat "[,{[:blank:]]" (regexp-quote (car option))
@@ -492,7 +492,7 @@ not an ESS buffer and would otherwise be asked which language to run."
   ;; The windows stay as they are: `inferior-ess' shows its console
   ;; when it starts, and in a frame with no room for another window
   ;; that took the Rmd file out of view — where the Python notebook
-  ;; starts its shell without showing it.  The console is a buffer away
+  ;; starts its shell without showing it. The console is a buffer away
   ;; for a reader who wants it.
   (save-window-excursion
     (ess-force-buffer-current "R process to use: "))
@@ -506,9 +506,9 @@ as a line of its own and R would answer with a continuation prompt in
 the middle of the result."
   ;; `prin1-to-string' writes exactly this literal: quotes doubled,
   ;; backslashes doubled, and with `print-escape-newlines' the newlines
-  ;; as \n.  Checked against the three regexps this replaced on
+  ;; as \n. Checked against the three regexps this replaced on
   ;; backslashes, doubled backslashes, quotes, newlines, tabs, carriage
-  ;; returns and non-ASCII text: the same string every time.  R reads
+  ;; returns and non-ASCII text: the same string every time. R reads
   ;; the same escapes as Lisp prints, which is why one stands for the
   ;; other here.
   (let ((print-escape-newlines t))
@@ -697,7 +697,7 @@ the same buffer is a case `inferior-ess' is written for."
      (when proc
        (delete-process proc)
        ;; ESS keeps the names of the processes it started in a list of
-       ;; its own, and reads that list to find a free one.  Asked to
+       ;; its own, and reads that list to find a free one. Asked to
        ;; refresh it here, the dead process leaves its name behind and
        ;; the new R takes the same name and the same buffer.
        (update-ess-process-name-list))
@@ -763,7 +763,7 @@ drew them twice.  The chunks are still fontified and indented as R."
       (progn
         ;; Both modes render prose through the same live cycle and the
         ;; same kind of block, so two of them in one buffer would each
-        ;; take the other's renderings down.  This one renders the prose
+        ;; take the other's renderings down. This one renders the prose
         ;; of an Rmd file itself, so it is the one to keep.
         (when (bound-and-true-p overblock-md-preview-mode)
           (overblock-md-preview-mode -1)

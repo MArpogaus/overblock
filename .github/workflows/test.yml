@@ -23,7 +23,7 @@ jobs:
       with:
         version: ${{ matrix.emacs-version }}
     # A fifth of the suite renders markdown and skips itself where no
-    # converter is installed: 27 tests, without saying so.  STRICT=1
+    # converter is installed: 27 tests, without saying so. STRICT=1
     # below turns that silence into a failure.
     - name: Install a markdown converter
       run: sudo apt-get update -qq && sudo apt-get install -yqq pandoc
@@ -33,7 +33,7 @@ jobs:
       run: make STRICT=1
 
   # The scrolling tests measure pixels, so they need an Emacs with X
-  # support in a virtual display.  The nix builds the matrix uses have
+  # support in a virtual display. The nix builds the matrix uses have
   # no X, which is why this is its own job on the distribution Emacs.
   # The image is pinned: `ubuntu-latest' moves to the next LTS on its own
   # and takes that Emacs with it, and this is the one job whose answers
@@ -52,10 +52,10 @@ jobs:
       run: emacs --version
     # Everything, not only the pixels: this is the one Emacs in CI with
     # image support, so it is the only row where the tests that need a
-    # PNG run rather than skip.  It is also the only one with the
+    # PNG run rather than skip. It is also the only one with the
     # interpreters, and `test-live' is the pair of suites that start a
     # process — one an IPython and one an R, and five faults between them
-    # once lived past every batch check for want of them.  STRICT=1
+    # once lived past every batch check for want of them. STRICT=1
     # makes a skipped suite a failure, which is why both are installed
     # above.
     - name: The whole suite, the scrolling tests, then the live ones

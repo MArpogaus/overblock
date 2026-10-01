@@ -46,9 +46,9 @@
 
 (require 'overblock)
 ;; comint-mime renders a table with it, and a copy of that table is laid
-;; out again here.  Required outright, where comint-mime asks softly:
+;; out again here. Required outright, where comint-mime asks softly:
 ;; that package still carries Emacs 27, and vtable ships in 29.1, which
-;; is this one's minimum.  Nothing here has a fallback anyway —
+;; is this one's minimum. Nothing here has a fallback anyway —
 ;; `overblock-repl-table-copy' calls `make-vtable' unguarded.
 (require 'vtable)
 (require 'seq)
@@ -102,7 +102,7 @@ buffers holding one object is not a state worth having."
                :separator-width (vtable-separator-width table)
                ;; The rows show in the order the first table showed them,
                ;; which is the order of its objects put through its
-               ;; sort.  A copy of that order, not the list itself:
+               ;; sort. A copy of that order, not the list itself:
                ;; `vtable-sort-by-current-column' calls `delq' on it, so
                ;; sorting a second column in the copy took that column
                ;; out of the table the shell is still showing.
@@ -221,7 +221,7 @@ images, and the table object."
     (let ((copy (let ((cut (substring text beg end)))
                   ;; Only a rendering leaves alignment stretches behind,
                   ;; and a stretch is a display property: plain output
-                  ;; skips the copy through a buffer.  Measured, that
+                  ;; skips the copy through a buffer. Measured, that
                   ;; round trip costs 23 milliseconds over eight hundred
                   ;; thousand characters of propertized text.
                   (if (text-property-not-all 0 (length cut) 'display nil cut)
@@ -234,7 +234,7 @@ images, and the table object."
                 insert-in-front-hooks insert-behind-hooks modification-hooks)
        copy)
       ;; Back to front, so the places of the regions before each one
-      ;; still hold.  The newline a run swallowed is put back: without it
+      ;; still hold. The newline a run swallowed is put back: without it
       ;; the output that follows the table is glued to its last row.
       (dolist (region (reverse (overblock-repl--table-regions copy)))
         (pcase-let* ((`(,table ,tbeg ,tend) region)

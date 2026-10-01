@@ -606,7 +606,7 @@ without moving."
       (narrow-to-region 1 8)
       ;; Bounded rather than timed: `with-timeout' schedules a timer, and
       ;; a timer does not preempt a tight Lisp loop, so the old shape of
-      ;; this test could only hang the suite or die of memory.  The region
+      ;; this test could only hang the suite or die of memory. The region
       ;; is five lines, so the walk makes at most five rows and the parts
       ;; that come out of it cannot outnumber them.
       (overblock-refresh block)

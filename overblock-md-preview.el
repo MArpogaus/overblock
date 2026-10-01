@@ -126,7 +126,7 @@ already, and a blank line inside one ends no paragraph."
     (let (regions from last)
       (while (< (point) end)
         (cond
-         ;; A fence in one jump, and the fence with it.  FENCES arrive
+         ;; A fence in one jump, and the fence with it. FENCES arrive
          ;; in order and this walk is in order too, so each is reached
          ;; once and then done with — asked of every line instead, the
          ;; question cost lines times fences, which was 64 milliseconds
@@ -241,7 +241,7 @@ nothing where none of its candidates is installed."
   ;; `overblock-rmd-mode' renders the prose of its buffer through this
   ;; same live cycle, and turns this mode off as it goes on; turned on
   ;; over it, this one would take that cycle over and leave the chunks
-  ;; with no bars, so it stays off.  A message and not an error: a
+  ;; with no bars, so it stays off. A message and not an error: a
   ;; configuration that hooks both modes onto `markdown-mode-hook'
   ;; reaches this from the hook, whichever of the two runs first.
   (when overblock-md-preview-mode

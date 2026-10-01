@@ -53,7 +53,7 @@ face where it cannot: a caller renders, and a block shows what it gets."
   (replace-regexp-in-string
    docmath--regexp
    ;; The dollars are the first and the last character of the match, so
-   ;; the match data is not asked for them.  It is saved all the same: a
+   ;; the match data is not asked for them. It is saved all the same: a
    ;; renderer calls Org, Org matches things of its own, and
    ;; `replace-regexp-in-string' reads the match data again after this
    ;; function returns to find where to go on.

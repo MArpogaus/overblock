@@ -3,8 +3,8 @@
 #     pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
 #
 # The workflow of the same name runs them over every file, so a commit
-# made without the hooks is still checked.  A commit message is checked
-# too: `type: summary', a blank line, then the reasoning.  The licence
+# made without the hooks is still checked. A commit message is checked
+# too: `type: summary', a blank line, then the reasoning. The licence
 # is verbatim by definition, so the whitespace hooks leave it alone.
 #
 # melpazoid is not among them: it ships no command to call, and the
@@ -42,7 +42,7 @@ repos:
     exclude: ^(demo/|\.dir-locals\.el$)
   # The indent hook loads the file it formats, and `demo/init.el' is a
   # configuration: loading it turns modes on and says what it cannot
-  # find.  The demonstration files are not part of any package.
+  # find. The demonstration files are not part of any package.
   - id: elisp-indent
     exclude: ^(demo/|\.dir-locals\.el$)
   - id: elisp-checkdoc

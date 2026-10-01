@@ -632,7 +632,7 @@ one display property, and a display property inside a display string is
 never looked at."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image) #'ignore))
-    ;; in a table, where no preview is ever made.  The table's mark
+    ;; in a table, where no preview is ever made. The table's mark
     ;; is on the laid-out text, which is where `overblock-md--tag-table'
     ;; puts it: shr has run by then, and the fragment itself never
     ;; carries it.
