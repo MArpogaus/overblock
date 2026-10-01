@@ -657,8 +657,9 @@ These limits apply to each package, unless a limit names one.
   Markdown therefore shows under the last block of the run, and its
   definition stays as source.
 - In an =.Rmd= file an HTML comment is no block of its own, because a
-  chunk inside it still runs. Text after a blank line in a comment
-  shows. Keep a comment in an Rmd file free of blank lines.
+  chunk inside it still runs. A paragraph with blank lines above and
+  below it in a comment shows as text. Keep a comment in an Rmd file to
+  one paragraph.
 - A table column aligned with =:---:= or =---:= shows left aligned,
   because shr reads no cell style.
 
