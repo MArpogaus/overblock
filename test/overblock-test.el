@@ -1066,6 +1066,18 @@ lines in order put every line after it one row too high."
     (goto-char (point-min))
     (should-not (invisible-p (pos-eol)))))
 
+(ert-deftest overblock-test-the-first-row-always-carries ()
+  "The first row takes the first line, though it matches the row below.
+A block that begins on its own row, as a doc string after a lone quote
+line does, left that row empty and the rest one row off."
+  (with-temp-buffer
+    (insert "\"\"\"\nSummary here.\n")
+    (overblock-show (point-min) (1- (point-max)) :over "Summary here.")
+    (goto-char (point-min))
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "Summary here."))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

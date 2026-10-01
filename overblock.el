@@ -571,6 +571,8 @@ the rendering is no line by line one of its source, and
             (push (and lines (string-blank-p (car lines)) (pop lines) :gap)
                   chunks))
            ((and (> carry 1) lines
+                 ;; The first row always carries: it begins the block.
+                 (seq-some #'consp chunks)
                  (memq (overblock--ahead (car lines) (cons key keys))
                        '(1 2 3)))
             ;; The next line belongs further down: nothing here.
