@@ -625,6 +625,10 @@ These limits apply to each package.
   is the only change =overblock-pycell= makes to the text.
 - Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
   not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
+- An HTML comment that is not closed (=<!--= with no =-->=) hides the
+  marks that split one batch for the converter. Each region of that
+  buffer then converts on its own, which is slow in a large file. Close
+  the comment.
 
 For the two notebooks:
 
