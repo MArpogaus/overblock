@@ -636,11 +636,9 @@ row starts."
   "Hang TEXT over the lines of BLOCK, a piece to a line.
 Return the overlays that carry the pieces and the cloaks.
 
-A rendering rarely has as many lines as the region.  Where it has more,
-`overblock--align' lays its gaps on the gaps of the source, and the
-last row of a paragraph carries the lines left over.  Where it has
-fewer, its lines are dealt as evenly as possible and the rows left
-over go under a cloak.
+Each line of the rendering goes to the row it was rendered from, by
+`overblock--align'; the rows that carry nothing go under a cloak.  A
+rendering that is not line by line is dealt evenly (`overblock--spread').
 
 A piece covers the text of its line and leaves the newline alone, so
 every line keeps its height; `overblock--piece' makes one.
