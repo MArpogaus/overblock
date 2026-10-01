@@ -176,16 +176,16 @@ buffer whose major mode derives from =markdown-mode=.
 *** Markdown preview
 
 The unit of the preview is a Markdown block. A block is a fenced code
-block, or the run of lines between two blank lines or fences. A click on other text
-of a rendered block shows its source. Edit it, and the block renders again when point
-leaves it. A marked region also shows its source, so you copy or cut the
-source.
+block, or the run of lines between two blank lines or fences. A click on
+a rendered block shows its source, and a click on a link opens the link.
+Edit the source, and the block renders again when point leaves it. A
+marked region also shows its source, so you copy or cut the source.
 
 A fenced block that names its language, such as =```python=, gets the
 font lock of that language. A local image shows in the buffer. An image
 with a URL is fetched once and kept in the folder =overblock-images/=
-of the XDG cache folder, =~/.cache= by default. A click (=mouse-1= or
-=mouse-2=) on a rendered link opens it.
+of the XDG cache folder, =~/.cache= by default. =mouse-1= and =mouse-2=
+both open a rendered link.
 
 A formula renders in the buffer that shows it. Thus a LaTeX preamble
 that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
@@ -670,7 +670,8 @@ For the two notebooks:
 
 =make= runs what the CI runs: byte compilation with warnings as errors,
 package-lint, relint and the batch tests. =make test STRICT=1= fails
-when no Markdown converter is installed. =make test-live= runs the
+when a test would skip for a missing tool: a Markdown converter,
+markdown-mode, vtable, libxml2 or =sh=. =make test-live= runs the
 tests against a real IPython and a real R, and skips each one that is
 not installed. =make scroll= needs a display and tests the scrolling.
 
