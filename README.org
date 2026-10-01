@@ -172,16 +172,16 @@ buffer whose major mode derives from =markdown-mode=.
 *** Markdown preview
 
 The unit of the preview is a Markdown block. A block is the run of lines
-between two blank lines, or a fenced code block. A click on a rendered
-block shows its source. Edit it, and the block renders again when point
+between two blank lines, or a fenced code block. A click on other text
+of a rendered block shows its source. Edit it, and the block renders again when point
 leaves it. A marked region also shows its source, so you copy or cut the
 source.
 
 A fenced block that names its language, such as =```python=, gets the
 font lock of that language. A local image shows in the buffer. An image
 with a URL is fetched once and kept in the folder =overblock-images/=
-of the XDG cache folder, =~/.cache= by default.
-=mouse-2= on a rendered link opens it.
+of the XDG cache folder, =~/.cache= by default. A click (=mouse-1= or
+=mouse-2=) on a rendered link opens it.
 
 A formula renders in the buffer that shows it. Thus a LaTeX preamble
 that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
@@ -396,9 +396,10 @@ run it.
 A cell with the marker =# %% [markdown]= renders in place. Its bar shows
 /markdown/ and the buttons of =overblock-pycell-md-buttons=: =✎= edits
 the cell in its own buffer, and the move buttons =⌃= and =⌄= come after
-it. =mouse-1= shows the source, and =mouse-2= opens the edit buffer.
-=mouse-2= on a link opens the link. =overblock-pycell-md-follow-link=
-does the same from the keyboard.
+it. A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
+other text, =mouse-1= shows the source, and =mouse-2= opens the edit
+buffer. =overblock-pycell-md-follow-link= opens a link from the
+keyboard.
 
 A markdown cell that shows its source has a bar with the buttons of
 =overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
