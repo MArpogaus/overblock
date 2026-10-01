@@ -109,11 +109,25 @@ end of the buffer."
   "Return non-nil where the line at POS begins at the left margin."
   (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
 
+(defun overblock-md-preview--interrupts-p (fence from)
+  "Return non-nil where the FENCE ends the paragraph that began at FROM.
+It does unless it is indented under a list item; FROM nil is no
+paragraph."
+  (or (not from)
+      (overblock-md-preview--margin-p fence)
+      (not (overblock-md-preview--item-p from))))
+
+(defun overblock-md-preview--item-p (pos)
+  "Return non-nil where the line at POS begins a list item."
+  (save-excursion
+    (goto-char pos)
+    (looking-at-p "[ \t]*\\(?:[-+*]\\|[0-9]+[.)]\\)[ \t]")))
+
 (defun overblock-md-preview-paragraphs (end fences)
   "Return the bounds of every paragraph up to END, FENCES aside.
 A paragraph is the run of lines between two blank ones, or between a
-blank line and a fence: a fence at the left margin ends the paragraph
-that touches it, and an indented one belongs to the list item around it.
+blank line and a fence: a fence ends the paragraph that touches it,
+unless it is indented under a list item, to which it belongs.
 The lines a fence holds are not read here:
 `overblock-md-preview-fences' has them already, and a blank line inside
 one ends no paragraph."
@@ -125,17 +139,17 @@ one ends no paragraph."
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
           (cond
-           ((or (and fence (overblock-md-preview--margin-p (caar fences)))
+           ((or (and fence (overblock-md-preview--interrupts-p (caar fences) from))
                 (and (not fence) (looking-at-p "[[:blank:]]*$")))
-            ;; A blank line ends a paragraph, and so does a fence at
-            ;; the left margin that touches it.
+            ;; A blank line ends a paragraph, and so does a fence that
+            ;; touches it, unless the fence is indented under an item.
             (when from (push (cons from last) regions))
             (setq from nil))
            ((not fence)
             (setq last (pos-eol)
                   from (or from (pos-bol)))))
-          ;; An indented fence belongs to a list item: the walk jumps
-          ;; over it and the paragraph goes on.
+          ;; A fence indented under a list item belongs to it: the walk
+          ;; jumps over it and the item goes on.
           (when fence
             (goto-char (cdar fences))
             (setq fences (cdr fences))))

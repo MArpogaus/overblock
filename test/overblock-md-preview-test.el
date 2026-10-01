@@ -256,5 +256,13 @@ then stays source."
     (should (equal (overblock-md-preview-regions (point-min) (point-max))
                    '((1 . 69) (14 . 39))))))
 
+(ert-deftest overblock-md-preview-test-an-indented-fence-outside-a-list-ends-a-paragraph ()
+  "A fence a few spaces in, with no list around it, still ends the paragraph."
+  (with-temp-buffer
+    (insert "Intro text\n  ```\n  code\n  ```\nAfter text\n\nNext para\n")
+    (let ((fences (overblock-md-preview-fences (point-max))))
+      (should (equal (overblock-md-preview-paragraphs (point-max) fences)
+                     '((1 . 11) (31 . 41) (43 . 52)))))))
+
 (provide 'overblock-md-preview-test)
 ;;; overblock-md-preview-test.el ends here
