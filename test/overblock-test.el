@@ -899,7 +899,6 @@ were ten pixels wide with twenty pixels of nothing between them."
     (should (funcall at 3))
     (should-not (eq (funcall at 0) (funcall at 3)))))
 
-(provide 'overblock-test)
 (ert-deftest overblock-test-a-block-keeps-out-of-the-way-of-hl-line ()
   "The plain paint of a rendering sits below `hl-line\', which draws at -50.
 The source under a rendering is painted plain so that the face of a
@@ -1044,4 +1043,5 @@ that column on, and a line shorter than that carries nothing."
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
       (should (eq (overlay-get block 'face) 'default)))))
 
+(provide 'overblock-test)
 ;;; overblock-test.el ends here

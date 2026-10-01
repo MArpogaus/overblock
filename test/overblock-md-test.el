@@ -34,6 +34,7 @@
 (require 'cl-lib)
 (require 'ert)
 (require 'overblock-md)
+(require 'overblock-test-common)
 
 (defconst overblock-md-test--png
   (base64-decode-string
@@ -266,9 +267,7 @@ line came back as the first paragraph of every rendering."
     (overblock-md-html-batch-async
      '("<p>the whole answer</p>")
      (lambda (htmls) (setq answered htmls)))
-    (let ((deadline (+ (float-time) 10)))
-      (while (and (eq answered 'not-yet) (< (float-time) deadline))
-        (accept-process-output nil 0.05)))
+    (overblock-test-common-wait (lambda () (not (eq answered 'not-yet))) 10)
     (should (equal answered '("<p>the whole answer</p>")))))
 
 (ert-deftest overblock-md-test-an-answer-for-changed-text-is-dropped ()
@@ -294,9 +293,7 @@ renders a region that carries a rendering already."
             ;; the reader types in the first region while it converts
             (goto-char 2)
             (insert "X")
-            (let ((deadline (+ (float-time) 10)))
-              (while (and (null shown) (< (float-time) deadline))
-                (accept-process-output nil 0.05)))
+            (overblock-test-common-wait (lambda () shown) 10)
             ;; the region they left alone is rendered and theirs is not
             (should (equal shown '("two"))))
         (overblock-live-stop 'md-test)))))
@@ -699,7 +696,6 @@ the answer arrived long after the cell had been rendered."
         (should (equal (string-trim (buffer-string)) "the badge")))
       (should-not asked))))
 
-(provide 'overblock-md-test)
 (ert-deftest overblock-md-test-a-painted-block-is-a-rectangle ()
   "A run of rows that wears a background is squared off to its longest.
 shr ends a row where its text ends, so a fenced block came out as a
@@ -966,4 +962,5 @@ is laid out in columns."
       (overblock-md-eglot-renderer)
       (should (equal (buffer-string) "Plain *markdown*.")))))
 
+(provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

@@ -42,6 +42,7 @@
 (require 'ert)
 (require 'overblock-pycell)
 (require 'pixel-scroll)
+(require 'overblock-test-common)
 
 (defun overblock-pycell-scroll-test--source (cells paragraphs)
   "Return buffer text of CELLS markdown cells of PARAGRAPHS each.
@@ -160,13 +161,7 @@ a short one after them, which is where redisplay changes lines."
           ;; The renderings are asked of a process and not waited for,
           ;; which is the point of it; a test has to wait where a reader
           ;; does not.
-          (let ((deadline (+ (float-time) 10)))
-            (while (and (seq-some (lambda (process)
-                                    (string-prefix-p "overblock-md"
-                                                     (process-name process)))
-                                  (process-list))
-                        (< (float-time) deadline))
-              (accept-process-output nil 0.05)))
+          (overblock-test-common-converted)
           (redisplay t)
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
@@ -209,13 +204,7 @@ top is still reachable, which it is."
           (python-mode)
           (code-cells-mode)
           (overblock-pycell-mode 1)
-          (let ((deadline (+ (float-time) 10)))
-            (while (and (seq-some (lambda (process)
-                                    (string-prefix-p "overblock-md"
-                                                     (process-name process)))
-                                  (process-list))
-                        (< (float-time) deadline))
-              (accept-process-output nil 0.05)))
+          (overblock-test-common-converted)
           (redisplay t)
           (should (equal (overblock-pycell-scroll-test--reversals) nil)))
       (kill-buffer buffer))))

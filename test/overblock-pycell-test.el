@@ -50,12 +50,7 @@ with no mode on is given the cycle's record without the mode's hooks."
 
 (defun overblock-pycell-test--settle ()
   "Wait until no converter process is running."
-  (let ((deadline (+ (float-time) 10)))
-    (while (and (seq-some (lambda (process)
-                            (string-prefix-p "overblock-md" (process-name process)))
-                          (process-list))
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05))))
+  (overblock-test-common-converted))
 
 (defmacro overblock-pycell-test--with-cells (&rest body)
   "Evaluate BODY in a Python buffer with two code cells."

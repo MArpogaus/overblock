@@ -32,6 +32,7 @@
 
 (require 'ert)
 (require 'overblock-md-preview)
+(require 'overblock-test-common)
 
 (defmacro overblock-md-preview-test--with (text &rest body)
   "Evaluate BODY in a buffer holding TEXT with the mode on."
@@ -48,10 +49,8 @@
   "Wait until COUNT blocks carry a rendering, and return how many do.
 The conversion is asked of a process and not waited for, which is the
 point of it: a test has to wait where a reader does not."
-  (let ((deadline (+ (float-time) 10)))
-    (while (and (< (length (overblock-md-preview-test--blocks)) count)
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05)))
+  (overblock-test-common-wait
+   (lambda () (>= (length (overblock-md-preview-test--blocks)) count)) 10)
   (length (overblock-md-preview-test--blocks)))
 
 (defun overblock-md-preview-test--blocks ()

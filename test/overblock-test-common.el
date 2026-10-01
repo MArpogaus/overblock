@@ -33,6 +33,7 @@
 ;;; Code:
 
 (require 'vtable)
+(require 'seq)
 
 (defconst overblock-test-common-image
   (propertize " " 'display '(image :type png :data "x"))
@@ -59,6 +60,17 @@ answers when it answers."
     (while (and (not (funcall predicate)) (< (float-time) deadline))
       (accept-process-output nil 0.05))
     (funcall predicate)))
+
+(defun overblock-test-common-converted (&optional seconds)
+  "Wait until no converter process is running, for SECONDS at most.
+The renderings are asked of pandoc and not waited for, which is the
+point of them: a test has to wait where a reader does not."
+  (overblock-test-common-wait
+   (lambda ()
+     (not (seq-some (lambda (process)
+                      (string-prefix-p "overblock-md" (process-name process)))
+                    (process-list))))
+   (or seconds 10)))
 
 (defun overblock-test-common-results ()
   "Return the result blocks of the buffer, in order."

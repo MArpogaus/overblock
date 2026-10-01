@@ -37,6 +37,7 @@
 (require 'overblock-pydoc)
 (require 'overblock-pycell-scroll-test)
 (require 'pixel-scroll)
+(require 'overblock-test-common)
 
 (defun overblock-pydoc-scroll-test--source (functions)
   "Return a Python module of FUNCTIONS methods with long numpy doc strings."
@@ -59,12 +60,7 @@
   "Turn the mode on in the current buffer and wait for every rendering."
   (python-mode)
   (overblock-pydoc-mode 1)
-  (let ((deadline (+ (float-time) 15)))
-    (while (and (seq-some (lambda (process)
-                            (string-prefix-p "overblock-md" (process-name process)))
-                          (process-list))
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05)))
+  (overblock-test-common-converted 15)
   (redisplay t))
 
 (defun overblock-pydoc-scroll-test--faults (previous now steps)

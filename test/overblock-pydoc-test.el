@@ -35,6 +35,7 @@
 (require 'face-remap)
 (require 'python)
 (require 'overblock-pydoc)
+(require 'overblock-test-common)
 
 (defconst overblock-pydoc-test--source
   "\"\"\"The module.\"\"\"
@@ -78,11 +79,9 @@ documentation.")
   "Wait until COUNT doc strings carry a rendering, and return how many do.
 The rendering is asked of a process and not waited for, which is the
 point of it: a test has to wait where a reader does not."
-  (let ((deadline (+ (float-time) 10)))
-    (while (and (< (length (overblock-in (point-min) (point-max) 'pydoc))
-                   count)
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05)))
+  (overblock-test-common-wait
+   (lambda () (>= (length (overblock-in (point-min) (point-max) 'pydoc)) count))
+   10)
   (length (overblock-in (point-min) (point-max) 'pydoc)))
 
 (defun overblock-pydoc-test--first-lines ()
@@ -574,7 +573,6 @@ proves that the mode asks for it and that it stops asking."
       (should-not overblock-live--specs)
       (should (equal (buffer-string) before)))))
 
-(provide 'overblock-pydoc-test)
 (ert-deftest overblock-pydoc-test-a-numpy-parameter-list-keeps-its-lines ()
   "Each entry of a Parameters section stays on its own lines under Markdown.
 CommonMark read the indented description as more of the entry's
@@ -598,4 +596,5 @@ b : str | None, optional\n    The second.\n\n| k | v |\n|---|---|\n| x | 1 |\n\n
     (should (string-match-p "k +v *\n" shown))
     (should (string-search "f(a, b)" shown))))
 
+(provide 'overblock-pydoc-test)
 ;;; overblock-pydoc-test.el ends here
