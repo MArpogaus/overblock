@@ -692,9 +692,9 @@ HTML comment across a blank line does.  Each half of TEXTS then goes
 again in a process of its own, and a text alone gets nil, for the
 caller to convert alone.  One such text costs a few processes in the
 background, not one in the foreground for each text.  A PAGE of nil is
-a converter that failed, and CALLBACK gets nil."
+a converter that failed, as pandoc does on front matter cut by a
+marker, and halves the same way."
   (if-let* ((pieces (or (overblock-md--batch-pieces page texts)
-                         (null page)
                          (null (cdr texts)))))
       (funcall callback (and (consp pieces) pieces))
     (let* ((head (seq-take texts (/ (length texts) 2)))
