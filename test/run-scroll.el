@@ -26,13 +26,9 @@
 (defun run-scroll--all ()
   "Run every scrolling test, report to a file, and exit."
   (let ((failed 0) (passed 0) (skipped 0))
-    ;; A fixed frame size, so the test sees the same geometry on every
-    ;; machine: the reversal depends on how the blocks fill the window.
-    ;; The toolkit does the resizing and not the call, so the frame is
-    ;; that size only once it has answered: measured on the CI, a run
-    ;; that went straight on tested a frame of 672 by 612 — the frame
-    ;; Emacs starts with — and reported a reversal the geometry the
-    ;; tests are written for does not have.
+    ;; A fixed frame size, so the geometry is the same on every machine:
+    ;; the reversal depends on how the blocks fill the window. The
+    ;; toolkit resizes later, so wait until the frame has the size.
     (set-frame-size (selected-frame) 1000 700 t)
     (with-timeout (10 nil)
       (while (or (< (frame-pixel-width) 1000) (< (frame-pixel-height) 700))
@@ -56,11 +52,8 @@
                (run-scroll--say "  FAIL %-40s %.1fs" name seconds)
                (run-scroll--say
                 "%S" (ert-test-result-with-condition-condition result))))))
-    ;; A skipped test is not a passed one. Both tests open with
-    ;; `skip-unless (display-graphic-p)', so a run without xvfb-run
-    ;; skipped them both, printed "scrolling tests passed" and exited
-    ;; 0: the one promise this suite guards was never exercised and the
-    ;; CI was green.
+    ;; A skipped test is not a passed one: without a display both tests
+    ;; skip, and the run must fail.
     (cond ((not (zerop failed))
            (run-scroll--say "%d scrolling test(s) failed" failed))
           ((zerop passed)
@@ -68,15 +61,10 @@
           (t (run-scroll--say "scrolling tests passed")))
     (kill-emacs (if (and (zerop failed) (> passed 0)) 0 1))))
 
-;; The tests measure pixels, so they wait until redisplay has brought
-;; the frame up rather than running while the file loads.
-;;
-;; Only in the session `make scroll' starts, which is a graphical one.
-;; `make test' loads every file of test/, this runner among them, and a
-;; batch session runs its timers whenever it waits for a process —
-;; which every run against a real interpreter does. The suite then died
-;; part way through, with the exit status of a scrolling run that had
-;; never happened.
+;; The tests measure pixels, so they wait for redisplay to bring the
+;; frame up. Only in the graphical session of `make scroll': a batch
+;; session runs timers while it waits for a process, and this timer
+;; would end the suite.
 (unless noninteractive
   (run-with-timer 0.5 nil #'run-scroll--all))
 
