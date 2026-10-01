@@ -966,10 +966,11 @@ The alt text carries the image; `overblock-md-rendered' caps it.  See
 `overblock-md--image-label' for an image with no alt text."
   (let* ((src (or (dom-attr dom 'src) ""))
          (alt (dom-attr dom 'alt))
-         (local (overblock-md--image-file src))
-         (file (or local (overblock-md--remote-file src)))
-         ;; A fetched file is named by a hash, not worth a label.
-         (label (overblock-md--image-label alt (or local src))))
+         (file (or (overblock-md--image-file src)
+                   (overblock-md--remote-file src)))
+         ;; A drawn image needs a label to sit on: a fetched one with
+         ;; no alt text gets the name of its file in the cache.
+         (label (overblock-md--image-label alt (or file src))))
     (if (string-prefix-p "data:" src)
         ;; shr draws the image of a data URI itself.
         (shr-tag-img dom)

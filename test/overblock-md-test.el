@@ -868,6 +868,15 @@ without a formula stays."
           (should-not (overblock-md--image-file "figs")))
       (delete-directory dir t))))
 
+(ert-deftest overblock-md-test-a-drawn-image-has-a-label ()
+  "A fetched image with no alt text still has text to draw on."
+  (cl-letf (((symbol-function 'overblock-md--remote-file)
+             (lambda (_) "/cache/0123.svg"))
+            ((symbol-function 'display-images-p) #'ignore))
+    (with-temp-buffer
+      (overblock-md--tag-img (dom-node 'img '((src . "https://x.org/b.svg"))))
+      (should (> (buffer-size) 0)))))
+
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
   "An image whose file is not there shows its label, and nothing is fetched."
   (let ((asked nil))
