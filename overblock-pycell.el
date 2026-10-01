@@ -27,36 +27,33 @@
 
 ;;; Commentary:
 
-;; Notebook style results for Python code cells, built on python.el --
+;; Notebook style results for Python code cells, built on python.el:
 ;; no Jupyter kernel and no zmq module.  comint-mime, where it is
 ;; installed, adds figures and tables.
 ;;
 ;; Add `overblock-pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
 ;; on in every Python buffer with cells.  Evaluating a cell sends it
 ;; to the inferior Python process as usual, so the REPL keeps the full
-;; log.  While the cell runs, the result
-;; grows below it: a header bar with a spinner, a stopwatch and buttons,
-;; and the output as comint-mime rendered it, images included.
+;; log.  While the cell runs, the result grows below it: a header bar
+;; with a spinner, a stopwatch and buttons, and the output as
+;; comint-mime rendered it, images included.
 ;;
 ;; Markdown cells, the `# %% [markdown]' ones that jupytext writes, are
 ;; rendered in place.  An external markdown command and shr produce
 ;; the text, which then hangs on the source lines it replaces, a piece
-;; to a line, and the formulas that the converter passed through
-;; become preview images through latex-to-svg-backend.
-;; A click on a rendering gives the source back, and the cell is
-;; rendered again once the edit is done: the same live cycle that
-;; `overblock-md-preview-mode' keeps a markdown buffer with.
+;; to a line, and latex-to-svg-backend turns the formulas into preview
+;; images.  A click on a rendering shows the source, and the cell
+;; renders again after the edit, through the live cycle of
+;; `overblock-md-preview-mode'.
 ;;
 ;; Rich output needs an IPython REPL, because comint-mime installs its
 ;; renderers there; a plain python3 shell yields text only.
 ;;
-;; What draws a block on the screen is not here: `overblock' puts text
-;; over a region of a buffer with a header above it, `overblock-md'
-;; turns markdown into a string it can show, `overblock-repl' cuts the
-;; output of a shell loose from that shell, and `overblock-run' sends a
-;; region to a shell, shows what comes back, and carries the commands a
-;; reader presses on a result.  What is here is the part that knows
-;; about Python: the cells, the process, and the commands of a cell.
+;; `overblock' draws the blocks, `overblock-md' turns markdown into a
+;; string, `overblock-repl' cuts the output of a shell loose from it,
+;; and `overblock-run' sends a region to a shell, shows the result and
+;; holds the commands on a result.  This file knows about Python: the
+;; cells, the process, and the commands of a cell.
 ;;
 ;; A result block is a display string on a single buffer line, and
 ;; Emacs cannot place point inside one.  The mouse wheel scrolls
@@ -88,24 +85,20 @@
              overblock-pycell-move-cell-up t)
     (move-down ("" "⌄" "down") "Move this cell down"
                overblock-pycell-move-cell-down t))
-  "The pair that moves a cell, which every bar of a cell ends with.
-The trailing slots are the ones that fall in the same place whatever
-else a bar carries: measured, the pair leading sat at x=996 on a bar
-of four buttons and x=959 on one of five, and trailing it stands in
-one column down the window.")
+  "The pair that moves a cell, at the end of every bar of a cell.
+The buttons are held against the right edge, so only the trailing
+slots are in the same column on every bar.")
 
 (defcustom overblock-pycell-result-buttons
   (append (overblock-run-result-buttons "cell" "image")
           overblock-pycell--move-buttons)
   "The buttons on the header of a result, left to right.
-An entry is the shape `overblock-buttons' reads, and the five that
-every result carries come from `overblock-run-result-buttons', so a
-glyph changed there changes the Rmd file's row too.  The pair that
-moves a cell is this notebook's own.
+An entry has the shape `overblock-buttons' reads.  The five of every
+result come from `overblock-run-result-buttons', shared with the Rmd
+notebook; the pair that moves a cell belongs to this notebook.
 
-Drop an entry you never press, reorder them, or give one a glyph your
-font draws better.  The fold arrow and the spinner are not buttons of
-this list: they say what the result is doing."
+Drop, reorder or change entries as you like.  The fold arrow and the
+spinner are not in this list: they show the state of the result."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -114,12 +107,9 @@ this list: they say what the result is doing."
           overblock-pycell-md-edit t))
           overblock-pycell--move-buttons)
   "The buttons on the header of a rendered markdown cell.
-An entry is the shape `overblock-buttons' reads.  A markdown cell has
-no output, so `lines' and `image' say nothing here.
-
-No button for the source: a click on the rendering shows it, which is
-what the cell's own tooltip says, and a second way of saying it is one
-more icon to read."
+An entry has the shape `overblock-buttons' reads.  A markdown cell has
+no output, so `lines' and `image' mean nothing here.  There is no
+button for the source: a click on the rendering shows it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -128,9 +118,9 @@ more icon to read."
             overblock-pycell-md-render-cell t))
           overblock-pycell--move-buttons)
   "The buttons on the bar of a markdown cell that shows its source.
-An entry is the shape `overblock-buttons' reads.  Such a cell is one
-just written, or one taken back to its source with `overblock-pycell-md-raw';
-the third button renders it."
+An entry has the shape `overblock-buttons' reads.  Such a cell is new,
+or was taken back to its source with `overblock-pycell-md-raw'; the
+render button renders it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -140,14 +130,11 @@ the third button renders it."
     (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t))
           overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
-An entry is the shape `overblock-buttons' reads.  A cell bar is drawn
-before the cell has run, so `lines' and `image' say nothing here.
+An entry has the shape `overblock-buttons' reads.  A cell bar is drawn
+before the cell runs, so `lines' and `image' mean nothing here.
 
-The two move buttons come last, as they do on every other bar.  The
-buttons are held against the right edge, so the trailing slots are the
-ones that fall in the same place whatever else a bar carries: measured,
-the pair leading sat at x=996 on a bar of four buttons and x=959 on one
-of five, and trailing it stands in one column down the window."
+The two move buttons come last, as on every bar (see
+`overblock-pycell--move-buttons')."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -155,11 +142,9 @@ of five, and trailing it stands in one column down the window."
 
 (defun overblock-pycell--drop-rendering (block)
   "Take BLOCK down, and bar the boundary line a rendering leaves behind.
-The bar of a rendered markdown cell is the block's own overlay, so it
-goes with the block — and no text on that line changed, so nothing else
-would put one back.  Measured in a graphical frame: the line was left
-with no bar at all, and the button that renders the cell again sits on
-that bar."
+The bar of a rendered markdown cell is an overlay of the block, so it
+goes with the block.  No text of that line changed, so nothing else
+puts a bar back."
   (let ((markdown (eq (overblock-get block :kind) 'markdown))
         (start (overlay-start block)))
     (overblock-delete block)
@@ -169,22 +154,16 @@ that bar."
 
 (defvar overblock-pycell--moving nil
   "Non-nil while `overblock-pycell-move-cell-down' is moving a cell.
-`overblock-pycell--stale-when-edited' stands down while it is: a move relocates
-whole
-cells rather than editing the text of one, and the command takes the
-blocks of both cells off and puts them back itself.  The text the move
-inserts lands at the first character of the cell below, which is where
-that cell's anchor begins, so its `insert-in-front-hooks' ran and its
-result went with the insertion — measured, a third cell that had
-nothing to do with the move lost its result on every move down.")
+`overblock-pycell--stale-when-edited' does nothing meanwhile: a move
+relocates whole cells, and the command removes and restores the blocks
+of both cells itself.  The moved text is inserted at the anchor of the
+cell below, whose `insert-in-front-hooks' would remove its result.")
 
 (defun overblock-pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
-A move stands the taking down: `overblock-pycell--moving' says the text is being
-relocated rather than edited, and the command puts the blocks of both
-cells back itself.  What comes down is the rendering and the bar a
-rendered cell carries above it, which is what `overblock-pycell--drop-rendering'
-knows and a plain delete does not."
+Not during a move (see `overblock-pycell--moving').  The rendering and
+the bar above a rendered cell come down, through
+`overblock-pycell--drop-rendering'."
   (overblock-stale-when-edited
    block (lambda (block)
            (unless overblock-pycell--moving (overblock-pycell--drop-rendering block)))))
@@ -192,20 +171,15 @@ knows and a plain delete does not."
 ;;;; Result blocks
 
 (defun overblock-pycell--strip-prompts (text)
-  "Return TEXT without the shell's prompts and its Out[N] labels.
-The prompt before the output goes, the prompt after it goes, and so does
-the one that ends up on the same line as output which stopped without a
-newline — `comint-prompt-regexp' anchors to a line start and cannot see
-that one.  An `Out[N]:' label goes where it begins a line, which is
-where the shell writes one; see the comment below for the one that does
-not, and why it stays.  Call this in the shell buffer, where that
-variable has its value."
+  "Return TEXT without the prompts and the Out[N] labels of the shell.
+The prompt before the output goes, the prompt after it goes, and so
+does one on the same line as output without a final newline, which
+`comint-prompt-regexp' cannot see because it anchors to a line start.
+An `Out[N]:' label goes where it starts a line.  Call this in the shell
+buffer, where that variable has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
-    ;; The (> ...) guard stops an endless loop if the prompt regexp
-    ;; matches the empty string. The last one keeps a figure: a cell
-    ;; whose only output is one arrives as a space carrying it, which
-    ;; the whitespace before the prompt would otherwise swallow, and
-    ;; the block would come out empty.
+    ;; The (> ...) guard stops an endless loop on an empty match. The
+    ;; last guard keeps a figure, which is a space with an image.
     (while (and (string-match (concat "\\`[ \t\n]*" rx) text)
                 (> (match-end 0) 0)
                 (not (text-property-not-all 0 (match-end 0) 'display nil text)))
@@ -218,44 +192,28 @@ variable has its value."
                                 "\\)[ \t]*\\'")
                         text)
       (setq text (substring text 0 (match-beginning 0)))))
-  ;; The search costs 0.009 milliseconds and the replacement 3.08 over a
-  ;; hundred thousand characters, measured: `replace-regexp-in-string'
-  ;; copies its argument twice even when nothing matches, and a plain
-  ;; python3 shell never writes a label at all.
+  ;; The search first: `replace-regexp-in-string' copies the text even
+  ;; without a match, and a plain python3 shell writes no label.
   ;;
-  ;; Anchored to a line start, which is where the shell writes one. A
-  ;; label the shell wrote after output that stopped without a newline
-  ;; sits on that same line and stays: unanchored, this took `Out[1]: '
-  ;; out of the middle of a value that held those characters itself —
-  ;; `'a value that says Out[1]: inside it'' came out as `'a value that
-  ;; says inside it'', and `overblock-run-copy-output' hands that to
-  ;; the reader, who yanked the hole as well. The
-  ;; two cannot be told apart: a trailing prompt takes the newline after
-  ;; a `print' with it, so "ends the text" says nothing either. A label
-  ;; left on the screen is the cheaper fault of the two.
+  ;; Anchored to a line start, so a value that contains "Out[1]: " keeps
+  ;; it. A label after output without a final newline stays: it cannot
+  ;; be told apart from such a value.
   (if (string-search "Out[" text)
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
 (defun overblock-pycell--drop-prompt-face (text)
-  "Return TEXT with the face comint paints a prompt with taken off.
+  "Return TEXT without the face comint paints a prompt with.
 comint calls a chunk of output that ends without a newline a prompt,
-and paints it `comint-highlight-prompt'.  A cell that prints a single
-line arrives as one such chunk, so the commonest result of all showed
-in the colour of a prompt: measured against a real IPython, a cell that
-printed one line came back in that face, where the same cell printing
-three lines came back plain.
+and paints it `comint-highlight-prompt'.  A cell that prints one line
+arrives as one such chunk.
 
-Only that face.  Every other one rides the same property and says
-something about the output: ansi-color writes the colours of a terminal
-there, and comint-mime the faces of whatever it renders.
+Only that face goes: ansi-color and comint-mime put other faces in the
+same property.  A run left without a face loses the property instead
+of a nil value, because each face run costs redisplay time.
 
-A run left with no face at all loses the property rather than carrying
-a nil: what a block costs redisplay follows the number of face runs its
-text has, and a property set to nil is a run of its own.
-
-TEXT is written on in place.  It is the copy `overblock-pycell--clean' was
-handed, which comes from `buffer-substring'."
+TEXT changes in place.  It is the copy from `buffer-substring' that
+`overblock-pycell--clean' got."
   (let ((pos 0)
         (len (length text)))
     (while (< pos len)
@@ -274,20 +232,18 @@ handed, which comes from `buffer-substring'."
 
 (defun overblock-pycell--clean (text)
   "Return TEXT as a result block can show it.
-The prompts and the Out[N] labels go, the face of a prompt goes with
-them, and the copy is cut loose from the shell; see
-`overblock-pycell--strip-prompts', `overblock-pycell--drop-prompt-face' and
-`overblock-repl-detach' for what each of those means.  Call this in the
-shell buffer, where `comint-prompt-regexp' has its value."
+The prompts, the Out[N] labels and the prompt face go, and the copy is
+cut loose from the shell: see `overblock-pycell--strip-prompts',
+`overblock-pycell--drop-prompt-face' and `overblock-repl-detach'.  Call
+this in the shell buffer, where `comint-prompt-regexp' has its value."
   (overblock-repl-detach
    (overblock-pycell--drop-prompt-face (overblock-pycell--strip-prompts text))))
 
 (defun overblock-pycell-tab-filter (cmd)
   "Return CMD when point sits at the very end of a cell with a result.
-A `menu-item' filter for a key in `overblock-run-result-map': it keeps
-a key that means something in the rest of the cell — TAB indents — out
-of the way everywhere but on the one spot where the reader faces the
-result:
+A `menu-item' filter for a key in `overblock-run-result-map'.  It
+keeps a key that means something else in the cell, such as TAB, active
+only at the end of the cell, next to the result:
 
   (keymap-set overblock-run-result-map \"TAB\"
               \\='(menu-item \"\" overblock-run-toggle-output
@@ -310,11 +266,10 @@ its markdown was rendered."
 
 (defun overblock-pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
-STATE comes from `overblock-pycell--cell-state'.  A markdown cell is
-rendered here and now, and not by the live cycle: point goes back into
-the cell that moved, and the cycle leaves the cell point is in alone."
-  ;; The record goes back whole: the region was cleared, so the block
-  ;; `overblock-run-show' builds has no state of its own worth keeping.
+STATE comes from `overblock-pycell--cell-state'.  A markdown cell
+renders here, not by the live cycle, which leaves the cell at point
+alone."
+  ;; The whole record: the new block has no state of its own.
   (when-let* ((record (car state))
               (block (overblock-run-show beg end "" 0.0)))
     (overblock-set block :data record)
@@ -327,8 +282,8 @@ the cell that moved, and the cycle leaves the cell point is in alone."
 
 (defun overblock-pycell--running-in-p (beg end)
   "Return non-nil where the cell the shell is running lies in BEG..END.
-Asked of this buffer alone: another notebook on the same shell may be
-the one running, and its cells are not moving."
+Only in this buffer: another notebook on the same shell can be the
+one running."
   (when-let* ((running (overblock-run-running-region))
               (mark (car running))
               ((eq (marker-buffer mark) (current-buffer))))
@@ -337,57 +292,38 @@ the one running, and its cells are not moving."
 ;;;###autoload
 (defun overblock-pycell-move-cell-down (&optional arg event)
   "Move the cell at point down ARG cells, with what it shows.
-A negative ARG moves it up, which is all `overblock-pycell-move-cell-up' does.
-EVENT is the click that asked for the move, where a button asked.
+A negative ARG moves it up.  EVENT is the click on a button that asked
+for the move.
 
-An outline move, because `code-cells-mode' makes every boundary line an
-outline heading and a cell is therefore a subtree.  From the boundary
-line, since that mode takes the major mode's own headings into
-`outline-regexp' too.  Outline cuts the
-text and puts it back; `code-cells-move-cell-down' transposed the two
-regions, and `transpose-regions' leaves an overlay where the text used
-to be — the result of one cell ended up under the other.  It also glued
-the file together where the last cell had no final newline, writing
-\"# omega# %%\" and leaving one cell where there were two; outline
-writes that newline itself.
+This is an outline move: `code-cells-mode' makes every boundary line an
+outline heading, so a cell is a subtree.  Outline cuts the text and
+puts it back.  `transpose-regions', which `code-cells-move-cell-down'
+uses, leaves overlays where the text was, and joins the last cell to
+the previous one when the file has no final newline.
 
-The blocks of both cells come off after the move — the moved cell's go
-with the text it was cut from, parts and all, so what is left of them
-is swept — and go back on the cells they belong to.  Point travels with
-the cell, so a click on the button of a header keeps moving the same
-cell."
+After the move the blocks of both cells come off, orphans are swept,
+and the blocks go back on their cells.  Point moves with the cell, so
+repeated clicks move the same cell."
   (interactive (list (prefix-numeric-value current-prefix-arg)
                      last-input-event))
   (setq arg (or arg 1))
-  ;; The click first, so the cell that moves is the one whose button was
-  ;; pressed. A header answers for its own cell wherever point is: with
-  ;; point left where it was, clicking the arrow of one cell moved
-  ;; another.
+  ;; The click first, so the cell of the pressed button moves.
   (overblock-goto-event event)
   (pcase-let* ((`(,beg ,end) (code-cells--bounds))
                (`(,nbeg ,nend) (code-cells--neighbor-bounds arg))
                (offset (- (point) beg))
                (mine (overblock-pycell--cell-state beg end))
                (theirs (overblock-pycell--cell-state nbeg nend)))
-    ;; A cell the shell is still writing into cannot move: the run holds
-    ;; markers into its text, and the move cuts that text out — the
-    ;; markers collapsed, the block came back frozen at whatever the
-    ;; last tick had shown, and the rest of the output went nowhere.
+    ;; A running cell cannot move: the run holds markers into the text
+    ;; that the move cuts out.
     (when (overblock-pycell--running-in-p (min beg nbeg) (max end nend))
       (user-error "Wait for the cell to finish, or M-x overblock-run-interrupt"))
-    ;; From the cell's own boundary line: `code-cells-mode' takes the
-    ;; major mode's headings into `outline-regexp' as well, so
-    ;; `outline-back-to-heading' from inside a cell that holds a `def'
-    ;; finds the def and would move that instead — measured, it
-    ;; refused with "Cannot move past superior level" and the cell
-    ;; stayed where it was.
+    ;; From the boundary line: `outline-regexp' also holds the headings
+    ;; of the major mode, so from inside a cell outline finds a `def'.
     (goto-char beg)
     ;; This signals when there is nowhere to move, before anything is
-    ;; taken off. Any error puts point back where the reader had it:
-    ;; outline walks point before it refuses, and an error of a kind
-    ;; not named here — one from a mode whose headings are in
-    ;; `outline-regexp' beside the cells — left the reader inside
-    ;; another cell with nothing said.
+    ;; removed. Every error puts point back: outline moves point before
+    ;; it refuses.
     (let ((overblock-pycell--moving t)
           (here (point-marker)))
       (condition-case error
@@ -397,20 +333,16 @@ cell."
         (outline-before-first-heading
          (goto-char here)
          (user-error "Can't move the text above the first cell"))
-        ;; Outline says "Cannot move past superior level", which is
-        ;; about headings and levels: neither is a word this package
-        ;; uses, and the reader pressed an arrow on a cell.
+        ;; In the words of cells, not of outline levels.
         (user-error
          (goto-char here)
          (user-error "No cell to swap this one with"))
         (error
          (goto-char here)
          (signal (car error) (cdr error)))))
-    ;; Point is where the cell that moved now begins, so the buffer is
-    ;; asked for the two ranges rather than counting them out.
+    ;; Point is at the moved cell, so the buffer gives both ranges.
     (overblock-clear (min beg nbeg) (max end nend))
-    ;; The text of the moved cell was cut out, so its parts outlived
-    ;; the anchor that owned them.
+    ;; The parts of the moved cell outlived their anchor.
     (overblock-sweep-orphans)
     (pcase-let* ((`(,mbeg ,mend) (code-cells--bounds))
                  (`(,tbeg ,tend) (code-cells--neighbor-bounds (- arg))))
@@ -421,7 +353,7 @@ cell."
 ;;;###autoload
 (defun overblock-pycell-move-cell-up (&optional arg event)
   "Move the cell at point up ARG cells, with what it shows.
-EVENT is the click that asked for the move, where a button asked."
+EVENT is the click on a button that asked for the move."
   (interactive (list (prefix-numeric-value current-prefix-arg)
                      last-input-event))
   (overblock-pycell-move-cell-down (- (or arg 1)) event))
@@ -431,15 +363,13 @@ EVENT is the click that asked for the move, where a button asked."
 (defconst overblock-pycell--md-boundary
   "#+[[:blank:]]*%%+[[:blank:]]*\\[markdown\\]"
   "What marks a cell boundary line as a markdown cell.
-Loose where `code-cells-boundary-regexp' is loose: any number of
-comment characters, with or without a space, since VS Code and Spyder
-write =#%% [markdown]= where jupytext writes =# %% [markdown]=.  A
-tag list or a title may follow, as they may on a code cell.
+As loose as `code-cells-boundary-regexp': any number of comment
+characters, with or without a space, since VS Code and Spyder write
+=#%% [markdown]= where jupytext writes =# %% [markdown]=.  A tag list or
+a title can follow, as on a code cell.
 
-The comment character is spelled out rather than asked of the syntax
-table: this package reads Python and nothing else, and a caller with
-another table current — a test, or a buffer whose mode has not been
-set yet — would otherwise get a different answer.")
+The comment character is literal, not from the syntax table, so the
+answer is the same in a buffer whose mode is not set yet.")
 
 (defun overblock-pycell--md-cell-start (pos)
   "Return the start of the =# %% [markdown]= line above POS, or nil.
@@ -451,14 +381,12 @@ A non-nil value marks POS as the body of a markdown cell."
 
 (defun overblock-pycell--keep-result-newline (from to)
   "Keep the newline a result block hangs on out of a fold over FROM..TO.
-A fold that reaches the end of the buffer covers that newline, where a
-fold in the middle of one stops short of it.  The block would go with
-the fold, and the reader would lose the bar that folds the result
-itself, so the invisible run is shrunk back off the newline."
+A fold that reaches the end of the buffer covers that newline, unlike a
+fold in the middle.  The block, with the bar that folds the result,
+would go with it, so the invisible run is shrunk back off the
+newline."
   (dolist (block (overblock-in from to 'result))
-    ;; A live overlay, tested by its buffer: this runs from advice on
-    ;; `outline-flag-region', and a deleted overlay in the slot answers
-    ;; nil to `overlay-end' — which raised on every fold in the buffer.
+    ;; A deleted overlay has no end, and this runs on every fold.
     (when-let* ((nl (overblock-get block :newline))
                 ((overlay-buffer nl))
                 ((<= (overlay-end nl) to)))
@@ -470,23 +398,19 @@ itself, so the invisible run is shrunk back off the newline."
 
 (defun overblock-pycell--outline-flag-blocks (from to flag)
   "Hide or show the blocks in FROM..TO to match an outline fold.
-FLAG is non-nil where `outline-flag-region' hid the region, and this
-follows that call rather than guessing which command made it.
+FLAG is non-nil where `outline-flag-region' hid the region.
 
-A markdown cell is the content of its cell, so it goes under the fold:
-`:hidden' takes it off the screen and a refresh puts it back, since a
-block makes what it shows anew.
+A rendered markdown cell is the content of its cell, so it goes under
+the fold: `:hidden' takes it off the screen, and a refresh shows it
+again.
 
-A result block stays.  The fold hides the code and the block keeps its
-own fold button, so the two fold apart; `overblock-pycell--keep-result-newline'
-is what leaves it room.
+A result block stays: it has its own fold button, so code and result
+fold apart.  `overblock-pycell--keep-result-newline' leaves it room.
 
 The advice is global, so this runs on every fold in every outline
-buffer while any notebook has the mode on.  It filters on the block
-properties rather than on the mode: a buffer can carry blocks with the
-mode off — the tests do it, and so does a mode turned off while a
-result is on the screen — and the two scans below cost two
-interval-tree queries where there is nothing to find."
+buffer while a notebook has the mode on.  It tests the blocks, not the
+mode, because a buffer can have blocks with the mode off; with no
+blocks the scans are cheap."
   (when flag (overblock-pycell--keep-result-newline from to))
   (dolist (block (overblock-in from to 'markdown))
     (overblock-set block :hidden flag)
@@ -504,23 +428,19 @@ interval-tree queries where there is nothing to find."
 (defvar-keymap overblock-pycell-md-map
   :doc "Keymap on rendered markdown cells.
 Only the mouse is bound: overblock-pycell binds no keys.  Put your own
-here; `overblock-pycell-md-edit' and `overblock-pycell-md-follow-link'
-are the natural candidates.  Point never enters the rendering, so a key
-pressed on the cell is answered by this map through the overlays that
-carry it."
+here, for example `overblock-pycell-md-edit' and
+`overblock-pycell-md-follow-link'.  Point never enters the rendering,
+so the overlays of the cell carry this map."
   "<mouse-2>" #'overblock-pycell-md-edit
   "<mouse-1>" #'overblock-pycell-md-raw)
 
 (defun overblock-pycell--md-links (block)
-  "Return the links of BLOCK's rendering, in the order they are shown.
-Each is a cons of the text the reader sees and the URL under it.
+  "Return the links of the rendering of BLOCK, in the order shown.
+Each is a cons of the visible text and the URL.
 
-The rendering itself, not the pieces it was dealt into: a piece that
-holds an image hides its line with a display string of nothing and
-shows its row on the before-string instead, and an empty string is not
-nil — reading the display property first took that empty string for the
-row.  Every link of a cell with an image in it was lost, the badge a
-notebook opens with included."
+This reads the whole rendering, not its pieces: a piece that holds an
+image shows its row on the before-string and has an empty display
+string."
   (let ((shown (overblock-get block :over))
         (pos 0)
         links)
@@ -541,12 +461,9 @@ notebook opens with included."
 ;;;###autoload
 (defun overblock-pycell-md-follow-link ()
   "Follow a link of the rendered markdown cell at point.
-Clicking a link follows it already: a click is answered by the string
-it lands on, and the rendering carries shr's own keymap there.  Point
-cannot be put on a link at all — it never enters a display string, and
-the row under it belongs to the source, not to the rendering — so this
-asks the cell for its links instead.  With one, it is followed; with
-several, the reader chooses."
+A click on a link follows it already, through the keymap of shr.  Point
+never enters a display string, so this asks the cell for its links.
+With one, it is followed; with several, the reader chooses."
   (interactive)
   (let* ((block (overblock-pycell--md-at nil))
          (links (overblock-pycell--md-links block)))
@@ -560,39 +477,26 @@ several, the reader chooses."
 
 (defun overblock-pycell--md-show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.
-With HTML, the cell is not sent to the converter again: it was
-converted with the rest of the buffer.
-The rendering hangs on the source lines themselves, a piece to a
-line \(see `overblock--pieces'), so the cell scrolls like ordinary
-text and stands as tall as its source, unless the rendering is
-shorter and the lines left over go under a cloak.  A cell that
-renders to nothing is the exception: it falls back to the single
-string a result block uses, and hides its source as one invisible
-run.  That run must start at the end of a visible line —
-`scroll-down' fails with a beginning-of-buffer error when it has to
-move the window start over a run that begins at a line start — which
-is why the =# %%= line stays visible.
+With HTML, the cell is not converted again: it was converted with the
+rest of the buffer.
+
+The rendering hangs on the source lines, a piece to a line (see
+`overblock--pieces'), so the cell scrolls like text and is as tall as
+its source; when the rendering is shorter, a cloak hides the lines
+left over.  A cell that renders to nothing uses the single string of a
+result block, and hides its source as one invisible run.  That run must
+start at the end of a visible line: `scroll-down' fails with a
+beginning-of-buffer error over a run that starts at a line start.  So
+the =# %%= line stays visible.
 
 Only the word =markdown= of the boundary line carries the header, so
-=# %%= keeps the look of every other cell boundary and
-`outline-minor-mode' still finds a heading line where it expects one."
-  (when-let* (;; Still a markdown cell: the line above BEG is the
-              ;; boundary that says so, and an edit of that line drops
-              ;; the cell's block. `overblock-edit-commit' rewrites the
-              ;; body and renders it again, and a reader who changed
-              ;; the boundary in the notebook meanwhile reached
-              ;; `overblock-pycell--md-block' with no start for its bar.
+=# %%= looks like every other cell boundary and `outline-minor-mode'
+still finds its heading."
+  (when-let* (;; Still a markdown cell: the boundary line can change
+              ;; while an edit buffer is open.
               ((overblock-pycell--md-cell-start beg))
-              ;; A cell with nothing in it — one just inserted, a
-              ;; `# %% [markdown]' line with the next boundary under
-              ;; it — has no region to hang a block on, and
-              ;; `overblock-show' rightly answers nil for one. It used
-              ;; to get here all the same, because an empty rendering
-              ;; is the empty string and not nil, and `--md-block' then
-              ;; asked the layer to set a property on nothing: a signal
-              ;; out of the idle timer, or out of the comint filter
-              ;; where the backend's `:step' runs, which took the rest
-              ;; of the filters with it and left the bar behind.
+              ;; An empty cell has no region for a block. This can run
+              ;; in the comint filter, where an error is costly.
               ((< beg end))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
                           (overblock-md-rendered
@@ -604,15 +508,11 @@ Only the word =markdown= of the boundary line carries the header, so
 (defun overblock-pycell--md-bar (hov)
   "Draw the bar HOV of a rendered markdown cell, or draw it again.
 The bar is an overlay on the boundary line above the cell, one of the
-block's `:attached'.  It is remade rather than the cell rendered
-again when the window changes width: the rendering does not depend on
-the width, and the label of the bar does."
+`:attached' of the block.  A width change redraws only the bar: its
+label depends on the width, the rendering does not."
   (when (overlay-buffer hov)
     ;; The overlay does not grow at its end, so a title typed at the end
-    ;; of the boundary line fell outside it: the label was read from the
-    ;; stale region and the text beyond it drew after the bar, which
-    ;; made the row two rows. The code and source bars move theirs to
-    ;; the line first; this one now does too.
+    ;; of the line would be outside it.
     (save-excursion
       (goto-char (overlay-start hov))
       (move-overlay hov (pos-bol) (pos-eol)))
@@ -631,31 +531,19 @@ See `overblock-pycell--md-show', which renders and calls this."
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
                 'keymap overblock-pycell-md-map 'help-echo help))
-         ;; The bar covers the boundary line and stops before the
-         ;; newline where the cell begins, so the line reads as the
-         ;; header of the cell and not as a comment with a bar after it.
-         ;; Whatever bar the line carries goes first: the cell may have
-         ;; been showing its source, which is barred too.
+         ;; The bar covers the boundary line up to its newline. Any
+         ;; other bar of the line goes first, such as a source bar.
          (hov (let ((from (overblock-pycell--md-cell-start beg)))
                 (overblock-pycell--sole-bar from start nil)
                 (overblock-bar-over from start)))
-         ;; The block covers the source of the cell. The pieces hang
-         ;; on those lines, and the bar above them is not part of it.
+         ;; The block covers the source of the cell, not the bar.
          (block (overblock-show beg end
                                 :kind 'markdown
-                                ;; Where the source of the cell is, for
-                                ;; the editor. Markers and not
-                                ;; positions: an edit above the cell
-                                ;; moves the text without touching the
-                                ;; block, and the editor would then
-                                ;; open the wrong lines.
-                                ;; They outlive the block on purpose:
-                                ;; the click that opens the editor
-                                ;; takes the rendering down first, and
-                                ;; the editor reads them after that.
-                                ;; Freeing them with the block was
-                                ;; measured against the suite and
-                                ;; broke three of its tests.
+                                ;; The source for the editor, as markers
+                                ;; that follow edits above the cell.
+                                ;; They outlive the block: the click
+                                ;; that opens the editor removes the
+                                ;; rendering first.
                                 :data (cons (copy-marker beg)
                                             (copy-marker end t))
                                 :over text
@@ -663,23 +551,18 @@ See `overblock-pycell--md-show', which renders and calls this."
                                 :help-echo help
                                 :attached (list hov))))
     (overlay-put hov 'keymap overblock-pycell-md-map)
-    ;; A click on the bar lands on this overlay, so it points back at
-    ;; the block, which knows the bounds of the cell.
+    ;; A click on the bar lands on this overlay.
     (overlay-put hov 'overblock-pycell-main block)
     (overblock-pycell--md-bar hov)
-    ;; An edit of the source takes the rendering with it, the bar
-    ;; included. The block itself evaporates with the text it covers,
-    ;; and the bar sits on the boundary line above, where no edit of the
-    ;; cell reaches it: it would be left behind, and `overblock-edit-commit'
-    ;; would draw a second bar beside it.
+    ;; An edit of the source removes the rendering and the bar, which no
+    ;; edit of the cell reaches.
     (overblock-pycell--stale-when-edited block)
     block))
 
 (defun overblock-pycell--md-cells ()
   "Return the body of every markdown cell of the buffer, in order.
-Each is a cons of where the body starts and where it ends, which is the
-next boundary line or the end of the buffer.  A cell with nothing in it
-is left out: there is nothing to render."
+Each is a cons of the start and the end of the body, which is the next
+boundary line or the end of the buffer.  An empty cell is left out."
   (save-excursion
     (goto-char (point-min))
     (let (cells)
@@ -697,17 +580,13 @@ is left out: there is nothing to render."
 (defun overblock-pycell-render-buffer ()
   "Render the markdown cells of the buffer that want it.
 A markdown cell is one whose boundary line reads \"# %% [markdown]\",
-and `overblock-live-wanted-p' says which want rendering: not the ones
-rendered already, and not the one point is in, which the reader is
-editing.  This is what the live cycle of the mode calls whenever the
-reader stops.
+and `overblock-live-wanted-p' says which want rendering: not those
+rendered already, and not the one at point.  The live cycle of the
+mode calls this whenever the reader stops.
 
-One converter process for all of them, and nothing waits for it:
-measured in a notebook of thirty markdown cells, turning the mode on
-cost the reader 312 milliseconds with the batch waited for, and the
-renderings arrive a moment later when it is not.  Nothing happens
-without a converter; `overblock-pycell-mode' says so once when it goes
-on."
+One asynchronous converter process does all of them, so the reader
+does not wait.  Nothing happens without a converter;
+`overblock-pycell-mode' says so once when it goes on."
   (interactive)
   (overblock-md-render-regions
    (overblock-pycell--md-cells)
@@ -718,13 +597,10 @@ on."
 
 (defun overblock-pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
-A click on the bar lands on the small overlay that draws it, which
-points back at the block.  Signals a `user-error' where there is no
-rendered cell, which is the answer the commands that call it give."
+A click on the bar lands on the overlay of the bar, which points back
+at the block.  Signal a `user-error' where there is no rendered cell."
   (overblock-goto-event event)
   (or (overblock-at 'markdown)
-      ;; A click on the bar lands beside the block, so the overlay that
-      ;; drew it is asked next.
       (seq-some (lambda (ov) (overlay-get ov 'overblock-pycell-main))
                 (overlays-in (max (1- (point)) (point-min))
                              (min (1+ (point)) (point-max))))
@@ -733,9 +609,8 @@ rendered cell, which is the answer the commands that call it give."
 ;;;###autoload
 (defun overblock-pycell-md-render-cell (&optional event)
   "Render the markdown cell at point, or the one whose button EVENT clicked.
-`overblock-pycell-render-buffer' does the whole buffer; this is the button on
-the
-bar of a cell that is showing its source."
+`overblock-pycell-render-buffer' does the whole buffer.  This is the
+button on the bar of a cell that shows its source."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
@@ -746,22 +621,19 @@ bar of a cell that is showing its source."
 ;;;###autoload
 (defun overblock-pycell-md-raw (&optional event)
   "Show the markdown cell at point, or the one in EVENT, as plain source.
-The cell is then editable in place, and is rendered again once point
-has left it; the button on its bar renders it at once."
+The cell is then editable in place, and renders again when point
+leaves it.  The button on its bar renders it at once."
   (interactive (list last-input-event))
   (overblock-take-down (overblock-pycell--md-at event)))
 
 (defun overblock-pycell--md-put (beg end md)
   "Write the edited MD back into the markdown cell BEG..END and render it.
 The cell reaches to the next boundary line, so it holds the blank line
-jupytext writes between cells: what stood after the body goes back
-rather than one newline, or committing an edit that changed nothing
-would close the gap.
+jupytext writes between cells.  The whitespace after the body goes back
+as it was, so an unchanged commit does not change the file.
 
-An empty cell has no line to comment — `overblock-pycell--md-comment' would
-write
-a bare # where the author left nothing, and a commit that changed
-nothing would change the file."
+Empty MD stays empty: `overblock-pycell--md-comment' would write a bare
+#."
   (let ((tail (buffer-substring-no-properties
                (save-excursion
                  (goto-char end)
@@ -788,12 +660,8 @@ it back and renders it; `overblock-edit-abort' discards the edit."
                          (line-number-at-pos beg))
            :label "markdown cell"
            :mode (if (fboundp 'markdown-mode) #'markdown-mode #'text-mode)
-           ;; Trimmed on the right: the cell reaches to the next
-           ;; boundary line, so it holds the blank line jupytext writes
-           ;; between cells. With that line in the edit buffer a
-           ;; paragraph typed at the end landed after it, and the
-           ;; commit put the gap back below — three comment lines a
-           ;; round, compounding.
+           ;; Trimmed on the right: the blank line between cells stays
+           ;; out of the edit buffer, and `--md-put' restores it.
            :text (lambda (from to)
                    (string-trim-right
                     (overblock-pycell--md-uncomment
@@ -804,16 +672,13 @@ it back and renders it; `overblock-edit-abort' discards the edit."
 
 (defun overblock-pycell--cell-title (bol eol)
   "Return the title written on the boundary line BOL..EOL, or nil.
-What follows the =%%= marker is the title, as jupytext writes it, less
-the tag list of a =# %% [markdown]= line.  A cell without one is named
-after what it holds."
+What follows the =%%= marker is the title, as jupytext writes it,
+without the tag list of a =# %% [markdown]= line."
   (save-excursion
     (goto-char bol)
     (when (looking-at code-cells-boundary-regexp)
-      ;; Trimmed before the tags are taken off as well as after: the
-      ;; marker is followed by a space, and an anchored search for the
-      ;; tag list then found nothing to take off — every rendered
-      ;; markdown cell was labelled "[markdown]".
+      ;; Trimmed before the anchored tag search too: a space follows the
+      ;; marker.
       (let ((title (string-trim
                     (replace-regexp-in-string
                      "\\`\\(\\[[^]]*\\][[:blank:]]*\\)+" ""
@@ -830,23 +695,19 @@ after what it holds."
 
 (defun overblock-pycell--bar-line (bol eol kind glyph plain buttons)
   "Draw the bar of KIND over the boundary line BOL..EOL.
-GLYPH is what stands in front of the label, PLAIN the label of a cell
-with no title of its own, and BUTTONS the buttons of the bar.  The
-drawing is `overblock-bar-line', which every bar of every package
-here goes through; the title read off the line is this package's own."
+GLYPH comes before the label, PLAIN is the label of a cell without a
+title, and BUTTONS are the buttons of the bar.  `overblock-bar-line'
+draws it."
   (overblock-bar-line bol eol kind glyph
                       (or (overblock-pycell--cell-title bol eol) plain)
                       (overblock-buttons buttons)))
 
 (defun overblock-pycell--source-bar (bol eol)
   "Draw the bar of the markdown cell BOL..EOL that is showing its source.
-A rendered markdown cell is barred by its rendering; a cell that has
-none — one just written, or one taken back to its source — had no bar at
-all, and the line read as one the package had lost track of."
-  ;; "source" and not "markdown": the glyph says markdown, and a
-  ;; rendered cell and one showing its source read alike otherwise —
-  ;; captured in a terminal, two bars saying `M markdown' that differed
-  ;; only in their buttons.
+A rendered markdown cell has the bar of its rendering.  This bar is for
+a cell without one: a new one, or one taken back to its source."
+  ;; The label is "source": the glyph says markdown already, and the
+  ;; label tells it from a rendered cell.
   (overblock-pycell--bar-line bol eol 'source
                     (overblock-glyph "" "◇" "md") "source"
                     overblock-pycell-source-buttons))
@@ -859,29 +720,22 @@ all, and the line read as one the package had lost track of."
 
 (defun overblock-pycell--drop-bar (bar)
   "Take BAR down, and the rendering it belongs to where it has one.
-A markdown bar is a block's own overlay: the block goes with it, and
-the source of the cell comes back.  Its boundary line no longer says
-=[markdown]=, so the rendering below it is a rendering of nothing."
+A markdown bar is an overlay of a block: the block goes with it, and
+the source of the cell comes back."
   (if-let* ((block (overlay-get bar 'overblock-pycell-main)))
       (overblock-delete block)
     (delete-overlay bar)))
 
 (defun overblock-pycell--cell-bars (start end)
   "Draw the bar of every code cell whose boundary line START..END touches.
-Whole lines, whatever START and END are: this is called with the bounds
-of a change, and a change reaches the middle of a line.
-
-A markdown cell has a bar of its own where it is rendered, and none
-where it shows its source: its boundary line is left out here, and a
-bar left over from before the line said =[markdown]= goes."
+Whole lines, whatever START and END are: this is called with the
+bounds of a change.  `overblock-pycell--bar-this-line' decides the bar
+of each line."
   (save-excursion
     (let ((from (progn (goto-char (min start end)) (pos-bol)))
           (to (progn (goto-char (max start end)) (pos-eol)))
           done)
-      ;; The lines that carry a bar already: one of them may have
-      ;; stopped being a boundary line, and its bar has to come down.
-      ;; A question about the few lines with bars, not about every line
-      ;; of the range.
+      ;; The lines with a bar: one can have stopped being a boundary.
       (dolist (bar (seq-filter #'overblock-bar-kind
                                (overlays-in from (min (point-max) (1+ to)))))
         (when-let* ((pos (overlay-start bar)))
@@ -889,34 +743,26 @@ bar left over from before the line said =[markdown]= goes."
           (forward-line 0)
           (push (point) done)
           (overblock-pycell--bar-this-line)))
-      ;; And the boundary lines themselves, searched for rather than
-      ;; walked to: a `revert-buffer' or a jupytext round trip reports
-      ;; one change over the whole buffer, and a line-by-line walk then
-      ;; asked `looking-at-p' and `overlays-in' of every line of it.
+      ;; The boundary lines, searched for: a `revert-buffer' reports one
+      ;; change over the whole buffer.
       (goto-char from)
-      ;; Point first, then the search: `forward-line' below can carry
-      ;; point past TO, and a bound behind point is an error rather
-      ;; than an empty answer.
+      ;; Point first: `forward-line' can carry point past TO, and a bound
+      ;; behind point is an error.
       (while (and (< (point) to)
                   (re-search-forward code-cells-boundary-regexp to t))
         (forward-line 0)
-        ;; Not a second time: a boundary line that already carried a
-        ;; bar was drawn by the loop above, and every call costs two
-        ;; more `overlays-in' queries and a label rebuilt.
+        ;; Not a second time.
         (unless (memq (point) done)
           (overblock-pycell--bar-this-line))
         (forward-line 1)))))
 
 (defun overblock-pycell--sole-bar (bol eol kinds)
   "Return the one bar to keep on the line BOL..EOL, and drop the others.
-KINDS names the kinds worth keeping, best first; every bar of another
-kind goes, and so does a second bar of the same kind.  Nil keeps none of
-them.
+KINDS names the kinds to keep, best first; every bar of another kind
+goes, and so does a second bar of the same kind.  Nil keeps none.
 
-A line carries one bar, and two things want to put one there: the pass
-that bars every boundary line, and the rendering of a markdown cell,
-which brings its own.  Measured in a graphical frame before this: three
-bars on the boundary line of one rendered cell."
+A line has one bar, and both the pass over boundary lines and the
+rendering of a markdown cell put one there."
   (let ((bars (seq-filter #'overblock-bar-kind
                           (overlays-in bol (min (point-max) (1+ eol)))))
         keep)
@@ -936,41 +782,30 @@ and a code boundary."
   (let ((bol (pos-bol))
         (eol (pos-eol)))
     (cond
-     ;; Not a boundary line any more — a space typed before the comment,
-     ;; a marker half deleted. Whatever bar it carries goes: its
-     ;; buttons would act on the cell that now encloses the line.
+     ;; No boundary line now: its buttons would act on the wrong cell.
      ((not (looking-at-p code-cells-boundary-regexp))
       (overblock-pycell--sole-bar bol eol nil))
-     ;; A rendered markdown cell is barred by its rendering, which
-     ;; brings its own bar; one showing its source is barred here, with
-     ;; the button that renders it.
+     ;; A rendered markdown cell has the bar of its rendering; one that
+     ;; shows its source gets a source bar.
      ((looking-at-p overblock-pycell--md-boundary)
       (let ((bar (overblock-pycell--sole-bar bol eol '(markdown source))))
-        ;; The rendering's own bar is drawn again, not merely left
-        ;; alone: its label is the cell's title, and a title edited on
-        ;; the line stayed on the bar until a width change or the next
-        ;; rendering.
+        ;; Drawn again, for a title edited on the line.
         (if (eq (overblock-bar-kind bar) 'markdown)
             (overblock-pycell--md-bar bar)
           (overblock-pycell--source-bar bol eol))))
      (t
-      ;; A rendering whose line stopped saying =[markdown]= is a
-      ;; rendering of nothing, and the bar of a source that is no longer
-      ;; markdown is a bar for a cell that has gone: both come down, and
-      ;; the line takes a code bar like any other.
+      ;; A markdown or source bar on a code boundary goes.
       (overblock-pycell--sole-bar bol eol '(code))
       (overblock-pycell--code-bar bol eol)))))
 
 (defun overblock-pycell--bars-after-change (beg end _length)
   "Draw the bars of the lines the change BEG..END touched.
-On `after-change-functions', and not on `jit-lock-register': one error
-in any other jit-lock function skips the rest of them, and a
-`python-ts-mode' buffer whose grammar does not match the mode signals
-from redisplay — not one bar was drawn in such a buffer.
+On `after-change-functions', not `jit-lock-register': an error in
+another jit-lock function, such as a `python-ts-mode' grammar that does
+not match, skips the rest.
 
-The match data is the caller's: a change hook runs between a search and
-what the searcher does with it, and `replace-match' after a
-`search-forward' signalled here."
+The match data belongs to the caller: a change hook can run between a
+search and its `replace-match'."
   (save-match-data (overblock-pycell--cell-bars beg end)))
 
 
@@ -985,10 +820,9 @@ what the searcher does with it, and `replace-match' after a
   "What the last line of failed output looks like.
 The name of an exception, and nothing before it.
 
-The colon is required: a cell whose own output ends with the name of an
-exception — `print(type(err).__name__)' after catching one — stopped a
-whole pass.  The two names IPython does print alone are
-`overblock-pycell--error-alone'.")
+The colon is required, so output that ends with the name of an
+exception, such as `print(type(err).__name__)', is no failure.  The
+two names IPython prints alone are `overblock-pycell--error-alone'.")
 
 (defconst overblock-pycell--error-alone
   "\\`\\(?:KeyboardInterrupt\\|SystemExit\\)\\'"
@@ -999,11 +833,9 @@ colon and a message.")
 
 (defun overblock-pycell--error-p (text)
   "Return non-nil when TEXT is the output of a cell that failed.
-A traceback says so in its first line, but not every failure has one:
-`SyntaxError' and `SystemExit' print the name of the exception and
-nothing else, and a pass ran happily past a cell holding `x = = 1'.
-So the last line of the output answers as well — that is where the name
-of the exception stands, whether a traceback led to it or not."
+A traceback says so in its first line, but `SyntaxError' and
+`SystemExit' print only the name of the exception.  So the last line,
+where the name of the exception is, counts too."
   (or (string-match-p "Traceback (most recent call last)" text)
       (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
                   (last (car (last lines))))
@@ -1017,34 +849,26 @@ of the exception stands, whether a traceback led to it or not."
 A magic, a shell escape or a help request: a line that begins with %
 or !, or one that ends in ?.
 
-Only where the character means that, which is why this reads the
-buffer instead of the text.  A continuation line inside brackets may
-begin with a modulo, a comment may ask a question, and a docstring
-may do either; there the character is Python's own and the cell has
-to keep to the ordinary road.  A shell without IPython would answer
-the other one with a NameError, so a cell of plain Python must never
-be sent down it."
+Only where the character has that meaning, so this reads the syntax of
+the buffer.  A continuation line in brackets can start with a modulo,
+and a comment or a docstring can hold either character.  A plain cell
+must not go the IPython way, because a shell without IPython answers
+with a NameError."
   (save-excursion
     (goto-char beg)
     (catch 'found
       (while (< (point) end)
         (let ((state (syntax-ppss (point)))
               (eol (min end (pos-eol))))
-          ;; the line starts as code, not inside a string, a comment
-          ;; or a bracket left open above
+          ;; The line starts as code, not in a string, a comment or an
+          ;; open bracket.
           (when (and (not (python-syntax-comment-or-string-p state))
                      (zerop (nth 0 state)))
             (when (looking-at-p "[ \t]*[%!]")
               (throw 'found t))
             (let ((last (save-excursion
                           (goto-char eol)
-                          ;; To the start of the line, but never past
-                          ;; the start of the region: with point as the
-                          ;; limit this could not move at all, so `df? '
-                          ;; took the plain Python road and IPython
-                          ;; answered with a syntax error — and with the
-                          ;; line's start alone it read a `?' from text
-                          ;; the reader had not marked.
+                          ;; Never before the line or the region.
                           (skip-chars-backward " \t" (max (pos-bol) beg))
                           (point))))
               (when (and (eq (char-before last) ??)
@@ -1057,16 +881,11 @@ be sent down it."
 (defun overblock-pycell--send-to-ipython (proc code)
   "Send CODE to PROC the way typing it would.
 `python-shell-send-region' wraps the cell in a compile call, so the
-interpreter reads it as plain Python and IPython's own reader, which
-is what turns %, ! and ? into calls, never sees it.  Handing the
-source to `run_cell' puts the reader back in.  It travels base64
-encoded, which keeps the cell's own quotes and newlines out of the
-way, and the trailing None stops the result object from showing up as
-the value of the cell.
+reader of IPython, which turns %, ! and ? into calls, never sees it.
+`run_cell' gets the source instead, base64 encoded so its quotes and
+newlines are safe.  The trailing None hides the result object.
 
-Tracebacks then count lines from the top of the cell rather than the
-top of the file, and a shell without IPython answers that it does not
-know `get_ipython'."
+Tracebacks then count lines from the top of the cell, not the file."
   (python-shell-send-string
    (format "get_ipython().run_cell(__import__(\"base64\")\
 .b64decode(\"%s\").decode(\"utf-8\"))\nNone\n"
@@ -1074,31 +893,30 @@ know `get_ipython'."
    proc))
 
 (defun overblock-pycell--send-region (proc beg end)
-  "Send BEG..END to PROC, as the backend's `:send'.
-A cell of IPython syntax goes down IPython's own reader; every other
-one is padded by `python-shell-send-region', so traceback line numbers
-match the buffer."
+  "Send BEG..END to PROC, as the `:send' of the backend.
+A cell of IPython syntax goes to the reader of IPython; every other
+one goes through `python-shell-send-region', which pads it so the line
+numbers of a traceback match the buffer."
   (if (overblock-pycell--ipython-syntax-p beg end)
       (overblock-pycell--send-to-ipython
        proc (buffer-substring-no-properties beg end))
     (python-shell-send-region beg end)))
 
 (defun overblock-pycell--start ()
-  "Start an inferior Python, and answer nil: it will only prompt later.
-The backend's `:start'.  Nil is what tells the runner to arm whatever
-was asked for on that first prompt rather than send it now."
+  "Start an inferior Python, and return nil: it prompts later.
+This is the `:start' of the backend.  Nil tells the runner to arm the
+work on the first prompt."
   (run-python nil (overblock-pycell--dedicated))
   nil)
 
 (defun overblock-pycell--arm (thunk)
-  "Call THUNK on the first prompt of this notebook's Python shell.
-The backend's `:arm'.  Evaluation may only start once the fresh
-interpreter has prompted — and after the setup of comint-mime, which runs
-off the same hook, hence the depth.  A shell that answers with an error
-here leaves nothing armed, which is what the caller relies on.
+  "Call THUNK on the first prompt of the Python shell of this notebook.
+This is the `:arm' of the backend.  THUNK runs after the setup of
+comint-mime on the same hook, hence the depth.  A shell that signals
+here leaves nothing armed.
 
-The hook is local and the function takes itself off it again, so a
-second pass arms a second thunk and no stale one is left behind."
+The hook is local and the function removes itself, so no stale thunk
+stays."
   (with-current-buffer (process-buffer (python-shell-get-process-or-error))
     (letrec ((once (lambda ()
                      (remove-hook 'python-shell-first-prompt-hook once t)
@@ -1106,15 +924,11 @@ second pass arms a second thunk and no stale one is left behind."
       (add-hook 'python-shell-first-prompt-hook once 90 t))))
 
 (defun overblock-pycell--step ()
-  "Run the cell at point, and say whether a prompt has to come back first.
-The backend's `:step', which is how `overblock-run-next' walks a pass
-down the notebook.  A markdown cell is rendered here and there is no
-prompt to wait for, so the walk goes straight on to the cell after it.
-
-A markdown cell that already shows its rendering needs no second one: a
-restart leaves the renderings alone, and rendering them again is a
-converter process a cell — measured over thirty cells, 198
-milliseconds against the 32 the batch costs."
+  "Run the cell at point, and say whether to wait for a prompt.
+This is the `:step' of the backend, with which `overblock-run-next'
+walks a pass down the notebook.  A markdown cell renders here, with no
+prompt to wait for.  One that is rendered already is left alone, which
+saves a converter process per cell."
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
     (unless (and (overblock-pycell--md-cell-start beg)
                  (overblock-in beg end 'markdown))
@@ -1148,10 +962,9 @@ The commentary of `overblock-run' lists the slots."
 (defun overblock-pycell--dedicated ()
   "Return what a new shell is dedicated to, as the reader asked.
 `python-shell-dedicated' says it.  Its `project' value makes
-`run-python' ask which project, where the file belongs to none, and
-that is no question to put in front of a reader who evaluated a cell —
-one of a whole run, at that.  `python-shell-get-process-name' names
-such a shell the shared one anyway, so that is what this answers."
+`run-python' ask which project when the file belongs to none.
+`python-shell-get-process-name' names such a shell the shared one, so
+this returns nil then."
   (unless (and (eq python-shell-dedicated 'project)
                (not (project-current)))
     python-shell-dedicated))
@@ -1163,12 +976,10 @@ This matches the calling convention of
 Without an interpreter, one starts and the cell follows on its first
 prompt.  A cell sent while another one runs is queued behind it."
   (if (overblock-pycell--md-cell-start start)
-      ;; Keep a running restart-and-run-all chain going — no prompt
-      ;; will arrive to do it.
       (progn
         (overblock-pycell--md-show start end)
-        ;; Redisplay pushes a point that the block just made
-        ;; invisible out of it, and upwards; put it below instead.
+        ;; Redisplay pushes point out of the hidden text upwards; put it
+        ;; below instead.
         (when (<= (1- start) (point) end)
           (goto-char end)))
     (overblock-run-region start end)))
@@ -1176,26 +987,19 @@ prompt.  A cell sent while another one runs is queued behind it."
 ;;;###autoload
 (defun overblock-pycell-restart ()
   "Restart the Python interpreter and remove every result.
-The rendered markdown cells stay.  They were taken down with the
-results, on the grounds that a rendering is a block like any other, and
-that cost a whole notebook its renderings:
-`overblock-pycell-restart-and-run-all'
-puts them back one cell at a time as the pass reaches them, so a pass
-that stops — at an error, or on `overblock-run-stop' — leaves every cell
-after
-that point plain.  A rendering has nothing to do with the interpreter."
+The rendered markdown cells stay: a pass that stops early would leave
+the cells after it plain."
   (interactive)
   (overblock-run-restart
    "The interpreter was restarted"
    (lambda (proc)
-     ;; `python-shell-restart' wants a shell to restart; without one
-     ;; there is nothing to restart and a new one is started instead.
+     ;; `python-shell-restart' needs a shell.
      (if proc (python-shell-restart) (overblock-pycell--start)))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
-The text above the first boundary line is a cell too, and the first
-marker where there is any."
+The text above the first boundary line is a cell too, where there is
+any."
   (save-excursion
     (goto-char (point-min))
     (let ((cells (unless (looking-at-p code-cells-boundary-regexp)
@@ -1207,8 +1011,7 @@ marker where there is any."
 ;;;###autoload
 (defun overblock-pycell-run-cell (&optional event)
   "Run the cell at point, or the one whose button EVENT clicked.
-The same as `code-cells-eval' on that cell, which is what the reader
-presses \\[code-cells-eval] for."
+The same as `code-cells-eval' (\\[code-cells-eval]) on that cell."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (apply #'code-cells-eval (code-cells--bounds nil nil t)))
@@ -1219,17 +1022,13 @@ presses \\[code-cells-eval] for."
 The pass stops at the first error, or on `overblock-run-stop'."
   (interactive)
   (overblock-pycell-restart)
-  ;; The same arming `overblock-run-cells' does for a shell that is
-  ;; starting: a restarted shell has a live process that has not
-  ;; prompted, so the queue waits for that prompt here too.
+  ;; A restarted shell has a live process that has not prompted yet.
   (overblock-run-on-prompt (overblock-pycell--cell-starts)
                          "overblock-pycell: evaluating all cells"))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.
-overblock-pycell binds no keys; put your own here.
-`overblock-run-interrupt' and `overblock-run-stop' are the natural
-candidates, beside the commands the README lists:
+overblock-pycell binds no keys; put your own here, for example:
 
   (keymap-set overblock-pycell-mode-map \"C-c C-k\" #\\='overblock-run-interrupt)")
 
@@ -1237,13 +1036,13 @@ candidates, beside the commands the README lists:
 (define-minor-mode overblock-pycell-mode
   "Show Python cell results, and markdown cells, inline.
 While the mode is on, cell evaluation goes through
-`overblock-pycell-eval-region'.  Turn it off to remove all blocks and to
-get plain `python-shell-send-region' back.  The mode binds no
-keys: `overblock-pycell-mode-map' is empty and yours to fill.
+`overblock-pycell-eval-region'.  Turn it off to remove all blocks and
+to get plain `python-shell-send-region' back.  The mode binds no keys:
+`overblock-pycell-mode-map' is empty.
 
-`overblock-md-command' is what renders the markdown cells, and they
-stay plain where none of its candidates is installed; the code cells
-run either way."
+`overblock-md-command' renders the markdown cells.  When none of its
+candidates is installed, they stay plain and the code cells still
+run."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
   :lighter " PyCell"
@@ -1251,27 +1050,19 @@ run either way."
     (overblock-only-in 'overblock-pycell-mode 'python-base-mode))
   (if overblock-pycell-mode
       (progn
-        ;; What the runner reads to know this is a notebook it may draw
-        ;; in, and how to reach its interpreter.
         (overblock-run-attach (overblock-pycell--backend))
-        ;; A rendered cell is what the reader works in: point moving
-        ;; into one changes nothing, a click gives its source back.
+        ;; Point moving into a rendered cell changes nothing; a click
+        ;; shows its source.
         (setq-local overblock-live-source-at-point nil)
-        ;; One piece of advice for the session, put on by the first
-        ;; notebook and taken off by the last. Added while this file
-        ;; loaded, it changed how `outline-flag-region' behaves in every
-        ;; outline buffer of a session that had never turned the mode on
-        ;; — and completing the name of one command loads the file.
+        ;; One advice for the session, added by the first notebook and
+        ;; removed by the last, not at load time.
         (advice-add 'outline-flag-region :after
                     #'overblock-pycell--outline-flag-blocks)
         (add-hook 'after-change-functions #'overblock-pycell--bars-after-change nil t)
-        ;; The whole buffer, narrowed or not: a mode turned on under a
-        ;; narrowing would otherwise bar the visible cells alone, and
-        ;; the rest only when something edited them.
+        ;; The whole buffer, also when narrowed.
         (without-restriction
           (overblock-pycell--cell-bars (point-min) (point-max)))
-        ;; Said once, here, rather than once a cell or once an idle
-        ;; cycle; and only where there is a cell it would have rendered.
+        ;; Said once, and only when there is a markdown cell.
         (when (and (not (overblock-md-program))
                    (overblock-pycell--md-cells))
           (message "overblock-pycell: %s, cells stay plain"
@@ -1286,8 +1077,8 @@ the converter's HTML with")))
     (overblock-run-detach)
     (kill-local-variable 'overblock-live-source-at-point)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
-    ;; The last notebook takes the advice with it. This buffer does not
-    ;; count itself: the mode's own variable is already nil here.
+    ;; The last notebook removes the advice. The mode variable of this
+    ;; buffer is already nil.
     (unless (seq-some (lambda (buffer)
                         (buffer-local-value 'overblock-pycell-mode buffer))
                       (buffer-list))
@@ -1296,12 +1087,11 @@ the converter's HTML with")))
 ;;;###autoload
 (defun overblock-pycell-mode-maybe ()
   "Enable `overblock-pycell-mode' in Python cell buffers.
-Made for `code-cells-mode-hook', where your configuration adds it:
+Add it to `code-cells-mode-hook':
 
   (add-hook \\='code-cells-mode-hook #\\='overblock-pycell-mode-maybe)
 
-The package installs no hook itself: installing it must not change
-how Emacs behaves."
+The package installs no hook itself."
   (when (derived-mode-p 'python-base-mode)
     (overblock-pycell-mode)))
 
