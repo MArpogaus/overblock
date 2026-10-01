@@ -383,6 +383,9 @@ R indents the header of a table, and the numbers line up under it."
   (should (overblock-rmd--error-p "Error in log(\"a\") : non-numeric"))
   (should (overblock-rmd--error-p "Error: object not found"))
   (should (overblock-rmd--error-p "[1] 1\nError in f() : boom"))
+  ;; The message, or a long call, on the line after.
+  (should (overblock-rmd--error-p "Error\nobject 'x' not found\n"))
+  (should (overblock-rmd--error-p "Error in\n  a_long_call(x) : boom"))
   (should-not (overblock-rmd--error-p "[1] 1 2 3"))
   (should-not (overblock-rmd--error-p "Warning message:\nIn log(-1) : NaNs"))
   ;; Not a word that only starts with those letters.

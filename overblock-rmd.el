@@ -469,11 +469,11 @@ source(exprs = parse(text = %s), print.eval = TRUE)})"
 variable has its value."
   (string-match-p (concat inferior-ess-primary-prompt "\\'") tail))
 
-(defconst overblock-rmd--error-regexp "^Error\\(?: in \\|: \\|\\'\\)"
+(defconst overblock-rmd--error-regexp "^Error\\(?: in\\>\\|:\\|$\\)"
   "What R writes at the start of a line when a chunk fails.
-`Error in CALL : MESSAGE' where there is a call to name, `Error: '
-where there is none, and a bare `Error' where the message follows on
-the next line.")
+`Error in CALL : MESSAGE' where there is a call to name, also with the
+call on the next line, `Error: ' where there is none, and a bare
+`Error' where the message follows on the next line.")
 
 (defun overblock-rmd--error-p (text)
   "Return non-nil where TEXT is the output of a chunk that failed.
