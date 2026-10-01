@@ -45,31 +45,25 @@
 ;;; Code:
 
 (require 'overblock)
-;; comint-mime renders a table with it, and a copy of that table is laid
-;; out again here. Required outright, where comint-mime asks softly:
-;; that package still carries Emacs 27, and vtable ships in 29.1, which
-;; is this one's minimum. Nothing here has a fallback anyway —
-;; `overblock-repl-table-copy' calls `make-vtable' unguarded.
+;; comint-mime renders a table with vtable, and this file lays out a
+;; copy. Required outright: vtable ships with Emacs 29.1, the minimum,
+;; and `overblock-repl-table-copy' calls `make-vtable' unguarded.
 (require 'vtable)
 (require 'seq)
 (require 'subr-x)
 
 (defun overblock-repl--table-regions (text)
   "Return every (TABLE BEG END) of TEXT, front to back.
-comint-mime renders an HTML table with vtable, a DataFrame among them,
-and the copy carries the table object in a text property.
+comint-mime renders an HTML table, a DataFrame among them, with
+vtable, and the copy carries the table object in a text property.
 
-One table is several runs of that property rather than one stretch: the
-padding that `overblock-flattened' writes in place of the alignment
-stretches carries no properties of its own.  So the runs of one table
-are joined, and a run that names a different table starts a region of
-its own — a cell that shows two frames used to lose the second and
-everything between them, because the first and the last run were read as
-one table.
+One table is several runs of that property: the padding that
+`overblock-flattened' writes in place of the alignment stretches has no
+properties.  So the runs of one table are joined, and a run that names
+a different table starts a new region.
 
-Run to run, not character to character: measured, a step of one cost 30
-milliseconds over a hundred thousand characters and 223 over eight
-hundred thousand, where a jump costs nothing."
+The loop steps from run to run, because a step of one character is
+slow on a long output."
   (let ((len (length text))
         (pos 0)
         regions)
@@ -87,29 +81,20 @@ hundred thousand, where a jump costs nothing."
 (defun overblock-repl-table-copy (table)
   "Return a table of the rows and columns of TABLE, for another buffer.
 The table of a result belongs to the shell that drew it.  Emacs 31
-refuses to insert one vtable into a second buffer — \"A vtable cannot be
-inserted into more than one buffer\" — and even where it is allowed, two
-buffers holding one object is not a state worth having."
-  ;; The columns whole: `make-vtable' takes a `vtable-column' where it
-  ;; takes a plist, and a plist of four keys dropped what comint-mime
-  ;; actually sets — it gives every column a `:min-width' of its name's
-  ;; length and no `:width' at all, so the copy came out narrower than
-  ;; the table it was made from.
+refuses to insert one vtable into a second buffer, and two buffers must
+not share one object."
+  ;; Whole columns, not plists: comint-mime sets `:min-width' and no
+  ;; `:width', and a plist of a few keys would drop it.
   (make-vtable :columns (mapcar #'copy-vtable-column (vtable-columns table))
                :objects (vtable-objects table)
                :getter (vtable-getter table)
                :formatter (vtable-formatter table)
                :separator-width (vtable-separator-width table)
-               ;; The rows show in the order the first table showed them,
-               ;; which is the order of its objects put through its
-               ;; sort. A copy of that order, not the list itself:
-               ;; `vtable-sort-by-current-column' calls `delq' on it, so
-               ;; sorting a second column in the copy took that column
-               ;; out of the table the shell is still showing.
+               ;; A copy: `vtable-sort-by-current-column' calls `delq'
+               ;; on this list, which would change the table of the shell.
                :sort-by (copy-tree (vtable-sort-by table))
-               ;; comint-mime draws the names of the columns into the
-               ;; buffer, where `make-vtable' would put them on the
-               ;; window's header line and shift every row up by one.
+               ;; comint-mime draws the column names into the buffer,
+               ;; not on the header line of the window.
                :use-header-line (vtable-use-header-line table)
                :insert nil))
 
@@ -121,10 +106,8 @@ is shown elsewhere, in a face of its own, so the columns are laid out
 again here: one space of padding to the widest cell of each column, and
 nothing that a face can move."
   (let* ((columns (vtable-columns table))
-         ;; Read once for the table, not once for every cell: it is a
-         ;; slot accessor, and measured over a sixty by ten frame — the
-         ;; shape pandas hands comint-mime — asking per cell cost 0.95 of
-         ;; the 2.67 milliseconds the whole layout took.
+         ;; Read once, not per cell: the slot accessor per cell is a
+         ;; third of the layout time.
          (getter (vtable-getter table))
          (rows (cons (mapcar #'vtable-column-name columns)
                      (mapcar
@@ -137,8 +120,6 @@ nothing that a face can move."
                                      (elt object index))))
                          columns))
                       (vtable-objects table))))
-         ;; Every row has a cell for every column, the header row
-         ;; included, so a column is as wide as its widest cell.
          (widths (seq-map-indexed
                   (lambda (_column index)
                     (apply #'max (mapcar (lambda (row)
@@ -157,21 +138,17 @@ nothing that a face can move."
                                row widths)
                      "  ")))
                  rows)))
-    ;; the names of the columns, in bold as a markdown table has them
+    ;; The column names are bold, as in a markdown table.
     (setcar lines (propertize (car lines) 'face 'bold))
     (string-join lines "\n")))
 
 (defun overblock-repl-strip-trailing-prompt (text prompt)
   "Return TEXT without the PROMPT the shell left at the end of it.
-PROMPT is the shell's own prompt pattern — `comint-prompt-regexp' in
-an inferior Python, `inferior-ess-primary-prompt' in an R — and this
-takes off every copy of it that stands at the end, on a line of its
-own or after the last line's whitespace.  A result otherwise came back
-with a bare prompt under it.
-
-The pattern is built once: the loop shrinks TEXT on every turn, so it
-ends, and the two notebooks were both rebuilding the regexp inside
-it."
+PROMPT is the prompt pattern of the shell, for example
+`comint-prompt-regexp' in an inferior Python or
+`inferior-ess-primary-prompt' in R.  Every copy of it at the end of
+TEXT goes, on a line of its own or after the whitespace of the last
+line."
   (let ((rx (concat "\n[ \t]*\\(?:" prompt "\\)[ \t\n]*\\'")))
     (while (string-match rx text)
       (setq text (substring text 0 (match-beginning 0))))
@@ -181,31 +158,24 @@ it."
   "Return the part of TEXT a block shows, cut loose from the shell.
 The outer whitespace goes, except whitespace that carries a display
 property: comint-mime renders an image as one space with such a
-property, and `string-trim' would delete it.
+property.
 
-Leading whitespace goes as far as the last newline inside it, and no
-further.  What stands after that newline is the first line of the
-output, and its indentation is content: the columns of an R `summary'
-or a pandas `describe' line up on it, and taking those spaces off left
-the first row of every such table three characters to the left of the
-second.
+Leading whitespace goes up to the last newline in it, and no further.
+The indentation of the first line is content: the columns of an R
+`summary' or a pandas `describe' line up on it.
 
-What the shell buffer shows is not what a copy of it shows.  comint-mime
-renders a DataFrame as a vtable, which aligns its columns with pixel
-targets measured in that window and carries the keymap of a live table.
-In a result block the targets land elsewhere, and no binding of that
-keymap can find a table.  So the columns become literal spaces, the
-keymap, the mouse face and the help echo go, and a table keeps its
-object under `overblock-repl-table', which a caller can show live.
+comint-mime renders a DataFrame as a vtable, which aligns its columns
+with pixel targets measured in the shell window and carries the keymap
+of a live table.  In a block those targets are wrong and the keymap
+finds no table.  So the columns become literal spaces, the keymap, the
+mouse face and the help echo go, and a table keeps its object under
+`overblock-repl-table', which a caller can show live.
 
-comint's own bookkeeping goes with them: it marks its output as a
-field, makes the field boundaries sticky, hangs change hooks on the
-text, and under `comint-prompt-read-only' marks the prompts read-only.
-A copy that kept those put read-only text on the kill ring and into a
-popped-out buffer, and its hook properties would run comint's functions
-on an edit of whatever buffer it was yanked into.  What says how the
-text looks stays: the faces, the display properties that carry the
-images, and the table object."
+The bookkeeping of comint goes too: fields, sticky boundaries, change
+hooks and read-only prompts.  A copy with them puts read-only text on
+the kill ring, and its hooks run comint functions in the buffer it is
+yanked into.  The faces, the display properties of the images and the
+table object stay."
   (let* ((beg 0)
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
@@ -214,16 +184,13 @@ images, and the table object."
       (while (and (< i end) (funcall blank i))
         (when (eq (aref text i) ?\n) (setq beg (1+ i)))
         (setq i (1+ i)))
-      ;; Whitespace all the way: there is no first line to keep the
-      ;; indentation of, so all of it goes.
+      ;; Only whitespace: there is no first line to indent.
       (when (= i end) (setq beg i)))
     (while (and (< beg end) (funcall blank (1- end))) (setq end (1- end)))
     (let ((copy (let ((cut (substring text beg end)))
-                  ;; Only a rendering leaves alignment stretches behind,
-                  ;; and a stretch is a display property: plain output
-                  ;; skips the copy through a buffer. Measured, that
-                  ;; round trip costs 23 milliseconds over eight hundred
-                  ;; thousand characters of propertized text.
+                  ;; Only a rendering leaves alignment stretches, which
+                  ;; are display properties. Plain output skips the slow
+                  ;; round trip through a buffer.
                   (if (text-property-not-all 0 (length cut) 'display nil cut)
                       (overblock-flattened cut)
                     cut))))
@@ -233,9 +200,9 @@ images, and the table object."
                 front-sticky rear-nonsticky inhibit-line-move-field-capture
                 insert-in-front-hooks insert-behind-hooks modification-hooks)
        copy)
-      ;; Back to front, so the places of the regions before each one
-      ;; still hold. The newline a run swallowed is put back: without it
-      ;; the output that follows the table is glued to its last row.
+      ;; Back to front, so the positions of earlier regions hold. The
+      ;; newline a run swallowed is put back, so the output after the
+      ;; table does not join its last row.
       (dolist (region (reverse (overblock-repl--table-regions copy)))
         (pcase-let* ((`(,table ,tbeg ,tend) region)
                      (laid-out (propertize
@@ -249,11 +216,9 @@ images, and the table object."
 
 (defun overblock-repl-first-lines (text limit)
   "Return the first LIMIT lines of TEXT, every line where LIMIT is zero.
-Only that much is looked at and only that much is copied: a result of
-ten thousand lines costs what a result of twelve costs, which is what a
-tick five times a second needs.  Zero means all of them, as it does in
-the options that hand a limit here: a result the reader asked to see
-whole came out as no lines at all."
+Only that part of TEXT is read and copied, so a long result costs what
+a short one costs, on a tick five times a second.  Zero means all
+lines, as in the options that pass a limit here."
   (if (<= limit 0)
       (split-string text "\n")
     (let ((pos 0) (count 0) (cut nil))
@@ -266,13 +231,9 @@ whole came out as no lines at all."
 
 (defun overblock-repl-count-lines (text)
   "Return how many lines TEXT holds.
-The whole of it is searched, so a caller that already knows the number
-had better not ask: measured, ten thousand lines cost 3.1 milliseconds
-and a fold of such a result asked on every keypress.
-
-The search is why this is a loop and not `cl-count': over the same ten
-thousand lines, `string-search' measured 1.5 milliseconds against 8.0
-for `cl-count' and 108 for `seq-count', all three answering alike."
+This searches all of TEXT, so a caller that knows the number does not
+ask.  A loop of `string-search' is several times faster than
+`cl-count'."
   (let ((pos 0) (count 1))
     (while (setq pos (string-search "\n" text pos))
       (setq count (1+ count)
