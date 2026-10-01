@@ -1,6 +1,6 @@
 # %% [markdown]
 # # A notebook that is a Python file
-# The cells are comments, so the file runs as a script as well — and a
+# The cells are comments, so the file runs as a script as well, and a
 # markdown cell renders its math: $\sin^2 x + \cos^2 x = 1$.
 
 # %%
