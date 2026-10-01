@@ -129,7 +129,7 @@ the rendering is done; a file on disk is drawn at once."
       (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
                   #'shr-browse-url)))))
 
-(ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
+(ert-deftest overblock-md-test-a-rendering-with-remote-images-off-fetches-nothing ()
   "With `overblock-md-remote-images' off, a remote image is not fetched.
 shr is also told to fetch nothing, so the test uses no network."
   (skip-unless (overblock-md-program))
