@@ -121,17 +121,21 @@ end of the buffer."
 A blank line does, and so does FENCE, the start of a fence reached
 here, unless it is indented under a list item: the nearest line above
 it that begins at the left margin begins an item.  With EVERY, each
-fence ends its paragraph, and an item ends the indented rest of an
-item that a fence cut off: alone, the converter reads the item as more
-text of that paragraph."
+fence ends its paragraph, and an item ends the rest of an item that
+begins right after a fence: alone, the converter reads the item as
+more text of that paragraph."
   (cond (fence
          (or every
              (overblock-md-preview--margin-p fence)
              (not (overblock-md-preview--in-item-p fence))))
         ((looking-at-p "[[:blank:]]*$"))
         (every (and from
-                    (not (overblock-md-preview--margin-p from))
-                    (overblock-md-preview--item-p (point))))))
+                    (overblock-md-preview--item-p (point))
+                    (save-excursion
+                      (goto-char from)
+                      (and (zerop (forward-line -1))
+                           (looking-at-p
+                            overblock-md-preview-closing-fence-regexp)))))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."
@@ -240,13 +244,10 @@ that tells whether BEG is inside a fence."
   "Return the markdown BEG..END, less the indentation of its first line.
 A later paragraph of a list item is indented under the item, and the
 converter reads a fence indented deeper than the line before it as
-text."
-  (let ((text (buffer-substring-no-properties beg end)))
-    (with-temp-buffer
-      (insert text)
-      (goto-char (point-min))
-      (indent-rigidly (point-min) (point-max) (- (current-indentation)))
-      (buffer-string))))
+text.  Only spaces go, so a tab stays the converter's to read."
+  (let* ((text (buffer-substring-no-properties beg end))
+         (indent (or (string-match-p "[^ ]" text) 0)))
+    (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
