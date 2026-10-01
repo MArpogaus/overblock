@@ -11,8 +11,8 @@
 ;;     OB_GIF=md emacs -Q -l demo/init.el -l demo/record.el
 ;;     sh demo/assemble.sh md
 ;;
-;; `demo/init.el' is the whole setup — a built-in theme, one font, the
-;; five packages — so what you record is what the README shows.  There
+;; `demo/init.el' is the whole setup: a built-in theme, one font and the
+;; five packages.  Thus what you record is what the README shows.  There
 ;; is no screen recorder: Emacs exports its own frame with
 ;; `x-export-frames', which is why the pictures carry no mouse pointer
 ;; and no window decoration.
@@ -72,8 +72,8 @@ The window the demonstration is in and nothing else: a fresh profile
 has a warning to show and every one of them opened a window."
   (unless (window-minibuffer-p)
     (ignore-errors (window-toggle-side-windows))
-    ;; The demonstration's own windows stay — an edit opens one, and the
-    ;; picture is of the source and the edit side by side. A window
+    ;; The demonstration's own windows stay.  An edit opens one, and the
+    ;; picture is of the source and the edit side by side.  A window
     ;; showing a buffer with no file and no block is a profile's own
     ;; noise and goes.
     (dolist (window (window-list nil 'no-mini))

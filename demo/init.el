@@ -13,7 +13,7 @@
 ;;     emacs -Q -l demo/init.el demo/demo.py
 ;;
 ;; The frame is asked for in pixels, because every animation is the
-;; same size.  Nothing here is a recommendation — it is what the
+;; same size.  Nothing here is a recommendation.  It is what the
 ;; pictures were taken with, so that anyone can take the same ones.
 ;;
 ;; The dependencies the notebooks need are not installed by this file.
@@ -79,9 +79,9 @@ missing, so a system without one shows words instead of icons."
 (require 'overblock-md)
 (require 'overblock-md-preview)
 (require 'overblock-pydoc)
-;; Each of these needs a package from an archive — code-cells and
-;; comint-mime for the notebook, ESS for the R chunks — so a checkout
-;; without them still demonstrates the rest. `ignore-errors' and not
+;; Each of these needs a package from an archive: code-cells and
+;; comint-mime for the notebook, ESS for the R chunks.  Thus a checkout
+;; without them still demonstrates the rest.  `ignore-errors' and not
 ;; the NOERROR of `require': what is missing is the sibling those files
 ;; require, and a nested `require' signals whatever the outer one says.
 (dolist (feature '(overblock-pycell overblock-rmd))

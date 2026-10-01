@@ -44,9 +44,17 @@ Everything the pictures were taken with is in this directory:
 =OB_GIF= names the scenario: =md=, =pydoc=, =pycell=, =rmd=, or
 =family= for the tour of all four at the top of the README.
 The frames and their hold times go to
-=$TMPDIR/overblock-demo/SCENARIO/=, or wherever =OB_GIF_OUT= says, and
-=assemble.sh= writes =SCENARIO.gif= beside them. Emacs exits when the
-scenario ends.
+=$TMPDIR/overblock-demo/SCENARIO/=, or to the folder in =OB_GIF_OUT=.
+Emacs exits when the scenario ends. =assemble.sh= writes =SCENARIO.gif=
+beside the frames. It does not read =OB_GIF_OUT=. For frames in another
+folder, give that folder as the third argument:
+
+#+begin_src shell
+  sh demo/assemble.sh md 1.0 /path/to/frames
+#+end_src
+
+Copy =family.gif= to =img/demo.gif=, and each other =SCENARIO.gif= to
+=img/overblock-SCENARIO.gif=.
 
 Each scenario asks for the frame height that it needs, so the
 animations share one width and differ in height. The width is 820
@@ -61,7 +69,7 @@ the same recording.
 * What each one shows
 
 - *md*: a Markdown file rendered over its source. A click shows the
-  source of one line, and a new heading renders when the typing stops.
+  source of one block, and a new heading renders when the typing stops.
 - *pydoc*: the doc strings of =shapes.py= rendered with a bar each.
   The class doc string is numpy style Markdown with sections, math, a
   table and a code block. Then one doc string opens in its own buffer,
