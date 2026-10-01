@@ -248,8 +248,10 @@ the item goes on after it.
 A backtick fence with another backtick on its line is inline code and
 opens no block. Outside a list item, a fence four or more spaces in is the text of an
 indented code block and opens no block. A closing fence is at most
-three columns in, or three columns deeper than an opening fence under
-a list item. The columns are counted in the text, because a rendering hides
+three columns in. Under a list item, an opening fence at or right of
+the text of the item can close with a fence up to three columns deeper
+than its own. An opening fence left of that text is no part of the
+item, and closes as at the margin. The columns are counted in the text, because a rendering hides
 the indentation from =current-indentation=. A later paragraph of a
 list item ends at the next item. In one block with that paragraph, the
 converter reads the item as more text of the paragraph, and the item
