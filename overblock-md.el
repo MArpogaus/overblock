@@ -341,6 +341,22 @@ Under `text-scale-adjust' a column there is wider than the frame's."
       (with-current-buffer overblock-md--buffer (default-font-width))
     (frame-char-width)))
 
+(defun overblock-md--unwrap-environment (frag)
+  "Return FRAG without the display delimiters around a math environment.
+pandoc writes a bare `\\begin{align}' block as display math, and LaTeX
+refuses an `align' inside `\\=\\['.  Environments that live inside math,
+such as `aligned', keep their delimiters."
+  (if (string-match (rx bos "\\[" (* space)
+                        (group "\\begin{"
+                               (or "align" "equation" "gather" "multline"
+                                   "flalign" "eqnarray")
+                               (? "*") "}"
+                               (* anychar))
+                        (* space) "\\]" eos)
+                    frag)
+      (match-string 1 frag)
+    frag))
+
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
 `pending\' where the engine has none yet: it compiles the equation in a
@@ -358,7 +374,8 @@ Capped like every other image of a block: a display-math block can be
 taller than the window, and a block the wheel cannot get past is what
 `overblock-image-height\' exists for."
   (when (latex-to-svg-backend-available-p)
-    (let* ((buffer overblock-md--buffer)
+    (let* ((frag (overblock-md--unwrap-environment frag))
+           (buffer overblock-md--buffer)
            (image (with-current-buffer (if (buffer-live-p buffer)
                                            buffer
                                          (current-buffer))

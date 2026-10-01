@@ -572,7 +572,8 @@ it from a sentinel where the current buffer is its own."
   "The engine reads its options in the buffer the rendering is for.
 latex-to-svg-backend reads every option in the requesting buffer, so a
 preamble a project sets in `.dir-locals.el' never reached the compile
-while it was asked from shr's temporary buffer."
+while it was asked from shr's temporary buffer.  A bare `align' block
+loses the display delimiters pandoc put around it."
   (let* ((buffer (generate-new-buffer "overblock-md-preview"))
          (overblock-md--buffer buffer)
          asked-in asked)
@@ -583,8 +584,12 @@ while it was asked from shr's temporary buffer."
                    (lambda (latex &rest _)
                      (setq asked-in (current-buffer) asked latex)
                      nil)))
-          (with-temp-buffer (overblock-md--latex-image "$x$"))
-          (should (eq asked-in buffer)))
+          (with-temp-buffer
+            (overblock-md--latex-image "\\[\\begin{align}a\\end{align}\\]"))
+          (should (eq asked-in buffer))
+          (should (equal asked "\\begin{align}a\\end{align}"))
+          (overblock-md--latex-image "\\[\\begin{aligned}a\\end{aligned}\\]")
+          (should (equal asked "\\[\\begin{aligned}a\\end{aligned}\\]")))
       (kill-buffer buffer))))
 
 (ert-deftest overblock-md-test-a-hover-is-asked-again-when-its-formula-arrives ()
