@@ -52,8 +52,9 @@ the block:
 - =:body= is on the newline that ends the region, and =:header= is above
   it.
 
-A new block replaces the blocks of its own kind in the same region. The
-layer never calls a renderer.
+A new block replaces the blocks of its own kind in the same region. A
+block without a kind replaces the blocks of each kind. The layer never
+calls a renderer.
 
 | Function                         | What it does                                |
 |----------------------------------+---------------------------------------------|
@@ -132,7 +133,8 @@ file carries no line of code.
 
 Where fewer than half of the source lines with text match a rendered
 line, the rendering is not line by line. A source line that the
-renderer wraps still counts once. Its lines are then dealt evenly over the source lines. A longer
+renderer wraps still counts once. The lines of the rendering are then
+dealt evenly over the source lines with text. A longer
 rendering loses its blank lines first, and the blank lines of the
 source stay in view as gaps. A blank line in view also keeps the wheel
 moving.
@@ -329,8 +331,8 @@ The render function must leave alone each region for which
 - A region that has a rendering.
 - A region that the active region reaches.
 - The region of the reader. With =overblock-live-source-at-point= t,
-  this is the region point is in. With nil, it is the region a
-  rendering last came off, while point stays in it.
+  this is the region point is in. With nil, it is the region point is
+  in, while point stays in the text that a rendering last came off.
 
 =overblock-md-preview-mode= keeps the default t. =overblock-pydoc= and
 =overblock-pycell= set it nil, because the reader works in the

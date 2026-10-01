@@ -30,7 +30,8 @@
 ;; the block renders again when point has left it.
 ;;
 ;; The unit is the markdown block: the run of lines between two blank
-;; lines or fences, or a whole fenced block of code.  A line of markdown is often
+;; lines or fences, or a whole fenced block of code.  A fence indented
+;; under a list item is part of that item.  A line of markdown is often
 ;; not markdown by itself.  A row of a table needs the rows around it, a
 ;; line of a fenced block is code, and an item needs its list.  The
 ;; block goes to the converter in one piece.  The rendering is dealt
@@ -193,7 +194,8 @@ in order, so one walk does it."
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
 whole fenced block of code, or else the run of lines between two blank
-lines or fences.  PROSE-ONLY leaves the fenced blocks out, for a caller whose
+lines or fences.  A fence indented under a list item is part of that
+item.  PROSE-ONLY leaves the fenced blocks out, for a caller whose
 fences hold code, such as the chunks of an Rmd file.
 
 The unit is the block, not the line: a converter renders each line of

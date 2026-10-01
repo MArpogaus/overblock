@@ -126,8 +126,8 @@ It cuts the text out and puts it back. It also writes the final newline
 that a last cell can lack.
 
 =overblock-pycell-move-cell-down= reads what both cells show, moves the
-text, and puts each block back on its cell. Point ends where the moved
-cell now begins. Thus the two new ranges are read from the buffer, and
+text, and puts each block back on its cell. After the outline move,
+point is where the moved cell now begins. Thus the two new ranges are read from the buffer, and
 are not counted from the old positions.
 
 The move must know three things:
