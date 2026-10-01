@@ -1059,6 +1059,24 @@ view beside the rendering."
         (goto-char (overlay-start ov))
         (should (= (current-column) 16))))))
 
+(ert-deftest overblock-test-a-piece-with-an-image-wears-its-own-face ()
+  "A piece that rides a before-string carries `default' under its faces.
+An overlay string without a face wears the face of the buffer text it
+stands on, so an indentation guide's stipple ran through the prose of
+every row that held a formula."
+  (with-temp-buffer
+    (insert "    a\n        b\n")
+    (let* ((block (overblock-show (+ (point-min) 4) (point-max)
+                                  :over (concat "A\n" overblock-test-common-image
+                                                " b")
+                                  :indent 4))
+           (piece (seq-find (lambda (ov) (overlay-get ov 'before-string))
+                            (overblock-get block :parts)))
+           (text (overlay-get piece 'before-string)))
+      (dotimes (i (length text))
+        (should (memq 'default (ensure-list
+                                (get-text-property i 'face text))))))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the region's bounds while the reader writes, and

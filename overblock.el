@@ -436,8 +436,13 @@ cloak at the piece's end, 32 for the same image on a before-string."
     (overlay-put ov 'face 'default)
     (overlay-put ov 'priority -60)
     (if (overblock-image-in text)
-        (progn (overlay-put ov 'display "")
-               (overlay-put ov 'before-string text))
+        (let ((text (copy-sequence text)))
+          ;; An overlay string without a face wears the face of the
+          ;; buffer text it stands on, an indentation guide's stipple
+          ;; among them.
+          (add-face-text-property 0 (length text) 'default t text)
+          (overlay-put ov 'display "")
+          (overlay-put ov 'before-string text))
       (overlay-put ov 'display text))
     (overblock--dress block ov)))
 
