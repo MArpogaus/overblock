@@ -7,8 +7,8 @@
 ;;; Commentary:
 
 ;; The whole setup behind the animations in the README, and nothing
-;; else: a built-in theme, one font, line numbers, and the five
-;; packages of this repository turned on.  Run it against a checkout:
+;; else: a built-in theme, one font, line numbers, and the hooks that
+;; turn on the four modes of this repository.  Run it against a checkout:
 ;;
 ;;     emacs -Q -l demo/init.el demo/demo.py
 ;;

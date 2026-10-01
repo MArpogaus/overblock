@@ -292,9 +292,11 @@ string in a fence: Markdown reads `>>>' as three nested quotes."
 
 (defun overblock-pydoc--fence-doctests (text)
   "Return TEXT with each doctest outside a fence put in a pycon fence.
-A doctest is a run of lines from one that begins with `>>>' to the
-next blank line, at any indent.  One that a fence holds already stays
-as it is; a fence ends at a line that begins with its own marks."
+A doctest is a run of lines from one that begins with `>>>' after at
+most three spaces, to the next blank line.  One four or more spaces in
+is an indented code block already, and stays as it is.  So does one
+that a fence holds; a fence ends at a line that begins with marks as
+long as its own."
   (let (out fence doctest)
     ;; DOCTEST is the indent of the doctest in hand, FENCE the marks of
     ;; the fence in hand.

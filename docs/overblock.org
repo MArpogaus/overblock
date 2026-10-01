@@ -124,10 +124,11 @@ rendered line that matches no line near stays on the line before it,
 which keeps a wrapped line together. A blank line of the rendering
 falls on a blank line of the source where one comes next.
 =overblock--no-false-gap= removes a blank line that shr puts after a
-heading where the source has none. The first source line carries a
-line only where it cannot go under a cloak: where it begins the
-buffer, or begins inside a line. Thus a fence in the middle of a file
-carries no line of code.
+heading where the source has none. The first source line always
+carries a line where it cannot go under a cloak: where it begins the
+buffer, or begins inside a line. Elsewhere it carries nothing when its
+line belongs to a later source line. Thus a fence in the middle of a
+file carries no line of code.
 
 Where fewer than half of the lines match, the rendering is not line by
 line. Its lines are then dealt evenly over the source lines. A longer
@@ -514,7 +515,10 @@ cell in a row, and each frame would run its tail on the way out.
 
 Each region of a pass goes to the top of each window that shows the
 notebook, so the code that runs is visible. =overblock-run-go-home= puts
-point back when the queue is empty. The home marker is in the shell
+point back when the queue is empty. The pass then says =NAME: done=,
+with the =:name= of the backend. A failed region ends the pass with
+=NAME: stopped at error=. A single region that is not part of a pass
+says neither. The home marker is in the shell
 buffer too, and is set when the shell exists.
 
 A region sent while the shell is busy waits in the queue, and runs as

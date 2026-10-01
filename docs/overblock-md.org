@@ -226,7 +226,9 @@ A block is a fenced code block, or else the run of lines between two
 blank lines. =overblock-md-preview-fences= finds the fences first.
 =overblock-md-preview-paragraphs= then walks the buffer with those
 bounds. It jumps over a fence, so a blank line inside a fence ends no
-paragraph.
+paragraph. A fence also ends the paragraph that touches it, as in
+CommonMark. Thus prose with no blank line before a fence is a block of
+its own.
 
 The walk starts at the top of the buffer, because only that tells
 whether a region starts inside a fence. A fence that is not closed runs

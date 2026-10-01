@@ -88,9 +88,11 @@ option is a choice, and a Sphinx project sets it in =.dir-locals.el=.
 Both commands carry =--no-highlight= and =--wrap=none=, for the reasons
 in [[file:overblock-md.org][the notes of overblock-md]].
 
-In a Markdown doc string, each doctest that is not in a fence goes into
-a =pycon= fence before the conversion. Thus its =>>>= prompts stay,
-and Markdown does not read them as quotes.
+In a Markdown doc string, each doctest that is not in a fence and is
+less than four spaces in goes into a =pycon= fence before the
+conversion. Thus its =>>>= prompts stay, and Markdown does not read
+them as quotes. A doctest four or more spaces in is an indented code
+block already, and gets no fence.
 
 The quotes and the shared indent come off before the text is rendered,
 because the prose reads from the left margin. =overblock-pydoc-edit=

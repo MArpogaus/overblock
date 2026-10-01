@@ -175,8 +175,8 @@ buffer whose major mode derives from =markdown-mode=.
 
 *** Markdown preview
 
-The unit of the preview is a Markdown block. A block is the run of lines
-between two blank lines, or a fenced code block. A click on other text
+The unit of the preview is a Markdown block. A block is a fenced code
+block, or the run of lines between two blank lines or fences. A click on other text
 of a rendered block shows its source. Edit it, and the block renders again when point
 leaves it. A marked region also shows its source, so you copy or cut the
 source.
@@ -396,7 +396,9 @@ follows a cell that still runs. =overblock-run-interrupt= and
 
 =overblock-run-interrupt= stops the cell and the cells queued after it.
 =overblock-run-stop= lets the cell finish and empties the queue. A pass
-over several cells stops at the first error.
+over several cells stops at the first error. At the end of a pass, the
+echo area says =overblock-pycell: done=, or =overblock-pycell: stopped
+at error= after a cell that failed.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
