@@ -604,8 +604,11 @@ the rendering is no line by line one of its source, and
             (push (and lines (string-blank-p (car lines)) (pop lines) :gap)
                   chunks))
            ((and (> carry 1) lines
-                 ;; The first row always carries: it begins the block.
-                 (seq-some #'consp chunks)
+                 ;; A first row that begins the buffer or begins inside a
+                 ;; line cannot go under a cloak, so it carries.
+                 (or (seq-some #'consp chunks)
+                     (and (> (car row) (point-min))
+                          (= (nth 1 row) (car row))))
                  (memq (overblock--ahead (car lines) (cons key keys))
                        '(1 2 3)))
             ;; The next line belongs further down: nothing here.

@@ -1133,6 +1133,19 @@ for no width: the width it came back at was the width it had before."
     (should (equal (overblock--key (concat "| x" (make-string 40 ?\s) "| yyy |"))
                    "xyyy"))))
 
+(ert-deftest overblock-test-a-fence-in-the-middle-of-a-file-carries-nothing ()
+  "A block that begins on a fence line further down hides the fence.
+The first row of a block carries only where it cannot be cloaked."
+  (with-temp-buffer
+    (insert "text\n```python\nx = 1\n```\n")
+    (let ((beg (save-excursion (goto-char (point-min)) (forward-line 1) (point))))
+      (overblock-show beg (point-max) :over "x = 1")
+      (goto-char beg)
+      (forward-line 1)
+      (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                               (overlays-at (point)))
+                     "x = 1")))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer
