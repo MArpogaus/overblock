@@ -26,10 +26,10 @@
 ;; Run with: make scroll
 ;;
 ;; A rendered doc string is pieces over its own lines, cloaks over the
-;; lines left over, and since `:indent' a display string that begins in
+;; lines left over, and, with `:indent', display strings that start in
 ;; the middle of a line.  Scrolling up over a file of them must move the
 ;; window one way, whatever moves it: the wheel, `scroll-down-command'
-;; or `previous-line' walking off the top of the window.
+;; or `previous-line' at the top of the window.
 
 ;;; Code:
 
@@ -65,7 +65,7 @@
 
 (defun overblock-pydoc-scroll-test--faults (previous now steps)
   "Return what went wrong between PREVIOUS and NOW at step STEPS.
-Each is (START VSCROLL POINT); the window may only go up, and so may
+Each is (START VSCROLL POINT).  The window may only go up, and so may
 point."
   (delq nil
         (list (when (or (> (nth 0 now) (nth 0 previous))
@@ -81,9 +81,9 @@ point."
 
 (defun overblock-pydoc-scroll-test--walk-up (step)
   "Walk the window up from the bottom with STEP, a thunk; return the faults.
-The window start may only go down, or stay while the vscroll goes
-down, and point, where STEP moves it, may only go down too.  STEP
-signalling `beginning-of-buffer' anywhere but at the top is a fault."
+The window start may only decrease, or stay while the vscroll
+decreases, and point, where STEP moves it, may only decrease too.  A
+`beginning-of-buffer' error anywhere but at the top is a fault."
   (goto-char (point-max))
   (recenter -1)
   (redisplay t)
