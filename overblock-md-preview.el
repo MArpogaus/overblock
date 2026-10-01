@@ -114,17 +114,19 @@ already, and a blank line inside one ends no paragraph."
     (goto-char (point-min))
     (let (regions from last)
       (while (< (point) end)
-        (cond
-         ;; Jump over a fence. FENCES and this walk are both in order,
-         ;; so each fence is reached once, not tested on every line.
-         ((and fences (>= (point) (caar fences)))
-          (goto-char (cdar fences))
-          (setq fences (cdr fences)))
-         ((looking-at-p "[[:blank:]]*$")
-          (when from (push (cons from last) regions))
-          (setq from nil))
-         (t (setq last (pos-eol))
-            (unless from (setq from (pos-bol)))))
+        ;; FENCES and this walk are both in order, so each fence is
+        ;; reached once, not tested on every line.
+        (let ((fence (and fences (>= (point) (caar fences)))))
+          (if (not (or fence (looking-at-p "[[:blank:]]*$")))
+              (setq last (pos-eol)
+                    from (or from (pos-bol)))
+            ;; A blank line ends a paragraph, and so does a fence that
+            ;; touches it; the walk jumps over the fence.
+            (when from (push (cons from last) regions))
+            (setq from nil)
+            (when fence
+              (goto-char (cdar fences))
+              (setq fences (cdr fences)))))
         (forward-line 1))
       (when from (push (cons from last) regions))
       (nreverse regions))))

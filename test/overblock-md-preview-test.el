@@ -191,23 +191,24 @@ The edit here is a replacement over the buffer."
     (should (equal (overblock-md-preview-test--sources) '("two")))))
 
 (ert-deftest overblock-md-preview-test-a-fence-in-a-paragraph-renders-once ()
-  "A fence with no blank line before it carries one rendering, not two.
-The run of lines around it and the fence are both blocks for the same
-lines, and only one of them may render."
+  "A fence with no blank line around it interrupts the paragraph.
+The prose before it, the fence and the prose after it are three blocks,
+and no two of them cover the same line."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with
       "before the fence\n```\ncode\n```\nafter it\n\nlast\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
-    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (should (equal (overblock-md-preview-test--wait 4) 4))
     ;; Not `:key': the keyword form of `sort' is Emacs 30, and this
     ;; package supports 29.1.
     (let ((blocks (sort (overblock-md-preview-test--blocks)
                         (lambda (a b)
                           (< (overlay-start a) (overlay-start b))))))
-      (should (= (length blocks) 2))
-      ;; No two renderings cover the same line.
-      (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks)))))))
+      (should (= (length blocks) 4))
+      (while (cdr blocks)
+        (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks))))
+        (pop blocks)))))
 
 (ert-deftest overblock-md-preview-test-the-answer-lands-nowhere-near-point ()
   "A block the reader walked into is left alone when its HTML lands.
@@ -239,6 +240,14 @@ then stays source."
       (should-not overblock-live--timer)
       (should-not overblock-live--specs)
       (should (equal (buffer-string) before)))))
+
+(ert-deftest overblock-md-preview-test-a-fence-ends-the-paragraph-it-touches ()
+  "Prose right above a fence is a paragraph of its own, without the fence."
+  (with-temp-buffer
+    (insert "Some prose:\n```r\nx <- 1\n```\nMore prose.\n")
+    (let ((fences (overblock-md-preview-fences (point-max))))
+      (should (equal (overblock-md-preview-paragraphs (point-max) fences)
+                     '((1 . 12) (29 . 40)))))))
 
 (provide 'overblock-md-preview-test)
 ;;; overblock-md-preview-test.el ends here
