@@ -461,8 +461,9 @@ string."
 ;;;###autoload
 (defun overblock-pycell-md-follow-link ()
   "Follow a link of the rendered markdown cell at point.
-A click on a link follows it already, through the keymap of shr.  Point
-never enters a display string, so this asks the cell for its links.
+A click on a link follows it already, through `overblock-md-link-map'.
+Point never enters a display string, so this asks the cell for its
+links.
 With one, it is followed; with several, the reader chooses."
   (interactive)
   (let* ((block (overblock-pycell--md-at nil))

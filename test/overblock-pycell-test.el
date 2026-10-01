@@ -131,7 +131,7 @@ region."
   (overblock-bar-in (pos-bol) (min (point-max) (1+ (pos-eol)))))
 
 (defun overblock-run-body-lines-of-pycell (lines)
-  "Return the leading LINES of a result, as the notebook's options bound them.
+  "Return the leading LINES of a result, as the runner's limits bound them.
 The runner takes the budgets as arguments, so the tests supply them."
   (overblock-run--body-lines
    (overblock-repl-first-lines (string-join lines "\n") overblock-run-max-lines)

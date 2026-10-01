@@ -491,7 +491,8 @@ does case, so a source line and the line it renders to have one key."
        (or (string-prefix-p key row-key) (string-prefix-p row-key key))))
 
 (defun overblock--ahead (line keys)
-  "Return how many rows of KEYS on LINE belongs, or nil for none near."
+  "Return the index in KEYS of the row LINE was rendered from.
+Only the first four rows count; nil where none of them matches."
   (let ((key (overblock--key line)))
     (seq-position (take 4 keys) key
                   (lambda (row-key key) (overblock--keys-match-p key row-key)))))
