@@ -175,7 +175,7 @@ Before it only a byte-order mark, blanks, the XML declaration, comments
 and a DOCTYPE stand.  An error page that holds an svg icon is no SVG.")
 
 (defun overblock-md--image-p (file)
-  "Return non-nil where FILE holds an image, whatever its name.
+  "Return the type of the image FILE holds, whatever its name, or nil.
 Not `image-supported-file-p', which reads the name: a URL with a query
 caches as `<md5>.img'.  An SVG with a DOCTYPE subset or a byte-order
 mark has no header that `image-type-from-file-header' knows, so a file
@@ -183,13 +183,7 @@ that begins with an svg tag counts too."
   (or (image-type-from-file-header file)
       (with-temp-buffer
         (insert-file-contents file nil 0 4096)
-        (looking-at-p overblock-md--svg-start-regexp))))
-
-(defun overblock-md--create-image (file)
-  "Return the image of FILE, an SVG where its header says nothing.
-`overblock-md--image-p' takes such a file for an SVG, and its name in
-the cache can end in `.img'."
-  (create-image file (unless (image-type-from-file-header file) 'svg)))
+        (and (looking-at-p overblock-md--svg-start-regexp) 'svg))))
 
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
@@ -989,7 +983,8 @@ The alt text carries the image; `overblock-md-rendered' caps it.  See
       ;; which would hide the label.
       (insert (propertize (if (and file (display-images-p))
                               (propertize label 'display
-                                          (overblock-md--create-image file))
+                                          (create-image
+                                           file (overblock-md--image-p file)))
                             label)
                           'overblock-md-label t)))))
 

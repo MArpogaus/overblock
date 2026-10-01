@@ -162,7 +162,6 @@ that the rendering has already left."
          (fetches 0))
     (unwind-protect
         (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
-                  ((symbol-function 'image-supported-file-p) (lambda (_) t))
                   ((symbol-function 'url-copy-file)
                    (lambda (_url file &rest _)
                      (setq fetches (1+ fetches))
@@ -226,9 +225,7 @@ that the rendering has already left."
             ;; Under a query URL the file is `<md5>.img', and still an SVG.
             (let ((file (overblock-md--remote-file "https://example.org/b?s=1")))
               (should (string-suffix-p ".img" file))
-              (should (eq (image-property (overblock-md--create-image file)
-                                          :type)
-                          'svg))))
+              (should (eq (overblock-md--image-p file) 'svg))))
           (should (equal (directory-files (expand-file-name "overblock-images" cache)
                                           nil "\\`[^.]")
                          (sort (list (overblock-md--cache-name
