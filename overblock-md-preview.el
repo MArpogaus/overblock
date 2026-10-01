@@ -130,22 +130,19 @@ under a list item."
 A blank line does, and so does FENCE, the start of a fence reached
 here, unless it is indented under a list item: the nearest line above
 it that begins at the left margin begins an item.  With EVERY, each
-fence ends its paragraph, and an item ends the rest of an item that
-begins after a fence: alone, the converter reads the item as
-more text of that paragraph."
+fence ends its paragraph.
+
+An item ends a later paragraph of an item, which is indented and no
+item itself: alone, the converter reads the item as more text of that
+paragraph."
   (cond (fence
          (or every
              (overblock-md-preview--margin-p fence)
              (not (overblock-md-preview--in-item-p fence))))
         ((looking-at-p "[[:blank:]]*$"))
-        (every (and from
-                    (overblock-md-preview--item-p (point))
-                    (save-excursion
-                      (goto-char from)
-                      (skip-chars-backward " \t\n")
-                      (goto-char (pos-bol))
-                      (looking-at-p
-                       overblock-md-preview-closing-fence-regexp))))))
+        (from (and (overblock-md-preview--item-p (point))
+                   (not (overblock-md-preview--margin-p from))
+                   (not (overblock-md-preview--item-p from))))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."

@@ -319,7 +319,13 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "- a\n\n  - b\n  - c\n")
     (should (= 2 (length (overblock-md-preview-regions
-                          (point-min) (point-max) t))))))
+                          (point-min) (point-max) t)))))
+  ;; Without a chunk too: the later paragraph of an item.
+  (with-temp-buffer
+    (insert "- a\n\n  para of a\n- b\n")
+    (should (equal (mapcar (lambda (r) (buffer-substring (car r) (cdr r)))
+                           (overblock-md-preview-regions (point-min) (point-max)))
+                   '("- a" "  para of a" "- b")))))
 
 (ert-deftest overblock-md-preview-test-deep-fence-under-an-item ()
   "Four spaces in, a fence opens a block only under a list item."
