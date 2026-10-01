@@ -21,6 +21,7 @@
   - [[#known-limits][Known Limits]]
   - [[#development][Development]]
   - [[#contributions][Contributions]]
+  - [[#use-of-llm-coding-tools][Use of LLM Coding Tools]]
   - [[#license][License]]
   - [[#contact][Contact]]
 
@@ -1257,6 +1258,12 @@ commit made without them is still checked.
 
 Contributions are greatly appreciated!  Feel free to check the
 [[https://github.com/MArpogaus/overblock/issues][issues page]] or submit a [[https://github.com/MArpogaus/overblock/pulls][pull request]].
+
+** Use of LLM Coding Tools
+
+Parts of this package were written with the help of a large
+language model (LLM) coding assistant.  A person reviewed and tested
+every change before it was committed.
 
 ** License
 
