@@ -98,10 +98,10 @@ point by calling a function rather than by running a command."
   (let ((end (+ (float-time) seconds)))
     (run-hooks 'post-command-hook)
     ;; And the render itself: the live cycle asks for it on an idle
-    ;; timer, and a session driven by a program rather than by a reader
-    ;; is never idle in the way that timer waits for.
-    (when-let* ((render (nth 1 (bound-and-true-p overblock-live--spec))))
-      (ignore-errors (funcall render)))
+    ;; timer, and a session driven by a program is never idle in the
+    ;; way that timer waits for.
+    (dolist (spec (bound-and-true-p overblock-live--specs))
+      (ignore-errors (funcall (nth 1 spec))))
     (while (and (< (float-time) end) (not (funcall predicate)))
       ;; `sit-for' and not `accept-process-output': the rendering is
       ;; asked for by an idle timer, and idle timers run only while
@@ -112,9 +112,8 @@ point by calling a function rather than by running a command."
 
 (defun ob-gif-settle (&optional seconds)
   "Run what a command runs and let the idle timers fire.
-A block reveals its source when point walks into it and renders it
-again when point leaves, and both happen on `post-command-hook\': point
-moved by a program moves through no command at all."
+The live cycle listens on `post-command-hook\', and point moved by a
+program moves through no command at all."
   (run-hooks 'post-command-hook)
   (sit-for (or seconds 0.4))
   (redisplay t))
@@ -125,12 +124,8 @@ moved by a program moves through no command at all."
     (dolist (char chunk) (insert char))
     (ob-gif-frame (or hold 8))))
 
-(defun ob-gif-file (name _content)
-  "Return the file NAME of this directory, opened by a scenario.
-The second argument is what the file used to be written from, kept so
-that a scenario reads as it always did; the files live in the
-repository now, beside this one, so that a reader sees exactly what was
-recorded."
+(defun ob-gif-file (name)
+  "Return the fixture NAME of this directory, opened by a scenario."
   (expand-file-name name ob-gif-src))
 
 (defun ob-gif-setup ()
@@ -168,7 +163,7 @@ The class doc string is reStructuredText with everything in it a doc
 string carries — a field list, math, a bullet list, a table and a code
 block — and the converter lays all of that out with shr.  The markup is
 said, because the default is Markdown and this file is not."
-  (find-file (ob-gif-file "shapes.py" nil))
+  (find-file (ob-gif-file "shapes.py"))
   (setq overblock-pydoc-markup 'rst)
   (goto-char (point-min))
   (ob-gif-frame 250)
@@ -188,8 +183,7 @@ said, because the default is Markdown and this file is not."
     (ob-gif-type " and cheap to copy"))
   (ob-gif-frame 150)
   (overblock-edit-commit)
-  ;; Point out of the doc string it edited: point inside one shows its
-  ;; source, which is the whole idea, and the last picture is of prose.
+  ;; The last picture is of every doc string rendered again.
   (goto-char (point-min))
   (ob-gif-wait 30 #'ob-gif-pydoc--settled)
   (ob-gif-frame 350))
@@ -205,32 +199,7 @@ said, because the default is Markdown and this file is not."
 
 (defun ob-gif-md ()
   "A markdown file, each line rendered where it stands."
-  (find-file (ob-gif-file "notes.md" "\
-# The overblock family
-
-A **block** is a rendering that sits over the text it came from.  The
-text is untouched: it is still there, and the buffer still saves as
-what it always was.
-
-## What is in the family
-
-| package | what it renders |
-|---------|-----------------|
-| `overblock-md` | markdown, line by line |
-| `overblock-pydoc` | the doc strings of Python |
-| `overblock-pycell` | the output of a notebook cell |
-
-Click a line to see its source again:
-
-- a list keeps its bullet
-- `code` keeps its face
-- [a link](https://example.com) is a link
-
-```python
-def hello(name):
-    return f\"hello, {name}\"
-```
-"))
+  (find-file (ob-gif-file "notes.md"))
   ;; `demo/init.el' turns the mode on with the major mode, so the
   ;; picture of the source has to ask for the source.
   (overblock-md-preview-mode -1)
@@ -278,26 +247,7 @@ def hello(name):
 
 (defun ob-gif-pycell ()
   "A Python file as a notebook: cells, output, a figure."
-  (find-file (ob-gif-file "demo.py" "\
-# %% [markdown]
-# # A notebook that is a Python file
-# The cells are comments, so the file runs as a script as well.
-
-# %%
-import numpy as np
-
-grid = np.linspace(0, 2 * np.pi, 9)
-np.round(np.sin(grid), 3)
-
-# %%
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(5, 1.8))
-ax.plot(grid, np.sin(grid), marker='o')
-ax.set_title('sin over a turn')
-fig.tight_layout()
-plt.show()
-"))
+  (find-file (ob-gif-file "demo.py"))
   (goto-char (point-min))
   (ob-gif-frame 250)
   (overblock-pycell-mode 1)
@@ -354,26 +304,7 @@ still busy\"."
 
 (defun ob-gif-rmd ()
   "An R Markdown file: the prose rendered, the chunks run in place."
-  (find-file (ob-gif-file "report.Rmd" "\
-## Speed and stopping distance
-
-The chunk below is **run where it stands**, and what R answers is a
-block over the text — the file itself is untouched.
-
-```{r summary}
-summary(cars)
-```
-
-```{r head}
-head(cars, 4)
-```
-
-A chunk that plots answers with its figure:
-
-```{r plot}
-plot(cars, pch = 19, col = \"steelblue\")
-```
-"))
+  (find-file (ob-gif-file "report.Rmd"))
   ;; Markdown for the prose, where it is installed; the mode itself does
   ;; not care which major mode a chunk sits in.
   (if (require 'markdown-mode nil t) (markdown-mode) (text-mode))
@@ -452,7 +383,7 @@ The scenarios above take each package on its own and at whatever height
 it wants; this one is the tour, and every picture in it is the same
 size."
   ;; markdown, rendered over its own source
-  (find-file (ob-gif-file "notes.md" nil))
+  (find-file (ob-gif-file "notes.md"))
   (overblock-md-preview-mode -1)
   (goto-char (point-min))
   (ob-gif-frame 220)
@@ -463,7 +394,7 @@ size."
   (ob-gif-settle)
   (ob-gif-frame 300)
   ;; the doc strings of a module
-  (find-file (ob-gif-file "shapes.py" nil))
+  (find-file (ob-gif-file "shapes.py"))
   (setq overblock-pydoc-markup 'rst)
   ;; The top of the file, and point on the line of code above the first
   ;; doc string: the one point is in is left as source.
@@ -474,7 +405,7 @@ size."
   (goto-char (point-min))
   (ob-gif-frame 320)
   ;; a notebook: a markdown cell, a cell run, a figure
-  (find-file (ob-gif-file "demo.py" nil))
+  (find-file (ob-gif-file "demo.py"))
   (goto-char (point-min))
   (overblock-pycell-mode 1)
   (ob-gif-wait 30 (lambda () (overblock-in (point-min) (point-max) 'markdown)))
@@ -500,7 +431,7 @@ size."
   (recenter 1)
   (ob-gif-frame 340)
   ;; and the chunks of an Rmd file
-  (find-file (ob-gif-file "report.Rmd" nil))
+  (find-file (ob-gif-file "report.Rmd"))
   (if (require 'markdown-mode nil t) (markdown-mode) (text-mode))
   (setq ess-ask-for-ess-directory nil
         ess-eval-visibly 'nowait
