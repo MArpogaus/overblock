@@ -26,15 +26,13 @@
 
 ;; Run with: make test-live
 ;;
-;; What only a live interpreter can prove.  The batch suite starts no
-;; process, and two faults lived past every one of its checks for
-;; exactly that reason: a read-only notebook wedged the pass from
-;; inside the process filter, and a one-line result came back painted
-;; in comint's prompt face.  These tests send real cells down a real
-;; IPython and read back what the blocks show.
+;; What only a live interpreter can prove: the batch suite starts no
+;; process.  These tests send real cells to a real IPython and read
+;; back what the blocks show, for example a result in a read-only
+;; notebook and the face of a one-line result.
 ;;
 ;; `make test' does not load this file, and the target that does skips
-;; with a word where no ipython is installed: a batch CI has none.
+;; with a message where no ipython is installed, as on a batch CI.
 
 ;;; Code:
 
@@ -49,9 +47,9 @@
 
 (defmacro overblock-pycell-live-test--with-notebook (text &rest body)
   "Evaluate BODY in a notebook holding TEXT, wired for a real IPython.
-The shell of an earlier test is reused where one is alive, which is
-what the tests want: each startup costs seconds, and the package is
-meant to keep one shell across a session anyway."
+The shell of an earlier test is reused where one is alive: each
+startup costs seconds, and the package keeps one shell for a session
+anyway."
   (declare (indent 1))
   `(let ((python-shell-interpreter "ipython")
          (python-shell-interpreter-args "-i --simple-prompt")
@@ -76,7 +74,7 @@ meant to keep one shell across a session anyway."
   "A cell that prints one line comes back with no prompt face on it.
 comint calls a chunk of output that ends without a newline a prompt and
 paints it `comint-highlight-prompt', and one printed line arrives as
-exactly one such chunk: the commonest result of all read as a prompt."
+one such chunk."
   (overblock-pycell-live-test--with-notebook "# %%\nprint('one')\n"
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (overblock-pycell-eval-region beg end))
@@ -94,10 +92,9 @@ exactly one such chunk: the commonest result of all read as a prompt."
 
 (ert-deftest overblock-pycell-live-test-a-read-only-notebook-gets-its-result ()
   "A read-only notebook shows the result and the pass survives.
-The result of the last cell of a file without a final newline is hung
-on a newline written there, and a notebook that refused the write
-signalled from inside the process filter: the cell was never ended and
-the shell stayed busy for the session."
+The result of the last cell of a file without a final newline hangs
+on a newline written there.  A read-only buffer refuses the write, and
+an error in the process filter would leave the shell busy."
   (overblock-pycell-live-test--with-notebook "# %%\nprint('ro')"   ; no final newline
     (setq buffer-read-only t)
     (let ((size (buffer-size)))
@@ -110,7 +107,7 @@ the shell stayed busy for the session."
       (should (equal (overblock-test-common-text
                       (car (overblock-test-common-results)))
                      "ro"))
-      ;; the buffer was not written to
+      ;; The buffer was not written to.
       (should (= (buffer-size) size)))))
 
 (ert-deftest overblock-pycell-live-test-a-run-all-stops-at-an-error ()
@@ -132,13 +129,12 @@ the shell stayed busy for the session."
 (ert-deftest overblock-pycell-live-test-stop-works-while-the-last-cell-runs ()
   "`overblock-run-stop' during the last cell of a pass leaves nothing queued.
 The last cell of a pass is sent with the queue already empty, and the
-reader watching a long run has their point anywhere at all — the stop
-must resolve the shell rather than fall over the buffer it is called
-in.  The running cell runs to its end, and the pass ends clean."
+stop can be called from any buffer, so it must find the shell itself.
+The running cell runs to its end, and the pass ends clean."
   (overblock-pycell-live-test--with-notebook
       "# %%\nprint('a')\n\n# %%\nimport time; time.sleep(1)\n"
     (overblock-pycell-restart-and-run-all)
-    ;; the last cell is the one running: nothing queued, one cell live
+    ;; The last cell runs: nothing queued, one cell live.
     (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (python-shell-get-process)))
@@ -146,12 +142,12 @@ in.  The running cell runs to its end, and the pass ends clean."
                       (buffer-local-value 'overblock-run--state
                                           (process-buffer proc)))))
              60))
-    ;; from another buffer, as a key bound in some other map would be
+    ;; From another buffer, as a key of another map would be.
     (with-temp-buffer (overblock-run-stop))
     (should-not (overblock-run--queued))
     (should (overblock-test-common-wait #'overblock-pycell-live-test--idle-p 60))
     (should-not (overblock-run--queued))
-    ;; the running cell was not cut short: both results arrived
+    ;; The running cell was not cut short: both results arrived.
     (should (= (length (overblock-test-common-results)) 2))))
 
 (provide 'overblock-pycell-live-test)
