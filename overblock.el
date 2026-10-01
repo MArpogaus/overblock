@@ -768,6 +768,7 @@ a block with all that belongs to it, such as a bar above a rendered
 cell.  The region it covered is remembered, so the live cycle leaves
 it as source while point stays in it; see `overblock-live--open'."
   (when (overlay-buffer block)
+    (overblock-live--close)
     (setq overblock-live--open (cons (copy-marker (overlay-start block))
                                      (copy-marker (overlay-end block) t))))
   (funcall (or (overblock-get block :stale) #'overblock-delete) block))

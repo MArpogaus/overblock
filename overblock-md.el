@@ -753,6 +753,9 @@ is installed."
         (condition-case err
             (overblock-md--send-batch kind marked sources text show)
           (error (overblock-md--land kind)
+                 (dolist (region marked)
+                   (set-marker (car region) nil)
+                   (set-marker (cdr region) nil))
                  (signal (car err) (cdr err))))))))
 
 (defun overblock-md--land (kind)
