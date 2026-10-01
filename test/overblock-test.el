@@ -1114,6 +1114,19 @@ for no width: the width it came back at was the width it had before."
       (overblock-show (point-min) (point-max) :over "A"))
     (should-not overblock--columns)))
 
+(ert-deftest overblock-test-rows-on-the-anchor-are-drawn-over-hl-line ()
+  "Under rows on the anchor the newline outranks `hl-line', and the rows are plain.
+`hl-line' painted a band as tall as a figure beside it."
+  (with-temp-buffer
+    (insert "code\n")
+    (let* ((block (overblock-show (point-min) (point-max) :header "bar"
+                                  :body overblock-test-common-image))
+           (newline (overblock-get block :newline))
+           (rows (overlay-get block 'after-string)))
+      (should (> (overlay-get newline 'priority) -50))
+      (let ((face (get-text-property (1- (length rows)) 'face rows)))
+        (should (or (eq face overblock--plain) (memq overblock--plain face)))))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

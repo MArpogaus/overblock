@@ -689,6 +689,16 @@ under a cloak."
     ;; Nils where a guard found no newline to draw.
     (nreverse (delq nil parts))))
 
+(defun overblock--anchor-rows (lead strings)
+  "Return STRINGS as the rows of an anchor, after LEAD, in a plain face.
+Without a face of its own a row wears that of the line it ends,
+`hl-line' beside a figure among them.  The break that ends the line
+itself keeps it."
+  (let ((rows (concat lead (string-join strings "\n"))))
+    (add-face-text-property (min 1 (length rows)) (length rows)
+                            overblock--plain t rows)
+    rows))
+
 (defun overblock--attach (block shown)
   "Show the header and the body of SHOWN after BLOCK.
 SHOWN is the property list of what the block shows, or nil for a block
@@ -724,13 +734,20 @@ Each string carries the line breaks of its own rows."
                    ""
                  "\n")))
     (overlay-put block 'after-string
-                 (when strings
-                   (concat lead (string-join strings "\n"))))
+                 (when strings (overblock--anchor-rows lead strings)))
     (when (and newline (overlay-buffer newline))
-      (overlay-put newline 'display
-                   (when on-display
-                     (concat (if header "\n" lead) body "\n")))
-      (overblock--dress block newline))))
+      (overblock--dress-newline block newline
+                                (when on-display
+                                  (concat (if header "\n" lead) body "\n"))
+                                strings))))
+
+(defun overblock--dress-newline (block newline display rows)
+  "Give NEWLINE of BLOCK its DISPLAY, nil for none, and dress it.
+Under ROWS on the anchor the newline ends the last of them, and
+`hl-line' (-50) would paint beside it, so it outranks `hl-line' then."
+  (overlay-put newline 'display display)
+  (overlay-put newline 'priority (if rows -40 -60))
+  (overblock--dress block newline))
 
 (defun overblock--stale-hook (block after beg end &optional _length)
   "Take BLOCK down where the text it covers, BEG..END, really changed.
