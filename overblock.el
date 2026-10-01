@@ -520,17 +520,25 @@ does case, so a source line and the line it renders to have one key."
                         text))
         (length text))))
 
-(defun overblock--take (lines rows keys)
-  "Return the chunk of LINES the row before ROWS carries, and the rest.
-The answer is (CHUNK . REST).  KEYS are the keys of ROWS.  The row
+(defun overblock--no-false-gap (lines keys)
+  "Return LINES without the blank lines before the line of the first of KEYS.
+Such a blank line is a gap the source does not have there: shr puts one
+after a heading."
+  (while (and (cdr lines) (string-blank-p (car lines))
+              (eql (overblock--ahead (cadr lines) keys) 0))
+    (pop lines))
+  lines)
+
+(defun overblock--take (lines keys)
+  "Return the chunk of LINES a row carries, and the rest, as (CHUNK . REST).
+KEYS are the keys of the rows after it.  The row
 takes the next line, and then every line that belongs to no row near
 while a line soon after belongs to the next row: a source line the
-renderer wrapped.  A blank line is left where the next row has no text
-to take it as a gap."
+renderer wrapped.  A blank line is never taken this way: it is a gap,
+and it goes to the next row."
   (let ((chunk (and lines (list (pop lines)))))
     (while (and lines
-                (not (and (string-blank-p (car lines))
-                          rows (not (overblock--carries-p (car rows)))))
+                (not (string-blank-p (car lines)))
                 (null (overblock--ahead (car lines) keys))
                 (seq-some (lambda (line) (eql (overblock--ahead line keys) 0))
                           (take 3 (cdr lines))))
@@ -572,9 +580,10 @@ the rendering is no line by line one of its source, and
             (push lines chunks)
             (setq lines nil))
            (t
+            (setq lines (overblock--no-false-gap lines keys))
             (pop keys)
             (setq carry (1- carry))
-            (pcase-let ((`(,chunk . ,rest) (overblock--take lines rows keys)))
+            (pcase-let ((`(,chunk . ,rest) (overblock--take lines keys)))
               (push chunk chunks)
               (setq lines rest))))))
       (nreverse chunks))))
