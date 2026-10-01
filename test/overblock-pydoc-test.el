@@ -459,6 +459,25 @@ The default markup is Markdown, and markdown-mode is no dependency."
     (let ((overblock-pydoc-modes '((markdown . overblock-pydoc-test-no-mode))))
       (should (eq (overblock-pydoc--mode-for-markup) #'text-mode)))))
 
+(ert-deftest overblock-pydoc-test-a-doctest-keeps-its-prompts ()
+  "A doctest of a Markdown doc string renders as code, prompts and all.
+Markdown reads `>>>' as three nested quotes, which drops the prompts
+and steps the output lines to the right."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "def f(x):\n    \"\"\"Twice X.\n\n    Examples\n    --------\n"
+            "    >>> f(1)\n    2\n    \"\"\"\n")
+    (python-mode)
+    (font-lock-ensure)
+    (setq-local overblock-pydoc-markup 'markdown)
+    (pcase-let* ((`(,beg . ,end) (car (overblock-pydoc--strings (point-min)
+                                                                (point-max))))
+                 (overblock-md-command (overblock-pydoc--command-for-markup))
+                 (text (substring-no-properties
+                        (overblock-md-rendered
+                         (overblock-pydoc--markup beg end)))))
+      (should (string-search ">>> f(1)\n2" text)))))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The command that opens the buffer was in no test, and this is the path

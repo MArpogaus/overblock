@@ -324,6 +324,18 @@ characters."
   (when (string-match overblock-pydoc--opening text)
     (list (match-string 1 text) (match-string 2 text))))
 
+(defun overblock-pydoc--markup (beg end)
+  "Return the prose of the doc string BEG..END as the converter reads it.
+That is `overblock-pydoc--source', with every doctest of a Markdown doc
+string in a fence: Markdown reads `>>>' as three nested quotes."
+  (let ((source (overblock-pydoc--source beg end)))
+    (if (eq overblock-pydoc-markup 'markdown)
+        (replace-regexp-in-string
+         "^>>>.*\\(?:\n.+\\)*"
+         (lambda (doctest) (concat "```pycon\n" doctest "\n```"))
+         source t t)
+      source)))
+
 (defun overblock-pydoc--source (beg end)
   "Return the prose of the doc string BEG..END.
 The quotes go, and so does the indentation every line shares with the
@@ -434,7 +446,7 @@ first row hangs where the block does, so the two have to be the same
 column: a raw doc string begins one column in from its code, past the
 letter that prefixes its quotes, and the rendering of one stood a
 column out of line."
-  (when-let* ((source (overblock-pydoc--source beg end))
+  (when-let* ((source (overblock-pydoc--markup beg end))
               ((not (string-empty-p source)))
               (indent (save-excursion (goto-char beg) (current-column)))
               (rendered
@@ -478,7 +490,7 @@ again whenever the reader stops."
                                                    'pydoc))
                         (overblock-pydoc--strings (point-min) (point-max)))))
     (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
-      (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--source
+      (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--markup
                                    #'overblock-pydoc--show))))
 
 (defun overblock-pydoc--put (beg end prose)
