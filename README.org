@@ -31,8 +31,9 @@ This repository holds five Emacs packages with one idea. A *block*
 shows text over a region of a buffer, or after it. The buffer text does
 not change, so files, undo and a language server see nothing.
 
-A block puts one line of its text on each line of the region. Thus a
-tall rendering scrolls like text and does not jump past in one step.
+A block that shows text over a region puts each rendered line on the
+source line it came from. Thus a tall rendering scrolls like text and
+does not jump past in one step.
 The four modes render Markdown where it is written, and show Python doc
 strings as documentation. They also show the output of a Python cell or
 an R chunk under its code.
@@ -67,8 +68,8 @@ and =use-package=. Each recipe gives its package a clone of its own with
 can make elpaca hang. Install the other dependencies, such as
 latex-to-svg-backend or code-cells, as usual.
 
-No package installs a hook or binds a key. Installing a package does not
-change how Emacs behaves.
+No package installs a hook or binds a key on the keyboard. Installing a
+package does not change how Emacs behaves.
 
 ** overblock: the block layer
 
@@ -124,8 +125,8 @@ mode holds the buttons. Each entry of such an option is
 
 - KEY names the entry.
 - GLYPHS is a list of labels. The frame shows the first label that it
-  can draw. Keep a plain word at the end, because the last label always
-  shows.
+  can draw. Keep a plain word at the end, because each frame can draw
+  the last label.
 - HELP is the tooltip, and COMMAND runs on a click.
 - WHEN says when the button shows. =t= shows it always, =image= with an
   image and =lines= with output. =running= shows it while the region
@@ -246,6 +247,10 @@ The mode uses the faces of font lock to find the doc strings. Thus it
 works in =python-mode= and in =python-ts-mode=, and a string that is
 data stays as it is.
 
+Declare the recipes of [[#overblock-the-block-layer][overblock]] and
+[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
+the =:hook= of overblock-md where the preview is not wanted.
+
 #+begin_src emacs-lisp
   (use-package overblock-pydoc
     :ensure (overblock-pydoc :host github
@@ -306,6 +311,10 @@ a notebook does. It needs no Jupyter kernel. The cells go to the Python
 interpreter of =python.el=, so the =*Python*= buffer keeps the full
 log. The files stay plain Python with =# %%= markers, as jupytext
 writes them.
+
+Declare the recipes of [[#overblock-the-block-layer][overblock]] and
+[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
+the =:hook= of overblock-md where the preview is not wanted.
 
 #+begin_src emacs-lisp
   ;; Cells in plain Python files, with the "# %%" convention.
@@ -394,9 +403,9 @@ run it.
 *** Markdown cells
 
 A cell with the marker =# %% [markdown]= renders in place. Its bar shows
-/markdown/ and the buttons of =overblock-pycell-md-buttons=: =✎= edits
-the cell in its own buffer, and the move buttons =⌃= and =⌄= come after
-it. A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
+/markdown/ and the buttons of =overblock-pycell-md-buttons=. =✎= edits
+the cell in its own buffer. The move buttons =⌃= and =⌄= come after it.
+A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
 other text, =mouse-1= shows the source, and =mouse-2= opens the edit
 buffer. =overblock-pycell-md-follow-link= opens a link from the
 keyboard.
@@ -486,6 +495,10 @@ output under each chunk. The prose between the chunks renders as in
 =overblock-md-preview-mode=. There is no knitr run. The chunks go to
 the R interpreter of ESS, so the R buffer keeps the full log.
 
+Declare the recipes of [[#overblock-the-block-layer][overblock]] and
+[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
+the =:hook= of overblock-md where the preview is not wanted.
+
 #+begin_src emacs-lisp
   (use-package markdown-mode
     :ensure t
@@ -503,9 +516,9 @@ use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
 =auto-mode-alist=. =poly-markdown+r-mode= of polymode also works.
 
 =overblock-rmd-mode-maybe= turns the mode on in a buffer whose file ends
-in =.Rmd=, and does nothing in other buffers. The mode works only in a
-buffer whose major mode derives from =markdown-mode=. It turns
-=overblock-md-preview-mode= off, because it renders the prose itself.
+in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode works
+only in a buffer whose major mode derives from =markdown-mode=. It
+turns =overblock-md-preview-mode= off, because it renders the prose itself.
 
 *** Chunks
 
@@ -548,6 +561,7 @@ before it.
 | =overblock-rmd-backward-chunk=      | move to the previous chunk                                |
 | =overblock-rmd-restart=             | restart R, and remove the results                         |
 | =overblock-rmd-restart-and-run-all= | restart, then run each chunk in order                     |
+| =overblock-rmd-render-buffer=       | bar each chunk, and render the prose between them         |
 | =overblock-live-edit=               | show the source of the prose at point                     |
 
 The commands of a result and of a pass are those of
@@ -603,7 +617,7 @@ For the button format, see [[#buttons][Buttons]]. The details are in
 
 ** Known Limits
 
-These limits apply to each package.
+These limits apply to each package, unless a limit names one.
 
 - A bar is cut to the narrowest window that shows its buffer. A narrow
   side window beside a wide one cuts each label in both.
@@ -627,7 +641,7 @@ These limits apply to each package.
 - Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
   not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
 - An HTML comment that is not closed (=<!--= with no =-->=) hides the
-  marks that split one batch for the converter. Each region of that
+  markers that split one batch for the converter. Each region of that
   buffer then converts on its own, which is slow in a large file. Close
   the comment.
 
