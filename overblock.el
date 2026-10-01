@@ -1637,7 +1637,8 @@ icons would wrap.  The room is what `overblock-window-width' measures,
 less the icons, the slack and one more character cell.
 
 A buffer in no visible window is not cut at all, because the cut stays
-in the string, and a finished header is not rebuilt."
+in the string.  A finished header is rebuilt only when what it shows
+or the width changes."
   (let ((left (overblock--bar-left glyph label)))
     (if indent
         (overblock--bar-padded left icons face indent)

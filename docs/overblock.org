@@ -42,8 +42,10 @@ the block:
 - =:kind= tells the blocks of one caller from those of another. A block
   without a kind is anonymous.
 - =:data= belongs to the caller. The layer keeps it and never reads it.
-- =:over= puts one piece on each line of the region. A line with no
-  piece goes under a cloak. Thus a tall rendering scrolls like text.
+- =:over= puts each line of the rendering on the source line it came
+  from. A source line that carries nothing goes under a cloak. A blank
+  line that takes a gap of the rendering stays in view. Thus a tall
+  rendering scrolls like text.
 - =:indent= keeps that many columns of each line in view under the
   rendering.
 - =:body= is on the newline that ends the region, and =:header= is above
@@ -121,6 +123,9 @@ such as an underline, a fence or a table rule, goes under the cloak. A
 rendered line that matches no line near stays on the line before it,
 which keeps a wrapped line together. A blank line of the rendering
 falls on a blank line of the source where one comes next.
+=overblock--no-false-gap= removes a blank line that shr puts after a
+heading where the source has none. The first source line always
+carries a line, because it begins the block.
 
 Where fewer than half of the lines match, the rendering is not line by
 line. Its lines are then dealt evenly over the source lines. A longer
@@ -207,7 +212,8 @@ Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=:
 
 - KEY names the button. Nothing reads it.
 - GLYPHS are the candidates for the label. The first one that the frame
-  can draw wins, and the last one always answers.
+  can draw wins. Keep a plain word at the end, because each frame can
+  draw the last label.
 - HELP is the tooltip.
 - COMMAND runs on a click, with the click in =last-input-event=.
 - WHEN is =t=, =image=, =lines=, =running= or =done=. The button then
@@ -280,7 +286,9 @@ window that shows the buffer. An invisible or iconified frame does not
 count.
 
 A buffer in no visible window is not cut at all. The cut is part of the
-string, and no window means no width to cut to.
+string, and no window means no width to cut to. A block drawn while no
+window shows its buffer makes the buffer forget its width. Thus the
+next window that shows the buffer draws it again.
 
 The measurement keeps point. =window-max-chars-per-line= selects the
 window that it measures, which sets the point of the buffer to that
@@ -436,6 +444,9 @@ The shell and the regions:
 | =:region-at= | () → cons        | the region point is in, as =(BEG . END)=          |
 | =:starts=    | () → markers     | a marker at the start of each region, in order    |
 | =:redraw=    | ()               | draw the bars of the mode again; optional         |
+
+Where =:error-p= says that the region failed, the bar of its result
+says =error=.
 
 The look of a result block:
 
