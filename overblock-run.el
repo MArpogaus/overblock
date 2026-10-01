@@ -260,7 +260,8 @@ FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
 time in seconds since the cell started.  STATE is `running' while the
 cell runs, `died' where the interpreter went away before the cell
-ended, and nil where the cell finished.  IMAGEP marks a result with an image."
+ended, `failed' where the backend calls the result an error, and nil
+where the cell finished.  IMAGEP marks a result with an image."
   (let* ((icons (overblock-buttons (overblock-run--option :buttons)
                                    imagep total (eq state 'running)))
          (mark (overblock-run--mark folded total runtime state))
@@ -269,9 +270,10 @@ ended, and nil where the cell finished.  IMAGEP marks a result with an image."
                                (if (and (not folded) (< shown total))
                                    (format ", showing %d" shown) "")))
                       ((not state) "no output")))
+         (failed (and (eq state 'failed) (propertize "error" 'face 'error)))
          (time (format "%.1fs" runtime)))
     (overblock-bar
-     mark (string-join (delq nil (list label time)) " · ")
+     mark (string-join (delq nil (list failed label time)) " · ")
      icons 'overblock-bar)))
 
 (defun overblock-run-restart (reason restart)
@@ -606,7 +608,8 @@ second time.  `overblock-run-abort' checks the same."
   (when overblock-run--state
     (pcase-let (((map (:from from) :beg (:end fin) :start :timer :follow
                       (:count count))
-                 overblock-run--state))
+                 overblock-run--state)
+                (failed nil))
       ;; The last output, then all of it cleaned: the tail of a
       ;; follower is raw, and its final lines come with the prompt.
       (overblock-run--follow-tick)
@@ -614,8 +617,9 @@ second time.  `overblock-run-abort' checks the same."
       (cancel-timer timer)
       ;; Else the next single cell takes point to the old home.
       (when died (setq overblock-run--queue nil overblock-run--home nil))
+      (setq failed (and (not died) (overblock-run--call :error-p text)))
       (overblock-run--show-in-notebook beg fin text (- (float-time) start)
-                                       (and died 'died))
+                                       (cond (died 'died) (failed 'failed)))
       (when-let* ((buffer (car-safe follow))
                   ((buffer-live-p buffer)))
         (overblock-run--follow-done buffer text))
@@ -624,7 +628,7 @@ second time.  `overblock-run-abort' checks the same."
       ;; Continue the pass, or stop on error. The end of a pass takes
       ;; point home here: its last region is sent with the queue empty.
       (cond ((null overblock-run--queue) (overblock-run-go-home))
-            ((overblock-run--call :error-p text)
+            (failed
              (setq overblock-run--queue nil)
              (message "%s: stopped at error" (overblock-run--name))
              (overblock-run-go-home))

@@ -286,15 +286,33 @@ So a .py file and an Rmd file show the same row."
 ;;;; The mark at the head of a result bar
 
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
-  "A folded result claims to show nothing.
-A folded result of thirty lines read showing 12."
+  "A failed result says so, and a folded one claims to show nothing.
+A traceback looked like any other output, and a folded result of thirty
+lines read showing 12."
   (let ((overblock-run-backend (overblock-run-test--backend)))
+    (should (string-search
+             "error" (substring-no-properties
+                      (overblock-run-header nil 3 3 0.1 'failed nil))))
+    (should-not (string-search
+                 "error" (substring-no-properties
+                          (overblock-run-header nil 3 3 0.1 nil nil))))
     (should (string-search
              "showing 12" (substring-no-properties
                            (overblock-run-header nil 30 12 0.1 nil nil))))
     (should-not (string-search
                  "showing" (substring-no-properties
                             (overblock-run-header t 30 12 0.1 nil nil))))))
+
+(ert-deftest overblock-run-test-a-result-the-backend-calls-an-error-fails ()
+  "The end of a run marks a result `failed' where `:error-p' says so."
+  (overblock-run-test--with-run
+    (goto-char (point-max))
+    (insert "ZeroDivisionError\n>>> ")
+    (overblock-run--filter "ZeroDivisionError\n>>> ")
+    (should (eq (plist-get (overblock-get (overblock-run-test--result notebook)
+                                          :data)
+                           :state)
+                'failed))))
 
 (ert-deftest overblock-run-test-the-mark-says-which-state-it-is-in ()
   "Four states, four marks: a spinner, a warning, a fold arrow, a tick.
