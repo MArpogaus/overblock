@@ -111,11 +111,20 @@ end of the buffer."
 
 (defun overblock-md-preview--interrupts-p (fence from)
   "Return non-nil where the FENCE ends the paragraph that began at FROM.
-It does unless it is indented under a list item; FROM nil is no
-paragraph."
+It does unless it is indented under a list item: the nearest line
+above it that begins at the left margin begins an item.  FROM nil is
+no paragraph."
   (or (not from)
       (overblock-md-preview--margin-p fence)
-      (not (overblock-md-preview--item-p from))))
+      (not (overblock-md-preview--in-item-p fence))))
+
+(defun overblock-md-preview--in-item-p (pos)
+  "Return non-nil where the indented line at POS belongs to a list item."
+  (save-excursion
+    (goto-char pos)
+    (while (and (zerop (forward-line -1))
+                (looking-at-p "[ \t]\\|[ \t]*$")))
+    (overblock-md-preview--item-p (point))))
 
 (defun overblock-md-preview--item-p (pos)
   "Return non-nil where the line at POS begins a list item."

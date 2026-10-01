@@ -264,5 +264,14 @@ then stays source."
       (should (equal (overblock-md-preview-paragraphs (point-max) fences)
                      '((1 . 11) (31 . 41) (43 . 52)))))))
 
+(ert-deftest overblock-md-preview-test-a-fence-after-an-item-s-second-paragraph-stays-in-it ()
+  "A fence under the second paragraph of a loose item belongs to the item."
+  (with-temp-buffer
+    (insert "- Item one\n\n  Second para\n  ```python\n  x = 1\n  ```\n  tail\n- Item two\n")
+    (let ((fences (overblock-md-preview-fences (point-max))))
+      (should-not (seq-some (lambda (p) (string-prefix-p "  tail\n- Item"
+                                                         (buffer-substring (car p) (min (point-max) (+ (car p) 14)))))
+                            (overblock-md-preview-paragraphs (point-max) fences))))))
+
 (provide 'overblock-md-preview-test)
 ;;; overblock-md-preview-test.el ends here
