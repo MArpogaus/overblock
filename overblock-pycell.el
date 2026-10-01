@@ -528,7 +528,7 @@ label depends on the width, the rendering does not."
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
 See `overblock-pycell--md-show', which renders and calls this."
   (let* ((start (1- beg))
-         (help "RET/mouse-2: edit this markdown cell, mouse-1: show source")
+         (help "mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
                 'keymap overblock-pycell-md-map 'help-echo help))

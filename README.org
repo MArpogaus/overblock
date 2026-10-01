@@ -438,7 +438,7 @@ The Markdown features are those of
 
 
 The package binds only the mouse on its bars and blocks. These keymaps
-are empty, so you can bind your own keys. The edit buffer of a markdown
+bind no key, so you can bind your own. The edit buffer of a markdown
 cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
 
 | Map                         | Where it answers                   |

@@ -31,7 +31,7 @@ the block:
                   :kind 'result          ; whose block this is
                   :data ANYTHING         ; what the caller keeps with it
                   :over TEXT             ; shown instead of the region
-                  :indent N              ; columns left in view under it
+                  :indent N              ; columns left in view on later lines
                   :body TEXT             ; shown after the region
                   :header TEXT           ; shown above the body
                   :hidden t              ; show nothing for now
@@ -46,8 +46,9 @@ the block:
   from. A source line that carries nothing goes under a cloak. A blank
   line that takes a gap of the rendering stays in view. Thus a tall
   rendering scrolls like text.
-- =:indent= keeps that many columns of each line in view under the
-  rendering.
+- =:indent= keeps that many columns of each line after the first in
+  view under the rendering. The first row starts where the block
+  starts.
 - =:body= is on the newline that ends the region, and =:header= is above
   it.
 
@@ -123,8 +124,10 @@ rendered line that matches no line near stays on the line before it,
 which keeps a wrapped line together. A blank line of the rendering
 falls on a blank line of the source where one comes next.
 =overblock--no-false-gap= removes a blank line that shr puts after a
-heading where the source has none. The first source line always
-carries a line, because it begins the block.
+heading where the source has none. The first source line carries a
+line only where it cannot go under a cloak: where it begins the
+buffer, or begins inside a line. Thus a fence in the middle of a file
+carries no line of code.
 
 Where fewer than half of the lines match, the rendering is not line by
 line. Its lines are then dealt evenly over the source lines. A longer
