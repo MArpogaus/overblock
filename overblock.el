@@ -461,14 +461,123 @@ the end of a shorter line, which then carries nothing."
 
 (defun overblock--piece-lines (text slots)
   "Return the lines of TEXT to deal over SLOTS rows, as (LONG . LINES).
-LONG is non-nil where TEXT has more lines than there are rows.  The
-blank lines of the rendering then go, and the blank lines of the source
-stay in view instead.  A shorter rendering keeps its own blank lines,
-and those of the source go under the cloak."
-  (let* ((all (overblock--lines (string-trim text "\\(?:[ \t]*\n\\)+"
-                                             "\\(?:\n[ \t]*\\)+")))
-         (long (> (length all) slots)))
-    (cons long (if long (seq-remove #'string-blank-p all) all))))
+LONG is non-nil where TEXT has more lines than there are rows."
+  (let ((all (overblock--lines (string-trim text "\\(?:[ \t]*\n\\)+"
+                                            "\\(?:\n[ \t]*\\)+"))))
+    (cons (> (length all) slots) all)))
+
+(defun overblock--spread (rows lines slots long)
+  "Return LINES dealt over the rows of ROWS with text, a chunk a row.
+SLOTS is how many rows have text.  A LONG rendering loses its blank
+lines, and the blank lines of the source stay in view instead."
+  (let ((dealt (overblock--deal (if long (seq-remove #'string-blank-p lines)
+                                  lines)
+                                slots)))
+    (mapcar (lambda (row) (and (> (nth 2 row) (nth 1 row)) (pop dealt)))
+            rows)))
+
+(defun overblock--key (text)
+  "Return what TEXT and its rendering have in common: its first letters.
+Markup goes (quotes, bullets, pipes, dollars, comment marks), and so
+does case, so a source line and the line it renders to have one key."
+  (let ((bare (downcase (replace-regexp-in-string "[^[:alnum:]]+" "" text))))
+    (substring bare 0 (min 6 (length bare)))))
+
+(defun overblock--keys-match-p (key row-key)
+  "Return non-nil where the line KEY is the key of the row ROW-KEY."
+  (and row-key
+       (not (string-empty-p key))
+       (not (string-empty-p row-key))
+       (or (string-prefix-p key row-key) (string-prefix-p row-key key))))
+
+(defun overblock--ahead (line keys)
+  "Return how many rows of KEYS on LINE belongs, or nil for none near."
+  (let ((key (overblock--key line)))
+    (seq-position (take 4 keys) key
+                  (lambda (row-key key) (overblock--keys-match-p key row-key)))))
+
+(defun overblock--carries-p (row)
+  "Return non-nil where ROW has text to carry a piece."
+  (> (nth 2 row) (nth 1 row)))
+
+(defun overblock--row-keys (rows)
+  "Return the `overblock--key' of each of ROWS, nil for a row without text."
+  (mapcar (lambda (row)
+            (and (overblock--carries-p row)
+                 (overblock--key (without-restriction
+                                   (buffer-substring-no-properties
+                                    (nth 1 row) (nth 2 row))))))
+          rows))
+
+(defun overblock--line-by-line-p (lines keys)
+  "Return non-nil where half the LINES with text match one of KEYS."
+  (let ((text (seq-remove #'string-blank-p lines)))
+    (>= (* 2 (seq-count (lambda (line)
+                          (let ((key (overblock--key line)))
+                            (seq-some (lambda (row-key)
+                                        (overblock--keys-match-p key row-key))
+                                      keys)))
+                        text))
+        (length text))))
+
+(defun overblock--take (lines rows keys)
+  "Return the chunk of LINES the row before ROWS carries, and the rest.
+The answer is (CHUNK . REST).  KEYS are the keys of ROWS.  The row
+takes the next line, and then every line that belongs to no row near
+while a line soon after belongs to the next row: a source line the
+renderer wrapped.  A blank line is left where the next row has no text
+to take it as a gap."
+  (let ((chunk (and lines (list (pop lines)))))
+    (while (and lines
+                (not (and (string-blank-p (car lines))
+                          rows (not (overblock--carries-p (car rows)))))
+                (null (overblock--ahead (car lines) keys))
+                (seq-some (lambda (line) (eql (overblock--ahead line keys) 0))
+                          (take 3 (cdr lines))))
+      (setq chunk (append chunk (list (pop lines)))))
+    (cons chunk lines)))
+
+(defun overblock--align (rows lines)
+  "Return the chunk of LINES each of ROWS carries, nil for none.
+Each rendering line goes to the row it was rendered from, found by
+`overblock--key' among the next few rows.  A row nothing was rendered
+from carries nothing: an underline, a fence, a table rule.  A row
+without text takes a blank line where one comes next, so the gaps of
+the rendering fall on the gaps of the source.  The last row with text
+takes whatever is left.  See `overblock--take' for a wrapped line.
+
+Nil as a whole where fewer than half the lines with text match a row:
+the rendering is no line by line one of its source, and
+`overblock--spread' deals it instead."
+  (let ((carry (seq-count #'overblock--carries-p rows))
+        (keys (overblock--row-keys rows))
+        chunks)
+    (when (overblock--line-by-line-p lines keys)
+      (while rows
+        (let ((row (pop rows)))
+          (cond
+           ((not (overblock--carries-p row))
+            (pop keys)
+            (when (and lines (string-blank-p (car lines))) (pop lines))
+            (push nil chunks))
+           ((and (> carry 1) lines
+                 (memq (overblock--ahead (car lines) keys) '(1 2 3)))
+            ;; The next line belongs further down: nothing here.
+            (pop keys)
+            (setq carry (1- carry))
+            (push nil chunks))
+           ((= carry 1)
+            (pop keys)
+            (setq carry 0)
+            (push lines chunks)
+            (setq lines nil))
+           (t
+            (pop keys)
+            (setq carry (1- carry))
+            (pcase-let ((`(,chunk . ,rest) (overblock--take lines rows keys)))
+              (push chunk chunks)
+              (setq lines rest))))))
+      (nreverse chunks))))
 
 (defun overblock--piece-text (chunk indent)
   "Return the lines of CHUNK as the text of one piece, INDENT columns in.
@@ -484,9 +593,10 @@ row starts."
 Return the overlays that carry the pieces and the cloaks.
 
 A rendering rarely has as many lines as the region.  Where it has more,
-its blank lines go first (a blank line of the source shows for each),
-and one line then carries several, dealt as evenly as possible.  Where
-it has fewer, the lines left over go under a cloak.
+`overblock--align' lays its gaps on the gaps of the source, and the
+last row of a paragraph carries the lines left over.  Where it has
+fewer, its lines are dealt as evenly as possible and the rows left
+over go under a cloak.
 
 A piece covers the text of its line and leaves the newline alone, so
 every line keeps its height; `overblock--piece' makes one.
@@ -504,11 +614,12 @@ under a cloak."
                                           (> (nth 2 row) (nth 1 row)))
                                         rows)))
                (`(,long . ,lines) (overblock--piece-lines text slots))
-               (chunks (overblock--deal lines slots))
+               (chunks (or (overblock--align rows lines)
+                           (overblock--spread rows lines slots long)))
                (parts nil)
                (cloak-from nil))
     (pcase-dolist (`(,bol ,from ,to ,blank) rows)
-      (let ((chunk (and (> to from) (pop chunks))))
+      (let ((chunk (pop chunks)))
         (if (null chunk)
             (unless (and long blank (null cloak-from))
               (setq cloak-from (overblock--cloak-from cloak-from bol)))

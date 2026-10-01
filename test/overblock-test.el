@@ -1025,6 +1025,26 @@ The last cloak reaches the last character."
     (should (invisible-p (1- (point-max))))
     (should (invisible-p (- (point-max) 3)))))
 
+(ert-deftest overblock-test-each-rendered-line-stands-on-its-source-row ()
+  "A rendered line goes to the row it came from, past rows that render to nothing.
+An underline has no line of its own in the rendering, so dealing the
+lines in order put every line after it one row too high."
+  (with-temp-buffer
+    (insert "Title\n-----\ntext one\ntext two\n")
+    (let* ((block (overblock-show (point-min) (point-max)
+                                  :over "Title\ntext one\ntext two"))
+           (shown (lambda (line)
+                    (goto-char (point-min))
+                    (forward-line (1- line))
+                    (seq-some (lambda (ov) (overlay-get ov 'display))
+                              (overlays-at (point))))))
+      (should block)
+      (should (equal (funcall shown 1) "Title"))
+      (should (invisible-p (save-excursion (goto-char (point-min))
+                                           (forward-line 1) (point))))
+      (should (equal (funcall shown 3) "text one"))
+      (should (equal (funcall shown 4) "text two")))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the bounds of the region while the reader

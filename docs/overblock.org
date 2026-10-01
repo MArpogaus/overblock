@@ -114,10 +114,19 @@ These rules are for a graphic frame:
 
 ** Text shown over a region
 
-A rendering with more lines than the region first loses its blank
-lines. The blank lines of the source then stay in view as gaps. A
-shorter rendering keeps its own blank lines, and the spare source lines
-go under the cloak. A blank line in view also keeps the wheel moving.
+Each line of a rendering goes to the source line it came from. The two
+share their first letters and digits once the markup is gone, and
+=overblock--key= is that key. A source line that renders to nothing,
+such as an underline, a fence or a table rule, goes under the cloak. A
+rendered line that matches no line near stays on the line before it,
+which keeps a wrapped line together. A blank line of the rendering
+falls on a blank line of the source where one comes next.
+
+Where fewer than half of the lines match, the rendering is not line by
+line. Its lines are then dealt evenly over the source lines. A longer
+rendering loses its blank lines first, and the blank lines of the
+source stay in view as gaps. A blank line in view also keeps the wheel
+moving.
 
 A cloak is an invisible overlay that starts at the newline of the line
 above. An invisible run that starts inside a line, or a line of no
@@ -556,8 +565,9 @@ text of many lines scrolls as fast as none.
 
 - =overblock-glyph= keeps its answers by font and candidates, and does
   not ask =internal-char-font= again on each tick.
-- =overblock--pieces= takes its lines off a walking list, so its cost
-  is linear in the lines of a region.
+- =overblock--pieces= takes its lines off a walking list. The match of
+  a line looks four source lines ahead, so its cost is linear in the
+  lines of a region.
 - =overblock-fill-props= takes a plist and walks the rendering once.
 - =overblock-show= keeps the block that it has when only the data
   changed, which is each tick of a growing output.
