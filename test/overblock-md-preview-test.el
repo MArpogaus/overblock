@@ -296,6 +296,14 @@ The item is one block, and the fence is not a second one over it."
     (should (equal (overblock-md-preview--source 8 (point-max))
                    "more of one\n```python\ny = 2\n```\n"))))
 
+(ert-deftest overblock-md-preview-test-an-item-after-a-chunk-is-its-own-block ()
+  "In an Rmd file the rest of an item after its chunk stops at the next item."
+  (with-temp-buffer
+    (insert "- two\n  ```{r}\n  1\n  ```\n  Tail.\n- three\n")
+    (should (equal (mapcar (lambda (r) (buffer-substring (car r) (cdr r)))
+                           (overblock-md-preview-regions (point-min) (point-max) t))
+                   '("- two" "  Tail." "- three")))))
+
 (ert-deftest overblock-md-preview-test-deep-fence-under-an-item ()
   "Four spaces in, a fence opens a block only under a list item."
   (with-temp-buffer

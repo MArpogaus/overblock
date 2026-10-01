@@ -116,17 +116,22 @@ end of the buffer."
   "Return non-nil where the line at POS begins at the left margin."
   (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
 
-(defun overblock-md-preview--ends-p (fence every)
-  "Return non-nil where the line at point ends a paragraph.
+(defun overblock-md-preview--ends-p (fence from every)
+  "Return non-nil where the line at point ends the paragraph from FROM.
 A blank line does, and so does FENCE, the start of a fence reached
 here, unless it is indented under a list item: the nearest line above
 it that begins at the left margin begins an item.  With EVERY, each
-fence ends its paragraph."
-  (if fence
-      (or every
-          (overblock-md-preview--margin-p fence)
-          (not (overblock-md-preview--in-item-p fence)))
-    (looking-at-p "[[:blank:]]*$")))
+fence ends its paragraph, and an item ends the indented rest of an
+item that a fence cut off: alone, the converter reads the item as more
+text of that paragraph."
+  (cond (fence
+         (or every
+             (overblock-md-preview--margin-p fence)
+             (not (overblock-md-preview--in-item-p fence))))
+        ((looking-at-p "[[:blank:]]*$"))
+        (every (and from
+                    (not (overblock-md-preview--margin-p from))
+                    (overblock-md-preview--item-p (point))))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."
@@ -158,12 +163,15 @@ one ends no paragraph."
         ;; FENCES and this walk are both in order, so each fence is
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
-          (cond ((overblock-md-preview--ends-p (and fence (caar fences))
-                                                every)
-                 (when from (push (cons from last) regions))
-                 (setq from nil))
-                ((not fence) (setq last (pos-eol)
-                                   from (or from (pos-bol)))))
+          (when (overblock-md-preview--ends-p (and fence (caar fences))
+                                               from every)
+            (when from (push (cons from last) regions))
+            (setq from nil))
+          ;; A line of text goes on with the paragraph or begins one, as
+          ;; an item does that ends a paragraph.
+          (unless (or fence (looking-at-p "[[:blank:]]*$"))
+            (setq last (pos-eol)
+                  from (or from (pos-bol))))
           ;; A fence indented under a list item belongs to it: the walk
           ;; jumps over it and the item goes on, to its end at least.
           (when fence
