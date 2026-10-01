@@ -98,9 +98,9 @@ chunk as its closing fence.  A fence that is never closed runs to the
 end of the buffer.
 
 An HTML comment at the left margin, outside a block, is one region up
-to its end, and a fence in it opens nothing.  A blank line in it would
-otherwise split it, and the converter would read the half that opens
-it to the end of all it is sent."
+to its end, and a fence in it opens nothing.  Split at a blank line,
+its closing half would show as text, and a fence in it would open a
+block."
   (save-excursion
     (goto-char (point-min))
     (let (regions block)
@@ -316,8 +316,9 @@ that tells whether BEG is inside a fence."
 Only under a list item: a later paragraph of an item is indented under
 it, and the converter reads a fence indented deeper than the line
 before it as text.  Elsewhere the indentation makes a code block.
-Only spaces go, so a tab stays the converter's to read.  A block that
-closes no fence gets one; see `overblock-md-preview--closed'."
+Only spaces go, so a tab stays the converter's to read.  A fenced
+block goes out closed under its opening marks; see
+`overblock-md-preview--closed'."
   (let* ((text (buffer-substring-no-properties beg end))
          (indent (if (overblock-md-preview--in-item-p beg)
                      (or (string-match-p "[^ ]" text) 0)
@@ -367,8 +368,7 @@ piece to a line, so a tall block scrolls like text."
 (defun overblock-md-preview-render-buffer ()
   "Render every block of the buffer that is not rendered yet.
 One asynchronous converter process does the whole buffer, so the
-reader does not wait for it.  A block falls back to its own conversion
-when the answer comes back without the marker between every pair.
+reader does not wait for it.
 
 `overblock-live-start' calls this again whenever the reader stops.
 `overblock-md-render-regions' is the batch."

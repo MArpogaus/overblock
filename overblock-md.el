@@ -711,9 +711,10 @@ a converter that failed, and CALLBACK gets nil."
 
 (defun overblock-md-html-batch-async (texts callback)
   "Convert TEXTS in one process and hand the HTML of each to CALLBACK.
-CALLBACK gets the list in the order of TEXTS, or nil where the
-converter is missing, failed, or answered without its marker between
-every pair.
+CALLBACK gets the list in the order of TEXTS.  A batch that loses its
+markers goes again in halves, and a text that still fails alone gets
+nil in the list; see `overblock-md--batch-answer'.  CALLBACK gets nil
+where the converter is missing or failed, or a text holds the marker.
 
 Nothing waits for the process, so Emacs does not freeze.  When the
 buffer that asked dies first, the answer is dropped."
