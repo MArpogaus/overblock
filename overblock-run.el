@@ -333,7 +333,8 @@ are and how many show, and the body is those that show."
   "Show TEXT as the result of the region BEG..END, as the backend says.
 RUNTIME is the time in seconds since the cell started.  STATE is
 `running' while the cell runs, `died' where the interpreter went away
-before the cell ended, and nil where the cell finished.
+before the cell ended, `failed' where the backend calls the result an
+error, and nil where the cell finished.
 
 Empty TEXT gets a header that says \"no output\", so the cell shows as
 evaluated.  A replaced result keeps its fold state.  TOTAL is the
@@ -622,8 +623,8 @@ second time.  `overblock-run-abort' checks the same."
 
 (defun overblock-run--continue (failed)
   "Go on with the pass after a region ended, FAILED or not.
-The end of a pass takes point home: its last region is sent with the
-queue empty.  A pass says that it is over, as it says that it began."
+A failure ends the pass and takes point home; otherwise
+`overblock-run-next' goes on."
   (if (and failed (or overblock-run--queue overblock-run--home))
       (progn (setq overblock-run--queue nil)
              (message "%s: stopped at error" (overblock-run--name))
