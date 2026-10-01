@@ -1109,7 +1109,7 @@ options shape what a block looks like. Every caller shares them.
   packages built on it:
   - A converter from Markdown or reStructuredText to HTML. The
     candidates of =overblock-md-command= are =pandoc --mathjax
-    --no-highlight -f markdown-implicit_figures=, =markdown_py -x
+    --no-highlight --wrap=none -f markdown-implicit_figures=, =markdown_py -x
     tables -x fenced_code=, =cmark-gfm -e table=, =markdown= and
     =cmark=, and the first one on your =exec-path= is used.
   - An Emacs with libxml2, because shr reads the converter's HTML with

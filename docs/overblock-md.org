@@ -19,8 +19,8 @@ Nothing in it shows anything.
 ** The converter
 
 =overblock-md-command= names the command that turns Markdown into
-HTML. The candidates are =pandoc --mathjax --no-highlight -f
-markdown-implicit_figures=, =markdown_py -x tables -x fenced_code=,
+HTML. The candidates are =pandoc --mathjax --no-highlight --wrap=none
+-f markdown-implicit_figures=, =markdown_py -x tables -x fenced_code=,
 =cmark-gfm -e table=, =markdown= and =cmark=, in this order: the ones
 that can carry a table and a code fence first, and each one told to
 leave the math for the preview machinery. Plain =pandoc= renders a
@@ -28,6 +28,9 @@ formula itself, which left a document with no inline math at all.
 =markdown_py= without its extensions turns a table into one line of
 pipes and a fenced block into one line of words, and =cmark= and Perl
 =markdown= can do neither at all.
+
+=--wrap=none= because a line pandoc wraps in its HTML splits a long
+formula in two, and the two halves are no formula.
 
 =--no-highlight= because shr reads no CSS class, so the colours pandoc
 encodes in one are dropped and the only thing that survives its

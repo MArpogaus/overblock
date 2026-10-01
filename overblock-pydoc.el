@@ -81,8 +81,9 @@ out in columns and left the Sphinx roles standing in the prose."
   :safe #'symbolp)
 
 (defcustom overblock-pydoc-command
-  '((rst . "pandoc --mathjax --no-highlight -f rst")
-    (markdown . "pandoc --mathjax --no-highlight -f markdown+hard_line_breaks"))
+  '((rst . "pandoc --mathjax --no-highlight --wrap=none -f rst")
+    (markdown
+     . "pandoc --mathjax --no-highlight --wrap=none -f markdown+hard_line_breaks"))
   "How to turn a doc string into HTML, per markup.
 An alist of (MARKUP . COMMAND), where MARKUP is a value of
 `overblock-pydoc-markup' and COMMAND is read as `overblock-md-command'

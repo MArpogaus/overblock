@@ -107,7 +107,7 @@ says nothing there, so this face says it with a color.")
   ;; survive, as links to nowhere. Measured on a document of three
   ;; fenced blocks, pandoc spent 785 milliseconds of which 720 were
   ;; the syntax definitions it loaded to paint them.
-  '("pandoc --mathjax --no-highlight -f markdown-implicit_figures"
+  '("pandoc --mathjax --no-highlight --wrap=none -f markdown-implicit_figures"
     "markdown_py -x tables -x fenced_code"
     "cmark-gfm -e table" "markdown" "cmark")
   "How to turn Markdown into HTML.
@@ -121,8 +121,9 @@ installed.
 
 Leave the math alone when choosing arguments.  Pandoc, for one, turns
 simple formulas into text on its own and passes the rest through, and
-`overblock-md--stow-math' then takes what is left to org, which makes
-the preview images."
+`overblock-md--stow-math' then takes what is left to
+latex-to-svg-backend, which makes the preview images.  With pandoc,
+keep `--wrap=none': a wrapped line splits a long formula in two."
   :type '(choice (string :tag "Shell command")
                  (repeat (string :tag "Candidate command")))
   :group 'overblock-md)
