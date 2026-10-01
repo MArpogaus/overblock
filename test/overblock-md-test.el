@@ -56,15 +56,13 @@
 
 (defun overblock-md-test--math (text)
   "Return TEXT with its LaTeX fragments taken out and put back.
-The renderer takes the fragments out of the parsed document and puts
-them back once shr has laid it out; this does both to a string, which
-is what the fragments themselves see."
+The renderer does this to the parsed document around shr; this does
+both steps to a string."
   (overblock-md--unstow-math (overblock-md--stow-in-string text)))
 
 (ert-deftest overblock-md-test-image-file-reads-a-path ()
   "A local path names a file; another scheme, or nothing readable, does not.
-An Emacs that cannot draw a PNG answers nil for every path, and rightly:
-the image then belongs to shr, which says so with a box of its own."
+An Emacs that cannot draw a PNG returns nil for every path."
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
     (let ((default-directory (file-name-directory file)))
@@ -78,22 +76,21 @@ the image then belongs to shr, which says so with a box of its own."
 
 (ert-deftest overblock-md-test-names-an-image-without-a-display ()
   "Where no image can be drawn, the cell says which figure is there.
-shr's own placeholder is an image, and its display property swallows the
-text under it: a terminal would show a blank row where a figure belongs.
+The placeholder of shr is an image, which would hide the text under
+it, so a terminal would show a blank row.
 
-The label is drawn for a file this Emacs knows how to read, and
-`overblock-md--image-file' answers nil for every path where it knows
-none -- so an Emacs built without image support has nothing to label."
+The label is drawn only for a file this Emacs can read: without image
+support `overblock-md--image-file' returns nil."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
     (let* ((default-directory (file-name-directory file))
            (shown (overblock-md-rendered "![a figure](figure.png)")))
-      ;; batch draws nothing, so the label stands on its own
+      ;; Batch draws no images, so only the label shows.
       (should-not (display-images-p))
       (should-not (overblock-image-in shown))
       (should (string-match-p "a figure" (substring-no-properties shown))))
-    ;; and with no alt text, the file names itself
+    ;; Without alt text, the file name is the label.
     (let* ((default-directory (file-name-directory file))
            (shown (overblock-md-rendered "![](figure.png)")))
       (should (string-match-p "\\[figure.png\\]"
@@ -102,7 +99,7 @@ none -- so an Emacs built without image support has nothing to label."
 (ert-deftest overblock-md-test-draws-a-local-image ()
   "A markdown cell draws the image it names, rather than shr's placeholder.
 shr fetches an image through `url-queue-retrieve', which answers after
-the rendering is over; a file on disk is drawn here and now."
+the rendering is done; a file on disk is drawn at once."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
@@ -112,7 +109,7 @@ the rendering is over; a file on disk is drawn here and now."
                (spec (overblock-image-in shown)))
       (should spec)
       (should (equal (plist-get (cdr spec) :file) file))
-      ;; the alt text carries it, so a terminal still says what is there
+      ;; The alt text carries the image, so a terminal shows the text.
       (should (string-match-p "a figure" (substring-no-properties shown))))))
 
 (ert-deftest overblock-md-test-keeps-a-link-on-an-image ()
@@ -133,13 +130,11 @@ the rendering is over; a file on disk is drawn here and now."
                   #'shr-browse-url)))))
 
 (ert-deftest overblock-md-test-a-remote-image-stays-with-shr ()
-  "An image on the network is shr's business where the package leaves it.
-`overblock-md-remote-images' is off here and shr is told to fetch
-nothing: a test asks the network for nothing at all."
+  "With `overblock-md-remote-images' off, a remote image is not fetched.
+shr is also told to fetch nothing, so the test uses no network."
   (skip-unless (overblock-md-program))
-  ;; A display that draws images, or the option under test says nothing:
-  ;; `overblock-md--remote-file' answers nil in a batch session whatever
-  ;; the option is, and the test then passed with the option on.
+  ;; A display that draws images: in batch `overblock-md--remote-file'
+  ;; returns nil whatever the option says.
   (let ((fetches 0))
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
               ((symbol-function 'url-copy-file)
@@ -149,16 +144,14 @@ nothing: a test asks the network for nothing at all."
              (shown (overblock-md-rendered
                      "![a figure](https://example.org/f.png)"))
              (spec (overblock-image-in shown)))
-        ;; nothing was asked of the network, which is the option's whole
-        ;; promise
+        ;; Nothing was fetched.
         (should (= fetches 0))
-        ;; shr leaves a placeholder of its own making, and it is not a file
+        ;; The alt text shows, so no image of a file is there.
         (should (or (null spec) (null (plist-get (cdr spec) :file))))))))
 
 (ert-deftest overblock-md-test-a-remote-image-is-fetched-once ()
   "An image named by URL is fetched once and drawn from the file.
-A badge in a link — the Colab badge of a notebook — stayed its alt text,
-because shr fetches with `url-queue-retrieve' and answers into a buffer
+shr fetches with `url-queue-retrieve', which answers into a buffer
 that the rendering has already left."
   (let* ((cache (make-temp-file "overblock-images" t))
          (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
@@ -178,7 +171,7 @@ that the rendering has already left."
             (should first)
             (should (file-readable-p first))
             (should (equal (overblock-md--remote-file url) first))
-            ;; Once for the session and once for the machine.
+            ;; Once, then from the cache.
             (should (= fetches 1))))
       (delete-directory cache t))))
 
@@ -202,10 +195,9 @@ that the rendering has already left."
 
 (ert-deftest overblock-md-test-no-parser-no-program ()
   "Without the parser there is no converter worth naming.
-shr reads the converter's HTML with `libxml-parse-html-region', which
-an Emacs built without libxml2 does not have.  Rendering signalled a
-void function there instead of answering nil, so a caller could not
-leave the text plain and say which part was missing."
+shr reads the HTML with `libxml-parse-html-region', which an Emacs
+without libxml2 does not have.  Rendering then returns nil, so a caller
+can leave the text plain."
   (cl-letf (((symbol-function 'libxml-parse-html-region) nil))
     (should-not (fboundp 'libxml-parse-html-region))
     (should-not (overblock-md-program))
@@ -213,8 +205,8 @@ leave the text plain and say which part was missing."
 
 (ert-deftest overblock-md-test-program-takes-a-string-or-a-list ()
   "A string and a list of candidates both resolve to a program.
-Only where there is a parser to read the converter's HTML with: see
-`overblock-md-test-no-parser-no-program' for the other direction."
+Only where there is a parser for the HTML; see
+`overblock-md-test-no-parser-no-program' for the other case."
   (skip-unless (fboundp 'libxml-parse-html-region))
   (let ((overblock-md-command "definitely-not-installed-xyz"))
     (should-not (overblock-md-program)))
@@ -226,7 +218,7 @@ Only where there is a parser to read the converter's HTML with: see
 
 (ert-deftest overblock-md-test-rendered-gives-text-not-markup ()
   "Markdown becomes text, when a converter is installed.
-Pixel filling needs font metrics, which a batch session has none of."
+Pixel filling needs font metrics, which batch does not have."
   (skip-unless (overblock-md-program))
   (let* ((shr-use-fonts nil)
          (shr-width 60)
@@ -236,9 +228,8 @@ Pixel filling needs font metrics, which a batch session has none of."
 
 (defun overblock-md-test--batch (texts)
   "Return the HTML of each of TEXTS from one call of the converter.
-What `overblock-md-html-batch-async\' does between its process and its
-callback, without the process: the texts are joined with the marker
-between them and the answer is split at it again."
+This is what `overblock-md-html-batch-async' does around its process:
+the texts are joined with the marker, and the answer is split at it."
   (when-let* ((joined (overblock-md--batch-text texts)))
     (overblock-md--batch-pieces (overblock-md--html joined) texts)))
 
@@ -250,17 +241,14 @@ between them and the answer is split at it again."
     (should (string-match-p "first" (nth 0 htmls)))
     (should (string-match-p "second" (nth 1 htmls)))
     (should (string-match-p "third" (nth 2 htmls)))
-    ;; nothing of one cell leaks into the next
+    ;; No text of one cell is in the next.
     (should-not (string-match-p "second" (nth 0 htmls))))
-  ;; a cell that holds the marker sends everyone the ordinary way
+  ;; A cell that holds the marker: no batch.
   (should-not (overblock-md--batch-text (list "text" overblock-md--marker))))
 
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
-`:stderr nil' mixes standard error into the output rather than
-throwing it away, and pandoc writes there: it warns about the math it
-leaves alone and about the arguments it means to retire, and one such
-line came back as the first paragraph of every rendering."
+`:stderr nil' would mix the warnings of pandoc into the HTML."
   (skip-unless (executable-find "sh"))
   (let ((overblock-md-command "sh -c 'echo [WARNING] noise >&2; cat'")
         (answered 'not-yet))
@@ -272,9 +260,8 @@ line came back as the first paragraph of every rendering."
 
 (ert-deftest overblock-md-test-an-answer-for-changed-text-is-dropped ()
   "A rendering that came back after the reader typed is thrown away.
-The region moves with its markers, so the answer landed on the text
-the reader had just changed — and it stayed there, because nothing
-renders a region that carries a rendering already."
+The region moves with its markers, and a rendering of old text would
+stay, because nothing renders a region that has a rendering."
   (skip-unless (executable-find "sh"))
   (with-temp-buffer
     (insert "one\n\ntwo\n")
@@ -290,18 +277,17 @@ renders a region that carries a rendering already."
              (lambda (beg end _html) (push (buffer-substring-no-properties
                                             beg end)
                                            shown)))
-            ;; the reader types in the first region while it converts
+            ;; Typing in the first region while it converts.
             (goto-char 2)
             (insert "X")
             (overblock-test-common-wait (lambda () shown) 10)
-            ;; the region they left alone is rendered and theirs is not
+            ;; Only the other region renders.
             (should (equal shown '("two"))))
         (overblock-live-stop 'md-test)))))
 
 (ert-deftest overblock-md-test-a-nested-list-is-one-list ()
   "A list with a nested one in it renders as tall as its source.
-shr opens a paragraph — a blank line — before and after every list,
-and a nested list came back in three groups the writer never wrote."
+shr puts a blank line before and after every list, also a nested one."
   (skip-unless (overblock-md-program))
   (let* ((shr-width 60)
          (source (concat "- a first item\n- a second item\n"
@@ -316,10 +302,9 @@ and a nested list came back in three groups the writer never wrote."
 
 (ert-deftest overblock-md-test-a-definition-stands-under-its-term ()
   "A definition renders under its term, with no blank line between.
-Which is what a numpydoc section is made of, and what keeps a rendered
-doc string from standing taller than the source it covers: pandoc
-wraps every description in a paragraph, and a paragraph opens with a
-blank line."
+A numpydoc section is made of these.  pandoc wraps every description
+in a paragraph, which opens with a blank line, and the rendering would
+be taller than its source."
   (skip-unless (executable-find "pandoc"))
   (let* ((overblock-md-command "pandoc --mathjax --no-highlight -f rst")
          (shr-width 60)
@@ -330,15 +315,15 @@ blank line."
     (should (string-match-p
              "xs : list of float\n +the values to measure *\nunit : str"
              shown))
-    ;; and the whole of it fits in the lines it stands on
+    ;; It fits in the lines of its source.
     (should (<= (length (split-string shown "\n"))
                 (length (split-string source "\n"))))))
 
 (ert-deftest overblock-md-test-html-batch-gives-up-when-the-marker-changes ()
   "A converter that reshapes the marker sends every cell its own way.
-The batch is only safe while the pieces come back one to a cell, and
-nothing but their number says whether they did."
-  ;; one piece for each cell, and the pieces are the cells
+The batch is safe only while the pieces come back one to a cell, and
+only their number tells."
+  ;; One piece for each cell.
   (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (md) (replace-regexp-in-string
                            "\\([^\n]+\\)" "<p>\\1</p>" md))))
@@ -346,33 +331,30 @@ nothing but their number says whether they did."
       (should (= (length pieces) 2))
       (should (string-match-p "one" (nth 0 pieces)))
       (should (string-match-p "two" (nth 1 pieces)))))
-  ;; and nothing at all when the marker does not come back
+  ;; Nothing when the marker does not come back.
   (cl-letf (((symbol-function 'overblock-md--html)
              (lambda (_md) "<h1>one</h1>\n<h1>two</h1>")))
     (should-not (overblock-md-test--batch '("one" "two")))))
 
 (ert-deftest overblock-md-test-no-previews-without-images ()
   "A display that cannot draw images gets no preview substitution.
-One image in the rendered text costs the cell its piece-per-line
-scrolling, and a terminal cannot even show it — so where
-`display-images-p' says no, the fragments stay text, untouched."
+Where `display-images-p' says no, the fragments stay text."
   (cl-letf (((symbol-function 'display-images-p) #'ignore)
             ;; A LaTeX that would succeed, to prove it is never asked.
             ((symbol-function 'overblock-md--latex-image)
              (lambda (&rest _) (error "The terminal asked for an image"))))
     (let ((text "before $x^2$ after"))
       (should (equal (overblock-md-test--math text) text)))
-    ;; and the MathJax delimiters still come off, or the terminal reads
-    ;; every formula of the cell as \\(x_1\\)
+    ;; The MathJax delimiters still come off.
     (should (equal (overblock-md-test--math "before \\(x^2\\) after")
                    "before x^2 after"))))
 
 (ert-deftest overblock-md-test-a-fenced-block-wears-the-faces-of-its-language ()
   "A block that opens with ```python wears the faces of `python-mode'.
 A block without a language wears none of them.
-The language stands in the class of the <pre> or its <code>, however
-the converter spells it, and `overblock-md-code-modes' set to nil turns
-the painting off."
+The language is in the class of the <pre> or its <code>, in each
+spelling of the converters.  `overblock-md-code-modes' set to nil
+turns the painting off."
   (skip-unless (overblock-md-program))
   (let* ((md "```python\ndef f():\n    pass\n```\n\n```\nplain\n```\n")
          (faces (lambda (rendered word)
@@ -385,7 +367,7 @@ the painting off."
     (let ((overblock-md-code-modes nil))
       (should-not (memq 'font-lock-keyword-face
                         (funcall faces (overblock-md-rendered md) "def"))))
-    ;; the three spellings of a language class
+    ;; The three spellings of a language class.
     (dolist (html '("<pre class=\"python\"><code>x</code></pre>"
                     "<pre><code class=\"language-python\">x</code></pre>"
                     "<pre class=\"sourceCode python\"><code class=\"sourceCode python\">x</code></pre>"))
@@ -408,9 +390,8 @@ the painting off."
 (ert-deftest overblock-md-test-verbatim-math-keeps-lines ()
   "Display math keeps its line structure, whatever the display draws.
 shr fills paragraphs, so a $$ block is wrapped in <pre> before the
-converter.  It is wrapped on a display that draws images as well: a
-frame can draw one and still have no LaTeX to make it with, and a
-fragment LaTeX cannot compile stays text anywhere."
+converter.  This also happens on a display that draws images: a
+fragment can stay text there too."
   (let ((md "prose\n$$\na &= b \\\\\nc &= d\n$$\nmore"))
     (dolist (images (list #'ignore (lambda (&rest _) t)))
       (cl-letf (((symbol-function 'display-images-p) images))
@@ -419,11 +400,8 @@ fragment LaTeX cannot compile stays text anywhere."
 
 (ert-deftest overblock-md-test-a-wrapped-block-still-gets-its-preview ()
   "A block that keeps its lines is replaced by one preview, drawn once.
-The fragment is matched across its lines, so the wrapping in <pre>
-costs the preview nothing — and the image takes one row, not the rows
-the source had: a display property is drawn once for every screen line
-its run reaches, and the rows left under a figure stood empty.
-Measured, two blank lines after every displayed formula."
+The fragment is matched across its lines, so the <pre> does not stop
+the preview.  The image takes one row, with no empty rows under it."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image)
@@ -438,17 +416,17 @@ Measured, two blank lines after every displayed formula."
                     'image)
             (setq runs (1+ runs)))
           (setq pos next)))
-      ;; one image, and the prose beside it untouched
+      ;; One image, and the prose is unchanged.
       (should (= runs 1))
       (should (string-match-p "prose" (substring-no-properties rendered)))
-      ;; the formula is one row, and the rows under it are gone
+      ;; The formula is one row.
       (should (= (length (split-string rendered "\n")) 3)))))
 
 (ert-deftest overblock-md-test-table-columns-are-literal ()
   "A rendered table aligns with real spaces, not display specs.
-shr's `:align-to' counts from the line's visual start, and a cell is
-shown indented, so only literal columns survive.  The second row's
-cells must start where the header's do."
+The `:align-to' of shr counts from the visual start of the line, and a
+cell is shown indented, so only literal columns align.  The cells of
+the second row start where those of the header do."
   (skip-unless (overblock-md-program))
   (let* ((rendered (overblock-md-rendered
                     "| node | form |\n|------|------|\n| X1 | h1 |\n"))
@@ -464,9 +442,8 @@ cells must start where the header's do."
 
 (ert-deftest overblock-md-test-a-header-cell-and-code-have-a-face ()
   "A header cell is bold and inline code wears the face of code.
-shr has no function for a =th=, and it draws code in a fixed pitch
-face, which says nothing where the rendering runs with
-`shr-use-fonts' nil."
+shr has no function for a th, and its fixed pitch code face shows
+nothing with `shr-use-fonts' nil."
   (skip-unless (overblock-md-program))
   (let* ((rendered (overblock-md-rendered
                     "| head | x |\n|------|---|\n| `code_here` | y |\n"))
@@ -477,11 +454,9 @@ face, which says nothing where the rendering runs with
     (should (memq 'overblock-md-code (ensure-list (funcall faces "code_here"))))))
 
 (ert-deftest overblock-md-test-a-wrapped-formula-keeps-its-row ()
-  "The converter's own line break inside a formula is no row of the rendering.
-pandoc wraps its HTML at 72 columns, in the middle of a formula where
-that is where the column falls, and the fragment then carries a newline
-of its own.  Hung on the fragment as it came, the image ended the row
-there and the full stop after the formula stood on a row of its own."
+  "A line break of the converter inside a formula is no row of the rendering.
+pandoc wraps its HTML at 72 columns, also inside a formula.  The full
+stop after the formula stays on the row of the image."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image)
@@ -501,20 +476,18 @@ $\\sin^2 x + \\cos^2 x = 1$."))
                                      rendered))
            (after (next-single-property-change image 'display rendered)))
       (should image)
-      ;; the full stop follows the image on its row
+      ;; The full stop follows the image on its row.
       (should (eq (aref rendered after) ?.)))))
 
 (ert-deftest overblock-md-test-math-in-a-table-stays-text ()
   "A formula in a table cell keeps its text, so the columns hold.
-A preview image is never as wide as the text it replaces, and a table
-is padded for the text.  Outside a table the same formula becomes an
-image."
+A table is padded for the text, which an image does not match.
+Outside a table the same formula becomes an image."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image)
              (lambda (_frag) '(image :type png :data "x"))))
-    ;; A formula the converter cannot render itself is the one that
-    ;; reaches this package: pandoc renders simple math as text.
+    ;; A formula pandoc cannot render as text itself.
     (let ((in-table (overblock-md-rendered
                      "| a | b |\n|---|---|\n| $\\frac{a}{b}$ | y |\n"))
           (outside (overblock-md-rendered
@@ -524,11 +497,11 @@ image."
 
 (ert-deftest overblock-md-test-a-preview-is-asked-for-and-arrives-later ()
   "A fragment without a preview is asked for, and shown as text meanwhile.
-Nothing waits for LaTeX: the engine answers nil for an equation it has
-not compiled and calls back when it has, and the caller reads that as
-`pending\' and shows the fragment as text until then.  The buffer the
-rendering is for is carried into the callback, because the engine calls
-it from a sentinel where the current buffer is its own."
+Nothing waits for LaTeX: the engine returns nil for an equation it has
+not compiled and calls back when it has, and the caller shows the
+`pending' fragment as text until then.  The buffer of the rendering is
+carried into the callback, because the engine calls it from a sentinel
+in its own buffer."
   (let* ((buffer (generate-new-buffer "overblock-md-preview"))
          (overblock-md--buffer buffer)
          (overblock-md--latex-arrivals nil)
@@ -545,21 +518,21 @@ it from a sentinel where the current buffer is its own."
                    (lambda (latex &rest keys)
                      (push latex asked)
                      (setq callback (plist-get keys :callback))
-                     ;; the colour and the font of the buffer that asked,
-                     ;; and not of the temporary one shr renders in
+                     ;; The colour of the buffer that asked, not of the
+                     ;; temporary buffer of shr.
                      (should (equal (plist-get keys :color)
                                     (with-current-buffer buffer
                                       (face-attribute 'default :foreground
                                                       nil t))))
                      nil)))
-          ;; no image yet: the fragment stands as text and a callback is left
+          ;; No image yet: the fragment is text, and a callback is set.
           (should (eq (overblock-md--latex-image "$x$") 'pending))
           (should (equal asked '("$x$")))
           (should (functionp callback))
-          ;; the callback notes the buffer rather than drawing there and then
+          ;; The callback notes the buffer and does not draw.
           (funcall callback)
           (should (equal overblock-md--latex-arrivals (list buffer)))
-          ;; and an image, once there is one, comes back capped
+          ;; An image, when there is one, comes back capped.
           (cl-letf (((symbol-function 'latex-to-svg-backend)
                      (lambda (&rest _) '(image :type svg :data "x")))
                     ((symbol-function 'overblock-image-limit) (lambda () 40)))
@@ -570,10 +543,9 @@ it from a sentinel where the current buffer is its own."
 
 (ert-deftest overblock-md-test-the-engine-is-asked-from-the-readers-buffer ()
   "The engine reads its options in the buffer the rendering is for.
-latex-to-svg-backend reads every option in the requesting buffer, so a
-preamble a project sets in `.dir-locals.el' never reached the compile
-while it was asked from shr's temporary buffer.  A bare `align' block
-loses the display delimiters pandoc put around it."
+latex-to-svg-backend reads every option in the requesting buffer, such
+as a preamble from `.dir-locals.el'.  A bare `align' block loses the
+display delimiters pandoc puts around it."
   (let* ((buffer (generate-new-buffer "overblock-md-preview"))
          (overblock-md--buffer buffer)
          asked-in asked)
@@ -594,8 +566,7 @@ loses the display delimiters pandoc put around it."
 
 (ert-deftest overblock-md-test-a-hover-is-asked-again-when-its-formula-arrives ()
   "A preview that arrives after a hover was rendered asks for the hover again.
-eglot renders in a temporary buffer that is gone by then, so the first
-hover of a formula showed its LaTeX until the reader moved and came back."
+eglot renders in a temporary buffer that is gone by then."
   (let ((reader (generate-new-buffer "overblock-md-reader"))
         (overblock-md--eldoc-timer nil)
         (overblock-md--eldoc-cache (make-hash-table :test #'equal))
@@ -614,7 +585,7 @@ hover of a formula showed its LaTeX until the reader moved and came back."
                     ((symbol-function 'eldoc-print-current-symbol-info)
                      (lambda (&optional interactive)
                        (setq asked-again (list (current-buffer) interactive)))))
-            ;; the hover is rendered with its asker known
+            ;; The hover renders with its asker known.
             (cl-letf (((symbol-function 'overblock-md-rendered)
                        (lambda (_md) (overblock-md--latex-image "$x$") "x")))
               (overblock-md--eldoc-rendering "A formula $x$ here."))
@@ -624,9 +595,8 @@ hover of a formula showed its LaTeX until the reader moved and came back."
       (kill-buffer reader))))
 
 (ert-deftest overblock-md-test-a-formula-wears-the-colour-of-its-prose ()
-  "A caller's face gives the formulas their colour.
-pydoc paints its prose in `font-lock-doc-face', and the formulas came
-out in the foreground of `default' beside it."
+  "The face of a caller gives the formulas their colour.
+pydoc paints its prose in `font-lock-doc-face'."
   (let ((overblock-md--buffer nil)
         (overblock-md-math-face 'font-lock-doc-face)
         color)
@@ -640,35 +610,31 @@ out in the foreground of `default' beside it."
 
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
-A terminal and an Emacs without SVG both answer so, and neither is a
-failure to report: the reader sees the formula as it was written."
+A terminal and an Emacs without SVG; neither is a failure to report."
   (cl-letf (((symbol-function 'latex-to-svg-backend-available-p) #'ignore))
     (should-not (overblock-md--latex-image "$x$"))))
 
 (ert-deftest overblock-md-test-a-price-is-not-a-formula ()
   "Two prices in a sentence are not a LaTeX fragment.
-The pattern guarded the opening delimiter and not the closing one, so
-\"costs $100 and that one $200\" made a formula of the prose between
-them, and so did \"`$HOME` and then `$PATH`\"."
+No space may be just inside either delimiter."
   (dolist (text '("This item costs $100 and that one $200 today."
                   "Set $HOME and then $PATH for the run."
                   "A $ on its own and another $ later."))
     (should-not (string-match-p overblock-md--math-regexp text)))
-  ;; And what is a formula still is one.
+  ;; Formulas still match.
   (dolist (text '("$x$" "$x^2$" "$a + b$" "$\\frac{a}{b}$" "$ab$$cd$"
                   "$$\na = b\n$$"))
     (should (string-match-p overblock-md--math-regexp text))))
 
 (ert-deftest overblock-md-test-a-converter-that-fails-keeps-the-cell-plain ()
-  "A converter that exits non-zero answers nil rather than raising.
-A caller renders from the body of a minor mode, so a signal here left
-the mode on with nothing rendered and took the rest of the hook that
-turned it on with it."
+  "A converter that exits non-zero returns nil and does not signal.
+A caller renders from the body of a minor mode, where an error would
+stop the hook that turns the mode on."
   (let ((overblock-md-command "false"))
     (should-not (overblock-md--html "# heading"))
     (should-not (overblock-md-rendered "# heading"))
     (should-not (overblock-md-test--batch '("a" "b"))))
-  ;; And with no converter at all, which has always answered nil.
+  ;; No converter at all: nil too.
   (let ((overblock-md-command "there-is-no-such-program-here"))
     (should-not (overblock-md--html "# heading"))
     (should-not (overblock-md-test--batch '("a" "b")))))
@@ -676,8 +642,7 @@ turned it on with it."
 (ert-deftest overblock-md-test-a-link-keeps-its-keymap-through-fill-props ()
   "A link in a rendered cell keeps its own keymap when the block fills one.
 The block gives every row its keymap with `overblock-fill-props', which
-must leave what shr put on the link alone — this test used to assert on
-shr's own output and never called the function it names."
+must leave the keymap of shr on the link alone."
   (skip-unless (overblock-md-program))
   (let* ((shown (overblock-md-rendered "[text](https://example.org/)"))
          (pos (and shown (text-property-not-all 0 (length shown) 'keymap nil
@@ -689,42 +654,36 @@ shr's own output and never called the function it names."
 
 (ert-deftest overblock-md-test-math-that-stays-text-loses-its-braces ()
   "A fragment no image was made for shows without MathJax delimiters.
-A formula in a table stays text, and pandoc with MathJax writes
-\\(x_1\\): the parentheses are noise on the screen.  The place they held
-is padded, because a table is padded to the width of its text and a
-narrower cell would pull the columns of its row out of line.
+A formula in a table stays text, and the \\( \\) of MathJax mean nothing
+to a reader.  Their place is padded, because a table is padded to the
+width of its text.
 
-The text itself, not a display property: a piece hangs its whole row on
-one display property, and a display property inside a display string is
-never looked at."
+The text changes, not a display property: a row of a piece is one
+display property, and display properties do not nest."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
             ((symbol-function 'overblock-md--latex-image) #'ignore))
-    ;; in a table, where no preview is ever made. The table's mark
-    ;; is on the laid-out text, which is where `overblock-md--tag-table'
-    ;; puts it: shr has run by then, and the fragment itself never
-    ;; carries it.
+    ;; In a table. `overblock-md--tag-table' marks the laid-out text,
+    ;; after shr, not the fragment.
     (let* ((cell (propertize (overblock-md--stow-in-string "\\(x_1\\)  a source")
                              'overblock-md--table t))
            (shown (substring-no-properties (overblock-md--unstow-math cell))))
       (should (string-prefix-p "x_1" shown))
       (should-not (string-search "\\(" shown))
-      ;; as wide as before, or the columns move
+      ;; As wide as before, so the columns hold.
       (should (= (length shown) (length "\\(x_1\\)  a source"))))
-    ;; outside a table nothing needs padding
+    ;; Outside a table nothing is padded.
     (should (equal (overblock-md-test--math "before \\(x^2\\) after")
                    "before x^2 after"))
-    ;; dollars are how a notebook writes a formula: they stay
+    ;; Dollars stay.
     (let ((text "before $x^2$ after"))
       (should (equal (overblock-md-test--math text) text)))
-    ;; display math over several rows keeps them
+    ;; Display math over several rows keeps them.
     (let ((text "\\[\na = b\n\\]"))
       (should (equal (overblock-md-test--math text) text)))))
 
 (ert-deftest overblock-md-test-the-theme-hooks-wait-for-a-rendering ()
   "Loading the file installs no hook; the first rendering installs two.
-A package of this repository does not change how Emacs behaves by
-being loaded, which the two notebook modes promise in their own
-docstrings, and a buffer that renders nothing needs no theme watch."
+Loading a package of this repository changes nothing."
   (let ((enable-theme-functions nil)
         (disable-theme-functions nil))
     (should-not (memq #'overblock-md--theme-changed enable-theme-functions))
@@ -734,9 +693,8 @@ docstrings, and a buffer that renders nothing needs no theme watch."
 
 (ert-deftest overblock-md-test-a-theme-change-draws-the-formulas-again ()
   "A rendering that holds a preview comes down when the theme changes.
-The preview is drawn in the foreground of the theme, so the one on the
-screen is in the old colour until it is rendered again; a rendering
-without a formula is left alone."
+The preview is drawn in the foreground of the theme.  A rendering
+without a formula stays."
   (with-temp-buffer
     (setq-local overblock-live--specs (list (list 'md-preview #'ignore)))
     (insert "one\ntwo\n")
@@ -750,9 +708,8 @@ without a formula is left alone."
 
 (ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
   "With `overblock-md-remote-images' off, nothing reaches the network.
-`shr-tag-img' fetches with `url-queue-retrieve' whatever this package
-decided, so the option that says to ask for nothing asked anyway, and
-the answer arrived long after the cell had been rendered."
+The image is not given to `shr-tag-img', which would fetch it with
+`url-queue-retrieve'.  The alt text shows."
   (let ((overblock-md-remote-images nil)
         (asked nil))
     (cl-letf (((symbol-function 'url-queue-retrieve)
@@ -768,9 +725,8 @@ the answer arrived long after the cell had been rendered."
 
 (ert-deftest overblock-md-test-a-painted-block-is-a-rectangle ()
   "A run of rows that wears a background is squared off to its longest.
-shr ends a row where its text ends, so a fenced block came out as a
-ragged patch of colour.  A blank line inside the block belongs to it;
-the one that closes it does not."
+shr ends a row where its text ends.  A blank line inside the block
+belongs to it; the one after it does not."
   (skip-unless (overblock-md-program))
   (let* ((custom--inhibit-theme-enable nil)
          (rendered
@@ -784,47 +740,41 @@ the one that closes it does not."
                                      (overblock-md--background
                                       (get-text-property 0 'face line))))
                               lines)))
-    ;; the four rows of the block, the blank line among them
+    ;; The four rows of the block, the blank line among them.
     (should (= (length painted) 4))
-    ;; one width for all of them, and it is the longest row's
+    ;; One width for all of them, that of the longest row.
     (should (= 1 (length (seq-uniq (mapcar #'string-width painted)))))
     (should (equal (seq-map #'string-trim-right
                             (mapcar #'substring-no-properties painted))
                    '("def f():" "    x = 1" "" "    return x")))
-    ;; and the rows around it are left as they are
+    ;; The rows around it stay as they are.
     (should (member "text" (mapcar #'substring-no-properties lines)))
     (should (member "end" (mapcar #'substring-no-properties lines)))))
 
 (ert-deftest overblock-md-test-a-broken-formula-shows-one-image ()
   "A formula the fill broke over two rows draws its preview once.
 A display property is drawn once for every screen line its run
-reaches, so an image hung on the whole fragment came out twice — at
-the end of one row and again at the start of the next.  The image goes
-on the part before the break, and the rest is drawn as nothing."
+reaches.  The image goes on the part before the break, and the rest is
+dropped except its newline."
   (let* ((image '(image :type png :file "nowhere.png"))
          (whole (overblock-md--place-image "\\(x + y\\)" image))
          (broken (overblock-md--place-image "\\(x +\ny\\)" image)))
-    ;; unbroken: the image on the whole fragment, as it always was
+    ;; Unbroken: the image is on the whole fragment.
     (should (eq (get-text-property 0 'display whole) image))
-    ;; broken: the image once, on the first row
+    ;; Broken: the image once, on the first row.
     (should (eq (get-text-property 0 'display broken) image))
     (let ((rows (split-string broken "\n")))
       (should (= (length rows) 2))
       (should (eq (get-text-property 0 'display (nth 0 rows)) image))
-      ;; the second row keeps its place and nothing else: a display
-      ;; property inside a display string is never looked at, so
-      ;; hiding the rest would have left the raw LaTeX on the screen
+      ;; The second row keeps only its place: display properties do
+      ;; not nest, so hiding the rest would not work.
       (should (equal (nth 1 rows) "")))
-    ;; the fragment that goes to LaTeX is the whole formula
+    ;; LaTeX gets the whole formula.
     (should (equal (overblock-md--one-line "\\(x +\n  y\\)") "\\(x + y\\)"))))
 
 (ert-deftest overblock-md-test-math-is-taken-out-of-the-parsed-document ()
-  "A dollar pattern cannot span the tags of the document any more.
-The fragments were cut out of the HTML before it was parsed, and the
-inline pattern only forbids a space beside a delimiter, so any tag
-between two dollars closed the gap: `Set `$PWD` then use `$x$`' lost
-a <code> pair and handed 25 characters of prose to LaTeX.  Text nodes
-end at a tag, so the pattern cannot reach across one."
+  "A dollar pattern cannot span the tags of the document.
+Fragments are found in text nodes, which end at a tag."
   (skip-unless (overblock-md-program))
   (let ((rendered (substring-no-properties
                    (overblock-md-rendered "Set `$PWD` then use `$x$` in shell."))))
@@ -833,10 +783,8 @@ end at a tag, so the pattern cannot reach across one."
 
 (ert-deftest overblock-md-test-a-fragment-shr-drops-shifts-nothing ()
   "A formula the rendering never shows takes nothing with it.
-The runs of marks were paired with the fragments by counting, so a
-fragment stowed out of a part shr drops — an HTML comment, the title
-of a link — left no run, every later formula showed the one before
-it, and the last was dropped.  Each run carries its own fragment now."
+shr drops an HTML comment and the title of a link.  Each run of marks
+carries its own fragment, so no other formula shifts."
   (skip-unless (overblock-md-program))
   (cl-letf (((symbol-function 'display-images-p) #'ignore))
     (should (string-search
@@ -858,8 +806,7 @@ it, and the last was dropped.  Each run carries its own fragment now."
 (ert-deftest overblock-md-test-a-fence-keeps-its-dollars ()
   "Display math inside a fenced block is shown, not wrapped.
 `overblock-md--verbatim-math' wraps a $$ block in <pre> so shr keeps
-its lines; inside a fence that wrapper reached the reader as literal
-tags, in a document whose subject is display math."
+its lines, but not inside a fence, where it would show as tags."
   (skip-unless (overblock-md-program))
   (let ((rendered (substring-no-properties
                    (overblock-md-rendered "Example:\n\n```\n$$\na = b\n$$\n```\n"))))
@@ -868,22 +815,18 @@ tags, in a document whose subject is display math."
 
 (ert-deftest overblock-md-test-two-display-formulas-both-arrive ()
   "Two display formulas with a blank line between them are two formulas.
-The run of marks a fragment leaves may be broken over two rows by the
-fill, so a run crosses a newline — but only with marks on both sides
-of it.  The class that held the mark and the newline together was
-greedy and read both formulas as one run: the second was popped off
-nothing, dropped, and every fragment after it in the text came back as
-the one before it."
+The fill can break a run of marks over two rows, so a run crosses a
+newline, but only with marks on both sides of it."
   (skip-unless (overblock-md-program))
   (let ((rendered (overblock-md-rendered "$$a+1$$\n\n$$b+2$$")))
     (dolist (formula '("a+1" "b+2"))
       (should (string-match-p (regexp-quote formula) rendered))))
-  ;; and three of them, which is where the shift showed
+  ;; Three of them.
   (let ((rendered (overblock-md-rendered "$$a+1$$\n\n$$b+2$$\n\n$$c+3$$")))
     (dolist (formula '("a+1" "b+2" "c+3"))
       (should (string-match-p (regexp-quote formula) rendered))))
-  ;; the run itself: marks on both sides of a newline are one fragment,
-  ;; marks with a blank line between them are two
+  ;; Marks on both sides of a newline are one fragment; marks with a
+  ;; blank line between them are two.
   (let ((mark (string overblock-md--math-mark)))
     (should (string-match-p (concat "\\`" overblock-md--math-run "\\'")
                             (concat mark mark "\n" mark)))
@@ -892,33 +835,29 @@ the one before it."
 
 (ert-deftest overblock-md-test-a-terminal-reads-inline-math-on-one-line ()
   "A display without images gets inline math joined and undelimited.
-The converter wraps its own output, so a fragment carries whatever line
-breaks pandoc put in it; read as text, a formula broken at a backslash
-reads worse than the same formula on one line.  Display math keeps its
-rows, which is what it was written for."
+The converter wraps its output, so a fragment can carry line breaks.
+Display math keeps its rows."
   (cl-letf (((symbol-function 'display-images-p) #'ignore))
     (let ((shown (overblock-md-test--math "before \\(a +\nb\\) after")))
       (should (equal (substring-no-properties shown) "before a + b after")))
     (let ((shown (overblock-md-test--math "$$\na = b\n$$")))
-      ;; the rows are the rows it was written with
+      ;; The rows of the source.
       (should (= (length (split-string shown "\n")) 3)))))
 
 (ert-deftest overblock-md-test-a-fragment-is-replaced-not-doubled ()
   "Taking a formula out of the HTML removes it and leaves its marks.
-Asking how wide the preview will be goes into the engine, which
-searches on its own account, and `replace-regexp-in-string\' reads the
-match back after the replacement returns: without `save-match-data\'
-the marks were inserted and the fragment left standing beside them, so
-every formula showed its image and its own LaTeX next to it."
+The width of the preview comes from the engine, which searches too,
+and `replace-regexp-in-string' reads the match data after the
+replacement returns."
   (cl-letf (((symbol-function 'overblock-md--math-columns)
              (lambda (frag)
-               ;; what the engine does to the match data on the way
+               ;; The engine changes the match data.
                (string-match "x+" "xxx")
                (string-width frag))))
     (let ((out (overblock-md--stow-in-string "a \\(\\varphi\\) b")))
       (should-not (string-search "varphi" out))
       (should (string-search (string overblock-md--math-mark) out))
-      ;; and the fragment rides on the marks it left
+      ;; The fragment is on its marks.
       (should (equal (get-text-property
                       (string-search (string overblock-md--math-mark) out)
                       'overblock-md--frag out)
@@ -926,22 +865,20 @@ every formula showed its image and its own LaTeX next to it."
 
 (ert-deftest overblock-md-test-a-mark-in-the-source-is-left-standing ()
   "A mark the writer typed carries no fragment and stands for itself.
-An object replacement character is what a paste out of a word
-processor brings.  Read as a stowed formula, it was dropped and the
-formulas after it came back one run late."
+A paste from a word processor can bring an object replacement
+character."
   (skip-unless (overblock-md-program))
   (let ((rendered (overblock-md-rendered
                    (concat "a " (string overblock-md--math-mark)
                            " b $x+1$ c"))))
     (should (string-search (string overblock-md--math-mark) rendered))
     (should (string-search "x+1" rendered))
-    ;; and the prose is in the order it was written in
+    ;; The prose keeps its order.
     (should (string-match-p "a .* b .* c" rendered))))
 
 (ert-deftest overblock-md-test-a-failed-url-is-asked-for-again-on-request ()
   "A URL that could not be reached is not asked for again, until told.
-A document opening with a badge would otherwise wait for the network
-on every render; the command is how a reader says the network is back."
+The command tells that the network is back."
   (puthash "https://example.invalid/badge.svg" t overblock-md--remote-failed)
   (should (> (hash-table-count overblock-md--remote-failed) 0))
   (overblock-md-forget-failed-images)
@@ -949,9 +886,8 @@ on every render; the command is how a reader says the network is back."
 
 (ert-deftest overblock-md-test-a-preview-that-arrived-draws-its-buffer ()
   "A formula shown as text is drawn again when its preview arrives.
-The buffers that are waiting are collected and drawn on one timer, so
-a document of fifty formulas is not drawn fifty times; a buffer the
-reader killed in the meantime is passed over."
+The waiting buffers are drawn on one timer, once each; a killed buffer
+is skipped."
   (with-temp-buffer
     (insert "a formula\n")
     (overblock-live-start 'md-preview #'ignore)
@@ -964,8 +900,8 @@ reader killed in the meantime is passed over."
           (setq overblock-md--latex-arrivals (list gone (current-buffer))
                 overblock-md--latex-arrival-timer 'waiting)
           (overblock-md--latex-draw-arrivals)
-          ;; the queue and the timer are spent, and the rendering that
-          ;; stood in for the preview is gone, to be made again
+          ;; The queue and the timer are spent, and the stand-in
+          ;; rendering is gone, to be made again.
           (should-not overblock-md--latex-arrivals)
           (should-not overblock-md--latex-arrival-timer)
           (should-not (overlay-buffer block)))
@@ -979,33 +915,30 @@ Parameters\n----------\na : int  \n&nbsp;&nbsp;&nbsp;&nbsp;The first operand.  \
 b : int, optional  \n&nbsp;&nbsp;&nbsp;&nbsp;The second.\n\n\
 | col | val |\n|-----|-----|\n| a   | 1   |\n"
   "What basedpyright answers for a numpydoc function, hovered.
-The rule right under the signature fence and the setext underline are
-the two things pandoc read as a table.")
+pandoc reads the rule under the signature fence and the setext
+underline as a table unless the rule is fixed.")
 
 (ert-deftest overblock-md-test-eglot-hover-renders-as-the-server-meant ()
   "A server's hover text comes out as prose, headings and a table.
-pandoc read the rule under the signature, the first paragraph and the
-setext underline of the next section as one simple table, and a whole
-doc string came out as a padded rectangle.  The signature stays, the
-sections are headings, the entries keep their indent and the pipe table
-is laid out in columns."
+The signature stays, the sections are headings, the entries keep their
+indent and the pipe table is laid out in columns."
   (skip-unless (overblock-md-program))
   (clrhash overblock-md--eldoc-cache)
   (with-temp-buffer
     (insert overblock-md-test--hover)
     (overblock-md-eglot-renderer)
-    ;; what eglot does next, and what used to strip every face
+    ;; What eglot does next.
     (font-lock-ensure)
     (let ((text (buffer-substring-no-properties (point-min) (point-max))))
       (should (string-search "def f(a, b=1)" text))
       (should (string-search "Parameters" text))
       (should (string-match-p "a : int\n[  ]+The first operand\\." text))
-      ;; the rule under the signature is drawn as dashes; the setext
-      ;; underline of the section is not
+      ;; The rule under the signature is drawn as dashes; the setext
+      ;; underline of the section is not.
       (should-not (string-search "Parameters\n---" text))
       (should-not (string-search "|" text))
       (should (string-match-p "col +val" text)))
-    ;; the faces of the rendering are still there
+    ;; The faces of the rendering stay.
     (should (text-property-not-all (point-min) (point-max) 'face nil))))
 
 (ert-deftest overblock-md-test-eglot-hover-is-rendered-once ()
@@ -1034,8 +967,8 @@ is laid out in columns."
 
 (ert-deftest overblock-md-test-a-click-on-a-rendered-link-browses-it ()
   "A click on a link of a rendering browses its URL.
-A rendering is a display string, and `shr-browse-url' reads the URL at
-point, which is buffer text: every click said there was no link."
+A rendering is a display string, and `shr-browse-url' reads the URL
+from buffer text at point."
   (skip-unless (overblock-md-program))
   (let* ((text (overblock-md-rendered "A [link](https://example.com/x) here."))
          (index (seq-find (lambda (i) (get-text-property i 'shr-url text))
