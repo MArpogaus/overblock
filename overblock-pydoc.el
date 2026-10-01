@@ -28,10 +28,9 @@
 
 ;; `overblock-pydoc-mode' shows the doc strings of a Python buffer as
 ;; the documentation they are: the triple quotes and the indentation go,
-;; the markup is rendered, and the code around them is untouched.  Move
-;; point into one and its source comes back to be edited; move away and
-;; it reads as documentation again.  A click puts point in it, which
-;; comes to the same thing.
+;; the markup is rendered, and the code around them is untouched.  A
+;; click on one gives its source back in an edit buffer; point moving
+;; through one changes nothing.
 ;;
 ;; Which strings are documentation is what font lock has already
 ;; decided: python.el paints the doc string of a module, a definition
@@ -40,10 +39,9 @@
 ;; and the mode needs no parser and no grammar of its own — it works in
 ;; `python-mode' and in `python-ts-mode' alike.
 ;;
-;; It is the second of the two modes the layer ships, and the shorter
-;; one: the cycle it runs is `overblock-live-start', the same call
-;; `overblock-md-preview-mode' makes, and what is left here is which
-;; regions and rendered with what.
+;; It runs the same live cycle as `overblock-md-preview-mode', through
+;; `overblock-live-start'; what is left here is which regions are
+;; rendered, and with what.
 
 ;;; Code:
 
@@ -156,7 +154,7 @@ again — a window changing width, or the file opened afresh."
         (overblock-pydoc-render-buffer)))))
 
 (defcustom overblock-pydoc-buttons
-  '((edit ("\uea73" "✎" "edit") "Edit this doc string in its own buffer"
+  '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
   "The buttons on the bar of a rendered doc string, left to right.
 An entry is the shape `overblock-buttons' reads.

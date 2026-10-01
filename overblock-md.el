@@ -32,7 +32,8 @@
 ;;     (overblock-md-rendered "# A heading\n\nwith $x^2$ in it.")
 ;;
 ;; An external program turns the markdown into HTML, shr renders the
-;; HTML, and LaTeX fragments become preview images by way of org.  What
+;; HTML, and LaTeX fragments become preview images by way of
+;; latex-to-svg-backend.  What
 ;; comes back is a string that a block can show, and nothing here shows
 ;; anything itself.
 ;;

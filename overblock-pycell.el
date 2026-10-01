@@ -27,8 +27,9 @@
 
 ;;; Commentary:
 
-;; Notebook style results for Python code cells, built from python.el
-;; and comint-mime alone -- no Jupyter kernel and no zmq module.
+;; Notebook style results for Python code cells, built on python.el --
+;; no Jupyter kernel and no zmq module.  comint-mime, where it is
+;; installed, adds figures and tables.
 ;;
 ;; Add `overblock-pycell-mode-maybe' to `code-cells-mode-hook' and the mode is
 ;; on in every Python buffer with cells.  Evaluating a cell sends it
@@ -41,9 +42,9 @@
 ;; rendered in place.  An external markdown command and shr produce
 ;; the text, which then hangs on the source lines it replaces, a piece
 ;; to a line, and the formulas that the converter passed through
-;; become preview images through the formula machinery of Org mode.
+;; become preview images through latex-to-svg-backend.
 ;; A click on a rendering gives the source back, and the cell is
-;; rendered again once point has left it: the same live cycle that
+;; rendered again once the edit is done: the same live cycle that
 ;; `overblock-md-preview-mode' keeps a markdown buffer with.
 ;;
 ;; Rich output needs an IPython REPL, because comint-mime installs its
