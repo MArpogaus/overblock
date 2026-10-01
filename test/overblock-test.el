@@ -531,6 +531,16 @@ returned, so a caller can read its `:data' and cap its height."
     (should-not (overblock--image-spec '(raise 0.5)))
     (should-not (overblock--image-spec '((slice 0 0 1 1) "not an image")))))
 
+(ert-deftest overblock-test-an-empty-rendering-is-a-block-that-shows-nothing ()
+  "A region that renders to nothing keeps its text, and counts as done."
+  (with-temp-buffer
+    (insert "---\ntitle: x\n---\n")
+    (let ((block (overblock-show-rendering 1 (1- (point-max)) "\n" 'default
+                                           :kind 'md-preview)))
+      (should block)
+      (should (overblock-in 1 (point-max) 'md-preview))
+      (should-not (overblock-get block :parts)))))
+
 (ert-deftest overblock-test-refresh-leaves-a-dead-block-alone ()
   "A block that is no longer in a buffer draws nothing and signals nothing.
 A deleted overlay has no start, which the drawing reads."

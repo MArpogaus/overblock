@@ -784,20 +784,23 @@ PROPS are those of `overblock-show'.  Its `:keymap' and `:help-echo'
 also go on the rendering where it has none of its own: shr writes a
 keymap on a link, and that one stays.
 
-Return nil where RENDERED holds nothing to show, so a line that renders
-to a lone HTML comment stays as it is.  Any edit of the region takes
-the block down (see `overblock-stale-when-edited'): typing, a
-replacement over the buffer, a macro, an undo.  Point moving into the
-region reveals nothing.
+Where RENDERED holds nothing to show, such as YAML front matter or a
+lone HTML comment, the block shows nothing and the region stays as it
+is.  The block is there all the same, so a live cycle does not convert
+the region again.  Any edit of the region takes the block down (see
+`overblock-stale-when-edited'): typing, a replacement over the buffer,
+a macro, an undo.  Point moving into the region reveals nothing.
 
 overblock-pydoc and the Markdown preview use this."
-  (when-let* (((not (string-empty-p (string-trim rendered))))
-              (block (apply #'overblock-show beg end
-                            :over (overblock-fill-props
-                                   (overblock-faced rendered face)
-                                   'keymap (plist-get props :keymap)
-                                   'help-echo (plist-get props :help-echo))
-                            props)))
+  (when-let* ((block
+               (if (string-empty-p (string-trim rendered))
+                   (overblock-show beg end :kind (plist-get props :kind))
+                 (apply #'overblock-show beg end
+                        :over (overblock-fill-props
+                               (overblock-faced rendered face)
+                               'keymap (plist-get props :keymap)
+                               'help-echo (plist-get props :help-echo))
+                        props))))
     (overblock-stale-when-edited block)
     block))
 

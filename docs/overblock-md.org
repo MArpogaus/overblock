@@ -259,8 +259,9 @@ onto a rendering does not remove it. The region point is in stays
 source until point leaves it, because the mode keeps
 =overblock-live-source-at-point= at t.
 
-A block that renders to nothing, such as a lone HTML comment, stays as
-it is and is not blanked.
+A block that renders to nothing, such as YAML front matter or a lone
+HTML comment, stays as it is and is not blanked. It gets an empty
+block all the same, so the live cycle does not convert it again.
 
 * The tests
 
