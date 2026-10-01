@@ -359,17 +359,18 @@ Each region has its own buffer. Thus the text of a second region does
 not replace the edit of the first.
 
 An edit of the same region that is still open is given back, and not a
-new copy of the file text. It must be the same region, and not only the same name. A name carries
-a line number, and two regions can be on that line at different
-times. When the open edit is of another region, the reader
-must say whether to discard it. The region is held by markers, so a
-commit lands on it after the source changed above it.
+new copy of the file text. It must be the same region, and not only the
+same name. A name carries a line number, and two regions can be on that
+line at different times. When the open edit is of another region, the
+reader must say whether to discard it. The region is held by markers, so
+a commit lands on it after the source changed above it.
 
 * The output of a shell
 
-A copy of shell output carries the keymap of the shell and alignment
-for another window. It also carries a live vtable of that buffer, and
-images at their own size. =overblock-repl-detach= makes a copy that a block can show:
+A copy of shell output carries the keymap of the shell and alignment for
+another window. It also carries a live vtable of that buffer, and images
+at their own size. =overblock-repl-detach= makes a copy that a block can
+show:
 
 #+begin_src emacs-lisp
   (overblock-repl-detach (buffer-substring beg end))
@@ -587,9 +588,10 @@ suite of the code that it checks. These suites belong to the layer:
 - =test/overblock-repl-test.el=: a copied table laid out again, its
   getter, and the image cap.
 - =test/overblock-run-test.el=: the runner with a process at the other
-  end and no language. Its backend is a plist over =cat=. It tests a prompt that ends a run, an error that stops a pass, and a
-dead, killed or restarted shell. It also tests the queue, the follower,
-and the buttons that both notebooks draw.
+  end and no language. Its backend is a plist over =cat=. It tests a
+  prompt that ends a run, an error that stops a pass, and a dead, killed
+  or restarted shell. It also tests the queue, the follower, and the
+  buttons that both notebooks draw.
 
 The notebook suites test the runner from above, and =make test-live=
 sends real regions to a real IPython and a real R.

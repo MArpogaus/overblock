@@ -64,6 +64,13 @@ the texts and cuts the HTML at that marker. One process for a buffer is
 much faster than one for each region. Where the number of pieces is
 not the number of texts, a caller converts each text alone.
 
+=overblock-md-render-regions= sends one batch of a kind at a time. A
+cycle that comes while the batch is with the converter waits. When the
+batch lands, the live cycle of that kind runs again. A batch first
+shows the regions that a window shows. A timer then shows the rest,
+=overblock-md--slice= (fifty) at a time, so a large buffer does not
+hold the reader.
+
 The answer is nil where no converter is installed, and where the
 converter exits with an error. The check is where the program is
 called and not in each caller. A signal from a minor mode body would
@@ -108,17 +115,22 @@ a block only where the rendering has none.
 
 A =$...$= or =$$...$$= fragment becomes a preview image.
 [[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
-makes it. It runs =latex= and =dvisvgm= in a process of its own. It compiles each
-equation once, and keeps a cache by the content of the equation. Nothing waits. A fragment that still compiles shows as text,
+makes it. It runs =latex= and =dvisvgm= in a process of its own. It
+compiles each equation once, and keeps a cache by the content of the
+equation. Nothing waits. A fragment that still compiles shows as text,
 and the =overblock-md-pending= property marks it. It shows as an image
 when the image arrives.
 
 The engine is asked from the buffer that shows the rendering, and not
 from the temporary buffer of shr. The engine reads its options in that
-buffer. Thus a preamble that a project sets in =.dir-locals.el=
-applies, and a failed equation warns once for that buffer. The colour
-and the font height also come from that buffer, so the formulas follow
-=text-scale-adjust= and a theme change without a new compile.
+buffer. Thus a preamble that a project sets in =.dir-locals.el= applies,
+and a failed equation warns once for that buffer. The font height also
+comes from that buffer, so the formulas follow =text-scale-adjust=
+without a new compile. The colour is the foreground of the face in the
+variable =overblock-md-math-face=, =default= by default.
+=overblock-pydoc= binds it to =font-lock-doc-face=, so the formulas have
+the colour of the doc string. A theme change draws each formula again in
+the new colour.
 
 What the converter renders stays text, and only the rest becomes an
 image. pandoc renders simple math as text. Such text loses its

@@ -35,8 +35,9 @@ each already has an owner:
 
 Thus =overblock-rmd-mode= is one =overblock-live-start=, a backend plist
 for the runner, and a buffer-local
-=overblock-md-preview-regions-function= that gives the prose only. The rest of the file is about R. It holds a few calls of ESS, the shape
-of a chunk header, and the statement that a chunk goes to R in.
+=overblock-md-preview-regions-function= that gives the prose only. The
+rest of the file is about R. It holds a few calls of ESS, the shape of a
+chunk header, and the statement that a chunk goes to R in.
 
 A major mode hook turns the mode on, and the mode reads the file name,
 not the major mode. =overblock-rmd-mode-maybe= turns it on where the
@@ -84,11 +85,11 @@ and counts lines from the top of the chunk, not of the file.
 
 ** The chunk as an R string
 
-=overblock-rmd--r-string= escapes the backslashes, then the quotes,
-then the newlines. The newlines are escaped so that the whole chunk
-goes as one line. A literal newline inside the string is legal R. But comint would send
-it as a line of its own, and R would answer with a continuation prompt
-in the middle of the result.
+=overblock-rmd--r-string= escapes the backslashes, then the quotes, then
+the newlines. The newlines are escaped so that the whole chunk goes as
+one line. A literal newline inside the string is legal R. But comint
+would send it as a line of its own, and R would answer with a
+continuation prompt in the middle of the result.
 
 The mode uses =ess-send-string= and not =ess-send-region=. The region
 is not what goes to R, and =ess-send-region= gives a chunk to
@@ -117,8 +118,9 @@ decides it: a line that starts with =Error in=, with =Error:=, or with
 =Error= alone is the report of an R error.
 
 A chunk whose own output holds such a line, for example a log that it
-prints, also counts as a failure. The two cannot be told apart. R writes its errors to the same stream,
-in the same shape, as the other output of the chunk.
+prints, also counts as a failure. The two cannot be told apart. R writes
+its errors to the same stream, in the same shape, as the other output of
+the chunk.
 
 * R at the other end
 

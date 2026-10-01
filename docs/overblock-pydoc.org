@@ -130,9 +130,9 @@ each bar wears. The rule below is the =:underline= of
 its row. It begins where the text of the row begins, which is the
 indent column, and ends at the window edge. Nothing must measure it.
 
-The footer row carries the rule and nothing else. It starts with a zero-width space. =overblock--pieces= trims blank
-lines off the ends of a rendering, and a row of spaces is a blank
-line.
+The footer row carries the rule and nothing else. It starts with a
+zero-width space. =overblock--pieces= trims blank lines off the ends of
+a rendering, and a row of spaces is a blank line.
 
 ** The summary is on the bar
 
@@ -180,3 +180,7 @@ again.
 - The indent taken off, and the markup with its command.
 - The bar and the rule, and a doctest in a Markdown doc string.
 - The edit, and the mode that leaves nothing behind.
+
+=test/overblock-pydoc-scroll-test.el= scrolls up over a file of
+rendered doc strings, and checks that the window moves one way only.
+=make scroll= runs it, because it needs a graphic display.

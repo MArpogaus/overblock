@@ -37,9 +37,9 @@ it:
 
 These three steps belong to =overblock-run=, because the loop is the
 same for each language. This package gives the loop a plist:
-=overblock-pycell--backend=. It tells how to reach the interpreter, how to send a cell and what a
-prompt looks like. It also tells how to clean the output, and which
-button option a result reads. The slots are in
+=overblock-pycell--backend=. It tells how to reach the interpreter, how
+to send a cell and what a prompt looks like. It also tells how to clean
+the output, and which button option a result reads. The slots are in
 [[file:overblock.org][the notes of the layer]].
 
 The copy must change before a block can show it. =overblock-repl-detach=
@@ -49,9 +49,10 @@ object in the copy. Thus =overblock-run-pop-output= calls
 where sorting, narrowing and moving a column work. The block stays a
 plain rendering in characters.
 
-The result is on the newline that ends the cell. overblock-pycell writes nothing into the buffer, with one exception. The
-last cell of a buffer gets a final newline if it has none, because the
-block needs that character.
+The result is on the newline that ends the cell. overblock-pycell writes
+nothing into the buffer, with one exception. The last cell of a buffer
+gets a final newline if it has none, because the block needs that
+character.
 
 ** The header bars
 
@@ -113,8 +114,9 @@ and removes each other one. Each kind of line has its bar:
 | =# %% [markdown]=, showing source | source, with a render button   |
 | =# %%=                            | code                           |
 
-A bar is looked for on its whole line and not at one position. Text typed at the start of the line moves the overlay off that start.
-Thus typing before the marker is not typing inside the bar.
+A bar is looked for on its whole line and not at one position. Text
+typed at the start of the line moves the overlay off that start. Thus
+typing before the marker is not typing inside the bar.
 
 * Moving a cell
 
@@ -230,12 +232,13 @@ off to get the plain source and the speed back.
 =make test= runs the batch suites, one for each file.
 =test/overblock-pycell-test.el= belongs to this package. It tests the
 clean of the output, the body lines, the cell markers and the folds. It
-also tests the edit buffers, the mirror, and the move of a cell. A test that names only what
-another package owns is in the suite of that package.
+also tests the edit buffers, the mirror, and the move of a cell. A test
+that names only what another package owns is in the suite of that
+package.
 
 =make test-live= sends real cells to a real IPython and reads back what
-the blocks show. No batch test starts a process. Where no ipython is
-installed, the target says so and passes.
+the blocks show. No batch test of this package starts a Python
+process. Where no ipython is installed, the target says so and passes.
 
 =make scroll= needs a graphic display. It builds a buffer with markdown
 cells and scrolls through it with =pixel-scroll-precision-scroll-up= and
