@@ -451,7 +451,7 @@ and steps the output lines to the right."
                  (overblock-md-command (overblock-pydoc--command-for-markup))
                  (text (substring-no-properties
                         (overblock-md-rendered
-                         (overblock-pydoc--markup beg end)))))
+                         (overblock-pydoc--converter-text beg end)))))
       (should (string-search ">>> f(1)\n2" text)))))
 
 (ert-deftest overblock-pydoc-test-a-fenced-doctest-is-left-alone ()

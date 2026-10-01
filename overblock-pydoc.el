@@ -282,7 +282,7 @@ something else."
   (when (string-match overblock-pydoc--opening text)
     (list (match-string 1 text) (match-string 2 text))))
 
-(defun overblock-pydoc--markup (beg end)
+(defun overblock-pydoc--converter-text (beg end)
   "Return the prose of the doc string BEG..END as the converter reads it.
 That is `overblock-pydoc--source', with every doctest of a Markdown doc
 string in a fence: Markdown reads `>>>' as three nested quotes."
@@ -405,7 +405,7 @@ line.  The block leaves that many columns of every source line in
 view, so the indentation stays buffer text (with any indentation guide
 on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
-  (when-let* ((source (overblock-pydoc--markup beg end))
+  (and-let* ((source (overblock-pydoc--converter-text beg end))
               ((not (string-empty-p source)))
               (indent (save-excursion (goto-char beg) (current-column)))
               (rendered
@@ -420,13 +420,12 @@ the column of BEG, which for a raw doc string includes its prefix."
                  (when-let* ((prose (overblock-md-rendered source html)))
                    (overblock-pydoc--dressed (string-trim-right prose "\n+")
                                              indent))))
-              (block (overblock-show-rendering
-                      beg end rendered 'font-lock-doc-face
-                      :kind 'pydoc
-                      :indent indent
-                      :keymap overblock-pydoc-map
-                      :help-echo "mouse-1: edit this doc string")))
-    block))
+              ((overblock-show-rendering
+                beg end rendered 'font-lock-doc-face
+                :kind 'pydoc
+                :indent indent
+                :keymap overblock-pydoc-map
+                :help-echo "mouse-1: edit this doc string")))))
 
 ;;;; When
 
@@ -439,14 +438,10 @@ what happens to a doc string the reader reaches while the process
 runs.  `overblock-live-start' calls this again whenever the reader
 stops."
   (interactive)
-  (when-let* ((regions (seq-filter
-                        (lambda (region)
-                          (overblock-live-wanted-p (car region) (cdr region)
-                                                   'pydoc))
-                        (overblock-pydoc--strings (point-min) (point-max)))))
-    (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
-      (overblock-md-render-regions regions 'pydoc #'overblock-pydoc--markup
-                                   #'overblock-pydoc--show))))
+  (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
+    (overblock-md-render-regions (overblock-pydoc--strings (point-min) (point-max))
+                                 'pydoc #'overblock-pydoc--converter-text
+                                 #'overblock-pydoc--show)))
 
 (defun overblock-pydoc--put (beg end prose)
   "Write the edited PROSE back into the doc string BEG..END and render it.
