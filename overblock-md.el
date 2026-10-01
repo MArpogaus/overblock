@@ -752,9 +752,14 @@ is installed."
         (push (cons kind nil) overblock-md--in-flight)
         (condition-case err
             (overblock-md--send-batch kind marked sources text show)
-          (error (setq overblock-md--in-flight
-                       (assq-delete-all kind overblock-md--in-flight))
+          (error (overblock-md--land kind)
                  (signal (car err) (cdr err))))))))
+
+(defun overblock-md--land (kind)
+  "End the flight of the batch of KIND, and return its entry."
+  (let ((flight (assq kind overblock-md--in-flight)))
+    (setq overblock-md--in-flight (delq flight overblock-md--in-flight))
+    flight))
 
 (defun overblock-md--send-batch (kind marked sources text show)
   "Send the SOURCES of the MARKED regions of KIND, and show what comes back.
@@ -813,15 +818,16 @@ the live cycle of KIND again where one asked meanwhile."
           (dotimes (_ (min overblock-md--slice (length items)))
             (overblock-md--show-item (pop items) kind text show))
         ;; A rendering that fails ends the flight, or the kind would
-        ;; wait for it for good.
-        (error (setq overblock-md--in-flight
-                     (assq-delete-all kind overblock-md--in-flight))
+        ;; wait for it for good, and frees the markers of the rest.
+        (error (overblock-md--land kind)
+               (dolist (item items)
+                 (set-marker (caar item) nil)
+                 (set-marker (cdar item) nil))
                (signal (car err) (cdr err))))
       (if items
           (run-with-timer 0 nil #'overblock-md--show-batch
                           buffer kind text show items)
-        (let ((flight (assq kind overblock-md--in-flight)))
-          (setq overblock-md--in-flight (delq flight overblock-md--in-flight))
+        (let ((flight (overblock-md--land kind)))
           (when-let* (((cdr flight))
                       (spec (assq kind overblock-live--specs)))
             (funcall (nth 1 spec))))))))
