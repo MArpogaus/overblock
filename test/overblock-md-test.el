@@ -288,6 +288,27 @@ the texts are joined with the marker, and the answer is split at it."
   ;; A cell that holds the marker: no batch.
   (should-not (overblock-md--batch-text (list "text" overblock-md--marker))))
 
+(ert-deftest overblock-md-test-a-batch-that-loses-its-markers-halves ()
+  "A text that swallows the markers costs a few processes, not one each.
+An HTML comment split at a blank line takes the marker between its halves."
+  (skip-unless (overblock-md-program))
+  (let ((answered 'not-yet)
+        (texts (list "one" "<!-- a" "b -->" "four"))
+        (runs 0))
+    (cl-letf* ((make (symbol-function 'make-process))
+               ((symbol-function 'make-process)
+                (lambda (&rest args)
+                  (when (equal (plist-get args :name) "overblock-md")
+                    (setq runs (1+ runs)))
+                  (apply make args))))
+      (overblock-md-html-batch-async texts (lambda (htmls) (setq answered htmls)))
+      (overblock-test-common-wait (lambda () (not (eq answered 'not-yet))) 10))
+    (should (= (length answered) 4))
+    (should (string-match-p "one" (nth 0 answered)))
+    (should (string-match-p "four" (nth 3 answered)))
+    ;; The whole, then each half.
+    (should (= runs 3))))
+
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()
   "What the converter writes on standard error is not part of the HTML.
 `:stderr nil' would mix the warnings of pandoc into the HTML."

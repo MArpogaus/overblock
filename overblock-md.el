@@ -685,6 +685,30 @@ Return nil where the marker did not come back once between every pair."
                                overblock-md--marker))))
     (and (= (length pieces) (length texts)) pieces)))
 
+(defun overblock-md--batch-answer (page texts callback)
+  "Hand CALLBACK the HTML of each of TEXTS out of PAGE.
+Where the markers did not all come back, a text swallowed them, as an
+HTML comment across a blank line does.  Each half of TEXTS then goes
+again in a process of its own, and a text alone gets nil, for the
+caller to convert alone.  One such text costs a few processes in the
+background, not one in the foreground for each text.  A PAGE of nil is
+a converter that failed, and CALLBACK gets nil."
+  (if-let* ((pieces (or (overblock-md--batch-pieces page texts)
+                         (null page)
+                         (null (cdr texts)))))
+      (funcall callback (and (consp pieces) pieces))
+    (let* ((head (seq-take texts (/ (length texts) 2)))
+           (tail (nthcdr (length head) texts)))
+      (overblock-md-html-batch-async
+       head
+       (lambda (first)
+         (overblock-md-html-batch-async
+          tail
+          (lambda (second)
+            (funcall callback
+                     (append (or first (make-list (length head) nil))
+                             (or second (make-list (length tail) nil)))))))))))
+
 (defun overblock-md-html-batch-async (texts callback)
   "Convert TEXTS in one process and hand the HTML of each to CALLBACK.
 CALLBACK gets the list in the order of TEXTS, or nil where the
@@ -721,9 +745,8 @@ buffer that asked dies first, the answer is dropped."
                      (kill-buffer output)
                      (when (buffer-live-p buffer)
                        (with-current-buffer buffer
-                         (funcall callback
-                                  (overblock-md--batch-pieces page
-                                                              texts))))))))))
+                         (overblock-md--batch-answer page texts
+                                                     callback)))))))))
         (process-send-string process joined)
         (process-send-eof process)
         process)
