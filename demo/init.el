@@ -12,8 +12,8 @@
 ;;
 ;;     emacs -Q -l demo/init.el demo/demo.py
 ;;
-;; The frame is asked for in pixels, because every animation is the
-;; same size.  Nothing here is a recommendation.  It is what the
+;; `demo/record.el' asks for the frame in pixels, so that every
+;; animation has the same width.  Nothing here is a recommendation.  It is what the
 ;; pictures were taken with, so that anyone can take the same ones.
 ;;
 ;; The dependencies the notebooks need are not installed by this file.

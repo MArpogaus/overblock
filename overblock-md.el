@@ -959,9 +959,8 @@ shr would fetch an image with `url-queue-retrieve', which answers after
 the cell is rendered, so the rendering keeps the placeholder.  Only a
 data URI goes to shr, which draws it with no fetch.
 
-The alt text carries the image; `overblock-md-rendered' caps it.  An
-empty alt text becomes the file name, so a display without images
-still names the figure."
+The alt text carries the image; `overblock-md-rendered' caps it.  See
+`overblock-md--image-label' for an image with no alt text."
   (let* ((src (or (dom-attr dom 'src) ""))
          (alt (dom-attr dom 'alt))
          (file (or (overblock-md--image-file src)
