@@ -409,6 +409,12 @@ The item is one block, and the fence is not a second one over it."
     ;; Without COMMENTS, as for the chunks of an Rmd file, a fence in
     ;; a comment counts.
     (should (= 2 (length (overblock-md-preview-fences (point-max))))))
+  ;; Front matter is one region, whatever blank lines stand in it.
+  (with-temp-buffer
+    (insert "---\ntitle: x\n\ntags: [a]\n---\n\nText.\n")
+    (should (equal (overblock-md-preview-fences (point-max)) '((1 . 28))))
+    (should (equal (overblock-md-preview-regions (point-min) (point-max) t)
+                   '((30 . 35)))))
   ;; Inside a paragraph a comment is part of it.
   (with-temp-buffer
     (insert "Some *long\n<!-- note -->\nend* here.\n")

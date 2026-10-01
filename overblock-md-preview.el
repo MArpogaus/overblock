@@ -104,7 +104,8 @@ text, and a fence in it would open a block.  In an Rmd file a chunk
 in a comment still runs, so `overblock-rmd' asks for none."
   (save-excursion
     (goto-char (point-min))
-    (let (regions block)
+    (let ((regions (overblock-md-preview--front-matter end))
+          block)
       (while (re-search-forward (if comments
                                     overblock-md-preview--fence-or-comment
                                   overblock-md-preview--fence-regexp)
@@ -117,6 +118,20 @@ in a comment still runs, so `overblock-rmd' asks for none."
             (push comment regions))))
       (when block (push (cons (car block) (point-max)) regions))
       (nreverse regions))))
+
+(defun overblock-md-preview--front-matter (end)
+  "Return a list of the bounds of the front matter, and move past it.
+Front matter is a YAML block at the top of the buffer, between two
+lines of three dashes, before END.  A blank line in it would split it,
+and the converter would read its halves as a rule and a heading.
+Return nil, and leave point, where there is none."
+  (when (looking-at-p "---[ \t]*$")
+    (let ((from (point)))
+      (forward-line 1)
+      (if (re-search-forward "^\\(?:---\\|\\.\\.\\.\\)[ \t]*$" end t)
+          (list (cons from (pos-eol)))
+        (goto-char from)
+        nil))))
 
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
