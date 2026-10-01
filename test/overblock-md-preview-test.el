@@ -303,11 +303,16 @@ The item is one block, and the fence is not a second one over it."
     (should-not (overblock-md-preview-fences (point-max)))))
 
 (ert-deftest overblock-md-preview-test-a-block-goes-out-closed ()
-  "A block that closes no fence goes to the converter with one."
+  "A block goes to the converter with its closing fence under its opening one."
   (should (equal (overblock-md-preview--closed "```\n\n## S") "```\n\n## S\n```"))
   (should (equal (overblock-md-preview--closed "~~~~ r\nx\n~~~~") "~~~~ r\nx\n~~~~"))
   (should (equal (overblock-md-preview--closed "```x``` text") "```x``` text"))
-  (should (equal (overblock-md-preview--closed "Para.") "Para.")))
+  (should (equal (overblock-md-preview--closed "Para.") "Para."))
+  ;; An indented code block opens no fence; an item line does.
+  (should (equal (overblock-md-preview--closed "    ```\n    x") "    ```\n    x"))
+  (should (equal (overblock-md-preview--closed "- ```sh\n  x") "- ```sh\n  x\n  ```"))
+  (should (equal (overblock-md-preview--closed "- ```sh\n  x\n```\t")
+                 "- ```sh\n  x\n  ```")))
 
 (ert-deftest overblock-md-preview-test-a-later-paragraph-of-an-item-is-dedented ()
   "The fence under a later paragraph of an item keeps its place in it."
@@ -321,8 +326,8 @@ The item is one block, and the fence is not a second one over it."
                    "    def f():\n        return 1\n")))
   (with-temp-buffer
     (insert "```\n        eight\n```\n")
-    (should (equal (overblock-md-preview--source (point-min) (point-max))
-                   (buffer-string)))))
+    (should (equal (overblock-md-preview--source (point-min) (1- (point-max)))
+                   "```\n        eight\n```"))))
 
 (ert-deftest overblock-md-preview-test-an-item-after-a-chunk-is-its-own-block ()
   "In an Rmd file the rest of an item after its chunk stops at the next item."
@@ -391,11 +396,16 @@ The item is one block, and the fence is not a second one over it."
     (insert "Para.\n\n    - ```bash\n    x\n\n```\ny\n```\n")
     (should (equal (overblock-md-preview-fences (point-max))
                    (list (cons 29 (1- (point-max)))))))
-  ;; A fence at the margin ends the item a block opened on, and opens.
+  ;; A fence at the margin closes the block of an item line.
   (with-temp-buffer
-    (insert "- ```sh\n  x\n```\ny\n```\n")
+    (insert "1. ```bash\n   pip\n```\n2. Run.\n")
     (should (equal (overblock-md-preview-fences (point-max))
-                   '((1 . 12) (13 . 22)))))
+                   '((1 . 22)))))
+  ;; An HTML comment is a block of its own, and holds no fence.
+  (with-temp-buffer
+    (insert "<!-- a\n\n```\nb -->\n\n```\nx\n```\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   '((1 . 18) (20 . 29)))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")

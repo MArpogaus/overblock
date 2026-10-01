@@ -76,6 +76,10 @@ asks this before it hides a line.")
   "^\\( *\\)\\(\\(?:[-+*]\\|[0-9]+[.)]\\) +\\)?\\(```+\\|~~~+\\)"
   "What a fence line looks like: indentation, a list marker, the marks.")
 
+(defconst overblock-md-preview--fence-or-comment
+  (concat overblock-md-preview--fence-regexp "\\|^<!--")
+  "A fence line, or the start of an HTML comment at the left margin.")
+
 (defun overblock-md-preview-fences (end)
   "Return the bounds of every fenced code block up to END.
 Each is a cons of the start of the opening fence line and the end of
@@ -91,74 +95,89 @@ A fence that names a language opens a block and closes none.  When it
 comes while a block of the same kind is open, it ends that block where
 it is, so an unclosed Rmd chunk does not take the header of the next
 chunk as its closing fence.  A fence that is never closed runs to the
-end of the buffer."
+end of the buffer.
+
+An HTML comment at the left margin, outside a block, is one region up
+to its end, and a fence in it opens nothing.  A blank line in it would
+otherwise split it, and the converter would read the half that opens
+it to the end of all it is sent."
   (save-excursion
     (goto-char (point-min))
-    (let (regions open fence)
-      (while (re-search-forward overblock-md-preview--fence-regexp end t)
-        (let ((this (match-string-no-properties 3))
-              ;; Left of the text of the item its block opened on, a
-              ;; fence ends that item: it closes nothing, and opens.
-              (bare (and (looking-at-p "[[:blank:]]*$")
-                         (not (overblock-md-preview--left-of-item-p
-                               (length (match-string 1)) open)))))
-          (cond ((overblock-md-preview--too-deep-p
-                  (length (match-string 1)) open (match-beginning 2)))
-                ;; A backtick after the marks makes inline code of it.
-                ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")))
-                ((null open) (setq open (pos-bol) fence this))
-                ;; Of another kind, or shorter than the opening fence:
-                ;; content of the block.
-                ((or (not (eq (aref this 0) (aref fence 0)))
-                     (< (length this) (length fence))))
-                (bare (push (cons open (pos-eol)) regions)
-                      (setq open nil fence nil))
-                (t (push (cons open (1- (pos-bol))) regions)
-                   (setq open (pos-bol) fence this)))))
-      (when open (push (cons open (point-max)) regions))
+    (let (regions block)
+      (while (re-search-forward overblock-md-preview--fence-or-comment end t)
+        (if (not (match-beginning 3))
+            (unless block
+              (when-let* ((comment (overblock-md-preview--comment end)))
+                (push comment regions)))
+          (pcase-let ((`(,next . ,done) (overblock-md-preview--fence block)))
+            (when done (push done regions))
+            (setq block next))))
+      (when block (push (cons (car block) (point-max)) regions))
       (nreverse regions))))
 
-(defun overblock-md-preview--opener (open)
-  "Return (COLUMN . ITEM) of the fence line that starts at OPEN.
-COLUMN is where its marks begin.  ITEM is non-nil where the fence
-stands on the line of a list item."
-  (save-excursion
-    (save-match-data
-      (goto-char open)
-      (looking-at overblock-md-preview--fence-regexp)
-      (cons (- (match-beginning 3) open) (match-beginning 2)))))
+(defun overblock-md-preview--comment (end)
+  "Return the bounds of the HTML comment that begins on this line.
+An HTML comment holds no fence, whatever blank lines stand in it.  It
+ends on the line that holds its end, before END; one that does not end
+is no region."
+  (let ((from (pos-bol)))
+    (when (search-forward "-->" end t)
+      (cons from (pos-eol)))))
 
-(defun overblock-md-preview--left-of-item-p (indent open)
-  "Return non-nil where a fence INDENT columns in ends the item of OPEN.
-OPEN is the start of the fence line that opened the block, or nil.  A
-block opened on the line of a list item ends with that item, and a
-fence left of the text of the item stands outside it."
-  (when open
-    (pcase-let ((`(,from . ,item) (overblock-md-preview--opener open)))
-      (and item (< indent from)))))
+(defun overblock-md-preview--fence (block)
+  "Read the fence line just matched, with BLOCK open, and return (NEXT . DONE).
+BLOCK is (OPEN FENCE LIMIT) for the block that the fence line at OPEN
+opened, its marks FENCE, its LIMIT that of
+`overblock-md-preview--limit'; or nil where no block is open.  NEXT is
+the block open after this line, and DONE the bounds of a block this
+line ended, or nil."
+  (pcase-let* ((`(,open ,fence ,limit) block)
+               (this (match-string-no-properties 3))
+               (item (match-beginning 2))
+               (from (- (match-beginning 3) (pos-bol)))
+               (opened (lambda ()
+                         (list (pos-bol) this
+                               (overblock-md-preview--limit from item)))))
+    (cond ((overblock-md-preview--too-deep-p (length (match-string 1))
+                                             item limit)
+           (list block))
+          ;; A backtick after the marks makes inline code of it.
+          ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")) (list block))
+          ((null block) (list (funcall opened)))
+          ;; Of another kind, or shorter than the opening fence: content
+          ;; of the block.
+          ((or (not (eq (aref this 0) (aref fence 0)))
+               (< (length this) (length fence)))
+           (list block))
+          ((looking-at-p "[[:blank:]]*$") (cons nil (cons open (pos-eol))))
+          (t (cons (funcall opened) (cons open (1- (pos-bol))))))))
 
-(defun overblock-md-preview--too-deep-p (indent open item)
+(defun overblock-md-preview--limit (from item)
+  "Return the deepest column a fence can close the block at.
+A fence FROM columns in opens the block.  ITEM is non-nil where it
+stands on the line of a list item.  The limit is three columns in, or
+three deeper than an opening fence at or right of the content column
+of a list item, or on the line of one."
+  (if (or item
+          (>= from (or (overblock-md-preview--in-item-p (pos-bol))
+                       most-positive-fixnum)))
+      (+ from 3)
+    3))
+
+(defun overblock-md-preview--too-deep-p (indent item limit)
   "Return non-nil where a fence INDENT columns in is code text.
-OPEN is the start of the fence line that opened the block, or nil.
-ITEM is non-nil where the fence stands on the line of a list item: it
-opens a block in the item, and closes none.
+ITEM is non-nil where the fence stands on the line of a list item.
+LIMIT is that of `overblock-md-preview--limit' for the open block, or
+nil where no block is open.
 
-An opening fence four columns in opens a block only under a list item.
-A closing fence is at most three columns in, or three deeper than an
-opening one at or right of the content column of a list item, or on
-the line of one.  The columns are counted in the text: a rendering
+In an open block, a fence on an item line is content, and so is one
+deeper than LIMIT.  Outside, a fence four columns in opens a block only
+under a list item.  The columns are counted in the text: a rendering
 hides the indentation from `current-indentation'."
-  (cond
-   ((and open item))
-   (open
-    (pcase-let ((`(,from . ,on-item) (overblock-md-preview--opener open)))
-      (> indent (if (or on-item
-                        (>= from (or (overblock-md-preview--in-item-p open)
-                                     most-positive-fixnum)))
-                    (+ from 3)
-                  3))))
-   (t (and (> indent 3)
-           (not (overblock-md-preview--in-item-p (pos-bol)))))))
+  (if limit
+      (or item (> indent limit))
+    (and (> indent 3)
+         (not (overblock-md-preview--in-item-p (pos-bol))))))
 
 (defun overblock-md-preview--margin-p (pos)
   "Return non-nil where the line at POS begins at the left margin."
@@ -307,21 +326,24 @@ closes no fence gets one; see `overblock-md-preview--closed'."
      (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text))))
 
 (defun overblock-md-preview--closed (text)
-  "Return TEXT with a closing fence where it opens a block and closes none.
-A block can end with no closing fence of its own: at a fence that names
-a language, or where a fence ends the item it opened on.  The converter
-would read such a block to the end of all it is sent, markers and all,
-so the batch would fall back to one process for each block."
-  (if (and (string-match "\\` *\\(```+\\|~~~+\\)\\([^\n]*\\)" text)
-           (let ((marks (match-string 1 text)))
-             (not (or (and (eq (aref marks 0) ?`)
-                           (string-search "`" (match-string 2 text)))
-                      (string-match-p
-                       (format "\n *%s\\{%d,\\} *\n?\\'"
-                               (regexp-quote (substring marks 0 1))
-                               (length marks))
-                       text)))))
-      (concat text "\n" (match-string 1 text))
+  "Return TEXT with its closing fence under its opening one.
+Where TEXT opens with a fence, its own closing fence, if any, gives way
+to one at the column of the opening marks.  The converter then reads
+the block as the preview pairs it, alone and in a batch: a closing
+fence at the margin under a list item would end the list, and pair
+with a fence of the next block."
+  (if (and (string-match (concat "\\` \\{0,3\\}\\(?:\\(?:[-+*]\\|[0-9]+[.)]\\) +\\)?"
+                                 "\\(```+\\|~~~+\\)\\([^\n]*\\)")
+                         text)
+           (not (and (eq (aref (match-string 1 text) 0) ?`)
+                     (string-search "`" (match-string 2 text)))))
+      (let ((marks (match-string 1 text))
+            (column (match-beginning 1)))
+        (concat (replace-regexp-in-string
+                 (format "\n[ \t]*%s\\{%d,\\}[ \t]*\n?\\'"
+                         (regexp-quote (substring marks 0 1)) (length marks))
+                 "" text)
+                "\n" (make-string column ?\s) marks))
     text))
 
 (defun overblock-md-preview--show (beg end &optional html)
