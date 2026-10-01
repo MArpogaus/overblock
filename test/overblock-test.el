@@ -1066,7 +1066,7 @@ lines in order put every line after it one row too high."
     (goto-char (point-min))
     (should-not (invisible-p (pos-eol)))))
 
-(ert-deftest overblock-test-the-first-row-always-carries ()
+(ert-deftest overblock-test-the-first-row-of-the-buffer-carries ()
   "The first row takes the first line, though it matches the row below.
 A block that begins on its own row, as a doc string after a lone quote
 line does, left that row empty and the rest one row off."

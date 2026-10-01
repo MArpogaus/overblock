@@ -784,7 +784,7 @@ the block down (see `overblock-stale-when-edited'): typing, a
 replacement over the buffer, a macro, an undo.  Point moving into the
 region reveals nothing.
 
-Every mode here that renders text over its own source uses this."
+overblock-pydoc and the Markdown preview use this."
   (when-let* (((not (string-empty-p (string-trim rendered))))
               (block (apply #'overblock-show beg end
                             :over (overblock-fill-props

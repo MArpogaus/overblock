@@ -484,11 +484,8 @@ rest of the buffer.
 The rendering hangs on the source lines, a piece to a line (see
 `overblock--pieces'), so the cell scrolls like text and is as tall as
 its source; when the rendering is shorter, a cloak hides the lines
-left over.  A cell that renders to nothing uses the single string of a
-result block, and hides its source as one invisible run.  That run must
-start at the end of a visible line: `scroll-down' fails with a
-beginning-of-buffer error over a run that starts at a line start.  So
-the =# %%= line stays visible.
+left over.  A cell that renders to nothing gets an empty piece and a
+cloak like any shorter rendering, and its =# %%= line stays visible.
 
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= looks like every other cell boundary and `outline-minor-mode'
