@@ -72,8 +72,8 @@ The window the demonstration is in and nothing else: a fresh profile
 has a warning to show and every one of them opened a window."
   (unless (window-minibuffer-p)
     (ignore-errors (window-toggle-side-windows))
-    ;; The demonstration's own windows stay.  An edit opens one, and the
-    ;; picture is of the source and the edit side by side.  A window
+    ;; The demonstration's own windows stay. An edit opens one, and the
+    ;; picture is of the source and the edit side by side. A window
     ;; showing a buffer with no file and no block is a profile's own
     ;; noise and goes.
     (dolist (window (window-list nil 'no-mini))

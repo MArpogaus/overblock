@@ -444,7 +444,8 @@ overlay has no end."
 
 (defun overblock--piece-rows (block end)
   "Return the rows of BLOCK up to END as (BOL FROM TO BLANK), in order.
-BOL is where the line starts, FROM where its piece starts, TO where its
+BOL is where the row starts (the block start on the first row, which
+can be inside a line), FROM where its piece starts, TO where its
 text ends and BLANK whether the line is blank.  The piece starts at the
 block on the first row and `:indent' columns in on every other, or at
 the end of a shorter line, which then carries nothing."

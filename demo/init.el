@@ -80,8 +80,8 @@ missing, so a system without one shows words instead of icons."
 (require 'overblock-md-preview)
 (require 'overblock-pydoc)
 ;; Each of these needs a package from an archive: code-cells and
-;; comint-mime for the notebook, ESS for the R chunks.  Thus a checkout
-;; without them still demonstrates the rest.  `ignore-errors' and not
+;; comint-mime for the notebook, ESS for the R chunks. Thus a checkout
+;; without them still demonstrates the rest. `ignore-errors' and not
 ;; the NOERROR of `require': what is missing is the sibling those files
 ;; require, and a nested `require' signals whatever the outer one says.
 (dolist (feature '(overblock-pycell overblock-rmd))

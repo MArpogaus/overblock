@@ -669,8 +669,8 @@ CALLBACK gets the list in the order of TEXTS, or nil where the
 converter is missing, failed, or answered without its marker between
 every pair.
 
-Nothing waits for the process, so Emacs does not freeze.  The process
-is killed when the buffer that asked dies first."
+Nothing waits for the process, so Emacs does not freeze.  When the
+buffer that asked dies first, the answer is dropped."
   (if-let* ((program (overblock-md-program))
             (joined (overblock-md--batch-text texts)))
       (let* ((output (generate-new-buffer " *overblock-md*"))
@@ -931,7 +931,7 @@ shr fetches an image with `url-queue-retrieve', which answers after the
 cell is rendered, so the rendering keeps the placeholder.  A file on
 disk needs no fetch.
 
-The alt text carries the image, capped like that of a result.  An
+The alt text carries the image; `overblock-md-rendered' caps it.  An
 empty alt text becomes the file name, so a display without images
 still names the figure."
   (let* ((src (or (dom-attr dom 'src) ""))
