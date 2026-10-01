@@ -130,8 +130,9 @@ buffer, or begins inside a line. Elsewhere it carries nothing when its
 line belongs to a later source line. Thus a fence in the middle of a
 file carries no line of code.
 
-Where fewer than half of the lines match, the rendering is not line by
-line. Its lines are then dealt evenly over the source lines. A longer
+Where fewer than half of the source lines with text match a rendered
+line, the rendering is not line by line. A source line that the
+renderer wraps still counts once. Its lines are then dealt evenly over the source lines. A longer
 rendering loses its blank lines first, and the blank lines of the
 source stay in view as gaps. A blank line in view also keeps the wheel
 moving.
@@ -374,7 +375,9 @@ new copy of the file text. It must be the same region, and not only the
 same name. A name carries a line number, and two regions can be on that
 line at different times. When the open edit is of another region, the
 reader must say whether to discard it. The region is held by markers, so
-a commit lands on it after the source changed above it.
+a commit lands on it after the source changed above it. Text typed right
+after the region while the edit is open is not part of the region, and
+the commit keeps it.
 
 * The output of a shell
 

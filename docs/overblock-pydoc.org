@@ -102,15 +102,16 @@ go on a line of their own, as PEP 257 writes it.
 
 * The rows a rendering is drawn on
 
-Each row begins at the column of the opening quote, and not at the
+Each row begins at the column where the block begins, and not at the
 indent of that line. The block keeps that many columns
 of each source line in view (the =:indent= of =overblock-show=). Thus
 the indent under a rendering is the text of the buffer, and the bars of
 an indent guide run through the doc string. A description line with a
 deeper indent is covered from that column on, so each row aligns. The
 rendering itself has no padding. Only a line that shares a row with
-another gets padding from the layer. A raw doc string begins one column
-after its code, past the letter before its quotes.
+another gets padding from the layer. The block of a raw doc string
+begins at the letter before its quotes, so its rows begin at that
+column.
 
 ** Padded with spaces, not with a stretch
 
@@ -125,8 +126,9 @@ of an indented doc string would wrap to a row of their own. One column
 of slack stays at the end, because a row that fills the last column
 wraps.
 
-The spaces are counted in columns. Thus a nerd glyph that draws wider
-than it counts can leave the rule one or two columns short of the edge.
+The spaces are counted in columns and measured in pixels. Thus a nerd
+glyph that draws wider than it counts does not push the buttons past
+the edge.
 
 ** The rules
 

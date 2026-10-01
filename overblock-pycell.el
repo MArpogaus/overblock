@@ -579,7 +579,8 @@ boundary line or the end of the buffer.  An empty cell is left out."
   "Render the markdown cells of the buffer that want it.
 A markdown cell is one whose boundary line reads \"# %% [markdown]\",
 and `overblock-live-wanted-p' says which want rendering: not those
-rendered already, and not the one at point.  The live cycle of the
+rendered already, and not the one whose rendering came off while point
+is still in it.  The live cycle of the
 mode calls this whenever the reader stops.
 
 One asynchronous converter process does all of them, so the reader
