@@ -75,6 +75,7 @@
 ;; file still compiles on such a build.
 ;; A build without image support has no `image-size'; the calls stand
 ;; behind `display-images-p'.
+(declare-function eldoc-print-current-symbol-info "eldoc" (&optional interactive))
 (declare-function image-size "image.c" (spec &optional pixels frame))
 (declare-function libxml-parse-html-region "ext:xml.c"
                   (start end &optional base-url discard-comments))
@@ -286,6 +287,27 @@ is left to a timer."
              0.1 nil #'overblock-md--latex-draw-arrivals))))
   nil)
 
+(defvar overblock-md--eldoc-asker nil
+  "The buffer whose hover `overblock-md-eglot-renderer' renders, or nil.
+eglot renders in a temporary buffer that is gone when a preview
+arrives, so the hover is asked for again in this one instead.")
+
+(defvar overblock-md--eldoc-timer nil
+  "The timer that asks for the hover again once its previews arrived.")
+
+(defun overblock-md--eldoc-arrived (asker)
+  "Ask for the documentation of ASKER again, once the previews are in."
+  (unless (timerp overblock-md--eldoc-timer)
+    (setq overblock-md--eldoc-timer
+          (run-with-idle-timer
+           0.1 nil
+           (lambda ()
+             (setq overblock-md--eldoc-timer nil)
+             (when (and (buffer-live-p asker) (eq (window-buffer) asker))
+               (with-current-buffer asker
+                 (eldoc-print-current-symbol-info t)))))))
+  nil)
+
 (defun overblock-md--latex-draw-arrivals ()
   "Draw the buffers whose previews arrived while the reader waited."
   (setq overblock-md--latex-arrival-timer nil)
@@ -344,8 +366,11 @@ taller than the window, and a block the wheel cannot get past is what
                      frag
                      :color (face-attribute 'default :foreground nil t)
                      :font-height (overblock-md--font-height buffer)
-                     :callback (lambda ()
-                                 (overblock-md--latex-arrived buffer)))))
+                     :callback (let ((asker overblock-md--eldoc-asker))
+                                 (lambda ()
+                                   (if asker
+                                       (overblock-md--eldoc-arrived asker)
+                                     (overblock-md--latex-arrived buffer)))))))
            (limit (overblock-image-limit)))
       (cond
        ((and image limit)
@@ -1293,7 +1318,8 @@ Nil where no converter is installed.  A rendering that still waits for
 a formula is not kept: the stand-in for the preview would show for
 ever."
   (or (gethash md overblock-md--eldoc-cache)
-      (let ((rendered (let ((overblock-md-width overblock-md-eldoc-width))
+      (let ((rendered (let ((overblock-md-width overblock-md-eldoc-width)
+                            (overblock-md--eldoc-asker (window-buffer)))
                         (overblock-md-rendered (overblock-md--eldoc-markdown md)))))
         (when (and rendered
                    (not (text-property-not-all 0 (length rendered)

@@ -587,6 +587,37 @@ while it was asked from shr's temporary buffer."
           (should (eq asked-in buffer)))
       (kill-buffer buffer))))
 
+(ert-deftest overblock-md-test-a-hover-is-asked-again-when-its-formula-arrives ()
+  "A preview that arrives after a hover was rendered asks for the hover again.
+eglot renders in a temporary buffer that is gone by then, so the first
+hover of a formula showed its LaTeX until the reader moved and came back."
+  (let ((reader (generate-new-buffer "overblock-md-reader"))
+        (overblock-md--eldoc-timer nil)
+        (overblock-md--eldoc-cache (make-hash-table :test #'equal))
+        callback asked-again)
+    (unwind-protect
+        (save-window-excursion
+          (set-window-buffer nil reader)
+          (cl-letf (((symbol-function 'latex-to-svg-backend-available-p)
+                     (lambda () t))
+                    ((symbol-function 'latex-to-svg-backend)
+                     (lambda (_latex &rest keys)
+                       (setq callback (plist-get keys :callback))
+                       nil))
+                    ((symbol-function 'run-with-idle-timer)
+                     (lambda (_secs _repeat fn) (funcall fn) 'timer))
+                    ((symbol-function 'eldoc-print-current-symbol-info)
+                     (lambda (&optional interactive)
+                       (setq asked-again (list (current-buffer) interactive)))))
+            ;; the hover is rendered with its asker known
+            (cl-letf (((symbol-function 'overblock-md-rendered)
+                       (lambda (_md) (overblock-md--latex-image "$x$") "x")))
+              (overblock-md--eldoc-rendering "A formula $x$ here."))
+            (should (functionp callback))
+            (funcall callback)
+            (should (equal asked-again (list reader t)))))
+      (kill-buffer reader))))
+
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
 A terminal and an Emacs without SVG both answer so, and neither is a
