@@ -269,25 +269,13 @@ every `overblock-refresh'."
       (overlay-put block 'evaporate t)
       (overlay-put block 'overblock-part t)
       ;; The source under a rendering is painted plain, newlines and
-      ;; all. The face of a newline is drawn across the rest of its
-      ;; screen line, and the source keeps what font lock gave it: a
-      ;; rendered table row ended in a stripe of `markdown-table-face'
-      ;; running to the window and a fenced block in a stripe of
-      ;; `markdown-code-face', one ragged edge per row. What a rendering
-      ;; paints itself outranks this, so only the columns nothing claims
-      ;; come out plain.
-      ;;
-      ;; Only under a rendering that covers whole lines. A result hangs
-      ;; below its region and leaves the code in view, and the same
-      ;; paint took every colour off a cell the moment it ran: an
-      ;; overlay's face outranks what font lock wrote, `default'
-      ;; included — and it would take the indentation guide off the
-      ;; columns a block with `:indent' leaves in view; those blocks
-      ;; paint their pieces alone.
-      ;;
-      ;; Under `hl-line', which draws at -50: an overlay face with no
-      ;; priority at all outranks it, and the stripe then disappeared
-      ;; wherever a block stood.
+      ;; all: the face of a newline is drawn across the rest of its
+      ;; screen line, so a table row or a fence would end in a stripe
+      ;; of its font lock face. What a rendering paints itself outranks
+      ;; this. Only under a rendering that covers whole lines: a
+      ;; result leaves its code in view, and a block with `:indent'
+      ;; leaves the indentation guide in view. Below `hl-line' (-50),
+      ;; so the line highlight still shows.
       (when (and (plist-get props :over) (not (plist-get props :indent)))
         (overlay-put block 'face 'default))
       (overlay-put block 'priority -60)
@@ -295,14 +283,8 @@ every `overblock-refresh'."
       ;; `overblock--width-changed' can tell a block that is drawn for
       ;; this window from one that is not.
       (overlay-put block 'overblock-columns (overblock-window-columns))
-      ;; `modification-hooks' is left to the caller. What an edit of the
-      ;; region means is the caller's business — a stale result goes, a
-      ;; rendering goes with its source — and a hook of the layer's own was
-      ;; both unreachable and overwritten: every route that empties the
-      ;; anchor takes it down through `evaporate' first, so it is never
-      ;; live and empty at once, and each caller writes the property
-      ;; wholesale. What the layer carries is the mark above, so
-      ;; `overblock-clear' can sweep an overlay whose anchor is gone.
+      ;; `modification-hooks' is left to the caller: what an edit of
+      ;; the region means is the caller's business.
       ;; The two slots the layer writes itself are there from the start, so
       ;; every `plist-put' after this mutates the list in place and no
       ;; reader can be left holding a head that is no longer the block's.
@@ -312,14 +294,8 @@ every `overblock-refresh'."
         (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
           (overlay-put ov 'evaporate t)
           (overlay-put ov 'overblock-part t)
-          ;; The face of a newline is drawn across the rest of the
-          ;; screen line, and the newline under a block still wears
-          ;; what font lock painted the source: a rendered table row
-          ;; ended in a stripe of `markdown-table-face' running to the
-          ;; window, one edge per row, and a fenced block in a stripe of
-          ;; `markdown-code-face'. An overlay face outranks a text
-          ;; property, and what a rendering paints itself outranks this,
-          ;; so only the columns nothing else claims come out plain.
+          ;; Plain for the reason the anchor is: a newline's face runs
+          ;; to the window edge.
           (overlay-put ov 'face 'default)
           (overlay-put ov 'priority -60)
           (overblock-set block :newline ov)))
