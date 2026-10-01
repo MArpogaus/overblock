@@ -25,22 +25,10 @@
 
 ;; Run with: make test-live
 ;;
-;; What only a real R can prove.  The batch suite starts no process,
-;; and three faults lived past every one of its checks for exactly that
-;; reason:
-;;
-;;   - every result came back with a bare > on a line of its own,
-;;     because ess-tracebug hands the prompt to the comint filter with
-;;     `comint-prompt-regexp' bound to "^$" and the strip read that
-;;     binding rather than the buffer's own prompt;
-;;   - the chunk walk read the engine name as ending at a comma or a
-;;     brace, so ```{r setup} was not an R chunk at all and a file of
-;;     named chunks had none;
-;;   - the header of an aligned table lost its indentation, so every
-;;     `summary' came back with its columns three characters out.
-;;
-;; These tests send real chunks down a real R and read back what the
-;; blocks show.
+;; What only a real R can show.  The batch suite starts no process.
+;; These tests send real chunks to a real R and read back what the
+;; blocks show: the prompt that ess-tracebug hands over, named chunks,
+;; and the indentation of a table.
 ;;
 ;; `make test' does not load this file, and the target that does skips
 ;; with a word where no R is installed.
@@ -59,7 +47,7 @@
 
 (defun overblock-rmd-live-test--run-first ()
   "Run the first chunk of the buffer and wait for its result.
-Answers the text of that result."
+Return the text of that result."
   (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
     (overblock-run-region beg end))
   (should (overblock-test-common-wait
@@ -70,12 +58,10 @@ Answers the text of that result."
 
 (defmacro overblock-rmd-live-test--with-document (text &rest body)
   "Evaluate BODY in an Rmd buffer holding TEXT, wired for a real R.
-The R of an earlier test is reused where one is alive, which is what
-the tests want: each startup costs seconds, and the package is meant to
-keep one R across a session anyway.
+The R of an earlier test is reused where one is alive: each startup
+costs seconds, and the package keeps one R across a session anyway.
 
-The prose is not rendered: these tests are about what R answers, and a
-converter process a paragraph would only make them slow."
+The prose is not rendered: these tests are about what R answers."
   (declare (indent 1))
   `(let ((ess-ask-for-ess-directory nil)
          (ess-history-file nil)
@@ -87,9 +73,7 @@ converter process a paragraph would only make them slow."
          (with-current-buffer buffer
            (insert ,text)
            (setq buffer-file-name "/tmp/overblock-rmd-live.Rmd")
-           ;; `markdown-mode' and not `text-mode': the mode is for the
-           ;; prose of an Rmd file and refuses a buffer that holds
-           ;; something else, which `overblock-only-in' says.
+           ;; `overblock-only-in' refuses a buffer not in `markdown-mode'.
            (markdown-mode)
            (overblock-rmd-mode 1)
            (goto-char (point-min))
@@ -102,16 +86,15 @@ converter process a paragraph would only make them slow."
 (ert-deftest overblock-rmd-live-test-a-chunk-comes-back-with-its-value ()
   "A chunk runs and its value shows inline, with no prompt left on it.
 ess-tracebug hands the prompt to the comint filter with
-`comint-prompt-regexp' bound to \"^$\", so a strip that read that
-variable took nothing off: every result came back with a bare > on a
-line of its own."
+`comint-prompt-regexp' bound to \"^$\", so the strip must read the
+prompt of ESS."
   (overblock-rmd-live-test--with-document "```{r one}\n40 + 2\n```\n"
     (should (equal (overblock-rmd-live-test--run-first) "[1] 42"))))
 
 (ert-deftest overblock-rmd-live-test-a-chunk-that-draws-comes-back-with-its-figure ()
   "A chunk that plots answers with the figure, after what it printed.
-R drew to the PNG device the wrapper opened, and the file it wrote came
-back as an image in the result."
+R draws to the PNG device of the wrapper, and the file comes back as
+an image in the result."
   (skip-unless (image-type-available-p 'png))
   (overblock-rmd-live-test--with-document
       "```{r fig}\ncat(\"before\\n\")\nplot(1:3)\n```\n"
@@ -124,37 +107,34 @@ back as an image in the result."
 
 (ert-deftest overblock-rmd-live-test-a-chunk-prints-every-statement ()
   "Every top level expression of a chunk prints, and no prompt is between.
-That is what the `source' wrapper buys.  Sent line by line R prompts
-after each statement and those prompts land in the middle of the
-output; a bare `eval' of the whole chunk would print the last value
-only."
+This is what the `source' wrapper gives.  Sent line by line, R prompts
+after each statement, in the middle of the output; a bare `eval' prints
+only the last value."
   (overblock-rmd-live-test--with-document
       "```{r many}\nx <- 1:3\nx\nsum(x)\ncat(\"done\\n\")\n```\n"
     (let ((text (overblock-rmd-live-test--run-first)))
       (should (equal text "[1] 1 2 3\n[1] 6\ndone"))
-      ;; the assignment printed nothing, as at R's own prompt
+      ;; The assignment printed nothing, as at the prompt of R.
       (should-not (string-match-p ">" text)))))
 
 (ert-deftest overblock-rmd-live-test-a-table-keeps-its-columns ()
   "An aligned table comes back with its header over its numbers.
 R indents the header of a `summary' and lines the values up under it,
-and the trim that took the outer whitespace off a result took those
-leading spaces with them: the header stood three characters to the left
-of the row below it."
+so the trim of a result keeps the leading spaces."
   (overblock-rmd-live-test--with-document
       "```{r table}\nsummary(c(1, 2, 3, 4))\n```\n"
     (let* ((text (overblock-rmd-live-test--run-first))
            (lines (split-string text "\n")))
       (should (= (length lines) 2))
-      ;; the header is indented, and "Min." begins where "1.00" does
+      ;; The header is indented, and "Min." starts where "1.00" does.
       (should (string-prefix-p " " (car lines)))
       (should (= (string-match-p "Min\\." (car lines))
                  (string-match-p "1\\.00" (cadr lines)))))))
 
 (ert-deftest overblock-rmd-live-test-a-chunk-of-quotes-survives-the-trip ()
   "A chunk carrying quotes, backslashes and newlines reaches R whole.
-The chunk travels inside an R string literal, so each of the three
-would otherwise end that literal, the line, or both."
+The chunk travels inside an R string literal, which each of the three
+could end, with the line or both."
   (overblock-rmd-live-test--with-document
       "```{r quotes}\ncat(\"a\\tb\\n\")\n'say \\\"hi\\\"'\n```\n"
     (should (equal (overblock-rmd-live-test--run-first)
@@ -184,14 +164,13 @@ would otherwise end that literal, the line, or both."
                    "[1] \"first\""))
     (should (string-match-p "boom" (overblock-test-common-text
                                     (cadr (overblock-test-common-results)))))
-    ;; the third chunk was never sent
+    ;; The third chunk is not sent.
     (should (= (length (overblock-test-common-results)) 2))))
 
 (ert-deftest overblock-rmd-live-test-a-pass-carries-state-between-chunks ()
   "A later chunk sees what an earlier one defined.
-The chunks go to one R at its top level, so a pass reads as the file
-reads: `source' with `local = FALSE', which is its default, evaluates
-in the global environment."
+The chunks go to one R at its top level: `source' with its default
+`local = FALSE' evaluates in the global environment."
   (overblock-rmd-live-test--with-document
       "```{r set}\nlive_value <- 7\n```\n\n```{r use}\nlive_value * 6\n```\n"
     (overblock-rmd-restart-and-run-all)
@@ -200,7 +179,7 @@ in the global environment."
                              (null (overblock-run--queued))
                              (= (length (overblock-test-common-results)) 2)))
              60))
-    ;; the assignment printed nothing, and the chunk after it saw it
+    ;; The assignment printed nothing, and the next chunk sees it.
     (should (equal (overblock-test-common-text
                     (car (overblock-test-common-results)))
                    ""))
@@ -215,7 +194,7 @@ running chunk runs to its end."
   (overblock-rmd-live-test--with-document
       "```{r a}\n\"first\"\n```\n\n```{r b}\nSys.sleep(1)\n\"last\"\n```\n"
     (overblock-rmd-restart-and-run-all)
-    ;; the last chunk is the one running: nothing queued, one chunk live
+    ;; The last chunk runs: nothing queued, one chunk live.
     (should (overblock-test-common-wait
              (lambda ()
                (when-let* ((proc (overblock-rmd--process)))
@@ -227,7 +206,7 @@ running chunk runs to its end."
     (should-not (overblock-run--queued))
     (should (overblock-test-common-wait
              #'overblock-rmd-live-test--idle-p 60))
-    ;; the running chunk was not cut short: both results arrived
+    ;; The running chunk runs to its end: both results arrive.
     (should (= (length (overblock-test-common-results)) 2))
     (should (equal (overblock-test-common-text
                     (cadr (overblock-test-common-results)))
@@ -241,7 +220,7 @@ running chunk runs to its end."
     (overblock-rmd-restart)
     (should-not (overblock-test-common-results))
     (should (overblock-rmd--process))
-    ;; the new R has never heard of it
+    ;; The new R does not know it.
     (overblock-rmd-live-test--with-document
         "```{r b}\nexists(\"restart_witness\")\n```\n"
       (should (equal (overblock-rmd-live-test--run-first) "[1] FALSE")))))
