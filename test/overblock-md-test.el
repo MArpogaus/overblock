@@ -343,7 +343,12 @@ An HTML comment split at a blank line takes the marker between its halves."
             (overblock-md-browse "docs/guide.md#usage")
             (should (equal found (expand-file-name "docs/guide.md" dir)))
             (overblock-md-browse "https://example.org")
-            (should (equal browsed "https://example.org"))))
+            (should (equal browsed "https://example.org"))
+            ;; Nothing before the first letter, as in pandoc.
+            (erase-buffer)
+            (insert "# 1. Introduction\n")
+            (overblock-md-browse "#introduction")
+            (should (bobp))))
       (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()

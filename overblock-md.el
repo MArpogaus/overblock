@@ -1204,18 +1204,26 @@ makes SLUG, and a path opens its file, relative to this buffer."
         (t (find-file (expand-file-name
                        (url-unhex-string (car (split-string url "#"))))))))
 
+(defvar-local overblock-md-heading-regexp "^#+[ \t]+\\(.*?\\)[ \t#]*$"
+  "What a heading of the markdown of this buffer looks like.
+Group 1 is its text.  A mode whose markdown is in comments, as the
+cells of a notebook are, sets its own.")
+
 (defun overblock-md--slug (heading)
-  "Return the id pandoc gives the HEADING text: lower case, dashes."
+  "Return the id pandoc gives the HEADING text.
+Lower case, punctuation gone, spaces turned to dashes, and nothing
+before the first letter."
   (replace-regexp-in-string
-   " +" "-" (replace-regexp-in-string "[^[:alnum:] _.-]" ""
-                                      (downcase (string-trim heading)))))
+   " +" "-" (replace-regexp-in-string
+             "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" ""
+             (downcase (string-trim heading)))))
 
 (defun overblock-md--goto-heading (slug)
   "Move to the heading of this buffer whose id is SLUG."
   (if-let* ((pos (save-excursion
                    (goto-char (point-min))
                    (catch 'found
-                     (while (re-search-forward "^#+[ \t]+\\(.*?\\)[ \t#]*$" nil t)
+                     (while (re-search-forward overblock-md-heading-regexp nil t)
                        (when (equal (overblock-md--slug (match-string 1)) slug)
                          (throw 'found (pos-bol))))))))
       (progn (push-mark) (goto-char pos))

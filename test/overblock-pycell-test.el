@@ -231,6 +231,17 @@ bar left on the line could not be swept."
         (should (string-match-p "Some \\*text\\*"
                                 (overblock-get block :over)))))))
 
+(ert-deftest overblock-pycell-test-md-an-anchor-link-finds-a-cell-heading ()
+  "A #slug link finds the heading of a markdown cell, not a comment."
+  (with-temp-buffer
+    (insert "# a comment\nx = 1\n# %% [markdown]\n# # A comment\n")
+    (python-mode)
+    (code-cells-mode)
+    (overblock-pycell-test--with-mode
+      (goto-char (point-min))
+      (overblock-md-browse "#a-comment")
+      (should (looking-at-p "# # A comment")))))
+
 (ert-deftest overblock-pycell-test-md-an-edit-takes-the-bar-with-it ()
   "An edit of a rendered cell removes the rendering and its bar.
 The block evaporates with the text it covers, but the bar is on the

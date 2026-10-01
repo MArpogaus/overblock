@@ -1055,6 +1055,9 @@ run."
         ;; Point moving into a rendered cell changes nothing; a click
         ;; shows its source.
         (setq-local overblock-live-source-at-point nil)
+        ;; A heading of a markdown cell is a comment: `# # Title'.
+        (setq-local overblock-md-heading-regexp
+                    "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
         ;; One advice for the session, added by the first notebook and
         ;; removed by the last, not at load time.
         (advice-add 'outline-flag-region :after
