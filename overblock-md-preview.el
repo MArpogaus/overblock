@@ -266,8 +266,8 @@ HTML is the answer of `overblock-md-html-batch-async' for this block,
 when a caller sent the whole buffer through one process.
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
-  (when-let* ((source (string-trim (overblock-md-preview--source beg end)))
-              ((not (string-empty-p source)))
+  (when-let* ((source (overblock-md-preview--source beg end))
+              ((not (string-blank-p source)))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
                           (overblock-md-rendered source html))))
     (overblock-show-rendering beg end rendered 'default

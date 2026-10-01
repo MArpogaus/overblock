@@ -111,6 +111,19 @@ A row alone renders as a paragraph, and the rule as empty cells."
       (should (string-match-p "a +b" shown))
       (should (string-match-p "1 +2" shown)))))
 
+(ert-deftest overblock-md-preview-test-indented-code-renders-as-code ()
+  "A block converted by itself keeps the indent that makes it code."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "Para.\n\n    def f():\n        return 1\n")
+    (let* ((region (cadr (overblock-md-preview-regions (point-min)
+                                                        (point-max))))
+           (block (overblock-md-preview--show (car region) (cdr region)))
+           (rows (split-string (substring-no-properties
+                                (overblock-get block :over))
+                               "\n")))
+      (should (= 2 (length rows))))))
+
 (ert-deftest overblock-md-preview-test-a-rendering-fits-the-window ()
   "The rendering is filled to the columns the window has.
 The window is made narrower than the frame, so the test fails if the
