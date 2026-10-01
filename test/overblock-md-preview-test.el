@@ -439,6 +439,10 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "Some text.\n<!--\nOld.\n\nMore.\n-->\n")
     (should (equal (overblock-md-preview-fences (point-max) t) '((12 . 32)))))
+  ;; Front matter goes to the converter as nothing.
+  (with-temp-buffer
+    (insert "---\ntitle: a: b\n---\n\nText.\n")
+    (should (equal (overblock-md-preview--source 1 20) "")))
   ;; Inside a paragraph a comment is part of it.
   (with-temp-buffer
     (insert "Some *long\n<!-- note -->\nend* here.\n")

@@ -142,6 +142,15 @@ Return nil, and leave point, where there is none."
 A blank line, a heading, a fence or the end of front matter: after a
 line of a paragraph, the comment is part of the paragraph.")
 
+(defun overblock-md-preview--front-matter-p (beg end)
+  "Return non-nil where BEG..END is the front matter of the buffer."
+  (and (= beg (point-min))
+       (when-let* ((matter (save-excursion
+                             (goto-char beg)
+                             (car (overblock-md-preview--front-matter
+                                   (point-max))))))
+         (= (cdr matter) end))))
+
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
 It begins one where BLOCK, the open fenced block, is nil, and either it
@@ -360,7 +369,11 @@ before it as text.  Elsewhere the indentation makes a code block.
 Only spaces go, so a tab stays the converter's to read.  A fenced
 block goes out closed under its opening marks; see
 `overblock-md-preview--closed'."
-  (let* ((text (buffer-substring-no-properties beg end))
+  (let* ((text (if (overblock-md-preview--front-matter-p beg end)
+                   ;; It renders to nothing, and a YAML error in it would
+                   ;; fail the batch.
+                   ""
+                 (buffer-substring-no-properties beg end)))
          (indent (if (overblock-md-preview--in-item-p beg)
                      (or (string-match-p "[^ ]" text) 0)
                    0)))
