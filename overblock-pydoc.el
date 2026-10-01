@@ -228,24 +228,23 @@ A cons of (TICK . STRINGS).  The live cycle re-arms from
 `post-command-hook', and without the cache each motion of point walks
 the whole buffer again for the same answer.")
 
-(defun overblock-pydoc--strings (beg end)
-  "Return the bounds of every doc string between BEG and END.
+(defun overblock-pydoc--strings ()
+  "Return the bounds of every doc string of the accessible buffer.
 Each is a cons of the position of the opening quote and the one after
 the closing quote.
 
 Font lock says which strings are documentation (see
 `overblock-pydoc--doc-face-p'), and the syntax scan says where each of
 them ends."
-  ;; Only the whole buffer is cached, because every caller asks for it.
   ;; A narrowed buffer is not cached: widening does not change
   ;; `buffer-chars-modified-tick'.
-  (if (and (= beg (point-min)) (= end (point-max)) (not (buffer-narrowed-p)))
-      (let ((tick (buffer-chars-modified-tick)))
-        (unless (eql (car overblock-pydoc--strings-cache) tick)
-          (setq overblock-pydoc--strings-cache
-                (cons tick (overblock-pydoc--walk beg end))))
-        (cdr overblock-pydoc--strings-cache))
-    (overblock-pydoc--walk beg end)))
+  (if (buffer-narrowed-p)
+      (overblock-pydoc--walk (point-min) (point-max))
+    (let ((tick (buffer-chars-modified-tick)))
+      (unless (eql (car overblock-pydoc--strings-cache) tick)
+        (setq overblock-pydoc--strings-cache
+              (cons tick (overblock-pydoc--walk (point-min) (point-max)))))
+      (cdr overblock-pydoc--strings-cache))))
 
 (defun overblock-pydoc--walk (beg end)
   "Return the bounds of every doc string between BEG and END.
@@ -447,7 +446,7 @@ runs.  `overblock-live-start' calls this again whenever the reader
 stops."
   (interactive)
   (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
-    (overblock-md-render-regions (overblock-pydoc--strings (point-min) (point-max))
+    (overblock-md-render-regions (overblock-pydoc--strings)
                                  'pydoc #'overblock-pydoc--converter-text
                                  #'overblock-pydoc--show)))
 
