@@ -296,6 +296,10 @@ The item is one block, and the fence is not a second one over it."
     (should (equal (overblock-md-preview--source 8 (point-max))
                    "more of one\n```python\ny = 2\n```\n")))
   (with-temp-buffer
+    (insert "Para.\n\n    def f():\n        return 1\n")
+    (should (equal (overblock-md-preview--source 8 (point-max))
+                   "    def f():\n        return 1\n")))
+  (with-temp-buffer
     (insert "```\n        eight\n```\n")
     (should (equal (overblock-md-preview--source (point-min) (point-max))
                    (buffer-string)))))
@@ -304,6 +308,11 @@ The item is one block, and the fence is not a second one over it."
   "In an Rmd file the rest of an item after its chunk stops at the next item."
   (with-temp-buffer
     (insert "- two\n  ```{r}\n  1\n  ```\n  Tail.\n- three\n")
+    (should (equal (mapcar (lambda (r) (buffer-substring (car r) (cdr r)))
+                           (overblock-md-preview-regions (point-min) (point-max) t))
+                   '("- two" "  Tail." "- three"))))
+  (with-temp-buffer
+    (insert "- two\n\n  ```{r}\n  1\n  ```\n\n  Tail.\n- three\n")
     (should (equal (mapcar (lambda (r) (buffer-substring (car r) (cdr r)))
                            (overblock-md-preview-regions (point-min) (point-max) t))
                    '("- two" "  Tail." "- three"))))
@@ -320,7 +329,12 @@ The item is one block, and the fence is not a second one over it."
                    (list (cons 22 (1- (point-max)))))))
   (with-temp-buffer
     (insert "Para.\n\n    ```\n    code\n")
-    (should-not (overblock-md-preview-fences (point-max)))))
+    (should-not (overblock-md-preview-fences (point-max))))
+  ;; A list shown inside a block: its deep fence is content.
+  (with-temp-buffer
+    (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   (list (cons 1 (1- (point-max))))))))
 
 (ert-deftest overblock-md-preview-test-an-item-that-ends-in-its-fence-takes-it ()
   "An item whose last lines are its fence is one block with that fence."

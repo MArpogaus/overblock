@@ -94,10 +94,8 @@ end of the buffer."
       (while (re-search-forward "^\\( *\\)\\(```+\\|~~~+\\)" end t)
         (let ((this (match-string-no-properties 2))
               (bare (looking-at-p "[[:blank:]]*$")))
-          (cond ;; Four spaces in, a fence line is code text, unless
-                ;; it stands under a list item.
-                ((and (> (length (match-string 1)) 3)
-                      (not (overblock-md-preview--in-item-p (pos-bol)))))
+          (cond ((overblock-md-preview--too-deep-p
+                  (length (match-string 1)) open))
                 ;; A backtick after the marks makes inline code of it.
                 ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")))
                 ((null open) (setq open (pos-bol) fence this))
@@ -112,6 +110,17 @@ end of the buffer."
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
+(defun overblock-md-preview--too-deep-p (indent open)
+  "Return non-nil where a fence INDENT columns in is code text.
+OPEN is the start of the fence line that opened the block, or nil.  As
+in CommonMark, a closing fence is at most three columns deeper than its
+opening one.  An opening fence four columns in opens a block only
+under a list item."
+  (if open
+      (> indent (+ 3 (save-excursion (goto-char open) (current-indentation))))
+    (and (> indent 3)
+         (not (overblock-md-preview--in-item-p (pos-bol))))))
+
 (defun overblock-md-preview--margin-p (pos)
   "Return non-nil where the line at POS begins at the left margin."
   (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
@@ -122,7 +131,7 @@ A blank line does, and so does FENCE, the start of a fence reached
 here, unless it is indented under a list item: the nearest line above
 it that begins at the left margin begins an item.  With EVERY, each
 fence ends its paragraph, and an item ends the rest of an item that
-begins right after a fence: alone, the converter reads the item as
+begins after a fence: alone, the converter reads the item as
 more text of that paragraph."
   (cond (fence
          (or every
@@ -133,9 +142,10 @@ more text of that paragraph."
                     (overblock-md-preview--item-p (point))
                     (save-excursion
                       (goto-char from)
-                      (and (zerop (forward-line -1))
-                           (looking-at-p
-                            overblock-md-preview-closing-fence-regexp)))))))
+                      (skip-chars-backward " \t\n")
+                      (goto-char (pos-bol))
+                      (looking-at-p
+                       overblock-md-preview-closing-fence-regexp))))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."
@@ -242,11 +252,14 @@ that tells whether BEG is inside a fence."
 
 (defun overblock-md-preview--source (beg end)
   "Return the markdown BEG..END, less the indentation of its first line.
-A later paragraph of a list item is indented under the item, and the
-converter reads a fence indented deeper than the line before it as
-text.  Only spaces go, so a tab stays the converter's to read."
+Only under a list item: a later paragraph of an item is indented under
+it, and the converter reads a fence indented deeper than the line
+before it as text.  Elsewhere the indentation makes a code block.
+Only spaces go, so a tab stays the converter's to read."
   (let* ((text (buffer-substring-no-properties beg end))
-         (indent (or (string-match-p "[^ ]" text) 0)))
+         (indent (if (overblock-md-preview--in-item-p beg)
+                     (or (string-match-p "[^ ]" text) 0)
+                   0)))
     (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))
 
 (defun overblock-md-preview--show (beg end &optional html)
