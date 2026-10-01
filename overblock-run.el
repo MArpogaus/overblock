@@ -107,12 +107,6 @@ A command of a notebook mode is autoloaded and can be called anywhere."
   "Return the word that the messages of this backend carry."
   (or (plist-get overblock-run-backend :name) "overblock"))
 
-(defun overblock-run--option (slot)
-  "Return the value of the option that the backend names in SLOT.
-For `:buttons', which names a variable, so a block drawn later shows
-the current value."
-  (symbol-value (plist-get overblock-run-backend slot)))
-
 (defun overblock-run--unit (&optional plural)
   "Return what this backend calls a region, PLURAL where that is asked."
   (concat (or (plist-get overblock-run-backend :unit) "region")
@@ -171,10 +165,9 @@ this map.")
 
 (defun overblock-run--shorten (line chars)
   "Return LINE cut to CHARS characters.
-The cut is marked with an ellipsis.  A CHARS of nil or zero leaves
-the line whole."
-  (if (or (not (natnump chars))
-          (zerop chars)
+The cut is marked with an ellipsis.  A CHARS of zero leaves the line
+whole."
+  (if (or (zerop chars)
           (<= (length line) chars))
       line
     (concat (substring line 0 chars)
@@ -262,7 +255,7 @@ time in seconds since the cell started.  STATE is `running' while the
 cell runs, `died' where the interpreter went away before the cell
 ended, `failed' where the backend calls the result an error, and nil
 where the cell finished.  IMAGEP marks a result with an image."
-  (let* ((icons (overblock-buttons (overblock-run--option :buttons)
+  (let* ((icons (overblock-buttons (symbol-value (plist-get overblock-run-backend :buttons))
                                    imagep total (eq state 'running)))
          (mark (overblock-run--mark folded total runtime state))
          (label (cond ((> total 0)
@@ -520,8 +513,7 @@ the head is empty: an incomplete escape sequence hides what follows."
   (or (plist-get overblock-run--state :head)
       (let* ((lines overblock-run-max-lines)
              (chars overblock-run-max-line-length)
-             (budget (and (natnump chars)
-                          (> chars 0)
+             (budget (and (> chars 0)
                           (> lines 0)
                           ;; What `overblock-run--body-lines' can show.
                           (* lines (1+ chars))))
