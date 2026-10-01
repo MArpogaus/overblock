@@ -182,11 +182,14 @@ the URL, so a badge is fetched once per machine.  See
               (make-directory dir t)
               ;; The reader waits for the fetch while the cell renders.
               (with-timeout (3 (error "Timed out"))
-                (url-copy-file url file t))
+                (let ((inhibit-message t))
+                  (url-copy-file url file t)))
               ;; Not `image-supported-file-p', which reads the name: a
-              ;; URL with a query caches as `<md5>.img'. `create-image'
-              ;; reads the header of the file.
-              (and (file-readable-p file) file))
+              ;; URL with a query caches as `<md5>.img'. A server that
+              ;; answers 404 sends a page, and no error.
+              (unless (image-type-from-file-header file)
+                (error "Not an image"))
+              file)
           (error (puthash url t overblock-md--remote-failed)
                  (ignore-errors (delete-file file))
                  (message "overblock-md: no image from %s (%s)"

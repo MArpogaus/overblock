@@ -166,7 +166,9 @@ that the rendering has already left."
                   ((symbol-function 'url-copy-file)
                    (lambda (_url file &rest _)
                      (setq fetches (1+ fetches))
-                     (with-temp-file file (insert "not really a png")))))
+                     (with-temp-file file
+                       (set-buffer-multibyte nil)
+                       (insert "\211PNG\r\n\032\n")))))
           (let ((first (overblock-md--remote-file url)))
             (should first)
             (should (file-readable-p first))
@@ -191,6 +193,26 @@ that the rendering has already left."
           (should-not (overblock-md--remote-file "https://example.org/x.png"))
           (should-not (overblock-md--remote-file "https://example.org/x.png"))
           (should (= fetches 1)))
+      (delete-directory cache t))))
+
+(ert-deftest overblock-md-test-an-error-page-is-no-image ()
+  "A server that answers with a page instead of the image leaves nothing.
+`url-copy-file' writes the page of a 404 and signals no error."
+  (let* ((cache (make-temp-file "overblock-images" t))
+         (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
+                                    process-environment))
+         (overblock-md-remote-images t)
+         (overblock-md--remote-failed (make-hash-table :test #'equal))
+         (url "https://example.org/gone.svg"))
+    (unwind-protect
+        (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
+                  ((symbol-function 'url-copy-file)
+                   (lambda (_url file &rest _)
+                     (with-temp-file file (insert "Not Found")))))
+          (should-not (overblock-md--remote-file url))
+          (should (gethash url overblock-md--remote-failed))
+          (should-not (directory-files (expand-file-name "overblock-images" cache)
+                                       nil "\\`[^.]")))
       (delete-directory cache t))))
 
 (ert-deftest overblock-md-test-no-parser-no-program ()
