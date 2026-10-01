@@ -493,33 +493,33 @@ table is laid out in columns of characters."
               (image (and frag (display-images-p)
                           (overblock-md--latex-image
                            (overblock-md--one-line frag)))))
-           (cond
-            ;; A mark in the source text, which carries no fragment.
-            ((null frag) marks)
-            ((eq image 'pending)
-             ;; Stands in for a preview on its way, which redraws.
-             (propertize (overblock-md--fit
-                          (overblock-md--bare-math (overblock-md--as-text frag))
-                          marks table)
-                         'overblock-md-pending t))
-            (image
-             ;; Marked, so a theme change draws it again.
-             (propertize
-              (if table
-                  (overblock-md--place-in-cell frag image marks)
-                ;; The text under the image is the formula when the run
-                ;; is whole, so a copy gives the formula, not marks.
-                ;; Inline math on one line: a line break of the
-                ;; converter inside the fragment is no row.
-                (overblock-md--place-image
-                 (if (string-search "\n" marks) marks (overblock-md--as-text frag))
-                 image))
-              'overblock-md-math t))
-            (t
-             ;; Padded only in a table, which is laid out in columns.
-             (overblock-md--fit
-              (overblock-md--bare-math (overblock-md--as-text frag)) marks
-              table))))))
+         (cond
+          ;; A mark in the source text, which carries no fragment.
+          ((null frag) marks)
+          ((eq image 'pending)
+           ;; Stands in for a preview on its way, which redraws.
+           (propertize (overblock-md--fit
+                        (overblock-md--bare-math (overblock-md--as-text frag))
+                        marks table)
+                       'overblock-md-pending t))
+          (image
+           ;; Marked, so a theme change draws it again.
+           (propertize
+            (if table
+                (overblock-md--place-in-cell frag image marks)
+              ;; The text under the image is the formula when the run
+              ;; is whole, so a copy gives the formula, not marks.
+              ;; Inline math on one line: a line break of the
+              ;; converter inside the fragment is no row.
+              (overblock-md--place-image
+               (if (string-search "\n" marks) marks (overblock-md--as-text frag))
+               image))
+            'overblock-md-math t))
+          (t
+           ;; Padded only in a table, which is laid out in columns.
+           (overblock-md--fit
+            (overblock-md--bare-math (overblock-md--as-text frag)) marks
+            table))))))
    text t t))
 
 (defun overblock-md--place-in-cell (frag image marks)

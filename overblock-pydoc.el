@@ -418,26 +418,26 @@ view, so the indentation stays buffer text (with any indentation guide
 on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
   (and-let* ((source (overblock-pydoc--converter-text beg end))
-              ((not (string-empty-p source)))
-              (indent (save-excursion (goto-char beg) (current-column)))
-              (rendered
-               ;; The width is nil where no window shows the buffer,
-               ;; which leaves the filling to shr. The command is bound
-               ;; here, not as a clause, so a nil command does not abort
-               ;; the render.
-               (let ((overblock-md-width
-                      (overblock-md-columns (+ indent (overblock-pydoc--bar-room))))
-                     (overblock-md-command (overblock-pydoc--command-for-markup))
-                     (overblock-md-math-face 'font-lock-doc-face))
-                 (when-let* ((prose (overblock-md-rendered source html)))
-                   (overblock-pydoc--dressed (string-trim-right prose "\n+")
-                                             indent))))
-              ((overblock-show-rendering
-                beg end rendered 'font-lock-doc-face
-                :kind 'pydoc
-                :indent indent
-                :keymap overblock-pydoc-map
-                :help-echo "mouse-1: edit this doc string")))))
+             ((not (string-empty-p source)))
+             (indent (save-excursion (goto-char beg) (current-column)))
+             (rendered
+              ;; The width is nil where no window shows the buffer,
+              ;; which leaves the filling to shr. The command is bound
+              ;; here, not as a clause, so a nil command does not abort
+              ;; the render.
+              (let ((overblock-md-width
+                     (overblock-md-columns (+ indent (overblock-pydoc--bar-room))))
+                    (overblock-md-command (overblock-pydoc--command-for-markup))
+                    (overblock-md-math-face 'font-lock-doc-face))
+                (when-let* ((prose (overblock-md-rendered source html)))
+                  (overblock-pydoc--dressed (string-trim-right prose "\n+")
+                                            indent))))
+             ((overblock-show-rendering
+               beg end rendered 'font-lock-doc-face
+               :kind 'pydoc
+               :indent indent
+               :keymap overblock-pydoc-map
+               :help-echo "mouse-1: edit this doc string")))))
 
 ;;;; When
 

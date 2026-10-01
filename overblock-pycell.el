@@ -104,7 +104,7 @@ spinner are not in this list: they show the state of the result."
 
 (defcustom overblock-pycell-md-buttons
   (append '((edit ("" "✎" "edit") "Edit this markdown cell in its own buffer"
-          overblock-pycell-md-edit t))
+                  overblock-pycell-md-edit t))
           overblock-pycell--move-buttons)
   "The buttons on the header of a rendered markdown cell.
 An entry has the shape `overblock-buttons' reads.  A markdown cell has
@@ -115,7 +115,7 @@ button for the source: a click on the rendering shows it."
 
 (defcustom overblock-pycell-source-buttons
   (append '((render ("" "⟳" "render") "Render this markdown cell"
-            overblock-pycell-md-render-cell t))
+                    overblock-pycell-md-render-cell t))
           overblock-pycell--move-buttons)
   "The buttons on the bar of a markdown cell that shows its source.
 An entry has the shape `overblock-buttons' reads.  Such a cell is new,
@@ -126,8 +126,8 @@ render button renders it."
 
 (defcustom overblock-pycell-cell-buttons
   (append '((run-above ("" "⇈" "above") "Run every cell above this one"
-               overblock-run-above t)
-    (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t))
+                       overblock-run-above t)
+            (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t))
           overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
 An entry has the shape `overblock-buttons' reads.  A cell bar is drawn
@@ -707,14 +707,14 @@ a cell without one: a new one, or one taken back to its source."
   ;; The label is "source": the glyph says markdown already, and the
   ;; label tells it from a rendered cell.
   (overblock-pycell--bar-line bol eol 'source
-                    (overblock-glyph "" "◇" "md") "source"
-                    overblock-pycell-source-buttons))
+                              (overblock-glyph "" "◇" "md") "source"
+                              overblock-pycell-source-buttons))
 
 (defun overblock-pycell--code-bar (bol eol)
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
   (overblock-pycell--bar-line bol eol 'code
-                    (overblock-glyph "" "◆" "py") "python"
-                    overblock-pycell-cell-buttons))
+                              (overblock-glyph "" "◆" "py") "python"
+                              overblock-pycell-cell-buttons))
 
 (defun overblock-pycell--drop-bar (bar)
   "Take BAR down, and the rendering it belongs to where it has one.
@@ -1019,7 +1019,7 @@ The pass stops at the first error, or on `overblock-run-stop'."
   (overblock-pycell-restart)
   ;; A restarted shell has a live process that has not prompted yet.
   (overblock-run-on-prompt (overblock-pycell--cell-starts)
-                         "overblock-pycell: evaluating all cells"))
+                           "overblock-pycell: evaluating all cells"))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.
