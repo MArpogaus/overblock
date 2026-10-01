@@ -303,9 +303,7 @@ still busy\"."
 (defun ob-gif-rmd ()
   "An R Markdown file: the prose rendered, the chunks run in place."
   (find-file (ob-gif-file "report.Rmd"))
-  ;; Markdown for the prose, where it is installed; the mode itself does
-  ;; not care which major mode a chunk sits in.
-  (if (require 'markdown-mode nil t) (markdown-mode) (text-mode))
+  (markdown-mode)
   ;; ESS asks where to start R unless it is told; a picture cannot answer.
   (setq ess-ask-for-ess-directory nil
         ess-eval-visibly 'nowait
@@ -429,7 +427,7 @@ size."
   (ob-gif-frame 340)
   ;; and the chunks of an Rmd file
   (find-file (ob-gif-file "report.Rmd"))
-  (if (require 'markdown-mode nil t) (markdown-mode) (text-mode))
+  (markdown-mode)
   (setq ess-ask-for-ess-directory nil
         ess-eval-visibly 'nowait
         inferior-R-args "--no-save --no-restore-data")
