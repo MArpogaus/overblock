@@ -309,12 +309,14 @@ long as its own."
             ;; A closing fence carries no info string.
             (fence
              (when (string-match-p
-                    (concat "\\`[ \t]*" (regexp-quote fence) "[`~]*[ \t]*\\'")
+                    (concat "\\` \\{0,3\\}" (regexp-quote fence) "[`~]*[ \t]*\\'")
                     line)
                (setq fence nil)))
-            ;; Four spaces in, a fence line is code text.
-            ((string-match "\\` \\{0,3\\}\\(```+\\|~~~+\\)" line)
-             (setq fence (match-string 1 line)))
+            ;; Four spaces in, a fence line is code text, and a backtick
+            ;; after the marks makes inline code of it.
+            ((string-match "\\` \\{0,3\\}\\(```+[^`]*\\'\\|~~~+\\)" line)
+             (setq fence (replace-regexp-in-string "[^`~].*" ""
+                                                   (match-string 1 line))))
             ;; Four spaces in, a doctest is in an indented code block
             ;; already.
             ((string-match "\\`\\( \\{0,3\\}\\)>>>" line)

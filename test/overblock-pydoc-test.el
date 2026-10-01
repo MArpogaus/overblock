@@ -479,6 +479,13 @@ A longer fence ends only at a mark as long."
   (should (equal (overblock-pydoc--fence-doctests "    ```\n\n>>> b(2)")
                  "    ```\n\n```pycon\n>>> b(2)\n```")))
 
+(ert-deftest overblock-pydoc-test-inline-code-and-deep-marks-are-no-fences ()
+  "Triple-backtick inline code opens no fence, and four spaces in closes none."
+  (should (equal (overblock-pydoc--fence-doctests "```x``` starts this.\n\n>>> 1 + 1\n2")
+                 "```x``` starts this.\n\n```pycon\n>>> 1 + 1\n2\n```"))
+  (should (equal (overblock-pydoc--fence-doctests "```\n    ```\n```\n\n>>> 2 + 2")
+                 "```\n    ```\n```\n\n```pycon\n>>> 2 + 2\n```")))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The prose reaches the edit buffer without the quotes and the
