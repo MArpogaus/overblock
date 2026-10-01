@@ -841,6 +841,19 @@ without a formula stays."
                            (overblock-in (point-min) (point-max) 'md-preview))
                    '("plain")))))
 
+(ert-deftest overblock-md-test-a-missing-file-is-its-label ()
+  "An image whose file is not there shows its label, and nothing is fetched."
+  (let ((asked nil))
+    (cl-letf (((symbol-function 'url-queue-retrieve)
+               (lambda (&rest _) (setq asked t))))
+      (with-temp-buffer
+        (overblock-md--tag-img
+         (dom-node 'img '((src . "img/none.svg") (alt . "CI"))))
+        (overblock-md--tag-img (dom-node 'img '((src . "img/gone.png"))))
+        (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                       "CI [gone.png]"))
+        (should-not asked)))))
+
 (ert-deftest overblock-md-test-a-remote-image-is-not-fetched-when-off ()
   "With `overblock-md-remote-images' off, nothing reaches the network.
 The image is not given to `shr-tag-img', which would fetch it with

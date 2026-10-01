@@ -939,11 +939,19 @@ from its term, as numpydoc writes it."
              (shr-generic child))
             (t (shr-descend child))))))
 
+(defun overblock-md--image-label (alt where)
+  "Return the label of an image with ALT text, at the file or URL WHERE.
+An empty alt text becomes the file name in brackets, and nothing for
+a URL."
+  (cond ((and alt (not (string-empty-p alt))) alt)
+        ((string-match-p overblock-md--url-regexp where) "")
+        (t (format "[%s]" (file-name-nondirectory where)))))
+
 (defun overblock-md--tag-img (dom)
-  "Draw the image DOM names when it is a file, and leave the rest to shr.
-shr fetches an image with `url-queue-retrieve', which answers after the
-cell is rendered, so the rendering keeps the placeholder.  A file on
-disk needs no fetch.
+  "Draw the image DOM names when it is a file, or else its label.
+shr would fetch an image with `url-queue-retrieve', which answers after
+the cell is rendered, so the rendering keeps the placeholder.  Only a
+data URI goes to shr, which draws it with no fetch.
 
 The alt text carries the image; `overblock-md-rendered' caps it.  An
 empty alt text becomes the file name, so a display without images
@@ -951,22 +959,25 @@ still names the figure."
   (let* ((src (or (dom-attr dom 'src) ""))
          (alt (dom-attr dom 'alt))
          (file (or (overblock-md--image-file src)
-                   (overblock-md--remote-file src))))
-    (cond
-     (file
-      (let ((label (if (and alt (not (string-empty-p alt)))
-                       alt
-                     (format "[%s]" (file-name-nondirectory file)))))
-        (insert (if (display-images-p)
-                    (propertize label 'display (create-image file))
-                  ;; No display property: the placeholder of shr is an
-                  ;; image, which would hide the label.
-                  label))))
-     ;; A remote image that was not fetched stays its alt text. Not
-     ;; given to shr, which would fetch it whatever the option says.
-     ((string-match-p overblock-md--url-regexp src)
-      (insert (or alt "")))
-     (t (shr-tag-img dom)))))
+                   (overblock-md--remote-file src)))
+         (label (overblock-md--image-label alt (or file src))))
+    (if (string-prefix-p "data:" src)
+        ;; shr draws the image of a data URI itself.
+        (shr-tag-img dom)
+      ;; The parser drops a blank between two images, which would run
+      ;; their labels together.
+      (when (and (> (point) (point-min))
+                 (get-text-property (1- (point)) 'overblock-md-label))
+        (insert " "))
+      ;; A remote image that was not fetched, or a file that is not
+      ;; there, stays its label. Not given to shr, which would fetch
+      ;; it whatever the option says. Without images there is no
+      ;; display property either: the placeholder of shr is an image,
+      ;; which would hide the label.
+      (insert (propertize (if (and file (display-images-p))
+                              (propertize label 'display (create-image file))
+                            label)
+                          'overblock-md-label t)))))
 
 (defun overblock-md--code-mode (dom)
   "Return the major mode that paints the fenced block DOM, or nil.
