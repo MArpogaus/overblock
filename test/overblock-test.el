@@ -1127,6 +1127,12 @@ for no width: the width it came back at was the width it had before."
       (let ((face (get-text-property (1- (length rows)) 'face rows)))
         (should (or (eq face overblock--plain) (memq overblock--plain face)))))))
 
+(ert-deftest overblock-test-the-key-of-a-line-reads-past-its-padding ()
+  "A padded table row keys on its cells, past any width of padding."
+  (let ((overblock--keys (make-hash-table :test #'eq)))
+    (should (equal (overblock--key (concat "| x" (make-string 40 ?\s) "| yyy |"))
+                   "xyyy"))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

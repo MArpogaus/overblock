@@ -486,24 +486,15 @@ lines, and the blank lines of the source stay in view instead."
             rows)))
 
 (defvar overblock--keys nil
-  "The keys `overblock--align' has made, by line, or nil outside it.")
+  "The keys `overblock--align' has made, by line.")
 
 (defun overblock--key (text)
   "Return what TEXT and its rendering have in common: its first letters.
 Markup goes (quotes, bullets, pipes, dollars, comment marks), and so
 does case, so a source line and the line it renders to have one key."
-  (if overblock--keys
-      (with-memoization (gethash text overblock--keys)
-        (overblock--key-of text))
-    (overblock--key-of text)))
-
-(defun overblock--key-of (text)
-  "Return the `overblock--key' of TEXT, made afresh."
-  ;; The head of the line is enough: the key is six letters long.
-  (let ((bare (downcase (replace-regexp-in-string
-                         "[^[:alnum:]]+" ""
-                         (substring text 0 (min 40 (length text)))))))
-    (substring bare 0 (min 6 (length bare)))))
+  (with-memoization (gethash text overblock--keys)
+    (let ((bare (downcase (replace-regexp-in-string "[^[:alnum:]]+" "" text))))
+      (substring bare 0 (min 6 (length bare))))))
 
 (defun overblock--keys-match-p (key row-key)
   "Return non-nil where the line KEY is the key of the row ROW-KEY."
@@ -553,7 +544,6 @@ Only the first four rows count; nil where none of them matches."
                 (let ((key (overblock--key line)))
                   (or (gethash key whole)
                       (and (not (string-empty-p key))
-                           (or (< (length key) 6) short)
                            (seq-some (lambda (row-key)
                                        (overblock--keys-match-p key row-key))
                                      (if (< (length key) 6) keys short))))))
