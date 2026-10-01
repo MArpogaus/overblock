@@ -383,7 +383,21 @@ with a fence of the next block."
                          (regexp-quote (substring marks 0 1)) (length marks))
                  "" text)
                 "\n" (make-string column ?\s) marks))
-    text))
+    (overblock-md-preview--comment-closed text)))
+
+(defun overblock-md-preview--comment-closed (text)
+  "Return TEXT with the half of an HTML comment it lacks.
+A comment cut at a blank line, as in an Rmd file where a comment is no
+block, sends a half that opens it and one that closes it.  Each gets
+the other mark, so the converter shows neither as text, and the half
+that opens it does not take the markers of a batch."
+  (cond ((and (string-prefix-p "<!--" text)
+              (not (string-search "-->" text)))
+         (concat text "\n-->"))
+        ((and (string-suffix-p "-->" (string-trim-right text))
+              (not (string-search "<!--" text)))
+         (concat "<!--\n" text))
+        (t text)))
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.

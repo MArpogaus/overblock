@@ -308,6 +308,9 @@ The item is one block, and the fence is not a second one over it."
   (should (equal (overblock-md-preview--closed "~~~~ r\nx\n~~~~") "~~~~ r\nx\n~~~~"))
   (should (equal (overblock-md-preview--closed "```x``` text") "```x``` text"))
   (should (equal (overblock-md-preview--closed "Para.") "Para."))
+  (should (equal (overblock-md-preview--closed "<!-- a") "<!-- a\n-->"))
+  (should (equal (overblock-md-preview--closed "b -->") "<!--\nb -->"))
+  (should (equal (overblock-md-preview--closed "a --> b") "a --> b"))
   ;; An indented code block opens no fence; an item line does.
   (should (equal (overblock-md-preview--closed "    ```\n    x") "    ```\n    x"))
   (should (equal (overblock-md-preview--closed "- ```sh\n  x") "- ```sh\n  x\n  ```"))
