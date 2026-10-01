@@ -299,6 +299,20 @@ So a .py file and an Rmd file show the same row."
         (overblock-run--filter "ok\n>>> "))
       (should (equal said "runtest: done")))))
 
+(ert-deftest overblock-run-test-a-pass-that-ends-in-an-error-says-so ()
+  "A pass whose last region fails says it stopped, not that it is done."
+  (overblock-run-test--with-run
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (let (said)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (and format-string
+                                   (apply #'format format-string args))))))
+        (goto-char (point-max))
+        (insert "Error\n>>> ")
+        (overblock-run--filter "Error\n>>> "))
+      (should (equal said "runtest: stopped at error")))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty

@@ -624,13 +624,13 @@ second time.  `overblock-run-abort' checks the same."
   "Go on with the pass after a region ended, FAILED or not.
 The end of a pass takes point home: its last region is sent with the
 queue empty.  A pass says that it is over, as it says that it began."
-  (cond ((null overblock-run--queue)
-         (when overblock-run--home
-           (message "%s: done" (overblock-run--name)))
-         (overblock-run-go-home))
-        (failed
+  (cond ((and failed (or overblock-run--queue overblock-run--home))
          (setq overblock-run--queue nil)
          (message "%s: stopped at error" (overblock-run--name))
+         (overblock-run-go-home))
+        ((null overblock-run--queue)
+         (when overblock-run--home
+           (message "%s: done" (overblock-run--name)))
          (overblock-run-go-home))
         (t (overblock-run-next))))
 
