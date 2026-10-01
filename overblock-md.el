@@ -1050,32 +1050,32 @@ and `dom-inner-text' is not in Emacs 29.1."
   "Render the fenced block DOM with the font lock of its language.
 The code goes through a buffer in that mode and comes back with its
 faces.  The indentation of shr comes before each line, so a block in a
-list item keeps its place.  shr draws a block whose language this
-Emacs does not have.
+list item keeps its place.  A block whose language this Emacs does not
+have, or that names none, keeps the default faces.
 
 Under the faces of the language goes only the background of
 `overblock-md-code', so `overblock-md--squared' makes a rectangle of
 the block, and plain identifiers keep the default colour."
-  (if-let* ((mode (overblock-md--code-mode dom)))
-      (let ((shr-folding-mode 'none)
-            (code (with-temp-buffer
-                    (insert (string-trim-right (overblock-md--text dom)))
-                    (let ((inhibit-message t)
-                          (message-log-max nil))
-                      (ignore-errors (delay-mode-hooks (funcall mode)))
-                      (font-lock-ensure))
-                    (let ((code (buffer-string)))
-                      (when-let* ((background (overblock-md--background
-                                               'overblock-md-code)))
-                        (overblock-faced code (list :background background
-                                                    :extend t)))
-                      code))))
-        (shr-ensure-newline)
-        (dolist (line (split-string code "\n"))
-          (shr-indent)
-          (insert line "\n"))
-        (shr-ensure-newline))
-    (shr-tag-pre dom)))
+  (let* ((mode (overblock-md--code-mode dom))
+         (shr-folding-mode 'none)
+         (code (with-temp-buffer
+                 (insert (string-trim-right (overblock-md--text dom)))
+                 (when mode
+                   (let ((inhibit-message t)
+                         (message-log-max nil))
+                     (ignore-errors (delay-mode-hooks (funcall mode)))
+                     (font-lock-ensure)))
+                 (let ((code (buffer-string)))
+                   (when-let* ((background (overblock-md--background
+                                            'overblock-md-code)))
+                     (overblock-faced code (list :background background
+                                                 :extend t)))
+                   code))))
+    (shr-ensure-newline)
+    (dolist (line (split-string code "\n"))
+      (shr-indent)
+      (insert line "\n"))
+    (shr-ensure-newline)))
 
 (defvar overblock-md-width nil
   "The number of columns a rendering is filled to, or nil for shr's own.
