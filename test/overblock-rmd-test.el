@@ -23,12 +23,11 @@
 
 ;;; Commentary:
 
-;; What can be proved without an R at the other end: the chunk walk,
-;; the names knitr writes in a chunk header, the prose the chunks are
-;; not, the R string a chunk travels as, the prompt that comes off the
-;; output again, the bars, and the mode's own two ends.
+;; What needs no R: the chunk walk, the chunk names of knitr, the
+;; prose, the R string a chunk travels as, the prompt that comes off
+;; the output, the bars, and turning the mode on and off.
 ;;
-;; What only a real R can prove is `overblock-rmd-live-test'.
+;; `overblock-rmd-live-test' tests against a real R.
 
 ;;; Code:
 
@@ -62,8 +61,7 @@ print(\"not R\")
 
 (defmacro overblock-rmd-test--with-document (text &rest body)
   "Evaluate BODY in a buffer holding TEXT, shown in a window.
-A bar is cut to the width of the windows that show a buffer, and a
-command that follows a click selects one."
+A bar is cut to the width of the windows that show a buffer."
   (declare (indent 1))
   `(with-temp-buffer
      (insert ,text)
@@ -74,13 +72,11 @@ command that follows a click selects one."
 
 (defmacro overblock-rmd-test--with-mode (text &rest body)
   "Evaluate BODY in a buffer holding TEXT with `overblock-rmd-mode' on.
-The mode is turned off again afterwards: `with-temp-buffer' kills its
-buffer without running the body that would take the hooks down."
+The mode is turned off afterwards: `with-temp-buffer' kills its buffer
+without removing the hooks."
   (declare (indent 1))
   `(overblock-rmd-test--with-document ,text
-     ;; No converter is asked for: the tests here are about the chunks
-     ;; and the bars, and rendering the prose would want pandoc and a
-     ;; process apiece.
+     ;; No converter: these tests are about the chunks and the bars.
      (let ((overblock-md-command nil))
        (unwind-protect
            (progn (overblock-rmd-mode 1) ,@body)
@@ -111,11 +107,8 @@ buffer without running the body that would take the hooks down."
 (ert-deftest overblock-md-preview-test-a-refusal-leaves-rmd-alone ()
   "Refusing the mode over an Rmd buffer stops nothing.
 Both modes render prose through the live cycle of the kind
-`md-preview', so the else branch of this mode's body would have
-stopped the cycle `overblock-rmd-mode' is running: the prose
-renderings went, the settle came off `post-command-hook', and the Rmd
-mode stayed on with its lighter and its bars over prose that was
-never rendered again."
+`md-preview', so the refusal must not stop the cycle of
+`overblock-rmd-mode'."
   (skip-unless (fboundp 'markdown-mode))
   (with-temp-buffer
     (insert "Some prose.\n\n```{r one}\n1 + 1\n```\n\nMore prose.\n")
@@ -138,20 +131,20 @@ never rendered again."
                    '((3 "setup") (11 nil))))))
 
 (ert-deftest overblock-rmd-test-the-code-of-a-chunk-is-between-its-fences ()
-  "A chunk's region is the code lines whole, the fences left out.
-The last newline of the code is in it, because that is what a result
-block hangs on: `overblock-show' shows a body on the newline that ends
-its region."
+  "The region of a chunk is its whole code lines, without the fences.
+The last newline of the code is in it, because a result block hangs
+on it: `overblock-show' shows a body on the newline that ends its
+region."
   (overblock-rmd-test--with-document overblock-rmd-test--document
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
       (should (equal (buffer-substring-no-properties beg end) "x <- 1:5\nx\n"))
-      ;; the closing fence begins where the region ends
+      ;; The closing fence starts where the region ends.
       (should (equal (buffer-substring-no-properties end (+ end 3)) "```")))))
 
 (ert-deftest overblock-rmd-test-a-chunk-of-another-engine-is-left-alone ()
   "A ```{python} chunk is not R, and neither is ```{rmarkdown}.
-The engine name has to end where knitr ends it: at a blank, a comma or
-the closing brace."
+The engine name ends where knitr ends it: at a blank, a comma or the
+closing brace."
   (dolist (case '(("```{python}\n1\n```\n" . 0)
                   ("```{rmarkdown}\n1\n```\n" . 0)
                   ("```{sql, connection=db}\n1\n```\n" . 0)
@@ -165,18 +158,15 @@ the closing brace."
 
 (defclass overblock-rmd-test--polymode ()
   ((keep-in-mode :initform nil))
-  :documentation "A stand-in for polymode\'s own object, with the one slot.
-polymode is not a dependency of this package and not installed for the
-suite; what the mode does with it is one `eieio-oset\', and that is
-what this class is here to catch.")
+  :documentation "A stand-in for the object of polymode, with its one slot.
+polymode is not installed for the suite.  The mode uses it through one
+`eieio-oset', which this class catches.")
 
 (ert-deftest overblock-rmd-test-the-buffer-stays-in-its-host-mode ()
   "Under polymode the buffer is kept in the host mode while the mode is on.
-polymode carries the overlays of a buffer along when it switches to an
-inner one, and the bars and blocks of this mode are overlays whose
-owner stays behind: every one of them left the buffer the moment point
-entered a chunk.  The mode says so on the way in and takes it back on
-the way out."
+polymode moves the overlays of a buffer to an inner buffer, and the
+owners of the bars and blocks stay in the base buffer.  The mode sets
+the slot when it goes on and clears it when it goes off."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
     (setq-local pm/polymode (overblock-rmd-test--polymode))
     (let ((overblock-md-command nil))
@@ -184,50 +174,45 @@ the way out."
           (progn
             (overblock-rmd-mode 1)
             (should (eq (eieio-oref pm/polymode 'keep-in-mode) 'host))
-            ;; and again when polymode initializes the host after us:
-            ;; the mode goes on from `markdown-mode-hook', which
-            ;; polymode runs before it has set its own variable
+            ;; Again when polymode initializes the host later: it runs
+            ;; `markdown-mode-hook' before it sets its variable.
             (eieio-oset pm/polymode 'keep-in-mode nil)
             (run-hooks 'polymode-init-host-hook)
             (should (eq (eieio-oref pm/polymode 'keep-in-mode) 'host)))
         (overblock-rmd-mode -1))
-      ;; off again: the buffer is polymode's to switch as it likes
+      ;; Off: polymode switches the buffer as it likes.
       (should-not (eieio-oref pm/polymode 'keep-in-mode)))))
 
 (ert-deftest overblock-rmd-test-an-unclosed-chunk-keeps-the-next-header ()
   "A chunk left unclosed does not swallow the chunk below it.
-The header of the next chunk is a fence too, and it was taken for the
-closing one: that line was hidden and its chunk had no bar and no way
-to run.  A closing fence says nothing after the backquotes, so a
-header can only open."
+The header of the next chunk is a fence too.  A closing fence has
+nothing after the backquotes, so a header can only open a chunk."
   (overblock-rmd-test--with-mode
       "```{r a}\n1\n\n```{r b}\n2\n```\n"
     (let ((chunks (overblock-rmd-chunks)))
-      ;; both chunks are there, and neither line of source is hidden
+      ;; Both chunks are there.
       (should (= (length chunks) 2))
       (should (equal (mapcar (lambda (chunk)
                                (line-number-at-pos (nth 0 chunk)))
                              chunks)
                      '(1 4)))
-      ;; the header of the second chunk is still on the screen; the
-      ;; fence that does close it is the one that is hidden
+      ;; The header of the second chunk is visible; only its closing
+      ;; fence is hidden.
       (should-not (seq-find (lambda (ov) (overlay-get ov 'invisible))
                             (overlays-at (nth 0 (cadr chunks))))))))
 
 (ert-deftest overblock-rmd-test-a-chunk-still-being-typed-is-a-chunk ()
   "An unclosed chunk at the end of the buffer has its code and a bar.
-The last line was read as the closing fence, so a file whose last line
-has no newline after it gave no chunk at all — nothing to run and
-nothing to run it from."
+The last line of a file without a final newline is code, not a
+closing fence."
   (overblock-rmd-test--with-document "```{r a}\nmean(x)"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
       (should (equal (buffer-substring-no-properties beg end) "mean(x)")))))
 
 (ert-deftest overblock-rmd-test-a-chunk-name-is-the-word-knitr-reads ()
   "The word after the engine, where a comma or a brace ends it.
-An option written where a name would stand names nothing: knitr reads
-`echo=FALSE' as an option, and a bar that called the chunk `echo=FALSE'
-said the wrong thing in the one place a reader looks."
+An option where a name would be names nothing: knitr reads
+`echo=FALSE' as an option."
   (dolist (case '(("```{r setup}" . "setup")
                   ("```{r plot-one, fig.width=4}" . "plot-one")
                   ("```{r  spaced  , echo=TRUE}" . "spaced")
@@ -240,15 +225,15 @@ said the wrong thing in the one place a reader looks."
 
 (ert-deftest overblock-rmd-test-the-chunk-at-point-covers-both-fences ()
   "A point on either fence line finds the chunk, and so does one inside.
-The bar sits on the opening fence, so a command that follows a click
-has to find the chunk from there."
+The bar is on the opening fence, so a command that follows a click
+finds the chunk from there."
   (overblock-rmd-test--with-document "prose\n\n```{r a}\n1\n2\n```\n\nmore\n"
     (let ((chunk (car (overblock-rmd-chunks))))
       (dolist (line '(3 4 5 6))
         (goto-char (point-min))
         (forward-line (1- line))
         (should (equal (overblock-rmd--chunk-at) chunk)))
-      ;; and the prose around it does not
+      ;; The prose around it does not.
       (dolist (line '(1 2 8))
         (goto-char (point-min))
         (forward-line (1- line))
@@ -265,7 +250,7 @@ has to find the chunk from there."
                      "Some prose about the data."))
       (dolist (region prose)
         (dolist (chunk chunks)
-          ;; no prose region overlaps a chunk, fences and all
+          ;; No prose region overlaps a chunk or its fences.
           (should (or (<= (cdr region) (nth 0 chunk))
                       (>= (car region) (nth 2 chunk)))))))))
 
@@ -274,14 +259,14 @@ has to find the chunk from there."
 
 (ert-deftest overblock-rmd-test-a-chunk-travels-as-one-r-string ()
   "The quotes, the backslashes and the newlines of a chunk are escaped.
-A chunk goes inside an R string literal, so a quote of its own would
-end that literal and a newline would end the line comint sends."
+A chunk goes inside an R string literal, where a quote would end the
+literal and a newline would end the line comint sends."
   (should (equal (overblock-rmd--r-string "x") "\"x\""))
   (should (equal (overblock-rmd--r-string "a\nb") "\"a\\nb\""))
   (should (equal (overblock-rmd--r-string "say \"hi\"") "\"say \\\"hi\\\"\""))
   (should (equal (overblock-rmd--r-string "back\\slash")
                  "\"back\\\\slash\""))
-  ;; the whole of it on one line, whatever the chunk held
+  ;; All of it on one line.
   (should-not (string-search "\n" (overblock-rmd--r-string
                                    "cat('a\\nb')\nx <- \"q\"\n"))))
 
@@ -290,17 +275,17 @@ end that literal and a newline would end the line comint sends."
   (let ((inferior-ess-primary-prompt "> "))
     (should (equal (overblock-rmd--clean "[1] 32\n> ") "[1] 32"))
     (should (equal (overblock-rmd--clean "a\nb\n\n> ") "a\nb"))
-    ;; a chunk that printed nothing: the prompt alone
+    ;; A chunk that printed nothing: only the prompt.
     (should (equal (overblock-rmd--clean "> ") ""))
     (should (equal (overblock-rmd--clean "\n> ") ""))
-    ;; nothing to take off
+    ;; Nothing to take off.
     (should (equal (overblock-rmd--clean "a\nb") "a\nb"))))
 
 (ert-deftest overblock-rmd-test-a-chunk-draws-at-the-size-its-header-says ()
-  "The header's fig.width, fig.height and dpi are read, as under knitr.
+  "The fig.width, fig.height and dpi of the header are read, as by knitr.
 A header that names none draws at `overblock-rmd-figure-size' and 96
-dots an inch; an expression where a number would stand is R's to read,
-and the default stands."
+dots an inch.  For an expression in place of a number, the default
+applies."
   (with-temp-buffer
     (insert "```{r a, fig.width=8, fig.height = 3.5, dpi=120}\nx\n```\n"
             "```{r b}\nx\n```\n"
@@ -312,38 +297,36 @@ and the default stands."
       (should (equal (overblock-rmd--figure-size (point)) '(7 5 96)))
       (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 5 96)))
-      ;; an expression that starts with a digit is still an expression
+      ;; An expression that starts with a digit is still an expression.
       (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 3 96))))))
 
 (ert-deftest overblock-rmd-test-a-chunk-runs-and-point-steps-on ()
   "Running a chunk with the step leaves point in the chunk below it.
-And the last chunk of the buffer runs with point where it is: the walk
-answers `user-error\' there, which would otherwise reach the reader as
-a failure of the run they asked for."
+The last chunk of the buffer runs and point stays: the walk signals a
+`user-error' there, which must not reach the reader."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n\n```{r b}\n2\n```\n"
     (let (ran)
       (cl-letf (((symbol-function 'overblock-rmd-run-chunk)
                  (lambda (&rest _) (push (line-number-at-pos) ran))))
         (goto-char (point-min))
         (overblock-rmd-run-chunk-and-step)
-        ;; the chunk at point ran, and point is in its code
+        ;; The chunk at point ran, and point is in its code.
         (should (equal ran '(1)))
         (should (= (line-number-at-pos) 2))
-        ;; the next step runs that chunk and lands in the one below
+        ;; The next step runs that chunk and goes to the one below.
         (overblock-rmd-run-chunk-and-step)
         (should (equal ran '(2 1)))
         (should (= (line-number-at-pos) 6))
-        ;; the last chunk runs and point stays rather than signalling
+        ;; The last chunk runs and point stays.
         (overblock-rmd-run-chunk-and-step)
         (should (equal ran '(6 2 1)))
         (should (= (line-number-at-pos) 6))))))
 
 (ert-deftest overblock-rmd-test-the-chunks-are-walked-as-cells-are ()
   "Forward goes to the code of the next chunk, backward to the previous.
-Backwards from inside a chunk comes to its own code first, as
-`code-cells-backward-cell' comes to the start of its own cell; the ends
-of the buffer say so rather than move."
+Backwards from inside a chunk goes to its own code first, as
+`code-cells-backward-cell' does.  At the ends of the buffer it signals."
   (with-temp-buffer
     (insert "prose\n\n```{r a}\n1\n```\n\n```{r b}\n2\n```\n")
     (goto-char (point-min))
@@ -361,12 +344,11 @@ of the buffer say so rather than move."
 
 (ert-deftest overblock-rmd-test-a-figure-line-becomes-an-image ()
   "A line naming a PNG the chunk drew comes in as the image, bytes and all.
-The wrapper writes one such line for every page the chunk drew, and the
-result reads each back as comint-mime hands the Python notebook a
-figure: one space carrying the image with the file's bytes in it, which
-is what the save button writes and the pop-out draws.  The newline
-before the line goes with it, so the figure follows the text without a
-blank row."
+The wrapper writes one such line for every page.  Each becomes what
+comint-mime gives the Python notebook: one space with the image and
+the bytes of the file, for the save button and the pop-out.  The
+newline before the line goes too, so no blank row comes before the
+figure."
   (skip-unless (image-type-available-p 'png))
   (let ((file (make-temp-file "overblock-rmd-test" nil ".png"))
         (inferior-ess-primary-prompt "> "))
@@ -379,21 +361,19 @@ blank row."
             (should image)
             (should (equal (plist-get (cdr image) :data) "\x89PNG-bytes"))
             (should (equal (substring-no-properties clean) "[1] 1\n "))
-            ;; two pages, two images, no blank rows between them
+            ;; Two pages, two images, no blank rows between them.
             (should (= 2 (cl-count ?\s (substring-no-properties
                                         (overblock-rmd--clean
                                          (format "\noverblock-figure:%s\n\noverblock-figure:%s\n> "
                                                  file file))))))))
       (delete-file file))
-    ;; a file that is gone is named, not drawn
+    ;; A missing file is named, not drawn.
     (should (string-match-p "\\[figure /no/such\\.png\\]"
                             (overblock-rmd--clean "overblock-figure:/no/such.png\n> ")))))
 
 (ert-deftest overblock-rmd-test-a-table-keeps-the-indent-of-its-header ()
   "The leading spaces of the first line of output are content.
-R prints its tables with the header indented and the numbers lined up
-under it: taking those spaces off left the header three characters to
-the left of every row."
+R indents the header of a table, and the numbers line up under it."
   (let ((inferior-ess-primary-prompt "> "))
     (should (equal (overblock-rmd--clean "   Min. Max. \n  10.4 33.9 \n> ")
                    "   Min. Max. \n  10.4 33.9"))))
@@ -405,18 +385,15 @@ the left of every row."
   (should (overblock-rmd--error-p "[1] 1\nError in f() : boom"))
   (should-not (overblock-rmd--error-p "[1] 1 2 3"))
   (should-not (overblock-rmd--error-p "Warning message:\nIn log(-1) : NaNs"))
-  ;; not a word that merely starts with those letters
+  ;; Not a word that only starts with those letters.
   (should-not (overblock-rmd--error-p "Errors were counted: 3")))
 
 
 (ert-deftest overblock-rmd-test-one-glyph-means-one-thing ()
   "No two buttons draw the same glyph, in any row of candidates.
-A frame draws whichever row it can: the nerd glyphs, the symbols an
-ordinary font has, or the plain words a terminal falls to.  A glyph
-stands for one command whichever row it comes from, because a frame
-draws no row whole — `overblock-glyph' answers for one button at a
-time, so a font with some of the symbols draws those and the rest fall
-to the words beside them."
+`overblock-glyph' picks a candidate for each button alone, so one bar
+can mix nerd glyphs, symbols and words.  A glyph therefore means one
+command in every row."
   (let ((bars (list overblock-rmd-result-buttons overblock-rmd-chunk-buttons))
         seen)
     (dolist (buttons bars)
@@ -432,9 +409,9 @@ to the words beside them."
 
 (ert-deftest overblock-rmd-test-every-button-carries-three-candidates ()
   "A nerd glyph, a plain symbol and a word, and none of them empty.
-The private use characters of a nerd font are easy to lose in an editor
-that does not draw them: a row of empty strings drew a bar with a label
-and nothing else, and every button on it was invisible."
+The private use characters of a nerd font are easy to lose in an
+editor that does not draw them, and an empty candidate draws an
+invisible button."
   (dolist (buttons (list overblock-rmd-result-buttons
                          overblock-rmd-chunk-buttons))
     (dolist (button buttons)
@@ -443,7 +420,7 @@ and nothing else, and every button on it was invisible."
         (dolist (glyph glyphs)
           (should (stringp glyph))
           (should-not (string-empty-p glyph)))
-        ;; the first candidate is a nerd font private use character
+        ;; The first candidate is a private use character.
         (should (<= #xE000 (aref (car glyphs) 0) #xF8FF))))))
 
 ;;;; The bars
@@ -454,18 +431,16 @@ and nothing else, and every button on it was invisible."
     (let ((labels (overblock-rmd-test--bar-labels)))
       (should (= (length labels) 2))
       (should (string-match-p "setup" (car labels)))
-      ;; a chunk with no name of its own is called after its language,
-      ;; as a code cell of the Python notebook is called python
+      ;; A chunk without a name is called after its language.
       (should (string-match-p "R" (cadr labels))))))
 
 (ert-deftest overblock-rmd-test-a-bar-goes-with-the-header-that-had-it ()
   "A header line that stops being one loses its bar.
-The bars are drawn from the idle cycle, so the pass that draws them is
-also the pass that has to take the stale ones down."
+The idle cycle draws the bars, and the same pass removes stale ones."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (should (= (length (overblock-rmd-test--bar-labels)) 1))
     (goto-char (point-min))
-    ;; no longer an R chunk
+    ;; No longer an R chunk.
     (delete-region (point-min) (pos-eol))
     (insert "```{python}")
     (overblock-rmd--bars)
@@ -489,11 +464,11 @@ also the pass that has to take the stale ones down."
       (should (overblock-run-show beg end "[1] 1" 0.4))
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         (should block)
-        ;; the header says what it holds, and the body shows it
+        ;; The header says what it holds, and the body shows it.
         (should (string-match-p "1 line" (overblock-get block :header)))
         (should (equal (substring-no-properties (overblock-get block :body))
                        "[1] 1"))
-        ;; and it hangs inside the chunk, above the closing fence
+        ;; It hangs inside the chunk, above the closing fence.
         (should (< (overlay-end block) end))))))
 
 (ert-deftest overblock-rmd-test-a-result-folds ()
@@ -558,24 +533,22 @@ also the pass that has to take the stale ones down."
 (ert-deftest overblock-rmd-test-the-step-of-a-vanished-chunk-walks-on ()
   "A queued marker whose chunk the reader has deleted stops nothing.
 `overblock-run-next' takes a non-nil answer as \"wait for a prompt\",
-so a step that ran nothing has to answer nil or the pass would stand
-there forever."
+so a step that ran nothing returns nil."
   (overblock-rmd-test--with-mode "prose only, no chunk\n"
     (goto-char (point-min))
     (should-not (overblock-rmd--step))))
 
 (ert-deftest overblock-rmd-test-the-mode-tells-the-runner-what-r-is ()
   "The mode gives the buffer a backend, and takes it away again.
-The runner reads it to know the buffer is one it may run and draw in,
-and a command called with the mode off must say so rather than do
-nothing in silence."
+The runner runs and draws only in a buffer with a backend, and a
+command called with the mode off signals."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
     (should-not overblock-run-backend)
     (should-error (overblock-rmd-run-chunk) :type 'user-error)
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
       (should (equal (plist-get overblock-run-backend :name) "overblock-rmd"))
-      ;; and what ESS asks of a buffer it starts a process for
+      ;; What ESS reads in a buffer it starts a process for.
       (should (equal ess-dialect "R"))
       (overblock-rmd-mode -1))
     (should-not overblock-run-backend)))
