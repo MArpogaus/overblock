@@ -19,8 +19,9 @@
 ;;
 ;; A scenario drives one package: it does what a reader does and
 ;; photographs the result, saying how long each picture is held (in
-;; hundredths of a second, as GIF counts).  OB_GIF names the scenario —
-;; md, pydoc, pycell or rmd — and OB_GIF_OUT where the frames go.
+;; hundredths of a second, as GIF counts).  OB_GIF names the scenario
+;; (md, pydoc, pycell, rmd or family), and OB_GIF_OUT where the frames
+;; go.
 ;;
 ;; `demo/README.org' says what each one needs installed.
 
@@ -29,7 +30,7 @@
 (require 'cl-lib)
 
 (defconst ob-gif-scenario (or (getenv "OB_GIF") "pydoc")
-  "Which demonstration to record: md, pydoc, pycell or rmd.")
+  "Which demonstration to record: md, pydoc, pycell, rmd or family.")
 (defconst ob-gif-dir
   (file-name-as-directory
    (or (getenv "OB_GIF_OUT")

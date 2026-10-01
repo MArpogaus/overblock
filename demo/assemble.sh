@@ -8,7 +8,7 @@
 # for a reader who wants the animation quicker or slower than the
 # scenario asked for.
 set -u
-S=${1:?a scenario: md, pydoc, pycell or rmd}
+S=${1:?a scenario: md, pydoc, pycell, rmd or family}
 SPEED=${2:-1.0}
 DIR=${3:-${TMPDIR:-/tmp}/overblock-demo/$S}
 [ -f "$DIR/holds.txt" ] || { echo "no frames in $DIR"; exit 1; }
