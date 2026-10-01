@@ -313,6 +313,26 @@ So a .py file and an Rmd file show the same row."
         (overblock-run--filter "Error\n>>> "))
       (should (equal said "runtest: stopped at error")))))
 
+(ert-deftest overblock-run-test-a-pass-ending-on-a-cell-without-output-says-done ()
+  "A pass whose last region the notebook answers itself still says done.
+A markdown cell is rendered, not sent, so no run ends after it."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (setq overblock-run-backend
+            (plist-put overblock-run-backend :step #'ignore)))
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (overblock-run--queue-set
+     (list (with-current-buffer notebook (copy-marker (point-max)))))
+    (let (said)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (and format-string
+                                   (apply #'format format-string args))))))
+        (goto-char (point-max))
+        (insert "ok\n>>> ")
+        (overblock-run--filter "ok\n>>> "))
+      (should (equal said "runtest: done")))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty

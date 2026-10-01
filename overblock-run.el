@@ -624,15 +624,11 @@ second time.  `overblock-run-abort' checks the same."
   "Go on with the pass after a region ended, FAILED or not.
 The end of a pass takes point home: its last region is sent with the
 queue empty.  A pass says that it is over, as it says that it began."
-  (cond ((and failed (or overblock-run--queue overblock-run--home))
-         (setq overblock-run--queue nil)
-         (message "%s: stopped at error" (overblock-run--name))
-         (overblock-run-go-home))
-        ((null overblock-run--queue)
-         (when overblock-run--home
-           (message "%s: done" (overblock-run--name)))
-         (overblock-run-go-home))
-        (t (overblock-run-next))))
+  (if (and failed (or overblock-run--queue overblock-run--home))
+      (progn (setq overblock-run--queue nil)
+             (message "%s: stopped at error" (overblock-run--name))
+             (overblock-run-go-home))
+    (overblock-run-next)))
 
 (defun overblock-run-abort (&optional reason)
   "End the running cell abnormally, because its prompt will not return.
@@ -783,6 +779,15 @@ shell buffer, where the filter and the ticker read it."
                              t))
        (signal (car error) (cdr error))))))
 
+(defun overblock-run--pass-over ()
+  "End the pass: say that it is done, and take point home.
+Here, where the queue runs out, and not where a run ends: the last
+cell of a pass can be one the notebook answered itself."
+  (when-let* ((shell (overblock-run-shell))
+              ((buffer-local-value 'overblock-run--home shell)))
+    (message "%s: done" (overblock-run--name)))
+  (overblock-run-go-home))
+
 (defun overblock-run-next ()
   "Run the regions of the queue of the shell until one has to wait.
 Point follows, so a pass is visible.  Called from the shell on its
@@ -802,7 +807,7 @@ out."
              (entry (car cells))
              (m (if (consp entry) (car entry) entry)))
         (unless m
-          (overblock-run-go-home)
+          (overblock-run--pass-over)
           (throw 'waiting nil))
         (overblock-run--queue-set (cdr cells))
         (unless (buffer-live-p (marker-buffer m))
