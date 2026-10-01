@@ -47,8 +47,8 @@
 
 (defun overblock-md-preview-test--wait (count)
   "Wait until COUNT blocks carry a rendering, and return how many do.
-The conversion is asked of a process and not waited for, which is the
-point of it: a test has to wait where a reader does not."
+The conversion runs in a process that nothing waits for, so a test
+must wait."
   (overblock-test-common-wait
    (lambda () (>= (length (overblock-md-preview-test--blocks)) count)) 10)
   (length (overblock-md-preview-test--blocks)))
@@ -71,10 +71,9 @@ point of it: a test has to wait where a reader does not."
           (overblock-md-preview-regions beg end)))
 
 (ert-deftest overblock-md-preview-test-a-block-is-what-markdown-calls-one ()
-  "The run of lines between two blank ones, and a fence whole.
-A line of markdown is often not markdown alone: a row of a table needs
-the rows around it, and a fenced piece of code keeps the blank lines it
-holds."
+  "A block is the run of lines between two blank ones, or a whole fence.
+A row of a table needs the rows around it, and a fenced block keeps
+its blank lines."
   (with-temp-buffer
     (insert "# Heading\n\npara one\ncontinues\n\n| a | b |\n|---|---|\n"
             "| 1 | 2 |\n\n```\ncode\n\nwith a blank\n```\n\n- one\n- two\n")
@@ -87,8 +86,7 @@ holds."
 
 (ert-deftest overblock-md-preview-test-a-fence-closes-on-its-own-kind ()
   "Only a fence of the same kind closes a block, and it may be longer.
-The classic way to show a fenced block is three backquotes inside a
-~~~ block; read as one kind, the inner fences cut the block in three."
+Three backquotes inside a ~~~ block stay one block."
   (with-temp-buffer
     (insert "~~~\n```\ncode\n```\n~~~\n\nafter\n")
     (should (equal (overblock-md-preview-test--texts (point-min) (point-max))
@@ -100,8 +98,7 @@ The classic way to show a fenced block is three backquotes inside a
 
 (ert-deftest overblock-md-preview-test-a-table-renders-as-a-table ()
   "A table reaches the converter whole, and comes back with its columns.
-Rendered a row at a time, the rule between the head and the body came
-back as a row of empty cells and every row as a paragraph of its own."
+A row alone renders as a paragraph, and the rule as empty cells."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "| a | b |\n|---|---|\n| 1 | 2 |\n")
@@ -109,17 +106,16 @@ back as a row of empty cells and every row as a paragraph of its own."
                                                        (point-max))))
            (block (overblock-md-preview--show (car region) (cdr region)))
            (shown (substring-no-properties (overblock-get block :over))))
-      ;; the rule is gone and the cells stand in their columns
+      ;; The rule is gone and the cells are in their columns.
       (should-not (string-match-p "---" shown))
       (should (string-match-p "a +b" shown))
       (should (string-match-p "1 +2" shown)))))
 
 (ert-deftest overblock-md-preview-test-a-rendering-fits-the-window ()
   "The rendering is filled to the columns the window has.
-A batch frame is as wide as its only window, so the width could stop
-reaching shr without a test noticing: measured, every row of a
-rendering stayed the frame\'s 80 columns wide with the window at 30.
-One column is kept back, because a row that fills the last one wraps."
+The window is made narrower than the frame, so the test fails if the
+width does not reach shr.  One column is kept back, because a row that
+fills the last one wraps."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with
       (concat "A paragraph long enough to need filling, of ordinary "
@@ -131,7 +127,7 @@ One column is kept back, because a row that fills the last one wraps."
         (should block)
         (dolist (row (split-string (overblock-get block :over) "\n"))
           (should (<= (string-width row) 29)))
-        ;; and it is the filling that did it, not a short answer
+        ;; The filling did it, not a short answer.
         (should (seq-find (lambda (row) (> (string-width row) 20))
                           (split-string (overblock-get block :over) "\n")))))))
 
@@ -142,8 +138,8 @@ because nothing else can tell whether the region opened in a fence."
   (with-temp-buffer
     (insert "```\none\ntwo\n```\n\nthree\n")
     (let ((inside (progn (goto-char (point-min)) (forward-line 2) (point))))
-      ;; the fence is one block and it began before the region, so what
-      ;; is left is the paragraph after it
+      ;; The fence starts before the region, so only the paragraph
+      ;; after it is left.
       (should (equal (overblock-md-preview-test--texts inside (point-max))
                      '("three"))))))
 
@@ -156,15 +152,15 @@ because nothing else can tell whether the region opened in a fence."
     (should (equal (overblock-md-preview-test--wait 2) 2))
     (should (equal (overblock-md-preview-test--sources)
                    '("# A heading" "some *emphasis*")))
-    ;; the markup is gone from what the reader sees
+    ;; The markup is gone from what the reader sees.
     (let ((shown (overblock-get (car (overblock-md-preview-test--blocks))
                                 :over)))
       (should (equal (string-trim (substring-no-properties shown))
                      "A heading")))))
 
 (ert-deftest overblock-md-preview-test-the-line-at-point-shows-its-source ()
-  "The line point is on is the one being edited, so it is not rendered.
-Leaving it renders it again, which is the whole of the cycle."
+  "A block taken down with `overblock-live-edit' shows its source.
+With point elsewhere, the next pass renders it again."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
     (goto-char (point-max))
@@ -182,9 +178,8 @@ Leaving it renders it again, which is the whole of the cycle."
                    '("# One" "two" "three")))))
 
 (ert-deftest overblock-md-preview-test-an-edit-drops-the-rendering ()
-  "An edit the mode did not see coming takes that line's rendering down.
-Point landing on a line takes its rendering off, so a reader's own
-typing never reaches this; a replacement over the buffer does."
+  "An edit of a rendered line takes its rendering down.
+The edit here is a replacement over the buffer."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# One\n\ntwo\n"
     (goto-char (point-max))
@@ -197,36 +192,32 @@ typing never reaches this; a replacement over the buffer does."
 
 (ert-deftest overblock-md-preview-test-a-fence-in-a-paragraph-renders-once ()
   "A fence with no blank line before it carries one rendering, not two.
-The run of lines it stands in is a block, and the fence inside it is a
-block of its own, so two blocks reach the converter for the same lines
-and whichever answer comes first is the one that stands.  Rendering
-both hung a second rendering over lines the first already covered."
+The run of lines around it and the fence are both blocks for the same
+lines, and only one of them may render."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with
       "before the fence\n```\ncode\n```\nafter it\n\nlast\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
     (should (equal (overblock-md-preview-test--wait 2) 2))
-    ;; Two arguments and not `:key': the keyword form of `sort' is
-    ;; Emacs 30 and later, and this package asks for 29.1.
+    ;; Not `:key': the keyword form of `sort' is Emacs 30, and this
+    ;; package supports 29.1.
     (let ((blocks (sort (overblock-md-preview-test--blocks)
                         (lambda (a b)
                           (< (overlay-start a) (overlay-start b))))))
       (should (= (length blocks) 2))
-      ;; and no rendering stands on a line another one covers
+      ;; No two renderings cover the same line.
       (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks)))))))
 
 (ert-deftest overblock-md-preview-test-the-answer-lands-nowhere-near-point ()
   "A block the reader walked into is left alone when its HTML lands.
-The pass asks for every block but the one point is in, and the answer
-comes back a moment later — by which time the reader may have clicked
-one, or walked point into it.  Rendering it then takes the text out
-from under them."
+The answer arrives later, when point can be in another block, which
+then stays source."
   (skip-unless (overblock-md-program))
   (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
     (goto-char (point-max))
     (overblock-md-preview-render-buffer)
-    ;; the reader walks into the first block while the converter runs
+    ;; Point moves into the first block while the converter runs.
     (goto-char (point-min))
     (should (equal (overblock-md-preview-test--wait 2) 2))
     (should (equal (overblock-md-preview-test--sources) '("two" "three")))))
@@ -244,7 +235,7 @@ from under them."
       (should (equal (overblock-md-preview-test--wait 2) 2))
       (overblock-md-preview-mode -1)
       (should-not (overblock-md-preview-test--blocks))
-      ;; and the cycle the layer runs is stopped with it
+      ;; The live cycle stops too.
       (should-not overblock-live--timer)
       (should-not overblock-live--specs)
       (should (equal (buffer-string) before)))))
