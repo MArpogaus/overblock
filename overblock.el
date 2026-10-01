@@ -612,7 +612,7 @@ the rendering is no line by line one of its source, and
                  ;; line cannot go under a cloak, so it carries.
                  (or (seq-some #'consp chunks)
                      (and (> (car row) (point-min))
-                          (= (nth 1 row) (car row))))
+                          (save-excursion (goto-char (car row)) (bolp))))
                  (memq (overblock--ahead (car lines) (cons key keys))
                        '(1 2 3)))
             ;; The next line belongs further down: nothing here.

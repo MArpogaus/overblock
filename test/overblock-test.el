@@ -1160,6 +1160,17 @@ under the half, and its lines were dealt evenly instead."
                              (overlays-at (point)))
                    "gamma"))))
 
+(ert-deftest overblock-test-a-first-row-inside-a-line-carries ()
+  "A block that begins inside a line keeps a line on its first row.
+A cloak cannot begin inside a line, so the first row carries even where
+its rendered line matches the row below."
+  (with-temp-buffer
+    (insert "x\n    \"\"\"\n    Summary here.\n")
+    (let ((block (overblock-show 7 (point-max) :over "Summary here." :indent 4)))
+      (should block)
+      (should-not (seq-some (lambda (ov) (overlay-get ov 'overblock-cloak))
+                            (overlays-in 7 10))))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer
