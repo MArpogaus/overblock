@@ -100,9 +100,12 @@ text. shr does not get it, because shr would fetch it.
 A terminal draws no image, and the placeholder of shr is itself an
 image that hides the text under it. Thus where images cannot show, the
 label goes in as text: the alt text, or the file name in brackets for a
-local file. A local file that is not there shows the same label. A
-remote image that is not fetched shows only its alt text, and nothing
-where the alt text is empty.
+local file. A remote image that is not fetched shows only its alt text,
+and nothing where the alt text is empty.
+
+On any display, a local file that is not there, or that holds no image
+such as a git-lfs pointer, shows its label. A file counts as an image by
+its content: a header that Emacs knows, or an svg tag first.
 
 The cap of an image is the work of the layer: =overblock-image-cap= and
 =overblock-image-height=, in [[file:overblock.org][the notes of the
