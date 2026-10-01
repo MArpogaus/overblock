@@ -364,6 +364,11 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "   ```\n   x\n      ```\n   y\n   ```\n")
     (should (= 1 (length (overblock-md-preview-fences (point-max))))))
+  ;; Under an item a closing fence may be three columns deeper.
+  (with-temp-buffer
+    (insert "- a\n\n  ```\n  x\n     ```\n\nEnd.\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   '((6 . 24)))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")
