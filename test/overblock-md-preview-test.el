@@ -289,6 +289,16 @@ The item is one block, and the fence is not a second one over it."
     (insert "```x``` leads this line.\n\nLast para.\n")
     (should-not (overblock-md-preview-fences (point-max)))))
 
+(ert-deftest overblock-md-preview-test-deep-fence-under-an-item ()
+  "Four spaces in, a fence opens a block only under a list item."
+  (with-temp-buffer
+    (insert "- Data:\n  - Load it:\n    ```{r}\n    x <- 1\n    ```\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   (list (cons 22 (1- (point-max)))))))
+  (with-temp-buffer
+    (insert "Para.\n\n    ```\n    code\n")
+    (should-not (overblock-md-preview-fences (point-max)))))
+
 (ert-deftest overblock-md-preview-test-an-item-that-ends-in-its-fence-takes-it ()
   "An item whose last lines are its fence is one block with that fence."
   (with-temp-buffer
