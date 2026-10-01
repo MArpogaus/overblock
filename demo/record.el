@@ -12,7 +12,7 @@
 ;;     sh demo/assemble.sh md
 ;;
 ;; `demo/init.el' is the whole setup: a built-in theme, one font and the
-;; five packages.  Thus what you record is what the README shows.  There
+;; hooks of the four modes.  Thus what you record is what the README shows.  There
 ;; is no screen recorder: Emacs exports its own frame with
 ;; `x-export-frames', which is why the pictures carry no mouse pointer
 ;; and no window decoration.
@@ -249,7 +249,7 @@ doc string carries: sections, math, a table and a code block."
   (goto-char (point-min))
   (ob-gif-frame 250)
   (overblock-pycell-mode 1)
-  (ob-gif-wait 30 (lambda () (overblock-in (point-min) (point-max) 'md-preview)))
+  (ob-gif-wait 30 (lambda () (overblock-in (point-min) (point-max) 'markdown)))
   (ob-gif-frame 200)
   ;; the first cell that is code: run on a markdown cell renders it
   (goto-char (point-min))
