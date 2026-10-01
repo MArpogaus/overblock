@@ -162,11 +162,12 @@ paragraph."
   "Return the bounds of every paragraph up to END, FENCES aside.
 A paragraph is the run of lines between two blank ones, or between a
 blank line and a fence: a fence ends the paragraph that touches it,
-unless it is indented under a list item, to which it belongs.  With
-EVERY, each fence ends one: the fences of an Rmd file are chunks.
-The lines a fence holds are not read here:
-`overblock-md-preview-fences' has them already, and a blank line inside
-one ends no paragraph."
+unless it is indented under a list item, to which it belongs.  A list
+item also ends a later paragraph of the item before it, which is
+indented and no item itself.  With EVERY, each fence ends one: the
+fences of an Rmd file are chunks.  The lines a fence holds are not
+read here: `overblock-md-preview-fences' has them already, and a
+blank line inside one ends no paragraph."
   (save-excursion
     (goto-char (point-min))
     (let (regions from last)

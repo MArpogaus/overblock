@@ -232,6 +232,18 @@ CommonMark. Thus prose with no blank line before a fence is a block of
 its own. A fence indented under a list item belongs to that item, and
 the item goes on after it.
 
+Outside a list item, a fence four or more spaces in is the text of an
+indented code block and opens no block. A closing fence is at most
+three columns deeper than its opening fence. A later paragraph of a
+list item ends at the next item. Alone, the converter reads that item
+as more text of the paragraph, and the item loses its bullet.
+
+Under a list item, a block goes to the converter without the spaces
+that indent its first line. Thus a fence under a later paragraph is not
+deeper than the line before it, and does not become inline code. Only
+spaces go, and a tab stays for the converter to read. Elsewhere the
+indentation stays, because it makes a code block.
+
 The walk starts at the top of the buffer, because only that tells
 whether a region starts inside a fence. A fence that is not closed runs
 to the end of the buffer.
