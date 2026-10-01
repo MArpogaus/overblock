@@ -188,6 +188,28 @@ Both results would otherwise hang on the second region's markers."
       (should-error (overblock-run--send proc (point-min) (point-max))
                     :type 'user-error))))
 
+(ert-deftest overblock-run-test-a-region-sent-while-busy-runs-as-sent ()
+  "A region queued behind a running one is sent as it was, not as its cell.
+The queue held its start only, and the backend's `:step' then ran the
+whole cell around it: a line marked and sent ran its neighbours too."
+  (overblock-run-test--with-run
+    (let (stepped from to)
+      (with-current-buffer notebook
+        (setq overblock-run-backend
+              (plist-put overblock-run-backend :step
+                         (lambda () (setq stepped t))))
+        (goto-char (point-min))
+        (forward-line 2)
+        (setq from (point) to (pos-eol))
+        (overblock-run-region from to))
+      (goto-char (point-max))
+      (insert "one\n>>> ")
+      (overblock-run--filter "one\n>>> ")
+      (should-not stepped)
+      (should (equal (list (marker-position (plist-get overblock-run--state :beg))
+                           (marker-position (plist-get overblock-run--state :end)))
+                     (list from to))))))
+
 ;;;; What a restart does
 
 (ert-deftest overblock-run-test-a-restart-ends-what-runs ()

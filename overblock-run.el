@@ -423,9 +423,10 @@ counted."
         block))))
 
 (defvar-local overblock-run--queue nil
-  "Start markers of the regions a pass over the whole notebook has left.
-`overblock-run-cells' fills it and `overblock-run-next' empties it as it
-goes.  Kept in the shell's buffer, beside `overblock-run--state': a
+  "The regions a pass, or a reader pressing early, has left to run.
+`overblock-run--queued' says what an entry is.  `overblock-run-cells'
+and `overblock-run--enqueue' fill it, and `overblock-run-next' empties
+it as it goes.  Kept in the shell's buffer, beside `overblock-run--state': a
 notebook with a shell of its own has a queue of its own.  One global
 list let a pass in one notebook discard another's regions and then feed
 its own down that notebook's interpreter.  `overblock-run-shell' is how
@@ -486,7 +487,10 @@ a pass over the whole buffer visible.  A pass asked for from one region
 gives point back instead: the reader pressed a button there.")
 
 (defun overblock-run--queued ()
-  "Return the regions a pass still has to run, in order."
+  "Return the regions a pass still has to run, in order.
+Each is a marker, where the backend's `:step' decides what runs, or a
+cons of two markers for a region the reader sent while the shell was
+busy, which runs as it was sent."
   (when-let* ((shell (overblock-run-shell)))
     (buffer-local-value 'overblock-run--queue shell)))
 
@@ -913,7 +917,8 @@ process filter and that cell, already off the queue, never ran at all."
   (catch 'waiting
     (while t
       (let* ((cells (overblock-run--queued))
-             (m (car cells)))
+             (entry (car cells))
+             (m (if (consp entry) (car entry) entry)))
         (unless m
           (overblock-run-go-home)
           (throw 'waiting nil))
@@ -922,16 +927,26 @@ process filter and that cell, already off the queue, never ran at all."
           (overblock-run--queue-set nil)
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
-          (goto-char m)
-          ;; The region goes to the top of every window showing the
-          ;; notebook, so the whole of the code that is about to run
-          ;; is visible. `overblock-run-go-home' gives point back when the
-          ;; pass ends.
-          (dolist (window (get-buffer-window-list nil nil t))
-            (set-window-point window m)
-            (set-window-start window m))
-          (when (overblock-run--call :step)
+          (when (overblock-run--step entry m)
             (throw 'waiting nil)))))))
+
+(defun overblock-run--step (entry m)
+  "Run the queue ENTRY that begins at M, and say whether to wait.
+A pair of markers is a region the reader sent, and goes as it is; a
+marker alone is where the backend's `:step' decides what runs.
+
+The region goes to the top of every window showing the notebook, so
+the whole of the code that is about to run is visible.
+`overblock-run-go-home' gives point back when the pass ends."
+  (goto-char m)
+  (dolist (window (get-buffer-window-list nil nil t))
+    (set-window-point window m)
+    (set-window-start window m))
+  (if (consp entry)
+      (progn (overblock-run--send (overblock-run--call :process)
+                                  (car entry) (cdr entry))
+             t)
+    (overblock-run--call :step)))
 
 (defun overblock-run-on-prompt (cells message)
   "Arm CELLS to run on the shell's first prompt, and say MESSAGE.
@@ -989,7 +1004,7 @@ starting, the region waits for its first prompt and is sent then."
   (overblock-run--must)
   (if-let* ((proc (overblock-run--call :process)))
       (if (buffer-local-value 'overblock-run--state (overblock-run-shell))
-          (overblock-run--enqueue start)
+          (overblock-run--enqueue start end)
         (overblock-run--send proc start end))
     ;; Mark the region here, while its buffer is still current:
     ;; `copy-marker' on a number answers for whatever buffer that is,
@@ -1002,14 +1017,15 @@ starting, the region waits for its first prompt and is sent then."
         (overblock-run--call :arm (overblock-run--sender beg fin))
         (message "%s: starting the interpreter…" (overblock-run--name))))))
 
-(defun overblock-run--enqueue (start)
-  "Put the region at START behind whatever the shell is running.
+(defun overblock-run--enqueue (start end)
+  "Put the region START..END behind whatever the shell is running.
 Point comes back here when the queue runs out, unless a pass has said
 already where it is to come back to."
   (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
     (overblock-run--home-set (point-marker)))
   (overblock-run--queue-set (append (overblock-run--queued)
-                                    (list (copy-marker start))))
+                                    (list (cons (copy-marker start)
+                                                (copy-marker end t)))))
   (message "%s: queued behind the running %s"
            (overblock-run--name) (overblock-run--unit)))
 
