@@ -1077,6 +1077,16 @@ every row that held a formula."
         (should (memq 'default (ensure-list
                                 (get-text-property i 'face text))))))))
 
+(ert-deftest overblock-test-the-last-line-without-a-newline-is-cloaked ()
+  "A short rendering at the end of a buffer with no final newline hides it all.
+The last cloak stopped one short of the end, so the reader's last
+character stood beside the rendering."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree")
+    (overblock-show (point-min) (point-max) :over "A")
+    (should (invisible-p (1- (point-max))))
+    (should (invisible-p (- (point-max) 3)))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the region's bounds while the reader writes, and

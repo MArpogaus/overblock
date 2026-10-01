@@ -490,6 +490,15 @@ start, which is that same error.  Such a row keeps its text."
   (cond (open open)
         ((> from (point-min)) (1- from))))
 
+(defun overblock--cloak-to (block from end)
+  "Return the guard and the cloak of BLOCK over FROM up to the row end END.
+END is past the newline that ends the last hidden row, which stays in
+view with its guard.  A buffer that ends without a newline ends the
+region on the reader's last character, and the cloak takes that too."
+  (let ((to (if (eq (char-before end) ?\n) (1- end) end)))
+    (list (overblock--newline-guard block to)
+          (overblock--cloak block from to))))
+
 (defun overblock--region-end (block)
   "Return where the region of BLOCK ends, its last newline included.
 The anchor stops before that newline, and a cloak that stopped there
@@ -608,9 +617,9 @@ piece goes under one, as before."
             (unless (and long blank (null cloak-from))
               (setq cloak-from (overblock--cloak-from cloak-from bol)))
           (when cloak-from
-            (push (overblock--cloak block cloak-from (1- bol)) parts)
-            (push (overblock--newline-guard block (1- bol)) parts)
-            (setq cloak-from nil))
+            (setq parts (nconc (overblock--cloak-to block cloak-from bol)
+                               parts)
+                  cloak-from nil))
           ;; The piece begins where every piece does, and not at the
           ;; line's start even where it carries two lines: a display
           ;; string over the indentation is counted by `current-column',
@@ -620,8 +629,7 @@ piece goes under one, as before."
                                   (overblock--piece-text chunk indent))
                 parts))))
     (when cloak-from
-      (push (overblock--cloak block cloak-from (1- end)) parts)
-      (push (overblock--newline-guard block (1- end)) parts))
+      (setq parts (nconc (overblock--cloak-to block cloak-from end) parts)))
     ;; Nils where a guard found no newline to draw.
     (nreverse (delq nil parts))))
 
