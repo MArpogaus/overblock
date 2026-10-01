@@ -112,12 +112,17 @@ end of the buffer."
 
 (defun overblock-md-preview--too-deep-p (indent open)
   "Return non-nil where a fence INDENT columns in is code text.
-OPEN is the start of the fence line that opened the block, or nil.  As
-in CommonMark, a closing fence is at most three columns deeper than its
-opening one.  An opening fence four columns in opens a block only
-under a list item."
+OPEN is the start of the fence line that opened the block, or nil.  An
+opening fence four columns in opens a block only under a list item.  A
+closing fence is at most three columns in, or three deeper than such an
+opening one.  The columns are counted in the text: a rendering hides
+the indentation from `current-indentation'."
   (if open
-      (> indent (+ 3 (save-excursion (goto-char open) (current-indentation))))
+      (let ((from (save-excursion
+                    (goto-char open)
+                    (skip-chars-forward " ")
+                    (- (point) open))))
+        (> indent (if (> from 3) (+ from 3) 3)))
     (and (> indent 3)
          (not (overblock-md-preview--in-item-p (pos-bol))))))
 
@@ -142,7 +147,8 @@ paragraph."
         ((looking-at-p "[[:blank:]]*$"))
         (from (and (overblock-md-preview--item-p (point))
                    (not (overblock-md-preview--margin-p from))
-                   (not (overblock-md-preview--item-p from))))))
+                   (not (overblock-md-preview--item-p from))
+                   (overblock-md-preview--in-item-p from)))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."

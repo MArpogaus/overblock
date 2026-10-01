@@ -333,6 +333,10 @@ The item is one block, and the fence is not a second one over it."
     (insert "- a\n\n  - b\n  - c\n")
     (should (= 2 (length (overblock-md-preview-regions
                           (point-min) (point-max) t)))))
+  ;; An indented paragraph outside a list is no item's.
+  (with-temp-buffer
+    (insert "Intro:\n\n  indented para\n- item\n")
+    (should (= 2 (length (overblock-md-preview-regions (point-min) (point-max))))))
   ;; Without a chunk too: the later paragraph of an item.
   (with-temp-buffer
     (insert "- a\n\n  para of a\n- b\n")
@@ -349,6 +353,17 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "Para.\n\n    ```\n    code\n")
     (should-not (overblock-md-preview-fences (point-max))))
+  ;; A rendering hides the indentation of the opening fence.
+  (with-temp-buffer
+    (insert "- a\n  - b\n    ```\n    x\n    ```\n\nEnd.\n")
+    (let ((ov (make-overlay 11 15)))
+      (overlay-put ov 'invisible t)
+      (should (equal (overblock-md-preview-fences (point-max))
+                     '((11 . 32))))))
+  ;; At the margin a closing fence is at most three columns in.
+  (with-temp-buffer
+    (insert "   ```\n   x\n      ```\n   y\n   ```\n")
+    (should (= 1 (length (overblock-md-preview-fences (point-max))))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")
