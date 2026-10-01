@@ -436,6 +436,14 @@ into a newline.  A doc string in one quote came back in five."
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      source)))))
 
+(ert-deftest overblock-pydoc-test-a-missing-edit-mode-falls-back-to-text ()
+  "The edit buffer opens in `text-mode' where the markup's mode is missing.
+The default markup is Markdown, and markdown-mode is no dependency."
+  (with-temp-buffer
+    (setq-local overblock-pydoc-markup 'markdown)
+    (let ((overblock-pydoc-modes '((markdown . overblock-pydoc-test-no-mode))))
+      (should (eq (overblock-pydoc--mode-for-markup) #'text-mode)))))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The command that opens the buffer was in no test, and this is the path
