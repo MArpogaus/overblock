@@ -116,24 +116,17 @@ end of the buffer."
   "Return non-nil where the line at POS begins at the left margin."
   (save-excursion (goto-char pos) (not (looking-at-p "[ \t]"))))
 
-(defun overblock-md-preview--ends-p (fence from every)
-  "Return non-nil where the line at point ends the paragraph from FROM.
+(defun overblock-md-preview--ends-p (fence every)
+  "Return non-nil where the line at point ends a paragraph.
 A blank line does, and so does FENCE, the start of a fence reached
-here, unless it is indented under a list item.  EVERY is that of
-`overblock-md-preview-paragraphs'."
+here, unless it is indented under a list item: the nearest line above
+it that begins at the left margin begins an item.  With EVERY, each
+fence ends its paragraph."
   (if fence
-      (overblock-md-preview--interrupts-p fence from every)
+      (or every
+          (overblock-md-preview--margin-p fence)
+          (not (overblock-md-preview--in-item-p fence)))
     (looking-at-p "[[:blank:]]*$")))
-
-(defun overblock-md-preview--interrupts-p (fence from &optional every)
-  "Return non-nil where the FENCE ends the paragraph that began at FROM.
-It does unless it is indented under a list item: the nearest line
-above it that begins at the left margin begins an item.  FROM nil is
-no paragraph.  With EVERY, each fence ends its paragraph."
-  (or every
-      (not from)
-      (overblock-md-preview--margin-p fence)
-      (not (overblock-md-preview--in-item-p fence))))
 
 (defun overblock-md-preview--in-item-p (pos)
   "Return non-nil where the indented line at POS belongs to a list item."
@@ -166,7 +159,7 @@ one ends no paragraph."
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
           (cond ((overblock-md-preview--ends-p (and fence (caar fences))
-                                                from every)
+                                                every)
                  (when from (push (cons from last) regions))
                  (setq from nil))
                 ((not fence) (setq last (pos-eol)
