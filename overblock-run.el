@@ -60,8 +60,9 @@
 ;; And the look of a result block, which `overblock-run-show' draws:
 ;;
 ;;   :buttons      the option that holds the button descriptors, a symbol
-;;   :stale        what to do with the block when its region is edited,
-;;                 `overblock-delete' where the backend names none
+;;   :stale        a function called with each new result block, which
+;;                 makes it go on an edit, `overblock-stale-when-edited'
+;;                 where the backend names none
 ;;
 ;; The button option is named, not copied, because the reader can
 ;; customize it while the notebook is open.  The bar has the face

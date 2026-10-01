@@ -25,7 +25,8 @@ Everything the pictures were taken with is in this directory:
 - =pandoc= for each rendering, and =latex= with =dvisvgm= for the math.
   Without them a formula stays text, and the engine reports it with a
   link to the LaTeX log.
-- =code-cells= and =comint-mime= for the notebook, =ESS= and an =R= for
+- =latex-to-svg-backend= for =overblock-md=, =code-cells= and
+  =comint-mime= for the notebook, =ESS= and an =R= for
   the chunks, =markdown-mode= for the prose. =init.el= expects them
   from a package archive and says so where one is missing.
 - IPython, numpy and matplotlib for the cells that make output.

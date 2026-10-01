@@ -39,10 +39,10 @@ for the runner, and a buffer-local
 rest of the file is about R. It holds a few calls of ESS, the shape of a
 chunk header, and the statement that a chunk goes to R in.
 
-A major mode hook turns the mode on, and the mode reads the file name,
-not the major mode. =overblock-rmd-mode-maybe= turns it on where the
-file ends in =.Rmd= or =.rmd=. The mode then refuses a major mode that
-does not derive from =markdown-mode=. The chunks are found in the text
+A major mode hook calls =overblock-rmd-mode-maybe=, which reads the
+file name. It turns the mode on where the file ends in =.Rmd= or
+=.rmd=. The mode itself refuses a major mode that does not derive from
+=markdown-mode=. The chunks are found in the text
 of the buffer, so polymode and plain =markdown-mode= use one path.
 
 ** Under polymode

@@ -134,7 +134,10 @@ mode holds the buttons. Each entry of such an option is
 
 The first label of each button is a codicon from a nerd font. A
 terminal shows the last label, unless =overblock-terminal-glyphs= is
-=t=. This example removes the discard button of a notebook result:
+=t=. This example removes the discard button of a notebook result.
+Put such forms in the =:config= of the =use-package= form of the
+package: at startup the package is not loaded yet, and its variables
+do not exist.
 
 #+begin_src emacs-lisp
   (setopt overblock-pycell-result-buttons
@@ -418,19 +421,19 @@ The Markdown features are those of
 
 *** Commands
 
-| Command                                | Action                                                        |
-|----------------------------------------+---------------------------------------------------------------|
-| =overblock-pycell-mode=                | turn the mode on or off for a buffer                          |
-| =overblock-pycell-mode-maybe=          | the same, in a Python buffer only, for =code-cells-mode-hook= |
-| =overblock-pycell-restart=             | restart the interpreter, and remove the results               |
-| =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                          |
-| =overblock-run-stop=                   | stop the pass after the cell that runs now                    |
-| =overblock-run-clear-results=          | remove each result                                            |
-| =overblock-pycell-render-buffer=       | render each markdown cell that is not rendered                |
-| =overblock-pycell-md-render-cell=      | render the markdown cell at point                             |
-| =overblock-pycell-md-raw=              | show the source of the markdown cell at point                 |
-| =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                      |
-| =overblock-pycell-md-follow-link=      | follow a link of the rendered cell                            |
+| Command                                | Action                                                                         |
+|----------------------------------------+--------------------------------------------------------------------------------|
+| =overblock-pycell-mode=                | turn the mode on or off for a buffer                                           |
+| =overblock-pycell-mode-maybe=          | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
+| =overblock-pycell-restart=             | restart the interpreter, and remove the results                                |
+| =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                                           |
+| =overblock-run-stop=                   | stop the pass after the cell that runs now                                     |
+| =overblock-run-clear-results=          | remove each result                                                             |
+| =overblock-pycell-render-buffer=       | render each markdown cell that is not rendered                                 |
+| =overblock-pycell-md-render-cell=      | render the markdown cell at point                                              |
+| =overblock-pycell-md-raw=              | show the source of the markdown cell at point                                  |
+| =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                                       |
+| =overblock-pycell-md-follow-link=      | follow a link of the rendered cell                                             |
 
 
 
@@ -446,7 +449,8 @@ cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
 | =overblock-pycell-md-map=   | a rendered markdown cell           |
 
 The parent of =overblock-run-pop-map= is =special-mode-map=, so =q=
-quits the buffer of a result.
+quits the buffer of a result. As for the [[#buttons][buttons]], put the
+keys in the =:config= of the package.
 
 #+begin_src emacs-lisp
   (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
@@ -569,7 +573,8 @@ The commands of a result and of a pass are those of
 
 The package binds only the mouse on its bars and blocks.
 =overblock-rmd-mode-map= answers in the buffer, and
-=overblock-run-result-map= in a chunk with a result. Both are empty:
+=overblock-run-result-map= in a chunk with a result. Both are empty.
+Put the keys in the =:config= of the package:
 
 #+begin_src emacs-lisp
   (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-rmd-run-chunk)

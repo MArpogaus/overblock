@@ -78,9 +78,8 @@ and carries what shows after it.
 properties. Thus a fold is =:hidden= and =overblock-refresh=, and
 nothing is saved and given back.
 
-The buffer text never changes. A block needs a newline to hang a body
-on. Thus a caller whose region is the last of the buffer must write
-that character.
+The buffer text never changes. Where the region ends without a
+newline, the body goes on the anchor.
 
 ** Images
 
@@ -450,10 +449,10 @@ says =error=.
 
 The look of a result block:
 
-| Slot       | What it holds                                                       |
-|------------+---------------------------------------------------------------------|
-| =:buttons= | the symbol of the option that holds the button descriptors          |
-| =:stale=   | what to do with the block on an edit; =overblock-delete= by default |
+| Slot       | What it holds                                                                                             |
+|------------+-----------------------------------------------------------------------------------------------------------|
+| =:buttons= | the symbol of the option that holds the button descriptors                                                |
+| =:stale=   | a function of each new result block that makes it go on an edit; =overblock-stale-when-edited= by default |
 
 =:buttons= names an option and does not copy its value. Thus a button
 list that the reader changes shows at the next draw. The bar wears the

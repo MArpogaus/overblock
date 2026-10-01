@@ -56,7 +56,8 @@ pipes. =cmark= and Perl =markdown= cannot do a table or a fence.
 [[file:overblock-pydoc.org][its notes]].
 
 shr reads the HTML with libxml2. Without libxml2 the markup stays
-plain text, and the mode tells which part is missing.
+plain text. =overblock-pycell-mode= tells which part is missing, and
+the other modes give no message.
 
 =overblock-md-html-batch-async= sends many texts to the converter in
 one call, and does not wait for the answer. It puts a marker between
