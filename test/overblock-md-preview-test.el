@@ -415,6 +415,14 @@ The item is one block, and the fence is not a second one over it."
     (should (equal (overblock-md-preview-fences (point-max)) '((1 . 28))))
     (should (equal (overblock-md-preview-regions (point-min) (point-max) t)
                    '((30 . 35)))))
+  ;; A rule at the top, with a blank line after it, is no front matter.
+  (with-temp-buffer
+    (insert "---\n\nIntro.\n\n```\na\n---\n```\n")
+    (should (equal (overblock-md-preview-fences (point-max)) '((14 . 27)))))
+  ;; After a heading a comment begins a block of its own.
+  (with-temp-buffer
+    (insert "# Head\n<!-- a\n\n```\nx\n```\nb -->\n")
+    (should (equal (overblock-md-preview-fences (point-max) t) '((8 . 31)))))
   ;; Inside a paragraph a comment is part of it.
   (with-temp-buffer
     (insert "Some *long\n<!-- note -->\nend* here.\n")

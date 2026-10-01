@@ -123,11 +123,12 @@ in a comment still runs, so `overblock-rmd' asks for none."
 (defun overblock-md-preview--front-matter (end)
   "Return a list of the bounds of the front matter, and move past it.
 Front matter is a YAML block at the top of the buffer, from a line of
-three dashes to one of three dashes or three dots, before END.  A
+three dashes, with a line of text after it, to one of three dashes or
+three dots, before END.  A
 blank line in it would split it, and the converter would read its
 halves as a rule and a heading.
 Return nil, and leave point, where there is none."
-  (when (looking-at-p "---[ \t]*$")
+  (when (looking-at-p "---[ \t]*\n[ \t]*[^ \t\n]")
     (let ((from (point)))
       (forward-line 1)
       (if (re-search-forward "^\\(?:---\\|\\.\\.\\.\\)[ \t]*$" end t)
@@ -135,11 +136,18 @@ Return nil, and leave point, where there is none."
         (goto-char from)
         nil))))
 
+(defconst overblock-md-preview--before-html
+  "[[:blank:]]*$\\|#\\| \\{0,3\\}\\(?:```\\|~~~\\)\\|\\(?:---\\|\\.\\.\\.\\)[ \t]*$"
+  "What a line above an HTML block looks like.
+A blank line, a heading, a fence or the end of front matter: after a
+line of a paragraph, the comment is part of the paragraph.")
+
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
-It begins one where a blank line stands above it and BLOCK, the open
-fenced block, is nil: inside a paragraph it is part of the paragraph,
-and inside a fenced block it is code.  It ends on the line that holds its end,
+It begins one where the line above ends no paragraph, see
+`overblock-md-preview--before-html', and BLOCK, the open fenced block,
+is nil: inside a paragraph it is part of the paragraph, and inside a
+fenced block it is code.  It ends on the line that holds its end,
 before END, whatever blank lines stand in it; one that does not end
 is no region."
   (let ((from (pos-bol)))
@@ -148,7 +156,7 @@ is no region."
                  (goto-char from)
                  (or (bobp)
                      (progn (forward-line -1)
-                            (looking-at-p "[[:blank:]]*$"))))
+                            (looking-at-p overblock-md-preview--before-html))))
                (search-forward "-->" end t))
       (cons from (pos-eol)))))
 
