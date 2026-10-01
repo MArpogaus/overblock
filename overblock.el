@@ -1579,7 +1579,7 @@ time."
           (<= (overblock--pixel-width (propertize text 'face face)) room))
       text
     (let ((cut (truncate-string-to-width
-                text (max 1 (/ room (frame-char-width))) nil nil t)))
+                text (max 1 (/ room (default-font-width))) nil nil t)))
       (while (and (> (length cut) 1)
                   (> (overblock--pixel-width (propertize cut 'face face)) room))
         (setq cut (concat (substring cut 0 -2) "…")))
