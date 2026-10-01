@@ -513,7 +513,13 @@ the end of a line shorter than that, which then carries nothing."
               (let ((bol (car row)) (to (cdr row)))
                 (list bol
                       (if (and indent (> bol beg))
-                          (min to (+ bol indent))
+                          ;; a column, which a tab makes more than
+                          ;; one character
+                          (without-restriction
+                            (save-excursion
+                              (goto-char bol)
+                              (move-to-column indent)
+                              (min to (point))))
                         bol)
                       to
                       ;; The whole buffer, as `overblock--rows' walks

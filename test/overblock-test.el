@@ -1043,6 +1043,22 @@ that column on, and a line shorter than that carries nothing."
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
       (should (eq (overlay-get block 'face) 'default)))))
 
+(ert-deftest overblock-test-indent-counts-columns-past-a-tab ()
+  "`:indent' is a column, so a tab-indented line is covered from there.
+Counted as characters, two tabs left fourteen columns of source text in
+view beside the rendering."
+  (with-temp-buffer
+    (setq-local tab-width 8)
+    (insert "\t\ta\n\t\tb\n")
+    (let* ((block (overblock-show (+ (point-min) 2) (point-max)
+                                  :over "A\nB" :indent 16))
+           (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
+                               (overblock-get block :parts))))
+      (should (= (length pieces) 2))
+      (dolist (ov pieces)
+        (goto-char (overlay-start ov))
+        (should (= (current-column) 16))))))
+
 (ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
   "A commit writes over the region, though text was inserted above it.
 The edit buffer holds the region's bounds while the reader writes, and
