@@ -804,6 +804,10 @@ line at different times.  Keeping a stranger\'s pending edit committed
 one region\'s text into another, and throwing it away without a word
 would lose an hour of writing just as quietly, so the reader is asked."
   (let* ((source (current-buffer))
+         ;; Markers, so a commit lands on the region even after the
+         ;; source buffer changed above it.
+         (beg (copy-marker beg))
+         (end (copy-marker end t))
          (text (funcall (plist-get props :text) beg end))
          (put (plist-get props :put))
          (buffer (get-buffer-create (plist-get props :name))))

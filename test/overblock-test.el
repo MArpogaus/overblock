@@ -1043,5 +1043,36 @@ that column on, and a line shorter than that carries nothing."
     (let ((block (overblock-show (point-min) (point-max) :over "A")))
       (should (eq (overlay-get block 'face) 'default)))))
 
+(ert-deftest overblock-test-an-edit-lands-on-its-region-after-a-change ()
+  "A commit writes over the region, though text was inserted above it.
+The edit buffer holds the region's bounds while the reader writes, and
+the source can change meanwhile."
+  (with-temp-buffer
+    (insert "one\nREGION\nthree\n")
+    (let ((source (current-buffer))
+          put-at)
+      (overblock-edit-in-buffer
+       5 11 (list :name " *overblock-test-edit*" :label "region"
+                  :mode #'text-mode
+                  :text #'buffer-substring-no-properties
+                  :put (lambda (beg end text)
+                         (setq put-at (list (+ 0 beg) (+ 0 end)))
+                         (goto-char beg)
+                         (delete-region beg end)
+                         (insert text))))
+      (unwind-protect
+          (progn
+            (with-current-buffer source
+              (goto-char (point-min))
+              (insert "zero\n"))
+            (erase-buffer)
+            (insert "EDITED")
+            (overblock-edit-commit)
+            (should (equal put-at '(10 16)))
+            (with-current-buffer source
+              (should (equal (buffer-string) "zero\none\nEDITED\nthree\n"))))
+        (when (get-buffer " *overblock-test-edit*")
+          (kill-buffer " *overblock-test-edit*"))))))
+
 (provide 'overblock-test)
 ;;; overblock-test.el ends here
