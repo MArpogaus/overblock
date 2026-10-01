@@ -29,23 +29,22 @@
 ;; a click on a rendering shows the source it stands on.  Edit it, move
 ;; on, and it is rendered again once you have stopped.
 ;;
-;; The unit is the markdown block — the run of lines between two blank
-;; ones, and a fenced piece of code whole.  A line of markdown is often
+;; The unit is the markdown block: the run of lines between two blank
+;; ones, or a whole fenced block of code.  A line of markdown is often
 ;; not markdown by itself: a row of a table needs the rows around it, a
 ;; line of a fenced block is code, and an item needs its list.  The
 ;; block goes to the converter in one piece and the rendering is dealt
-;; back over its lines, a piece to a line, which is what lets a tall
-;; rendering scroll like text.
+;; back over its lines, a piece to a line, so a tall rendering scrolls
+;; like text.
 ;;
-;; It is the mode this package carries; `overblock-pydoc-mode' and
-;; `overblock-rmd-mode' are the other two readers of the same live
-;; cycle, each in a package of its own.  The regions this one renders
-;; are its own lines, and `overblock-md-preview-regions-function' is
-;; where another mode says which regions are its.
-;; What this file holds is the answer to three questions:
-;; which regions to render, what to render them with, and when to
-;; render them.  The showing, the hiding of the source under the
-;; rendering, and the edit that makes a rendering stale are the layer's.
+;; `overblock-pydoc-mode' and `overblock-rmd-mode' use the same live
+;; cycle, each in a package of its own.
+;; `overblock-md-preview-regions-function' is where another mode says
+;; which regions it renders.
+;;
+;; This file says which regions to render, what to render them with,
+;; and when.  The showing, the hiding of the source under the rendering,
+;; and the edit that makes a rendering stale belong to the layer.
 
 ;;; Code:
 
@@ -60,8 +59,7 @@
 
 (defvar-keymap overblock-md-preview-map
   :doc "Keymap on a rendered line.
-A click shows the source of the line, which is what a reader wants of
-a rendering they mean to edit."
+A click shows the source of the line, to edit it."
   "<mouse-1>" #'overblock-live-edit)
 
 
@@ -70,31 +68,26 @@ a rendering they mean to edit."
 (defconst overblock-md-preview-closing-fence-regexp
   "^[[:blank:]]*\\(?:```+\\|~~~+\\)[[:blank:]]*$"
   "What a line that closes a fenced block looks like.
-The fence alone: CommonMark lets an opening fence name its language
-and lets no closing fence say anything at all.  A caller that hides
-the fence of a block asks this before it hides a line.")
+The fence alone: in CommonMark an opening fence can name its language
+and a closing fence cannot.  A caller that hides the fence of a block
+asks this before it hides a line.")
 
 (defun overblock-md-preview-fences (end)
   "Return the bounds of every fenced code block up to END.
 Each is a cons of the start of the opening fence line and the end of
-the closing one.  Public because a caller that treats the fences as
-something other than markdown needs the same walk: `overblock-rmd'
-takes the R chunks of an Rmd file from it and runs them.
+the closing one.  Public because `overblock-rmd' takes the R chunks of
+an Rmd file from it.
 
 A fence opens a block and the next fence closes it, whatever blank
-lines stand between them, so the code inside is never cut in two.  The
-closing one is of the same kind and at least as long, as CommonMark
-has it, so the classic way to show a fenced block — three backquotes
-inside a ~~~ one, or inside a longer run of backquotes — stays one
-block rather than three wrong ones.
+lines stand between them.  As in CommonMark, the closing fence is of
+the same kind and at least as long, so three backquotes inside a ~~~
+block, or inside a longer run of backquotes, stay one block.
 
-A fence that names a language opens a block and closes none, and a
-line that opens one while a block of the same kind stands open ends
-that block where it is: an Rmd chunk left unclosed took the header of
-the chunk below it for its own closing fence, which hid that line and
-left its chunk with no bar and no way to run.  A fence that is never
-closed runs to the end of the buffer, which is what a reader sees
-while they are still typing it."
+A fence that names a language opens a block and closes none.  When it
+comes while a block of the same kind is open, it ends that block where
+it is, so an unclosed Rmd chunk does not take the header of the next
+chunk as its closing fence.  A fence that is never closed runs to the
+end of the buffer."
   (save-excursion
     (goto-char (point-min))
     (let (regions open fence)
@@ -102,8 +95,8 @@ while they are still typing it."
         (let ((this (match-string-no-properties 1))
               (bare (looking-at-p "[[:blank:]]*$")))
           (cond ((null open) (setq open (pos-bol) fence this))
-                ;; Of another kind, or shorter than the fence that
-                ;; opened the block: a line of what the block holds.
+                ;; Of another kind, or shorter than the opening fence:
+                ;; content of the block.
                 ((or (not (eq (aref this 0) (aref fence 0)))
                      (< (length this) (length fence))))
                 (bare (push (cons open (pos-eol)) regions)
@@ -123,12 +116,8 @@ already, and a blank line inside one ends no paragraph."
     (let (regions from last)
       (while (< (point) end)
         (cond
-         ;; A fence in one jump, and the fence with it. FENCES arrive
-         ;; in order and this walk is in order too, so each is reached
-         ;; once and then done with — asked of every line instead, the
-         ;; question cost lines times fences, which was 64 milliseconds
-         ;; of every pass in a document of 900 lines with a dozen
-         ;; fences, and every pass is one the reader waits through.
+         ;; Jump over a fence. FENCES and this walk are both in order,
+         ;; so each fence is reached once, not tested on every line.
          ((and fences (>= (point) (caar fences)))
           (goto-char (cdar fences))
           (setq fences (cdr fences)))
@@ -143,37 +132,28 @@ already, and a blank line inside one ends no paragraph."
 
 (defvar-local overblock-md-preview-regions-function
   #'overblock-md-preview-regions
-  "What answers which regions of this buffer to render, as a function.
-Called with the bounds to look at, and answers a list of conses in
-order.  The default renders every block of markdown, which is what a
-markdown buffer wants.
+  "Function that returns the regions of this buffer to render.
+It is called with the bounds to look at, and returns a list of conses
+in order.  The default returns every block of markdown.
 
-A caller that reads some of the buffer as something else sets this: in
-an Rmd file the fenced chunks are R and are run rather than rendered,
-so `overblock-rmd' answers with the prose alone.")
+A mode that reads part of the buffer as something else sets this.  In
+an Rmd file the fenced chunks are R code that runs, so `overblock-rmd'
+returns the prose alone.")
 
 (defun overblock-md-preview-regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
-Public with its two siblings, `overblock-md-preview-fences\' and
-`overblock-md-preview-paragraphs\': a mode that reads part of its
-buffer as markdown wants the same walk.
-PROSE-ONLY leaves the fenced blocks out, which is what a caller whose
-fences hold code rather than markdown asks for: the chunks of an Rmd
-file go to R and are never rendered as prose.
-Each is a cons of where the block starts and where it ends.  A block is
-what markdown calls one: a fenced piece of code whole, and otherwise
-the run of lines between two blank ones.
+Each is a cons of the start and the end of the block.  A block is a
+whole fenced block of code, or else the run of lines between two blank
+ones.  PROSE-ONLY leaves the fenced blocks out, for a caller whose
+fences hold code, such as the chunks of an Rmd file.
 
-The block and not the line, because a line of markdown is often not
-markdown at all.  Measured against pandoc: the three lines of a table
-render to a row apiece with the rule between them turned into empty
-cells, a line of a fenced block renders as a paragraph of code, and the
-lines of a list each render as a list of one.  The whole block reaches
-the converter and the rendering is dealt back over its lines by
-`overblock-show', which hangs a piece on each of them.
+The unit is the block, not the line: a converter renders each line of
+a table, a fenced block or a list wrongly by itself.  The whole block
+goes to the converter and `overblock-show' deals the rendering back
+over its lines.
 
-Read from the top of the buffer whatever BEG says, because that is the
-only way to know whether BEG stands inside a fence."
+The walk starts at the top of the buffer whatever BEG is, because only
+that tells whether BEG is inside a fence."
   (let* ((fences (overblock-md-preview-fences end))
          (paragraphs (overblock-md-preview-paragraphs end fences)))
     (seq-filter (lambda (region)
@@ -181,9 +161,8 @@ only way to know whether BEG stands inside a fence."
                        (<= beg (car region) end)))
                 (if prose-only
                     paragraphs
-                  ;; Two arguments and not `:key': the keyword form of
-                  ;; `sort' is Emacs 30 and later, and this package asks
-                  ;; for 29.1 — where it fails to compile at all.
+                  ;; Not `:key': the keyword form of `sort' is Emacs 30,
+                  ;; and this package supports 29.1.
                   (sort (append fences paragraphs)
                         (lambda (a b) (< (car a) (car b))))))))
 
@@ -191,10 +170,10 @@ only way to know whether BEG stands inside a fence."
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
-HTML is what `overblock-md-html-batch-async' answered for this block,
-where a caller sent the whole buffer through one process.  The rendering is
-dealt over the lines of the region by `overblock-show', a piece to a
-line, which is what lets a tall block scroll like text."
+HTML is the answer of `overblock-md-html-batch-async' for this block,
+when a caller sent the whole buffer through one process.
+`overblock-show' deals the rendering over the lines of the region, a
+piece to a line, so a tall block scrolls like text."
   (when-let* ((source (string-trim (buffer-substring-no-properties beg end)))
               ((not (string-empty-p source)))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
@@ -210,16 +189,12 @@ line, which is what lets a tall block scroll like text."
 ;;;###autoload
 (defun overblock-md-preview-render-buffer ()
   "Render every block of the buffer that is not rendered yet.
-One converter process for the whole buffer rather than one for each
-block, and nothing waits for it: measured on a document of 216 lines,
-turning the mode on cost the reader 454 milliseconds of which the
-converter was 440, and asked for like this it costs 8 and the
-renderings arrive a moment later.  A block falls back to its own
-conversion where the answer comes back without the marker between
-every pair.
+One asynchronous converter process does the whole buffer, so the
+reader does not wait for it.  A block falls back to its own conversion
+when the answer comes back without the marker between every pair.
 
-This is what `overblock-live-start' is given, and it is called again
-whenever the reader stops; `overblock-md-render-regions' is the batch."
+`overblock-live-start' calls this again whenever the reader stops.
+`overblock-md-render-regions' is the batch."
   (interactive)
   (overblock-md-render-regions
    (funcall overblock-md-preview-regions-function (point-min) (point-max))
@@ -228,26 +203,22 @@ whenever the reader stops; `overblock-md-render-regions' is the batch."
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode
   "Render every line of this buffer over its own markdown source.
-The line point is on shows its source, so it can be edited where it
-stands; the rest of the buffer reads as it will look.  A click on a
-rendered line puts point there.
+The line at point shows its source, so it can be edited in place.  The
+rest of the buffer shows as it will look.  A click on a rendered line
+puts point there.
 
-`overblock-md-command' is what converts the markdown, and the mode does
-nothing where none of its candidates is installed."
+`overblock-md-command' converts the markdown.  The mode does nothing
+when none of its candidates is installed."
   :lighter " MdPrev"
-  ;; `overblock-rmd-mode' renders the prose of its buffer through this
-  ;; same live cycle, and turns this mode off as it goes on; turned on
-  ;; over it, this one would take that cycle over and leave the chunks
-  ;; with no bars, so it stays off. A message and not an error: a
-  ;; configuration that hooks both modes onto `markdown-mode-hook'
-  ;; reaches this from the hook, whichever of the two runs first.
+  ;; `overblock-rmd-mode' renders its prose through this same live
+  ;; cycle, and this mode would take the cycle over. A message, not an
+  ;; error: a configuration can hook both modes onto
+  ;; `markdown-mode-hook'.
   (when overblock-md-preview-mode
     (overblock-only-in 'overblock-md-preview-mode 'markdown-mode))
   (cond
-   ;; Refused, and nothing else happens: the else branch below would
-   ;; stop the very cycle `overblock-rmd-mode' is running — the two
-   ;; share the kind — and leave that mode on with its lighter and its
-   ;; bars over prose that is never rendered again.
+   ;; Refused, and nothing else: the two modes share the kind, so the
+   ;; last branch would stop the cycle of `overblock-rmd-mode'.
    ((and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
     (setq overblock-md-preview-mode nil)
     (message "overblock-md-preview: off, overblock-rmd-mode renders this prose"))
