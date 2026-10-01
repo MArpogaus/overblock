@@ -568,6 +568,25 @@ it from a sentinel where the current buffer is its own."
               (should (= (plist-get (cdr image) :max-height) 40)))))
       (kill-buffer buffer))))
 
+(ert-deftest overblock-md-test-the-engine-is-asked-from-the-readers-buffer ()
+  "The engine reads its options in the buffer the rendering is for.
+latex-to-svg-backend reads every option in the requesting buffer, so a
+preamble a project sets in `.dir-locals.el' never reached the compile
+while it was asked from shr's temporary buffer."
+  (let* ((buffer (generate-new-buffer "overblock-md-preview"))
+         (overblock-md--buffer buffer)
+         asked-in asked)
+    (unwind-protect
+        (cl-letf (((symbol-function 'latex-to-svg-backend-available-p)
+                   (lambda () t))
+                  ((symbol-function 'latex-to-svg-backend)
+                   (lambda (latex &rest _)
+                     (setq asked-in (current-buffer) asked latex)
+                     nil)))
+          (with-temp-buffer (overblock-md--latex-image "$x$"))
+          (should (eq asked-in buffer)))
+      (kill-buffer buffer))))
+
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
 A terminal and an Emacs without SVG both answer so, and neither is a

@@ -300,7 +300,8 @@ is left to a timer."
   "Return the pixel height of the font BUFFER is shown in, or nil.
 The frame of a window showing it, and not the selected frame: a
 rendering asked for while the reader looks at another frame would
-otherwise be sized against that one.
+otherwise be sized against that one.  Measured in BUFFER, so a
+`text-scale-adjust' there sizes the formulas too.
 
 Nil where no window shows the buffer, which is what tells the engine to
 compile the equation and leave the sizing until there is a window to
@@ -309,7 +310,14 @@ buffer is displayed."
   (when-let* (((buffer-live-p buffer))
               (window (get-buffer-window buffer 'visible)))
     (with-selected-frame (window-frame window)
-      (default-font-height))))
+      (with-current-buffer buffer (default-font-height)))))
+
+(defun overblock-md--char-width ()
+  "Return the pixel width of a column of the buffer the rendering is for.
+Under `text-scale-adjust' a column there is wider than the frame's."
+  (if (buffer-live-p overblock-md--buffer)
+      (with-current-buffer overblock-md--buffer (default-font-width))
+    (frame-char-width)))
 
 (defun overblock-md--latex-image (frag)
   "Return a preview image for the LaTeX fragment FRAG, or nil.
@@ -318,24 +326,26 @@ process of its own and calls back, and the caller shows the fragment as
 text meanwhile.  Nil where equations cannot be drawn at all — a
 terminal, or an Emacs without SVG — and the fragment then stays text.
 
-The colour and the font come from the buffer the rendering is for and
-are handed over.  The engine reads them from the current buffer when it
-is not told, and the current buffer here is the temporary one shr
-renders in: its foreground and its font are the frame\'s defaults, not
-the reader\'s.
+The engine is asked from the buffer the rendering is for, and not from
+the temporary one shr renders in: it reads its options there, so a
+preamble a project sets in its `.dir-locals.el\' reaches the compile,
+and it warns about a failed equation once for that buffer.  The colour
+and the font size come from there as well.
 
 Capped like every other image of a block: a display-math block can be
 taller than the window, and a block the wheel cannot get past is what
 `overblock-image-height\' exists for."
   (when (latex-to-svg-backend-available-p)
     (let* ((buffer overblock-md--buffer)
-           (image (latex-to-svg-backend
-                   frag
-                   :color (when (buffer-live-p buffer)
-                            (with-current-buffer buffer
-                              (face-attribute 'default :foreground nil t)))
-                   :font-height (overblock-md--font-height buffer)
-                   :callback (lambda () (overblock-md--latex-arrived buffer))))
+           (image (with-current-buffer (if (buffer-live-p buffer)
+                                           buffer
+                                         (current-buffer))
+                    (latex-to-svg-backend
+                     frag
+                     :color (face-attribute 'default :foreground nil t)
+                     :font-height (overblock-md--font-height buffer)
+                     :callback (lambda ()
+                                 (overblock-md--latex-arrived buffer)))))
            (limit (overblock-image-limit)))
       (cond
        ((and image limit)
@@ -475,7 +485,7 @@ image, and the full stop after an inline formula on a row of its own."
                     (overblock-md--latex-image (overblock-md--one-line frag)))))
     (if-let* (((and image (not (eq image 'pending))))
               (width (car (ignore-errors (image-size image t)))))
-        (ceiling width (frame-char-width))
+        (ceiling width (overblock-md--char-width))
       (string-width frag))))
 
 (defconst overblock-md--math-run
@@ -566,7 +576,7 @@ makes up the width the marks took, so the row keeps its columns; a
 stretch inside a display string is not drawn, but a piece that holds an
 image rides a before-string, where it is.  Where the image cannot be
 measured — no frame to draw it on — the text stays, padded as before."
-  (let* ((room (* (string-width marks) (frame-char-width)))
+  (let* ((room (* (string-width marks) (overblock-md--char-width)))
          (width (car (ignore-errors (image-size image t))))
          (gap (and width (- room width))))
     (if (not gap)
