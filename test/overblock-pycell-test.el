@@ -692,7 +692,10 @@ writes between cells belongs to it and has to be written back."
             (with-current-buffer edit (overblock-edit-commit)))
           (with-current-buffer notebook
             (should (equal (buffer-substring-no-properties (point-min) (point-max))
-                           text))))
+                           text))
+            ;; and the commit renders the cell again
+            (overblock-pycell-test--settle)
+            (should (overblock-in (point-min) (point-max) 'markdown))))
       (when (buffer-live-p edit) (kill-buffer edit))
       (kill-buffer notebook))))
 

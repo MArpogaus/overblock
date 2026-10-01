@@ -641,8 +641,9 @@ Empty MD stays empty: `overblock-pycell--md-comment' would write a bare
                end)))
     (goto-char beg)
     (delete-region beg end)
-    (insert (if (string-empty-p md) "" (overblock-pycell--md-comment md)) tail))
-  (overblock-pycell--md-show beg end))
+    (insert (if (string-empty-p md) "" (overblock-pycell--md-comment md)) tail)
+    ;; To point: END does not move over the text written at BEG.
+    (overblock-pycell--md-show beg (point))))
 
 ;;;###autoload
 (defun overblock-pycell-md-edit (&optional event)
