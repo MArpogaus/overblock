@@ -436,6 +436,21 @@ into a newline.  A doc string in one quote came back in five."
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      source)))))
 
+(ert-deftest overblock-pydoc-test-a-one-quote-string-grows-three-quotes ()
+  "Prose of several lines goes back into a one-quote doc string as three.
+A one-quote string cannot hold a newline, so the commit would write
+Python that does not parse."
+  (with-temp-buffer
+    (insert "def f():\n    \"One line.\"\n")
+    (python-mode)
+    (font-lock-ensure)
+    (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings (point-min)
+                                                               (point-max)))))
+      (cl-letf (((symbol-function 'overblock-pydoc--show) #'ignore))
+        (overblock-pydoc--put beg end "One line.\n\nAnd more.")))
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "def f():\n    \"\"\"One line.\n\n    And more.\n    \"\"\"\n"))))
+
 (ert-deftest overblock-pydoc-test-a-missing-edit-mode-falls-back-to-text ()
   "The edit buffer opens in `text-mode' where the markup's mode is missing.
 The default markup is Markdown, and markdown-mode is no dependency."

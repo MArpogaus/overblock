@@ -489,10 +489,14 @@ string and what `overblock-pydoc--source\' took off."
   (let* ((text (buffer-substring-no-properties beg end))
          (opened (or (overblock-pydoc--opened-with text) '("" "\"\"\"")))
          (prefix (nth 0 opened))
-         (quotes (nth 1 opened))
+         (lines (split-string (string-trim-right prose) "\n"))
+         ;; A one-quote string cannot hold a newline: prose of several
+         ;; lines goes back between three of that quote.
+         (quotes (if (and (cdr lines) (= (length (nth 1 opened)) 1))
+                     (make-string 3 (aref (nth 1 opened) 0))
+                   (nth 1 opened)))
          (indent (save-excursion (goto-char beg) (current-indentation)))
          (pad (make-string indent ?\s))
-         (lines (split-string (string-trim-right prose) "\n"))
          (body (string-join (cons (car lines)
                                   (mapcar (lambda (line)
                                             (if (string-blank-p line)
@@ -508,13 +512,9 @@ string and what `overblock-pydoc--source\' took off."
     ;; means.
     ;;
     ;; The closing quotes go on a line of their own where the doc
-    ;; string has more than one, which is how PEP 257 writes one — and
-    ;; only for the triple quotes, because a one-quote string cannot
-    ;; hold a newline at all.
+    ;; string has more than one, which is how PEP 257 writes one.
     (insert prefix quotes body
-            (if (and (cdr lines) (= (length quotes) 3))
-                (concat "\n" pad quotes)
-              quotes))
+            (if (cdr lines) (concat "\n" pad quotes) quotes))
     (overblock-pydoc--show beg (point))))
 
 ;;;###autoload
