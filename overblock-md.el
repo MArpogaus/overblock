@@ -940,7 +940,6 @@ still names the figure."
                    (overblock-md--remote-file src))))
     (cond
      (file
-      ;; Not capped here: `overblock-md-rendered' caps every image.
       (let ((label (if (and alt (not (string-empty-p alt)))
                        alt
                      (format "[%s]" (file-name-nondirectory file)))))
