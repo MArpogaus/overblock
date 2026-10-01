@@ -37,46 +37,44 @@
 
 (ert-deftest overblock-repl-test-detach-flattens-a-copied-table ()
   "A copied vtable gets literal columns and no dead bindings.
-comint-mime renders a DataFrame as a vtable in the shell buffer, which
-aligns with pixel targets measured for that window and carries the
-keymap of a live table.  The block shows a copy: the targets land
-elsewhere, and no binding can find a table to sort."
+comint-mime renders a DataFrame as a vtable, which aligns with pixel
+targets of the shell window and carries the keymap of a live table.
+In a block the targets are wrong and no binding finds a table."
   (let* ((cell (propertize "alpha" 'keymap (make-sparse-keymap)
                            'mouse-face 'highlight
                            'help-echo "Click to sort"))
          (gap (propertize " " 'display '(space :align-to (104))))
          (clean (overblock-repl-detach (concat cell gap "beta"))))
-    ;; the stretch is gone, and real spaces stand in its place
+    ;; Real spaces replace the stretch.
     (should-not (text-property-not-all 0 (length clean) 'display nil clean))
     (should (string-match-p "\\`alpha +beta\\'" (substring-no-properties clean)))
-    ;; and nothing promises a click any more
+    ;; No property offers a click.
     (dolist (prop '(keymap local-map mouse-face help-echo))
       (should-not (text-property-not-all 0 (length clean) prop nil clean)))))
 
 (ert-deftest overblock-repl-test-table-is-laid-out-in-characters ()
   "A copied table gets columns that no face can move.
-A vtable aligns with stretches of pixels measured in the window that
-drew it, and it measures a header cell in the face of a header: a copy
-shown in another face had the header squashed and the rows apart."
+A vtable aligns with pixel stretches of the window that drew it, and
+measures a header cell in the face of a header, so another face moves
+its columns."
   (skip-unless (fboundp 'make-vtable))
   (let* ((clean (overblock-repl-detach (overblock-test-common-vtable-text)))
          (lines (split-string (substring-no-properties clean) "\n")))
-    ;; the header and one column start at the same place on every row
+    ;; One column starts at the same place on every row.
     (should (= (length lines) 4))
     (let ((column (string-search "beta_longer" (car lines))))
       (should column)
       (dolist (line (cdr lines))
         (should (eq (string-match-p "[0-9]" line column) column))))
-    ;; the names of the columns stand out
+    ;; The column names are bold.
     (should (memq 'bold (ensure-list (get-text-property 0 'face clean))))
-    ;; and no stretch is left to drift
+    ;; No stretch is left.
     (should-not (text-property-not-all 0 (length clean) 'display nil clean))))
 
 (ert-deftest overblock-repl-test-table-reads-a-getter ()
   "The cells of a table come from its getter where it has one.
-comint-mime hands vtable a list for each row and no getter, so the
-default reading is the one that runs, but a table is free to bring its
-own."
+comint-mime gives vtable a list for each row and no getter, but a
+table can bring its own."
   (skip-unless (fboundp 'make-vtable))
   (let* ((text (with-temp-buffer
                  (make-vtable
@@ -91,17 +89,14 @@ own."
                    '("first  second" "1      one" "2      two")))))
 
 (ert-deftest overblock-repl-test-first-lines-of-zero-is-every-line ()
-  "A limit of zero takes every line, as the options that hand one mean it.
-The scan counts from one and never met a limit of zero: it answered no
-lines at all, and a result the reader asked to see whole showed nothing."
+  "A limit of zero takes every line, as the options that pass one mean."
   (should (equal (overblock-repl-first-lines "a\nb\nc\n" 0) '("a" "b" "c" "")))
   (should (equal (overblock-repl-first-lines "a\nb\nc\n" 2) '("a" "b"))))
 
 (ert-deftest overblock-repl-test-a-copy-keeps-what-the-columns-carry ()
   "The copy of a table keeps every column property, `min-width' included.
-comint-mime gives each column a `:min-width' of its name's length and
-no `:width' at all, and a copy built from four keys came out narrower
-than the table it was made from."
+comint-mime gives each column a `:min-width' and no `:width', so a
+copy of a few keys would be narrower than the table."
   (skip-unless (fboundp 'make-vtable))
   (let* ((table (make-vtable :columns (list (list :name "alpha" :min-width 5)
                                             (list :name "b" :align 'right))
@@ -120,10 +115,8 @@ than the table it was made from."
 
 (ert-deftest overblock-repl-test-two-tables-both-survive ()
   "A cell that shows two frames keeps both, and what follows them.
-The regions were read as the first and the last run of the property, so
-the second table and everything between them was replaced by the layout
-of the first — and the text after a table lost the newline its run had
-swallowed."
+Each table is a region of its own, and the text after a table keeps
+the newline its run swallowed."
   (skip-unless (fboundp 'make-vtable))
   (let* ((one (make-vtable :columns '("a") :objects '((1)) :insert nil))
          (two (make-vtable :columns '("b") :objects '((2)) :insert nil))
@@ -139,11 +132,10 @@ swallowed."
 
 (ert-deftest overblock-repl-test-detach-drops-the-shell-s-bookkeeping ()
   "A detached copy keeps no property that belongs to the shell buffer.
-comint marks its output as a field, makes the field boundaries sticky,
-hangs change hooks on the text, and under `comint-prompt-read-only'
-marks the prompts read-only.  A copy that kept those put read-only text
-on the kill ring and into a popped-out buffer.  What says how the text
-looks stays."
+comint marks its output as a field with sticky boundaries and change
+hooks, and under `comint-prompt-read-only' makes the prompts
+read-only.  A copy with those puts read-only text on the kill ring.
+The face stays."
   (let* ((text (propertize "42" 'read-only t 'field 'output
                            'front-sticky t 'rear-nonsticky t
                            'inhibit-line-move-field-capture t
@@ -161,7 +153,7 @@ looks stays."
                                   insert-behind-hooks modification-hooks
                                   keymap mouse-face help-echo))
       (should-not (get-text-property 0 property copy)))
-    ;; and the look of it survives
+    ;; The face stays.
     (should (eq (get-text-property 0 'face copy) 'bold))))
 
 (provide 'overblock-repl-test)
