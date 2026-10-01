@@ -207,7 +207,7 @@ Nothing is drawn here: the live cycle renders them again when the
 reader stops, from the cache or from a new preview.
 `overblock-md-pending' marks a formula shown as text while its image
 is made; `overblock-md-math' marks one drawn in the colour of the
-theme."
+theme, and `overblock-md-painted' a block painted in its background."
   (overblock-live-drop-if
    (lambda (block)
      (let ((over (overblock-get block :over)))
@@ -215,13 +215,15 @@ theme."
             (text-property-not-all 0 (length over) prop nil over))))))
 
 (defun overblock-md--theme-changed (&rest _)
-  "Have every formula drawn again, in the colour of the new theme.
+  "Have every formula and painted block drawn again, in the new theme.
 A preview is drawn in the foreground of the theme, and the cache is
-keyed by that colour."
+keyed by that colour.  A code block or a table is painted in the
+background colour of the theme, not with a face."
   (overblock-md--eldoc-forget)
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
-      (overblock-md--drop-and-settle 'overblock-md-math))))
+      (overblock-md--drop-and-settle 'overblock-md-math)
+      (overblock-md--drop-and-settle 'overblock-md-painted))))
 
 (defun overblock-md--watch-themes ()
   "Have a theme change redraw the formulas, from the first rendering on.
@@ -1046,12 +1048,16 @@ as the text of each row.  The rows are squared off to the longest, and
 the indentation before the text is painted too."
   (let ((width (apply #'max (mapcar #'string-width lines)))
         (paint (list :background background)))
+    ;; The colour is that of the theme now; see
+    ;; `overblock-md--theme-changed'.
     (mapcar (lambda (line)
               ;; Pads to a display width and keeps the properties;
               ;; `string-pad' measures with `length'.
               (let ((padded (truncate-string-to-width line width 0 ?\s)))
                 ;; Appended, so a bold header cell stays bold.
                 (add-face-text-property 0 (length padded) paint t padded)
+                (put-text-property 0 (length padded) 'overblock-md-painted t
+                                   padded)
                 padded))
             lines)))
 

@@ -825,6 +825,9 @@ without a formula stays."
     (overblock-show 1 4 :kind 'md-preview
                     :over (propertize "x" 'overblock-md-math t))
     (overblock-show 5 8 :kind 'md-preview :over "plain")
+    (insert "three\n")
+    (overblock-show 9 14 :kind 'md-preview
+                    :over (car (overblock-md--rectangle '("code") "#eeeeee")))
     (overblock-md--theme-changed)
     (should (equal (mapcar (lambda (b) (overblock-get b :over))
                            (overblock-in (point-min) (point-max) 'md-preview))
