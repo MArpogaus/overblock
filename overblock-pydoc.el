@@ -315,8 +315,8 @@ long as its own."
             ;; Four spaces in, a fence line is code text.
             ((string-match "\\` \\{0,3\\}\\(```+\\|~~~+\\)" line)
              (setq fence (match-string 1 line)))
-            ;; Four spaces in, a fence is code text: the doctest is in an
-            ;; indented code block already.
+            ;; Four spaces in, a doctest is in an indented code block
+            ;; already.
             ((string-match "\\`\\( \\{0,3\\}\\)>>>" line)
              ;; The fence stands at the indent of the doctest, so a
              ;; doctest under a list item stays in the item.

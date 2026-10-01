@@ -222,8 +222,8 @@ The caller renders the text; a block never calls a renderer.  Change a
 property with `overblock-set' and call `overblock-refresh' to show it.
 
 The anchor ends before the newline of the region, so a window that
-starts at the next line does not show the block.  Both overlays grow
-with text typed at their end.
+starts at the next line does not show the block.  The anchor grows
+with text typed at its end.
 
 A block also keeps the overlays that carry what it shows.  `:newline'
 is readable: a caller needs it to keep an outline fold off the newline
@@ -591,7 +591,8 @@ the rendering fall on the gaps of the source; such a row carries `:gap'
 and stays in view.  The last row with text
 takes whatever is left.  See `overblock--take' for a wrapped line.
 
-Nil as a whole where fewer than half the lines with text match a row:
+Nil as a whole where fewer than half the source rows with text match a
+rendered line:
 the rendering is no line by line one of its source, and
 `overblock--spread' deals it instead."
   (let* ((overblock--keys (make-hash-table :test #'eq))

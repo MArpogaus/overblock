@@ -305,8 +305,7 @@ cycle renders the prose and leaves the chunks alone."
 (defun overblock-rmd--bar (open)
   "Draw the bar over the opening fence line that begins at OPEN.
 A bar that is already there is drawn again, not replaced, so
-`overblock-bar-draw' compares against its state (the label and the
-width it was cut for).
+`overblock-bar-draw' compares against its state.
 
 The glyph is the R logo of the devicons, the family of the Python
 notebook glyphs.  The label is the chunk name, or R when there is
