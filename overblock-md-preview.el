@@ -123,8 +123,8 @@ end of the buffer."
 OPEN is the start of the fence line that opened the block, or nil.  An
 opening fence four columns in opens a block only under a list item.  A
 closing fence is at most three columns in, or three deeper than an
-opening one at the content column of a list item, or on the line of
-one.  The columns are
+opening one at or right of the content column of a list item, or on
+the line of one.  The columns are
 counted in the text: a rendering hides the indentation from
 `current-indentation'."
   (if open
