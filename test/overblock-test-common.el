@@ -23,12 +23,10 @@
 
 ;;; Commentary:
 
-;; No tests: what several suites need, in one place.  The stand-in for
-;; an image was written out in three of them and the text of a vtable
-;; in two, and the live suites keep one waiter each.  `test/run-scroll.el'
-;; is the precedent for a file here that holds no tests, and
-;; `TEST := $(wildcard test/*.el)' picks this one up with no change to
-;; the Makefile.
+;; No tests: the helpers that several suites need, such as the
+;; stand-in for an image, the text of a vtable and the waiter of the
+;; live suites.  `TEST := $(wildcard test/*.el)' in the Makefile picks
+;; this file up.
 
 ;;; Code:
 
@@ -53,9 +51,8 @@
 
 (defun overblock-test-common-wait (predicate &optional seconds)
   "Wait until PREDICATE answers non-nil and return that answer.
-Give up after SECONDS, thirty by default, and answer whatever the
-predicate says then.  What a live suite waits with: a real interpreter
-answers when it answers."
+Give up after SECONDS, thirty by default, and return what the
+predicate says then.  The live suites wait with this."
   (let ((deadline (+ (float-time) (or seconds 30))))
     (while (and (not (funcall predicate)) (< (float-time) deadline))
       (accept-process-output nil 0.05))
@@ -63,8 +60,7 @@ answers when it answers."
 
 (defun overblock-test-common-converted (&optional seconds)
   "Wait until no converter process is running, for SECONDS at most.
-The renderings are asked of pandoc and not waited for, which is the
-point of them: a test has to wait where a reader does not."
+The renderings come from pandoc asynchronously, so a test must wait."
   (overblock-test-common-wait
    (lambda ()
      (not (seq-some (lambda (process)
