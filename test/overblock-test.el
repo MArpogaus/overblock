@@ -1171,6 +1171,23 @@ its rendered line matches the row below."
       (should-not (seq-some (lambda (ov) (overlay-get ov 'overblock-cloak))
                             (overlays-in 7 10))))))
 
+(ert-deftest overblock-test-a-whole-buffer-replace-holds-back-one-region ()
+  "After an erase and a paste only the region point is in waits.
+The region a rendering came off grew over the whole buffer, point could
+not leave it, and no region rendered again."
+  (with-temp-buffer
+    (insert "one\n\ntwo\n")
+    (overblock-live-start 'test-kind #'ignore)
+    (unwind-protect
+        (let ((overblock-live-source-at-point nil))
+          (overblock-take-down (overblock-show 1 4 :kind 'test-kind :over "A"))
+          (erase-buffer)
+          (insert "one\n\ntwo\n")
+          (goto-char 2)
+          (should-not (overblock-live-wanted-p 1 4 'test-kind))
+          (should (overblock-live-wanted-p 6 9 'test-kind)))
+      (overblock-live-stop 'test-kind))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

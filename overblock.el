@@ -1018,7 +1018,7 @@ rendering."
 Three regions do not: one that has a rendering already, one the active
 region reaches, and the one the reader is at.  Which region that is
 depends on `overblock-live-source-at-point': the region point is in,
-or only the one a rendering came off while point is still in it.  No
+or only the one point is in of those a rendering came off.  No
 region wants one where no live cycle of KIND is on.
 
 A process caller asks twice: before the conversion, and when the
@@ -1028,8 +1028,12 @@ the mode off meanwhile."
            (if overblock-live-source-at-point
                (<= beg (point) end)
              (pcase overblock-live--open
+               ;; The region point is in, of those the rendering came
+               ;; off: one that has grown over the whole buffer, by an
+               ;; erase and a paste, holds back nothing else.
                (`(,from . ,to)
-                (and (<= from (point) to) (< beg to) (> end from)))))
+                (and (<= from (point) to) (<= beg (point) end)
+                     (< beg to) (> end from)))))
            (and (use-region-p)
                 (< beg (region-end))
                 (> end (region-beginning)))
