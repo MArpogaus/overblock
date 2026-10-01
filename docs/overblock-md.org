@@ -23,6 +23,7 @@ the three answers that the live cycle asks for.
 | =overblock-md-columns=          | the columns that a window gives a rendering      |
 | =overblock-md-program=          | the converter that is installed, or nil          |
 | =overblock-md-follow-link=      | open the URL of a rendered link that was clicked |
+| =overblock-md-browse=           | open a link: a URL, a =#slug= heading, or a file |
 | =overblock-md-eglot-renderer=   | render the documentation of a language server    |
 
 ** The converter
@@ -250,15 +251,14 @@ converter, and the rendering is put back over its lines, one piece for
 each line.
 
 A block is the front matter at the top of the buffer, a fenced code
-block, an HTML comment at the left margin outside a paragraph, or else
-the run of lines between two blank lines. Front matter runs from a
-first line of three dashes, with text right under it, to the next line
-of three dashes or three dots, whatever blank lines stand in it. A
-comment is outside a paragraph after a blank line, a heading, a fence
-or the end of front matter. A
-comment runs to its =-->=, whatever blank lines stand in it, and a
-fence in it opens nothing. Inside a paragraph a comment is part of the
-paragraph. In an Rmd file a chunk inside a comment still runs, so there
+block, an HTML comment at the left margin, or else the run of lines
+between two blank lines. Front matter runs from a first line of three
+dashes, with text right under it, to the next line of three dashes or
+three dots, whatever blank lines stand in it. A comment of more lines
+is a block wherever it stands. A comment of one line is a block after
+a blank line, a heading, a fence or the end of front matter, and part
+of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
+lines stand in it, and a fence in it opens nothing. In an Rmd file a chunk inside a comment still runs, so there
 a comment is no block. =overblock-md-preview-fences= finds the fences first.
 =overblock-md-preview-paragraphs= then walks the buffer with those
 bounds. It jumps over a fence, so a blank line inside a fence ends no

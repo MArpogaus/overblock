@@ -98,11 +98,12 @@ it is, so an unclosed Rmd chunk does not take the header of the next
 chunk as its closing fence.  A fence that is never closed runs to the
 end of the buffer.
 
-With COMMENTS, an HTML comment that begins a block at the left margin,
-outside a paragraph, is one region up to its end, and a fence in it
-opens nothing.  Split at a blank line, its closing half would show as
-text, and a fence in it would open a block.  In an Rmd file a chunk
-in a comment still runs, so `overblock-rmd' asks for none."
+With COMMENTS, an HTML comment at the left margin is one region up to
+its end, and a fence in it opens nothing; see
+`overblock-md-preview--comment' for where one begins.  Split at a
+blank line, its closing half would show as text, and a fence in it
+would open a block.  In an Rmd file a chunk in a comment still runs,
+so `overblock-rmd' asks for none."
   (save-excursion
     (goto-char (point-min))
     (let ((regions (overblock-md-preview--front-matter end))
@@ -138,9 +139,9 @@ Return nil, and leave point, where there is none."
 
 (defconst overblock-md-preview--before-html
   "[[:blank:]]*$\\|#\\| \\{0,3\\}\\(?:```\\|~~~\\)\\|\\(?:---\\|\\.\\.\\.\\)[ \t]*$"
-  "What a line above an HTML block looks like.
+  "What a line above an HTML block of one line looks like.
 A blank line, a heading, a fence or the end of front matter: after a
-line of a paragraph, the comment is part of the paragraph.")
+line of a paragraph, a comment of one line is part of the paragraph.")
 
 (defun overblock-md-preview--front-matter-p (beg end)
   "Return non-nil where BEG..END is the front matter of the buffer."
