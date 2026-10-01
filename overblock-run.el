@@ -610,7 +610,9 @@ second time.  `overblock-run-abort' checks the same."
       (setq overblock-run--state nil)
       (cancel-timer timer)
       ;; Else the next single cell takes point to the old home.
-      (when died (setq overblock-run--queue nil overblock-run--home nil))
+      (when died
+        (setq overblock-run--queue nil)
+        (overblock-run--home-set nil))
       (setq failed (and (not died) (overblock-run--call :error-p text)))
       (overblock-run--show-in-notebook beg fin text (- (float-time) start)
                                        (cond (died 'died) (failed 'failed)))
