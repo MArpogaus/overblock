@@ -30,13 +30,13 @@
 ;; the block renders again when point has left it.
 ;;
 ;; The unit is the markdown block: the run of lines between two blank
-;; lines or fences, or a whole fenced block of code.  A fence indented
-;; under a list item is part of that item.  A line of markdown is often
-;; not markdown by itself.  A row of a table needs the rows around it, a
-;; line of a fenced block is code, and an item needs its list.  The
-;; block goes to the converter in one piece.  The rendering is dealt
-;; back over its lines, a piece to a line, so a tall rendering scrolls
-;; like text.
+;; lines or fences, a whole fenced block of code, or an HTML comment.
+;; A fence indented under a list item is part of that item.  A line of
+;; markdown is often not markdown by itself.  A row of a table needs the
+;; rows around it, a line of a fenced block is code, and an item needs
+;; its list.  The block goes to the converter in one piece.  The
+;; rendering is dealt back over its lines, a piece to a line, so a tall
+;; rendering scrolls like text.
 ;;
 ;; `overblock-pydoc-mode' and `overblock-rmd-mode' use the same live
 ;; cycle, each in a package of its own.
@@ -81,7 +81,7 @@ asks this before it hides a line.")
   "A fence line, or the start of an HTML comment at the left margin.")
 
 (defun overblock-md-preview-fences (end)
-  "Return the bounds of every fenced code block up to END.
+  "Return the bounds of every fenced block and HTML comment up to END.
 Each is a cons of the start of the opening fence line and the end of
 the closing one.  Public because `overblock-rmd' takes the R chunks of
 an Rmd file from it.
@@ -284,10 +284,11 @@ in order, so one walk does it."
 (defun overblock-md-preview-regions (beg end &optional prose-only)
   "Return every block of markdown between BEG and END, in order.
 Each is a cons of the start and the end of the block.  A block is a
-whole fenced block of code, or else the run of lines between two blank
-lines or fences.  A fence indented under a list item is part of that
-item.  PROSE-ONLY leaves the fenced blocks out, for a caller whose
-fences hold code, such as the chunks of an Rmd file.
+whole fenced block of code, an HTML comment at the left margin, or else
+the run of lines between two blank lines or fences.  A fence indented
+under a list item is part of that item.  PROSE-ONLY leaves the fenced
+blocks out, for a caller whose fences hold code, such as the chunks of
+an Rmd file.
 
 The unit is the block, not the line: a converter renders each line of
 a table, a fenced block or a list wrongly by itself.  The whole block
