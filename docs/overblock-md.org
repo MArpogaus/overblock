@@ -65,8 +65,9 @@ the texts and cuts the HTML at that marker. One process for a buffer is
 much faster than one for each region. Where the number of pieces is
 not the number of texts, a text swallowed the markers, and each half
 of the texts goes again in a process of its own. A text alone that
-still fails, or a converter that fails, leaves its text to be converted
-alone. A text that holds the marker itself makes no batch, and each
+still fails leaves its text to be converted alone. A converter that
+fails on a batch, as pandoc does where a marker lands in a YAML block,
+halves it the same way. A text that holds the marker itself makes no batch, and each
 text converts alone.
 
 =overblock-md-render-regions= sends one batch of a kind at a time. A
@@ -240,8 +241,11 @@ and of a list render wrong one at a time. The whole block goes to the
 converter, and the rendering is put back over its lines, one piece for
 each line.
 
-A block is a fenced code block, an HTML comment at the left margin
-after a blank line, or else the run of lines between two blank lines. A
+A block is the front matter at the top of the buffer, a fenced code
+block, an HTML comment at the left margin after a blank line, or else
+the run of lines between two blank lines. Front matter runs from the
+first line of three dashes to the next, whatever blank lines stand in
+it. A
 comment runs to its =-->=, whatever blank lines stand in it, and a
 fence in it opens nothing. Inside a paragraph a comment is part of the
 paragraph. In an Rmd file a chunk inside a comment still runs, so there
