@@ -41,20 +41,19 @@ an R chunk under its code.
 
 The animation shows the four modes in turn. It shows a Markdown file,
 the doc strings of a Python module, a =# %%= notebook and an =.Rmd=
-file. A
-real Emacs session recorded it with the setup in
+file. A real Emacs session recorded it with the setup in
 [[file:demo/init.el][=demo/init.el=]]. [[file:demo/README.org][=demo/README.org=]]
 tells how to record it again.
 
 ** Which One Do You Want
 
-| Package            | What you get                                      | It needs                                |
-|--------------------+---------------------------------------------------+-----------------------------------------|
-| =overblock=        | the layer, a library for other packages           | Emacs 29.1                              |
-| =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend       |
-| =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=             |
-| =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells |
-| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ess        |
+| Package            | What you get                                      | It needs                                         |
+|--------------------+---------------------------------------------------+--------------------------------------------------|
+| =overblock=        | the layer, a library for other packages           | Emacs 29.1                                       |
+| =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend, markdown-mode |
+| =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=                      |
+| =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells          |
+| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ess, markdown-mode  |
 
 No package is on MELPA yet. Thus a package manager cannot find the
 packages of this repository by name. Each package that you use needs a
@@ -103,8 +102,19 @@ These options apply to every package of the repository.
 A block that is taller than the window stops the wheel. Thus
 =overblock-image-height= caps an inline image. Zero shows an image at
 its own size. The two result limits apply to both notebooks, and zero
-shows all. Set the options with =setopt=, and the blocks on the screen
-follow.
+shows all. Set the options with =setopt=. A change of a result limit
+draws the results on the screen again at once. A change of
+=overblock-image-height= or =overblock-terminal-glyphs= applies to the
+next block that a mode draws.
+
+*** Faces
+
+The face =overblock-bar= draws each bar, and =overblock-body= draws the
+body of a result. Change a face with =set-face-attribute=:
+
+#+begin_src emacs-lisp
+  (set-face-attribute 'overblock-bar nil :overline nil)
+#+end_src
 
 *** Buttons
 
@@ -145,6 +155,8 @@ The package also holds =overblock-md-preview-mode=, which shows a
 Markdown buffer rendered over its own source.
 
 #+begin_src emacs-lisp
+  (use-package markdown-mode :ensure t)
+
   (use-package overblock-md
     :ensure (overblock-md :host github
                           :repo ("MArpogaus/overblock" . "overblock-md")
@@ -161,13 +173,14 @@ buffer whose major mode derives from =markdown-mode=.
 
 The unit of the preview is a Markdown block. A block is the run of lines
 between two blank lines, or a fenced code block. A click on a rendered
-block shows its source. Edit it, and the block renders again when you
-stop. A marked region also shows its source, so you copy or cut the
+block shows its source. Edit it, and the block renders again when point
+leaves it. A marked region also shows its source, so you copy or cut the
 source.
 
 A fenced block that names its language, such as =```python=, gets the
 font lock of that language. A local image shows in the buffer. An image
-with a URL is fetched once and kept in =~/.cache/overblock-images=.
+with a URL is fetched once and kept in the folder =overblock-images/=
+of the XDG cache folder, =~/.cache= by default.
 =mouse-2= on a rendered link opens it.
 
 A formula renders in the buffer that shows it. Thus a LaTeX preamble
@@ -185,7 +198,8 @@ package:
 
 Then a hover shows tables in columns, the signature in the colours of
 its language, and formulas as images. This applies wherever eldoc shows
-the text.
+the text. =eglot-documentation-renderer= needs eglot 1.24 or later,
+which Emacs 31 includes and GNU ELPA has for older Emacs versions.
 
 *** Commands and options
 
@@ -203,7 +217,6 @@ the text.
 | =overblock-md-command=       | =pandoc=, then four candidates | the shell command from Markdown to HTML |
 | =overblock-md-remote-images= | =t=                            | whether to fetch an image named by URL  |
 | =overblock-md-code-modes=    | ten language names             | the major mode for a fenced block       |
-| =overblock-md-code=          | =font-lock-constant-face=      | the face of inline code                 |
 | =overblock-md-eldoc-width=   | 72                             | the columns of a language server's text |
 
 =overblock-md-command= is one shell command, or a list of candidates.
@@ -213,6 +226,9 @@ the text.
 their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
 =LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
 face =overblock-md-code=.
+
+The face =overblock-md-code= draws inline code. Change it with
+=set-face-attribute=, as for the faces of [[#faces][overblock]].
 
 The details of the renderer are in
 [[file:docs/overblock-md.org][docs/overblock-md.org]].
@@ -257,13 +273,12 @@ own, as PEP 257 says.
 
 =overblock-pydoc-map= holds only the click.
 
-| Option                    | Default                       | Meaning                                 |
-|---------------------------+-------------------------------+-----------------------------------------|
-| =overblock-pydoc-markup=  | =markdown=                    | the markup of the doc strings           |
-| =overblock-pydoc-command= | a =pandoc= command per markup | the shell command for a doc string      |
-| =overblock-pydoc-modes=   | =rst-mode=, =markdown-mode=   | the major mode of the edit buffer       |
-| =overblock-pydoc-buttons= | one edit button               | the buttons on the bar of a doc string  |
-| =overblock-pydoc-footer=  | =shadow= with an underline    | the face of the rule under a doc string |
+| Option                    | Default                       | Meaning                                |
+|---------------------------+-------------------------------+----------------------------------------|
+| =overblock-pydoc-markup=  | =markdown=                    | the markup of the doc strings          |
+| =overblock-pydoc-command= | a =pandoc= command per markup | the shell command for a doc string     |
+| =overblock-pydoc-modes=   | =rst-mode=, =markdown-mode=   | the major mode of the edit buffer      |
+| =overblock-pydoc-buttons= | one edit button               | the buttons on the bar of a doc string |
 
 =overblock-pydoc-markup= selects the command and the edit mode. The
 default is Markdown, as in a numpy style doc string that mkdocstrings
@@ -275,6 +290,10 @@ such a project in =.dir-locals.el=:
   ((python-base-mode . ((overblock-pydoc-markup . rst))))
 #+end_src
 
+The face =overblock-pydoc-footer= draws the rule under a doc string.
+Change it with =set-face-attribute=, as for the faces of
+[[#faces][overblock]].
+
 For the button format, see [[#buttons][Buttons]]. The details are in
 [[file:docs/overblock-pydoc.org][docs/overblock-pydoc.org]].
 
@@ -283,8 +302,8 @@ For the button format, see [[#buttons][Buttons]]. The details are in
 [[file:img/overblock-pycell.gif]]
 
 =overblock-pycell= shows the results of Python cells in the buffer, as
-a notebook does. It needs no Jupyter kernel. The cells go to the
-inferior Python of =python.el=, so the =*Python*= buffer keeps the full
+a notebook does. It needs no Jupyter kernel. The cells go to the Python
+interpreter of =python.el=, so the =*Python*= buffer keeps the full
 log. The files stay plain Python with =# %%= markers, as jupytext
 writes them.
 
@@ -339,8 +358,8 @@ works from that line.
 
 The bar of a result shows a spinner and a stopwatch while the cell
 runs. After the run it shows the line count and the time. A cell that
-printed nothing shows /no output/. The bar shows =⚠= when the
-interpreter stops during the run.
+fails shows =error= on its bar. A cell that printed nothing shows /no
+output/. The bar shows =⚠= when the interpreter stops during the run.
 
 The fold arrow =▾= is at the left of the bar, and the buttons of
 =overblock-pycell-result-buttons= are at the right:
@@ -354,8 +373,9 @@ The fold arrow =▾= is at the left of the bar, and the buttons of
 | =↗=    | =overblock-run-pop-output=     | show the full result in its own buffer |
 | =✕=    | =overblock-run-discard-output= | discard the result                     |
 
-The move pair follows. The stop button shows while the cell runs, and
-the discard button when the run has ended.
+The move buttons =⌃= and =⌄= of [[#cells][Cells]] come after them. The
+stop button shows while the cell runs, and the discard button when the
+run has ended.
 
 =overblock-run-pop-output= opens the result in a buffer of its own. A
 table there is a live vtable, so you can sort it with =S=. The buffer
@@ -368,16 +388,17 @@ over several cells stops at the first error.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
-lines from the top of the cell. A shell without IPython cannot run it.
+lines from the top of the cell. An interpreter without IPython cannot
+run it.
 
 *** Markdown cells
 
-A cell with the marker =# %% [markdown]= renders in place. Its bar
-shows /markdown/ and the buttons of =overblock-pycell-md-buttons=: =✎=
-edits the cell in its own buffer, and the move pair follows. =mouse-1=
-shows the source, and =mouse-2= opens the edit buffer. =mouse-2= on a
-link opens the link. =overblock-pycell-md-follow-link= does the same
-from the keyboard.
+A cell with the marker =# %% [markdown]= renders in place. Its bar shows
+/markdown/ and the buttons of =overblock-pycell-md-buttons=: =✎= edits
+the cell in its own buffer, and the move buttons =⌃= and =⌄= come after
+it. =mouse-1= shows the source, and =mouse-2= opens the edit buffer.
+=mouse-2= on a link opens the link. =overblock-pycell-md-follow-link=
+does the same from the keyboard.
 
 A markdown cell that shows its source has a bar with the buttons of
 =overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
@@ -414,11 +435,15 @@ cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
 | =overblock-run-pop-map=     | a result in its own buffer         |
 | =overblock-pycell-md-map=   | a rendered markdown cell           |
 
+The parent of =overblock-run-pop-map= is =special-mode-map=, so =q=
+quits the buffer of a result.
+
 #+begin_src emacs-lisp
   (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
   (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-run-stop)
   (keymap-set overblock-run-pop-map "i" #'overblock-run-interrupt)
-  ;; TAB folds a result, and does its usual work elsewhere.
+  ;; TAB at the end of a cell folds its result, and does its usual work
+  ;; elsewhere.
   (keymap-set overblock-run-result-map "TAB"
               '(menu-item "" overblock-run-toggle-output
                           :filter overblock-pycell-tab-filter))
@@ -440,7 +465,8 @@ the options of [[#overblock-the-block-layer][overblock]].
 
 - [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] uses the
   Jupyter protocol and the =zmq= module, with kernels for many
-  languages. =overblock-pycell= uses the inferior Python of =python.el=.
+  languages. =overblock-pycell= uses the Python interpreter of
+  =python.el=.
 - [[https://github.com/astoff/code-cells.el][code-cells]] gives the
   cells and the commands. =overblock-pycell= adds the output.
 - [[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits
@@ -457,7 +483,7 @@ The details are in
 =overblock-rmd-mode= runs the R chunks of an =.Rmd= file and shows the
 output under each chunk. The prose between the chunks renders as in
 =overblock-md-preview-mode=. There is no knitr run. The chunks go to
-the inferior R of ESS, so the R buffer keeps the full log.
+the R interpreter of ESS, so the R buffer keeps the full log.
 
 #+begin_src emacs-lisp
   (use-package markdown-mode
@@ -482,10 +508,10 @@ buffer whose major mode derives from =markdown-mode=. It turns
 
 *** Chunks
 
-A bar stands over the fence line of each =```{r}= chunk. The bar shows
-the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}= shows
-/plot-one/. The buttons of =overblock-rmd-chunk-buttons= are =⇈=, which
-runs each chunk above this one, and =▷=, which runs this chunk.
+A bar stands in place of the fence line of each =```{r}= chunk. The bar
+shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
+shows /plot-one/. The buttons of =overblock-rmd-chunk-buttons= are =⇈=,
+which runs each chunk above this one, and =▷=, which runs this chunk.
 
 The closing fence is hidden, and the file does not change. A chunk of
 another engine, such as =```{python}=, stays as it is. The bars show
@@ -569,7 +595,7 @@ For the button format, see [[#buttons][Buttons]]. The details are in
   [[https://github.com/astoff/code-cells.el][code-cells]]. Text output
   needs nothing more. Images and tables need
   [[https://github.com/astoff/comint-mime][comint-mime]] and IPython.
-  A plain =python3= shell gives text only.
+  A plain =python3= interpreter gives text only.
 - =overblock-rmd= needs [[https://ess.r-project.org/][ESS]] and an R.
 - A nerd font for the icons on the bars. Without one, each button shows
   a plain character or a word.
@@ -597,11 +623,13 @@ These limits apply to each package.
   block taller than the window. Emacs 30 does not do this.
 - The last cell of a notebook gets a final newline if it has none. This
   is the only change =overblock-pycell= makes to the text.
+- Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
+  not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
 
 For the two notebooks:
 
-- One region runs at a time for each inferior process. A region sent
-  while another runs waits in the queue.
+- One region runs at a time for each interpreter. A region sent while
+  another runs waits in the queue.
 - A table in a result is a copy with the columns as plain text. Thus
   the header can stand one column left of its data, and you cannot
   sort the copy. Sort the table in the buffer of
