@@ -275,7 +275,7 @@ one `overblock-buttons' reads."
     (pop ("" "↗" "pop") "Show this result in its own buffer"
          overblock-run-pop-output lines)
     (discard ("" "✕" "drop") "Discard this result"
-             overblock-run-discard-output t)))
+             overblock-run-discard-output done)))
 
 (defun overblock-run-header (folded total shown runtime state imagep)
   "Return the header bar of a result, drawn as this buffer's backend says.

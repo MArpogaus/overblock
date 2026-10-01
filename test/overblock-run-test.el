@@ -268,6 +268,14 @@ and the follower gets what was printed before it asked as well."
                            "first\nsecond\n")))
         (kill-buffer out)))))
 
+(ert-deftest overblock-run-test-a-running-result-offers-no-discard ()
+  "The discard button waits for the region to end.
+Pressed while it ran, the next tick drew the result again, so the
+button seemed to do nothing."
+  (let ((buttons (overblock-run-result-buttons "cell" "image")))
+    (should-not (string-search "drop" (overblock-buttons buttons nil 1 t)))
+    (should (string-search "drop" (overblock-buttons buttons nil 1 nil)))))
+
 (ert-deftest overblock-run-test-both-notebooks-draw-the-same-five ()
   "The five buttons of a result header are one list, drawn for both.
 A glyph changed there changes the row a reader reads in a .py file and

@@ -166,8 +166,9 @@ what it was drawn from.
 Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=. GLYPHS are the
 candidates for the label: the first one the frame can draw wins, and
 the last one always answers, so keep a plain character at the end.
-WHEN is =t=, or =image=, =lines= or =running= for a button that waits
-for an image, for text, or for a block still being written.
+WHEN is =t=, or =image=, =lines=, =running= or =done= for a button that
+waits for an image, for text, for a block still being written, or for
+one that is written.
 =overblock-button-type= is the customize type of such a list, for a
 caller that offers one as an option.
 
@@ -876,8 +877,9 @@ frame can draw wins, and the last one always answers, so keep a plain
 word at the end. The first candidate is always a codicon — a glyph
 whose nerd-icons name begins =nf-cod-= — because one family draws one
 weight and one size. WHEN is =t=, or =image= for a button that waits
-for an image in the result, =lines= for one that waits for output, or
-=running= for one that shows while the cell runs.
+for an image in the result, =lines= for one that waits for output,
+=running= for one that shows while the cell runs, or =done= for one
+that shows once it has ended.
 
 Drop a button you never press, put them in another order, or give one a
 glyph your font draws better:

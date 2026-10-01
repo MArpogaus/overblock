@@ -1340,7 +1340,8 @@ See `overblock-flatten-alignment' for why a copy needs them literal."
                   (const :tag "Always" t)
                   (const :tag "With an image" image)
                   (const :tag "With output" lines)
-                  (const :tag "While it is still being written" running))))
+                  (const :tag "While it is still being written" running)
+                  (const :tag "Once it is written" done))))
   "The customize type of a list of header buttons.")
 
 (defun overblock-faced (string face)
@@ -1530,11 +1531,11 @@ every package here is written in:
 - COMMAND runs on a click.
 - WHEN says when the button shows: t always, `image' only with a
   picture in the result, `lines' only with output, `running' only
-  while the region runs.
+  while the region runs, and `done' only once it has ended.
 
 IMAGEP says the block holds an image, LINES how many lines it has and
 RUNNINGP that it is still being written, which is what a WHEN of
-`image', `lines' or `running' waits for."
+`image', `lines', `running' or `done' waits for."
   (with-memoization (gethash (list descriptors imagep (> (or lines 0) 0)
                                    runningp (display-graphic-p)
                                    (frame-parameter nil 'font)
@@ -1555,6 +1556,7 @@ function behind a table."
                  ('image imagep)
                  ('lines (> (or lines 0) 0))
                  ('running runningp)
+                 ('done (not runningp))
                  (_ t))
            ;; The space after the glyph belongs to the button, so the
            ;; place a reader can press is two columns wide rather than
