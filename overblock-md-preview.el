@@ -228,13 +228,25 @@ that tells whether BEG is inside a fence."
 
 ;;;; What to render them with
 
+(defun overblock-md-preview--source (beg end)
+  "Return the markdown BEG..END, less the indentation of its first line.
+A later paragraph of a list item is indented under the item, and the
+converter reads a fence indented deeper than the line before it as
+text."
+  (let ((text (buffer-substring-no-properties beg end)))
+    (with-temp-buffer
+      (insert text)
+      (goto-char (point-min))
+      (indent-rigidly (point-min) (point-max) (- (current-indentation)))
+      (buffer-string))))
+
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
 HTML is the answer of `overblock-md-html-batch-async' for this block,
 when a caller sent the whole buffer through one process.
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
-  (when-let* ((source (string-trim (buffer-substring-no-properties beg end)))
+  (when-let* ((source (string-trim (overblock-md-preview--source beg end)))
               ((not (string-empty-p source)))
               (rendered (let ((overblock-md-width (overblock-md-columns)))
                           (overblock-md-rendered source html))))
@@ -257,7 +269,7 @@ when the answer comes back without the marker between every pair.
   (interactive)
   (overblock-md-render-regions
    (funcall overblock-md-preview-regions-function (point-min) (point-max))
-   'md-preview #'buffer-substring-no-properties #'overblock-md-preview--show))
+   'md-preview #'overblock-md-preview--source #'overblock-md-preview--show))
 
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode

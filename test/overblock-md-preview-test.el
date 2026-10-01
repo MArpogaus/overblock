@@ -289,6 +289,13 @@ The item is one block, and the fence is not a second one over it."
     (insert "```x``` leads this line.\n\nLast para.\n")
     (should-not (overblock-md-preview-fences (point-max)))))
 
+(ert-deftest overblock-md-preview-test-a-later-paragraph-of-an-item-is-dedented ()
+  "The fence under a later paragraph of an item keeps its place in it."
+  (with-temp-buffer
+    (insert "- one\n\n  more of one\n  ```python\n  y = 2\n  ```\n")
+    (should (equal (overblock-md-preview--source 8 (point-max))
+                   "more of one\n```python\ny = 2\n```\n"))))
+
 (ert-deftest overblock-md-preview-test-deep-fence-under-an-item ()
   "Four spaces in, a fence opens a block only under a list item."
   (with-temp-buffer
