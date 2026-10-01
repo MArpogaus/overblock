@@ -219,6 +219,18 @@ bar left on the line could not be swept."
     (should-not (seq-filter #'overblock-bar-kind
                             (overlays-in (point-min) (point-max))))))
 
+(ert-deftest overblock-pycell-test-md-a-failed-cell-shows-its-markdown ()
+  "A cell the converter fails on shows its markdown, and goes no more."
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# Some *text*.\n# %%\nprint(1)\n")
+    (python-mode)
+    (code-cells-mode)
+    (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
+      (let ((block (overblock-pycell--md-show 17 31)))
+        (should block)
+        (should (string-match-p "Some \\*text\\*"
+                                (overblock-get block :over)))))))
+
 (ert-deftest overblock-pycell-test-md-an-edit-takes-the-bar-with-it ()
   "An edit of a rendered cell removes the rendering and its bar.
 The block evaporates with the text it covers, but the bar is on the

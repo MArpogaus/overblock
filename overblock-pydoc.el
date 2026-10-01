@@ -435,9 +435,12 @@ the column of BEG, which for a raw doc string includes its prefix."
                      (overblock-md-columns (+ indent (overblock-pydoc--bar-room))))
                     (overblock-md-command (overblock-pydoc--command-for-markup))
                     (overblock-md-math-face 'font-lock-doc-face))
-                (when-let* ((prose (overblock-md-rendered source html)))
-                  (overblock-pydoc--dressed (string-trim-right prose "\n+")
-                                            indent))))
+                ;; A conversion that fails gives an empty block, so the
+                ;; doc string does not go to the converter on every pass.
+                (if-let* ((prose (overblock-md-rendered source html)))
+                    (overblock-pydoc--dressed (string-trim-right prose "\n+")
+                                              indent)
+                  "")))
              ((overblock-show-rendering
                beg end rendered 'font-lock-doc-face
                :kind 'pydoc

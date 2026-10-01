@@ -496,11 +496,15 @@ still finds its heading."
               ;; An empty cell has no region for a block. This can run
               ;; in the comint filter, where an error is costly.
               ((< beg end))
-              (rendered (let ((overblock-md-width (overblock-md-columns)))
-                          (overblock-md-rendered
-                           (overblock-pycell--md-uncomment
-                            (buffer-substring-no-properties beg end))
-                           html))))
+              ;; Without a converter the cell stays plain text.
+              ((overblock-md-program))
+              (markdown (overblock-pycell--md-uncomment
+                         (buffer-substring-no-properties beg end)))
+              ;; A conversion that fails shows the markdown as it is,
+              ;; so the cell does not go to the converter on every pass.
+              (rendered (or (let ((overblock-md-width (overblock-md-columns)))
+                              (overblock-md-rendered markdown html))
+                            markdown)))
     (overblock-pycell--md-block beg end rendered)))
 
 (defun overblock-pycell--md-bar (hov)
