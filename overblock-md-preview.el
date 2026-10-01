@@ -98,12 +98,8 @@ end of the buffer."
       (while (re-search-forward overblock-md-preview--fence-regexp end t)
         (let ((this (match-string-no-properties 3))
               (bare (looking-at-p "[[:blank:]]*$")))
-          (cond (;; A fence on the line of a list item opens a block in
-                 ;; the item, and closes none.
-                 (if (match-beginning 2)
-                     open
-                   (overblock-md-preview--too-deep-p
-                    (length (match-string 1)) open)))
+          (cond ((overblock-md-preview--too-deep-p
+                  (length (match-string 1)) open (match-beginning 2)))
                 ;; A backtick after the marks makes inline code of it.
                 ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")))
                 ((null open) (setq open (pos-bol) fence this))
@@ -118,28 +114,32 @@ end of the buffer."
       (when open (push (cons open (point-max)) regions))
       (nreverse regions))))
 
-(defun overblock-md-preview--too-deep-p (indent open)
+(defun overblock-md-preview--too-deep-p (indent open item)
   "Return non-nil where a fence INDENT columns in is code text.
-OPEN is the start of the fence line that opened the block, or nil.  An
-opening fence four columns in opens a block only under a list item.  A
-closing fence is at most three columns in, or three deeper than an
+OPEN is the start of the fence line that opened the block, or nil.
+ITEM is non-nil where the fence stands on the line of a list item: it
+opens a block in the item, and closes none.
+
+An opening fence four columns in opens a block only under a list item.
+A closing fence is at most three columns in, or three deeper than an
 opening one at or right of the content column of a list item, or on
-the line of one.  The columns are
-counted in the text: a rendering hides the indentation from
-`current-indentation'."
-  (if open
-      (pcase-let ((`(,from . ,item)
-                   (save-excursion
-                     (goto-char open)
-                     (looking-at overblock-md-preview--fence-regexp)
-                     (cons (- (match-beginning 3) open) (match-beginning 2)))))
-        (> indent (if (or item
-                          (>= from (or (overblock-md-preview--in-item-p open)
-                                       most-positive-fixnum)))
-                      (+ from 3)
-                    3)))
-    (and (> indent 3)
-         (not (overblock-md-preview--in-item-p (pos-bol))))))
+the line of one.  The columns are counted in the text: a rendering
+hides the indentation from `current-indentation'."
+  (cond
+   ((and open item))
+   (open
+    (pcase-let ((`(,from . ,on-item)
+                 (save-excursion
+                   (goto-char open)
+                   (looking-at overblock-md-preview--fence-regexp)
+                   (cons (- (match-beginning 3) open) (match-beginning 2)))))
+      (> indent (if (or on-item
+                        (>= from (or (overblock-md-preview--in-item-p open)
+                                     most-positive-fixnum)))
+                    (+ from 3)
+                  3))))
+   (t (and (> indent 3)
+           (not (overblock-md-preview--in-item-p (pos-bol)))))))
 
 (defun overblock-md-preview--margin-p (pos)
   "Return non-nil where the line at POS begins at the left margin."

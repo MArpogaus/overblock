@@ -379,6 +379,11 @@ The item is one block, and the fence is not a second one over it."
     (insert "1. ```bash\n   pip\n   ```\n2. Run.\n\n```\nx\n```\n")
     (should (equal (overblock-md-preview-fences (point-max))
                    '((1 . 25) (35 . 44)))))
+  ;; Four spaces in outside a list, an item line is code text.
+  (with-temp-buffer
+    (insert "Para.\n\n    - ```bash\n    x\n\n```\ny\n```\n")
+    (should (equal (overblock-md-preview-fences (point-max))
+                   (list (cons 29 (1- (point-max)))))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")
