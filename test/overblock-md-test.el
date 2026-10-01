@@ -623,6 +623,21 @@ hover of a formula showed its LaTeX until the reader moved and came back."
             (should (equal asked-again (list reader t)))))
       (kill-buffer reader))))
 
+(ert-deftest overblock-md-test-a-formula-wears-the-colour-of-its-prose ()
+  "A caller's face gives the formulas their colour.
+pydoc paints its prose in `font-lock-doc-face', and the formulas came
+out in the foreground of `default' beside it."
+  (let ((overblock-md--buffer nil)
+        (overblock-md-math-face 'font-lock-doc-face)
+        color)
+    (cl-letf (((symbol-function 'latex-to-svg-backend-available-p) (lambda () t))
+              ((symbol-function 'face-attribute)
+               (lambda (face &rest _) (if (eq face 'font-lock-doc-face) "#777777" "#000000")))
+              ((symbol-function 'latex-to-svg-backend)
+               (lambda (_latex &rest keys) (setq color (plist-get keys :color)) nil)))
+      (overblock-md--latex-image "$x$"))
+    (should (equal color "#777777"))))
+
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
 A terminal and an Emacs without SVG both answer so, and neither is a

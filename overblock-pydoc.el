@@ -469,7 +469,8 @@ column out of line."
                ;; holds.
                (let ((overblock-md-width
                       (overblock-md-columns (+ indent (overblock-pydoc--bar-room))))
-                     (overblock-md-command (overblock-pydoc--command-for-markup)))
+                     (overblock-md-command (overblock-pydoc--command-for-markup))
+                     (overblock-md-math-face 'font-lock-doc-face))
                  (when-let* ((prose (overblock-md-rendered source html)))
                    (overblock-pydoc--dressed (string-trim-right prose "\n+")
                                              indent))))

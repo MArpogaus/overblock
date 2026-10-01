@@ -287,6 +287,12 @@ is left to a timer."
              0.1 nil #'overblock-md--latex-draw-arrivals))))
   nil)
 
+(defvar overblock-md-math-face 'default
+  "The face whose foreground a formula is drawn in.
+A caller that paints its rendering in a face of its own binds this to
+it, so the formulas wear the colour of the prose around them: pydoc
+binds it to `font-lock-doc-face'.")
+
 (defvar overblock-md--eldoc-asker nil
   "The buffer whose hover `overblock-md-eglot-renderer' renders, or nil.
 eglot renders in a temporary buffer that is gone when a preview
@@ -381,7 +387,8 @@ taller than the window, and a block the wheel cannot get past is what
                                          (current-buffer))
                     (latex-to-svg-backend
                      frag
-                     :color (face-attribute 'default :foreground nil t)
+                     :color (face-attribute overblock-md-math-face :foreground
+                                            nil 'default)
                      :font-height (overblock-md--font-height buffer)
                      :callback (let ((asker overblock-md--eldoc-asker))
                                  (lambda ()
