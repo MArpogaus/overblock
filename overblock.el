@@ -152,7 +152,6 @@ say which block an orphan belonged to."
     (without-restriction
       (mapc #'overblock-delete
             (overblock-in (or beg (point-min)) (or end (point-max)) kind))
-
       (when whole (overblock-sweep-orphans)))))
 
 (defun overblock-sweep-orphans ()
@@ -494,7 +493,6 @@ its newline, in invisible text, and redisplay would jump to the top of
 the buffer.  Under a shorter rendering every line without a piece goes
 under a cloak."
   (pcase-let* ((indent (overblock-get block :indent))
-
                (end (overblock--region-end block))
                (rows (overblock--piece-rows block end))
                (slots (max 1 (seq-count (lambda (row)
@@ -505,10 +503,8 @@ under a cloak."
                (parts nil)
                (cloak-from nil))
     (pcase-dolist (`(,bol ,from ,to ,blank) rows)
-
       (let ((chunk (and (> to from) (pop chunks))))
         (if (null chunk)
-
             (unless (and long blank (null cloak-from))
               (setq cloak-from (overblock--cloak-from cloak-from bol)))
           (when cloak-from
