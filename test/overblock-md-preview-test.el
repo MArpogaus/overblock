@@ -404,8 +404,16 @@ The item is one block, and the fence is not a second one over it."
   ;; An HTML comment is a block of its own, and holds no fence.
   (with-temp-buffer
     (insert "<!-- a\n\n```\nb -->\n\n```\nx\n```\n")
-    (should (equal (overblock-md-preview-fences (point-max))
-                   '((1 . 18) (20 . 29)))))
+    (should (equal (overblock-md-preview-fences (point-max) t)
+                   '((1 . 18) (20 . 29))))
+    ;; Without COMMENTS, as for the chunks of an Rmd file, a fence in
+    ;; a comment counts.
+    (should (= 2 (length (overblock-md-preview-fences (point-max))))))
+  ;; Inside a paragraph a comment is part of it.
+  (with-temp-buffer
+    (insert "Some *long\n<!-- note -->\nend* here.\n")
+    (should (= 1 (length (overblock-md-preview-regions
+                          (point-min) (point-max))))))
   ;; A list shown inside a block: its deep fence is content.
   (with-temp-buffer
     (insert "```markdown\n- item\n\n    ```python\n    x = 1\n    ```\n```\n")

@@ -80,7 +80,7 @@ asks this before it hides a line.")
   (concat overblock-md-preview--fence-regexp "\\|^<!--")
   "A fence line, or the start of an HTML comment at the left margin.")
 
-(defun overblock-md-preview-fences (end)
+(defun overblock-md-preview-fences (end &optional comments)
   "Return the bounds of every fenced block and HTML comment up to END.
 Each is a cons of the start of the opening fence line and the end of
 the closing one.  Public because `overblock-rmd' takes the R chunks of
@@ -97,31 +97,42 @@ it is, so an unclosed Rmd chunk does not take the header of the next
 chunk as its closing fence.  A fence that is never closed runs to the
 end of the buffer.
 
-An HTML comment at the left margin, outside a block, is one region up
-to its end, and a fence in it opens nothing.  Split at a blank line,
-its closing half would show as text, and a fence in it would open a
-block."
+With COMMENTS, an HTML comment that begins a block at the left margin,
+after a blank line, is one region up to its end, and a fence in it
+opens nothing.  Split at a blank line, its closing half would show as
+text, and a fence in it would open a block.  In an Rmd file a chunk
+in a comment still runs, so `overblock-rmd' asks for none."
   (save-excursion
     (goto-char (point-min))
     (let (regions block)
-      (while (re-search-forward overblock-md-preview--fence-or-comment end t)
-        (if (not (match-beginning 3))
-            (unless block
-              (when-let* ((comment (overblock-md-preview--comment end)))
-                (push comment regions)))
-          (pcase-let ((`(,next . ,done) (overblock-md-preview--fence block)))
-            (when done (push done regions))
-            (setq block next))))
+      (while (re-search-forward (if comments
+                                    overblock-md-preview--fence-or-comment
+                                  overblock-md-preview--fence-regexp)
+                                end t)
+        (if (match-beginning 3)
+            (pcase-let ((`(,next . ,done) (overblock-md-preview--fence block)))
+              (when done (push done regions))
+              (setq block next))
+          (when-let* ((comment (overblock-md-preview--comment end block)))
+            (push comment regions))))
       (when block (push (cons (car block) (point-max)) regions))
       (nreverse regions))))
 
-(defun overblock-md-preview--comment (end)
-  "Return the bounds of the HTML comment that begins on this line.
-An HTML comment holds no fence, whatever blank lines stand in it.  It
-ends on the line that holds its end, before END; one that does not end
+(defun overblock-md-preview--comment (end block)
+  "Return the bounds of the HTML comment that begins a block on this line.
+It begins one where a blank line stands above it and BLOCK, the open
+fenced block, is nil: inside a paragraph it is part of the paragraph,
+and inside a fenced block it is code.  It ends on the line that holds its end,
+before END, whatever blank lines stand in it; one that does not end
 is no region."
   (let ((from (pos-bol)))
-    (when (search-forward "-->" end t)
+    (when (and (not block)
+               (save-excursion
+                 (goto-char from)
+                 (or (bobp)
+                     (progn (forward-line -1)
+                            (looking-at-p "[[:blank:]]*$"))))
+               (search-forward "-->" end t))
       (cons from (pos-eol)))))
 
 (defun overblock-md-preview--fence (block)
@@ -297,7 +308,7 @@ over its lines.
 
 The walk starts at the top of the buffer whatever BEG is, because only
 that tells whether BEG is inside a fence."
-  (let* ((all (overblock-md-preview-fences end))
+  (let* ((all (overblock-md-preview-fences end (not prose-only)))
          (paragraphs (overblock-md-preview-paragraphs end all prose-only))
          (fences (overblock-md-preview--outside all paragraphs)))
     (seq-filter (lambda (region)
