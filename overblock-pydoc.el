@@ -287,11 +287,27 @@ That is `overblock-pydoc--source', with every doctest of a Markdown doc
 string in a fence: Markdown reads `>>>' as three nested quotes."
   (let ((source (overblock-pydoc--source beg end)))
     (if (eq overblock-pydoc-markup 'markdown)
-        (replace-regexp-in-string
-         "^>>>.*\\(?:\n.+\\)*"
-         (lambda (doctest) (concat "```pycon\n" doctest "\n```"))
-         source t t)
+        (overblock-pydoc--fence-doctests source)
       source)))
+
+(defun overblock-pydoc--fence-doctests (text)
+  "Return TEXT with each doctest outside a fence put in a pycon fence.
+A doctest is a run of lines from one that begins with `>>>' to the
+next blank line.  One that a fence holds already stays as it is."
+  (let (out fenced doctest)
+    (dolist (line (split-string text "\n"))
+      (cond (doctest
+             (when (string-blank-p line)
+               (push "```" out)
+               (setq doctest nil)))
+            ((string-match-p "\\`[ \t]*\\(?:```\\|~~~\\)" line)
+             (setq fenced (not fenced)))
+            ((and (not fenced) (string-prefix-p ">>>" line))
+             (push "```pycon" out)
+             (setq doctest t)))
+      (push line out))
+    (when doctest (push "```" out))
+    (string-join (nreverse out) "\n")))
 
 (defun overblock-pydoc--source (beg end)
   "Return the prose of the doc string BEG..END.

@@ -454,6 +454,12 @@ and steps the output lines to the right."
                          (overblock-pydoc--markup beg end)))))
       (should (string-search ">>> f(1)\n2" text)))))
 
+(ert-deftest overblock-pydoc-test-a-fenced-doctest-is-left-alone ()
+  "Only a doctest outside a fence gets a fence of its own."
+  (should (equal (overblock-pydoc--fence-doctests
+                  ">>> f(1)\n2\n\nprose\n```python\n>>> g()\n```")
+                 "```pycon\n>>> f(1)\n2\n```\n\nprose\n```python\n>>> g()\n```")))
+
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
 The prose reaches the edit buffer without the quotes and the
