@@ -31,7 +31,7 @@
 ;;; Code:
 
 (require 'ert)
-;; `text-scale-mode-hook' lives there
+;; For `text-scale-mode-hook'.
 (require 'face-remap)
 (require 'python)
 (require 'overblock-pydoc)
@@ -62,9 +62,8 @@ class C:
         return s
 "
   "A Python buffer with a doc string of every kind.
-It carries the doc string of a module, of a function, of a class behind
-a comment and of a method — and one string that is data rather than
-documentation.")
+It holds the doc string of a module, of a function, of a class behind
+a comment and of a method, and one string that is data.")
 
 (defmacro overblock-pydoc-test--with (&rest body)
   "Evaluate BODY in a Python buffer holding the source above."
@@ -77,8 +76,7 @@ documentation.")
 
 (defun overblock-pydoc-test--wait (count)
   "Wait until COUNT doc strings carry a rendering, and return how many do.
-The rendering is asked of a process and not waited for, which is the
-point of it: a test has to wait where a reader does not."
+The rendering comes from an asynchronous process, so a test waits."
   (overblock-test-common-wait
    (lambda () (>= (length (overblock-in (point-min) (point-max) 'pydoc)) count))
    10)
@@ -94,8 +92,8 @@ point of it: a test has to wait where a reader does not."
 
 (ert-deftest overblock-pydoc-test-the-markup-picks-the-command-and-the-mode ()
   "One option says the markup, and the renderer and the editor follow it.
-A doc string rendered as one markup and edited in the mode of another
-is what this is against: the two read the same option."
+Both read the same option, so a doc string is not rendered as one
+markup and edited in the mode of another."
   (let ((overblock-pydoc-markup 'rst))
     (should (equal (overblock-pydoc--command-for-markup)
                    (alist-get 'rst overblock-pydoc-command)))
@@ -104,8 +102,7 @@ is what this is against: the two read the same option."
     (should (equal (overblock-pydoc--command-for-markup)
                    (alist-get 'markdown overblock-pydoc-command)))
     (should (eq (overblock-pydoc--mode-for-markup) 'markdown-mode)))
-  ;; A markup the options say nothing about falls back rather than
-  ;; rendering with nothing at all.
+  ;; A markup that the options do not name falls back.
   (let ((overblock-pydoc-markup 'org)
         (overblock-md-command "cat"))
     (should (equal (overblock-pydoc--command-for-markup) "cat"))
@@ -132,14 +129,13 @@ start reads the first two as an empty string."
 
 (ert-deftest overblock-pydoc-test-an-unterminated-doc-string-is-left-alone ()
   "A doc string whose closing quotes are missing is not rendered.
-Its bounds ran to the end of the buffer, so the code under a
-half-typed \"\"\" — the one the reader is still writing — went under one
-block of prose."
+Else its bounds reach the end of the buffer, and the code under a
+half-typed \"\"\" goes under one block of prose."
   (with-temp-buffer
     (insert "def f():\n    \"\"\"Whole.\"\"\"\n    return 1\n\n"
             "def g():\n    \"\"\"Half a doc string.\n    return 2\n")
     (python-mode)
-    ;; the sound one is found and the half-typed one is not
+    ;; The whole one is found, the half-typed one is not.
     (should (equal (mapcar (lambda (region)
                              (buffer-substring-no-properties
                               (car region) (cdr region)))
@@ -160,17 +156,16 @@ block of prose."
 "
   "A doc string whose prose carries a quote run, and one below it.
 The run ends the first string where Python ends it, and what follows
-pairs the other way round: font lock paints a region that begins in
-the middle of a line.")
+pairs the other way: font lock paints a region that starts in the
+middle of a line.")
 
 (ert-deftest overblock-pydoc-test-a-mispaired-quote-run-is-no-doc-string ()
-  "A region that does not begin where its line does is not taken.
-A quote run in the prose ends a doc string early and every string
-after it pairs the wrong way round; font lock paints those artefacts
-with the doc face too.  One of them begins in the middle of a line —
-measured, at column 51 of a line indented to four — and a rendering
-laid over it would draw prose over code.  The sound doc strings around
-it are still found."
+  "A region that starts in the middle of a line is no doc string.
+A quote run in the prose ends a doc string early, and every later
+string pairs the wrong way; font lock paints those with the doc face
+too.  Such a region starts in the middle of a line, and a rendering
+over it would cover code.  The whole doc strings around it are still
+found."
   (with-temp-buffer
     (insert overblock-pydoc-test--mispaired)
     (python-mode)
@@ -178,7 +173,7 @@ it are still found."
       (dolist (region bounds)
         (goto-char (car region))
         (should (= (current-column) (current-indentation))))
-      ;; the doc string of the method below the run is one of them
+      ;; The doc string of the method below the run is found.
       (should (seq-some (lambda (region)
                           (string-prefix-p "\"\"\"Give this term"
                                            (buffer-substring-no-properties
@@ -187,9 +182,8 @@ it are still found."
 
 (ert-deftest overblock-pydoc-test-an-assignment-is-no-doc-string ()
   "A triple-quoted value is data, wherever it stands.
-python.el decides this, in `python-info-docstring-p\', and it is the
-one thing a reader must be able to count on: prose drawn over a value
-hides code."
+python.el decides this in `python-info-docstring-p'.  Prose drawn over
+a value would hide code."
   (with-temp-buffer
     (insert "s = \"\"\"data, not documentation\"\"\"\n"
             "def f():\n"
@@ -200,10 +194,8 @@ hides code."
 
 (ert-deftest overblock-pydoc-test-a-quote-run-in-a-value-hides-nothing ()
   "A quote run inside an ordinary string costs no doc string its rendering.
-The scan this replaced paired the quotes itself: a run inside an
-f-string sent it looking for a closing fence that was not there, it
-gave up at the end of the buffer, and every doc string below that line
-went unrendered."
+A quote run inside an f-string must not make the scan look for a
+closing fence up to the end of the buffer."
   (with-temp-buffer
     (insert "x = f\"{a!r} \x27\x27\x27\"\n"
             "class A:\n"
@@ -213,8 +205,8 @@ went unrendered."
 
 (ert-deftest overblock-pydoc-test-an-escape-keeps-a-doc-string-whole ()
   "An escape sequence in the prose does not cut the doc string in two.
-Font lock paints an escape with a face of its own, in `python-mode\'
-and in `python-ts-mode\' alike, so the doc face comes in runs; the
+Font lock paints an escape with a face of its own, in `python-mode'
+and in `python-ts-mode' alike, so the doc face comes in runs; the
 syntax scan says where the string ends."
   (with-temp-buffer
     (insert "class A:\n"
@@ -228,31 +220,29 @@ syntax scan says where the string ends."
 
 (ert-deftest overblock-pydoc-test-a-raw-doc-string-covers-its-prefix ()
   "A raw doc string is rendered, prefix and all, and every row lines up.
-Font lock paints the quotes and not the letter that opens them, so a
-region that began at the quotes left the `r\' standing to their left —
-a letter of code beside a rendering.  The block covers it, and the
-rendering is padded to the column the block begins at, measured, and
-not to the indentation of the line."
+Font lock paints the quotes and not the letter before them, so the
+block must cover the `r' too.  The rendering is padded to the column
+where the block starts, not to the indentation of the line."
   (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "class A:\n    r\"\"\"Raw doc, with a \\alpha in it.\n\n    More.\n    \"\"\"\n")
     (python-mode)
     (let ((overblock-pydoc-markup 'rst))
       (goto-char (point-max))
-      ;; the mode and not the render alone: a rendering is wanted only
-      ;; where the live cycle of its kind is on
+      ;; The mode, not the render alone: a rendering is wanted only
+      ;; where the live cycle of its kind is on.
       (overblock-pydoc-mode 1)
       (should (= (overblock-pydoc-test--wait 1) 1)))
     (let* ((block (car (overblock-in (point-min) (point-max) 'pydoc)))
            (pieces (seq-remove (lambda (ov) (overlay-get ov 'overblock-cloak))
                                (overblock-get block :parts))))
       (should block)
-      ;; the block begins at the prefix, which is where the code ends
+      ;; The block starts at the prefix.
       (goto-char (overlay-start block))
       (should (= (current-column) 4))
       (should (looking-at-p "r\"\"\""))
-      ;; every row's piece begins at that column, the indentation before
-      ;; it left in view as the buffer's own text
+      ;; The piece of every row starts at that column, and the
+      ;; indentation before it stays buffer text.
       (should (> (length pieces) 1))
       (dolist (ov pieces)
         (goto-char (overlay-start ov))
@@ -262,8 +252,8 @@ not to the indentation of the line."
 
 (ert-deftest overblock-pydoc-test-the-prose-loses-its-indentation ()
   "The quotes go, and the indentation the lines share with the code.
-A doc string is written where the code stands and reads as prose one
-column from the left."
+A doc string is indented with the code, and reads as prose from the
+left margin."
   (overblock-pydoc-test--with
     (let ((bounds (nth 1 (overblock-pydoc--strings (point-min) (point-max)))))
       (should (equal (overblock-pydoc--source (car bounds) (cdr bounds))
@@ -280,8 +270,7 @@ column from the left."
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4))
           (let ((blocks (overblock-in (point-min) (point-max) 'pydoc)))
-            ;; the roles of a numpydoc section survive, the underline
-            ;; that marks them does not
+            ;; The title of a numpydoc section stays, its underline goes.
             (let ((shown (substring-no-properties
                           (overblock-get (nth 1 blocks) :over))))
               (should (string-match-p "Parameters" shown))
@@ -290,30 +279,30 @@ column from the left."
 
 (ert-deftest overblock-pydoc-test-a-doc-string-taken-down-stays-down-under-point ()
   "Point moving into a doc string changes nothing; a click takes it down.
-A rendering is what the reader works in: the code around it is edited
-with the prose in view, and the answer of the converter lands whether
-point walked into the doc string or not.  Only the one the reader took
-down stays source, and only while point stays in it."
+The code around a doc string is edited with the prose in view, and
+the answer of the converter lands even when point is in the doc
+string.  Only the one the reader took down stays source, and only
+while point stays in it."
   (skip-unless (overblock-md-program))
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
     (unwind-protect
         (let ((bounds (nth 1 (overblock-pydoc--strings (point-min)
                                                        (point-max)))))
-          ;; the reader walks into the second doc string while the
-          ;; converter runs, and it is rendered all the same
+          ;; Point is in the second doc string while the converter
+          ;; runs, and it renders all the same.
           (goto-char (1+ (car bounds)))
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4))
           (should (overblock-in (car bounds) (cdr bounds) 'pydoc))
-          ;; a click takes it down, and a render with point still in it
-          ;; leaves it down
+          ;; A click takes it down, and a render with point still in it
+          ;; leaves it down.
           (overblock-live-edit)
           (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 3))
           (should-not (overblock-in (car bounds) (cdr bounds) 'pydoc))
-          ;; and comes back once point has left
+          ;; It comes back when point leaves.
           (goto-char (point-max))
           (overblock-live--settle)
           (overblock-pydoc-render-buffer)
@@ -321,27 +310,23 @@ down stays source, and only while point stays in it."
       (overblock-pydoc-mode -1))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-wears-its-bars ()
-  "The first line rides the bar, the rest stands under it, a rule closes it.
-So the rendering has as many rows as the doc string: the bar is the row
-the rendering adds, and the summary it carries is the row it saves.
-The rule carries nothing, since saying the same twice said nothing the
-second time."
+  "The first line is on the bar, the rest is under it, and a rule closes it.
+So the rendering has as many rows as the doc string.  The rule has no
+label and no buttons."
   (let* ((dressed (overblock-pydoc--dressed "one\ntwo" 0))
          (lines (split-string dressed "\n")))
     (should (= (length lines) 3))
     (should (string-prefix-p (overblock-pydoc--glyph) (car lines)))
     (should (string-search "one" (car lines)))
     (should (equal (nth 1 lines) "two"))
-    ;; the rule has no label and no button of its own: spaces, and
-    ;; the zero-width space that keeps the row from being read as a
-    ;; blank line and trimmed away
+    ;; The rule is spaces and a zero-width space, which keeps the row
+    ;; from being trimmed as a blank line.
     (should-not (string-search (overblock-pydoc--glyph) (nth 2 lines)))
     (should (string-match-p "\\`[\u200b[:blank:]]*\\'" (nth 2 lines)))))
 
 (ert-deftest overblock-pydoc-test-one-line-takes-one-row ()
-  "Prose of a single line is all bar: the glyph, the prose, the buttons.
-A rule under one row would box it in, and a doc string of one line is
-the commonest of all."
+  "Prose of a single line is only a bar: the glyph, the prose, the buttons.
+A rule under one row would box it in."
   (let ((dressed (overblock-pydoc--dressed "all of it" 0)))
     (should-not (string-search "\n" dressed))
     (should (string-match-p "all of it" dressed))))
@@ -357,12 +342,10 @@ the commonest of all."
         (should (< (string-width bar) 60))))))
 
 (ert-deftest overblock-pydoc-test-the-cache-does-not-outlive-a-narrowing ()
-  "A narrowing is a different question, and widening asks it again.
-The kept answer is for the whole buffer, and the guard read the
-bounds — which a narrowing makes equal to the accessible region.
+  "The cache of doc strings is not used under a narrowing.
 `buffer-chars-modified-tick' does not change when the buffer is
-widened, so the answer for one defun stood for the whole file and
-nothing outside it rendered again until the next edit."
+widened, so a cached answer for one defun would stand for the whole
+file."
   (with-temp-buffer
     (insert "def f():\n    \"\"\"One.\"\"\"\n\ndef g():\n    \"\"\"Two.\"\"\"\n")
     (python-mode)
@@ -375,9 +358,8 @@ nothing outside it rendered again until the next edit."
 
 (ert-deftest overblock-pydoc-test-the-doc-strings-are-found-once ()
   "The walk runs once while the buffer does not change.
-The live cycle re-arms from `post-command-hook', so a reader who only
-moves point asked the whole buffer again for an answer that cannot
-have changed."
+The live cycle re-arms from `post-command-hook', so without the cache
+each motion of point walks the whole buffer."
   (with-temp-buffer
     (insert "def f():\n    \"\"\"One.\"\"\"\n\ndef g():\n    \"\"\"Two.\"\"\"\n")
     (python-mode)
@@ -396,12 +378,8 @@ have changed."
 (ert-deftest overblock-pydoc-test-a-unicode-blank-is-a-blank-line ()
   "A line of any kind of space is measured like any other line.
 `string-blank-p' reads [ \\t\\n\\r] and `[:blank:]' reads every space
-Unicode has, so a line holding one non-breaking space passed the
-filter that drops blank lines and then answered nil to the question
-about its indentation — and the `min' over that nil signalled, out of
-mode-on, out of the idle timer, and out of the converter's process
-sentinel, which takes the rest of the sentinels with it.  A line
-pasted out of a browser is how a reader gets one."
+of Unicode.  A line of one non-breaking space must not make the
+indentation measure signal."
   (dolist (blank '("" " " "    " "\t" " " " " "　"))
     (with-temp-buffer
       (insert (format "def f():\n    \"\"\"Head.\n%s\n    Tail.\n    \"\"\"\n" blank))
@@ -415,10 +393,9 @@ pasted out of a browser is how a reader gets one."
 
 (ert-deftest overblock-pydoc-test-a-commit-keeps-the-quotes-it-found ()
   "An unchanged commit leaves the source exactly as it was.
-Every way of writing a doc string, prefix letters and all: the `r' of
-a raw string is part of the string, and a commit that wrote three
-double quotes over it turned `\\d' into an invalid escape and `\\n'
-into a newline.  A doc string in one quote came back in five."
+Every way of writing a doc string, prefix letters included: the `r' of
+a raw string changes what each backslash means, and the quotes stay as
+they were."
   (dolist (source '("def f():\n    r\"\"\"Match \\d+ digits.\"\"\"\n"
                     "def f():\n    R\"\"\"Raw again.\"\"\"\n"
                     "def f():\n    u\"\"\"Unicode.\"\"\"\n"
@@ -438,8 +415,7 @@ into a newline.  A doc string in one quote came back in five."
 
 (ert-deftest overblock-pydoc-test-a-one-quote-string-grows-three-quotes ()
   "Prose of several lines goes back into a one-quote doc string as three.
-A one-quote string cannot hold a newline, so the commit would write
-Python that does not parse."
+A one-quote string cannot hold a newline."
   (with-temp-buffer
     (insert "def f():\n    \"One line.\"\n")
     (python-mode)
@@ -452,7 +428,7 @@ Python that does not parse."
                    "def f():\n    \"\"\"One line.\n\n    And more.\n    \"\"\"\n"))))
 
 (ert-deftest overblock-pydoc-test-a-missing-edit-mode-falls-back-to-text ()
-  "The edit buffer opens in `text-mode' where the markup's mode is missing.
+  "The edit buffer opens in `text-mode' where the markup mode is missing.
 The default markup is Markdown, and markdown-mode is no dependency."
   (with-temp-buffer
     (setq-local overblock-pydoc-markup 'markdown)
@@ -480,9 +456,8 @@ and steps the output lines to the right."
 
 (ert-deftest overblock-pydoc-test-an-edit-goes-back-where-it-came-from ()
   "The whole round trip: a rendering opens, is edited and is committed.
-The command that opens the buffer was in no test, and this is the path
-the quotes and the indentation of a doc string are lost on.  The prose
-reaches the edit buffer without either, and comes back with both."
+The prose reaches the edit buffer without the quotes and the
+indentation, and comes back with both."
   (skip-unless (overblock-md-program))
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
@@ -491,14 +466,14 @@ reaches the edit buffer without either, and comes back with both."
           (goto-char (point-max))
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4))
-          ;; the doc string of the function, which is indented and has
-          ;; a numpydoc section under it
+          ;; The doc string of the function: indented, with a numpydoc
+          ;; section.
           (goto-char (point-min))
           (search-forward "Do a thing.")
           (overblock-pydoc-edit)
           (let ((edit (current-buffer)))
             (should overblock-edit-mode)
-            ;; no quotes and no indent in the edit buffer
+            ;; No quotes and no indentation in the edit buffer.
             (should-not (string-search "\"\"\"" (buffer-string)))
             (should (string-prefix-p "Do a thing." (buffer-string)))
             (goto-char (point-min))
@@ -506,8 +481,8 @@ reaches the edit buffer without either, and comes back with both."
             (insert " again")
             (overblock-edit-commit)
             (should-not (buffer-live-p edit)))
-          ;; back in the source: the quotes are on and the body is
-          ;; indented to where the doc string stands
+          ;; In the source the quotes are back, and the body is
+          ;; indented to the doc string.
           (with-current-buffer source
             (should (string-search "    \"\"\"Do a thing. again"
                                    (buffer-string)))
@@ -516,8 +491,7 @@ reaches the edit buffer without either, and comes back with both."
 
 (ert-deftest overblock-pydoc-test-a-new-button-list-redraws-the-bars ()
   "Customizing the buttons draws the bar of every rendering again.
-Without it a changed list waited for something else to render the doc
-string again — a window changing width, or the file opened afresh."
+A changed list shows at once."
   (skip-unless (overblock-md-program))
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
@@ -546,33 +520,31 @@ string again — a window changing width, or the file opened afresh."
 
 (ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()
   "A row does not fill the columns its own indentation stands in.
-Padded to the width of the window, the buttons of an indented doc
-string fell onto a row of their own, exactly as many columns over as
-the doc string was deep."
+Else the buttons of an indented doc string wrap onto a row of their
+own."
   (let ((narrow (overblock-bar "" "a" "b" 'default 20))
         (wide (overblock-bar "" "a" "b" 'default 0)))
-    ;; both are built for the same window, and the indented one is
-    ;; shorter by what it is indented by
+    ;; Both are built for the same window, and the indented one is
+    ;; shorter by its indentation.
     (should (or (null (overblock-window-width))
                 (= (- (string-width wide) (string-width narrow)) 20)))))
 
 (ert-deftest overblock-pydoc-test-the-bars-follow-the-window-width ()
   "The mode watches the window width while it is on, and stops after.
-A rendering is built for the width it is shown at, so a window made
-narrower leaves rows too long for it.  `overblock--width-changed\' is
-what drops those, and the layer\'s own suite proves the dropping; this
-proves that the mode asks for it and that it stops asking."
+A rendering is built for its width.  `overblock--width-changed' drops
+a rendering built for another width, which the suite of the layer
+tests; this tests that the mode adds and removes the hooks."
   (overblock-pydoc-test--with
     (goto-char (point-max))
     (overblock-pydoc-mode 1)
     (unwind-protect
         (progn
-          ;; a buffer in no window has no width to build for
+          ;; A buffer in no window has no width.
           (should (eql (overblock-window-columns) nil))
           (should (memq #'overblock--width-changed
                         window-configuration-change-hook))
           (should (memq #'overblock--width-changed text-scale-mode-hook))
-          ;; and asking with no window to measure is not an error
+          ;; No window to measure is not an error.
           (should-not (overblock--width-changed)))
       (overblock-pydoc-mode -1))
     (should-not (memq #'overblock--width-changed
@@ -591,11 +563,11 @@ proves that the mode asks for it and that it stops asking."
           (goto-char (point-max))
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4))
-          ;; a click takes one rendering off
+          ;; A click takes one rendering off.
           (goto-char (point-min))
           (overblock-live-edit)
           (should (= (funcall count) 3))
-          ;; and the next pass puts it back
+          ;; The next pass puts it back.
           (goto-char (point-max))
           (overblock-pydoc-render-buffer)
           (should (= (overblock-pydoc-test--wait 4) 4)))
@@ -617,9 +589,8 @@ proves that the mode asks for it and that it stops asking."
 
 (ert-deftest overblock-pydoc-test-a-numpy-parameter-list-keeps-its-lines ()
   "Each entry of a Parameters section stays on its own lines under Markdown.
-CommonMark read the indented description as more of the entry's
-paragraph and the next entry as more of that, so a whole section came
-out as one paragraph; the hard line breaks of the default command keep
+CommonMark joins an indented description and the next entry to the
+paragraph above; the hard line breaks of the default command keep
 every source line a line.  The pipe table and the fence of the same
 doc string render as a table and as code."
   (skip-unless (overblock-md-program))
@@ -633,7 +604,7 @@ b : str | None, optional\n    The second.\n\n| k | v |\n|---|---|\n| x | 1 |\n\n
 ```python\nf(a, b)\n```\n"))))
     (should (string-search "a : int\nThe first, bold.\nb : str | None, optional\nThe second."
                            shown))
-    ;; the table's pipes are gone; the one in `str | None' is prose
+    ;; The pipes of the table are gone; the one in `str | None' is prose.
     (should-not (string-search "| k |" shown))
     (should (string-match-p "k +v *\n" shown))
     (should (string-search "f(a, b)" shown))))
