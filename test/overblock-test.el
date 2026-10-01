@@ -1056,6 +1056,16 @@ lines in order put every line after it one row too high."
                              (overlays-at (point)))
                    "beta0 is one"))))
 
+(ert-deftest overblock-test-a-gap-of-the-rendering-stays-in-view ()
+  "A blank source line that takes a blank line of the rendering stays in view."
+  (with-temp-buffer
+    (insert "alpha one\n\nbeta two\nbeta three\n")
+    (overblock-show (point-min) (point-max)
+                    :over "alpha one\n\nbeta two")
+    ;; a cloak over the gap would begin at the newline before it
+    (goto-char (point-min))
+    (should-not (invisible-p (pos-eol)))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

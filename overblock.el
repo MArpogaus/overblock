@@ -552,7 +552,8 @@ Each rendering line goes to the row it was rendered from, found by
 `overblock--key' among the next few rows.  A row nothing was rendered
 from carries nothing: an underline, a fence, a table rule.  A row
 without text takes a blank line where one comes next, so the gaps of
-the rendering fall on the gaps of the source.  The last row with text
+the rendering fall on the gaps of the source; such a row carries `:gap'
+and stays in view.  The last row with text
 takes whatever is left.  See `overblock--take' for a wrapped line.
 
 Nil as a whole where fewer than half the lines with text match a row:
@@ -567,8 +568,8 @@ the rendering is no line by line one of its source, and
               (key (pop keys)))
           (cond
            ((not (overblock--carries-p row))
-            (when (and lines (string-blank-p (car lines))) (pop lines))
-            (push nil chunks))
+            (push (and lines (string-blank-p (car lines)) (pop lines) :gap)
+                  chunks))
            ((and (> carry 1) lines
                  (memq (overblock--ahead (car lines) (cons key keys))
                        '(1 2 3)))
@@ -626,18 +627,18 @@ under a cloak."
                (cloak-from nil))
     (pcase-dolist (`(,bol ,from ,to ,blank) rows)
       (let ((chunk (pop chunks)))
-        (if (null chunk)
-            (unless (and long blank (null cloak-from))
-              (setq cloak-from (overblock--cloak-from cloak-from bol)))
-          (when cloak-from
+        (if (and (null chunk) (not (and long blank (null cloak-from))))
+            (setq cloak-from (overblock--cloak-from cloak-from bol))
+          (when (and chunk cloak-from)
             (setq parts (nconc (overblock--cloak-to block cloak-from bol)
                                parts)
                   cloak-from nil))
           ;; At FROM, also for two lines: `current-column' counts a
           ;; display string over the indentation.
-          (push (overblock--piece block from to
-                                  (overblock--piece-text chunk indent))
-                parts))))
+          (when (consp chunk)
+            (push (overblock--piece block from to
+                                    (overblock--piece-text chunk indent))
+                  parts)))))
     (when cloak-from
       (setq parts (nconc (overblock--cloak-to block cloak-from end) parts)))
     ;; Nils where a guard found no newline to draw.
