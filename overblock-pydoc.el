@@ -412,6 +412,14 @@ room is cut with an ellipsis, as any label of a bar is."
                  (overblock-buttons overblock-pydoc-buttons)
                  'overblock-bar indent))
 
+(defun overblock-pydoc--bar-room ()
+  "Return the columns the bar spends beside the summary.
+The prose is filled that much narrower, so the first line of a long
+summary fits the bar and is not cut there."
+  (+ (string-width (overblock-pydoc--glyph))
+     (string-width (overblock-buttons overblock-pydoc-buttons))
+     3))
+
 (defun overblock-pydoc--dressed (prose indent)
   "Return PROSE with its bar and its rule, for a doc string INDENT columns in.
 The first line of PROSE rides the bar; the rest stands under it, and a
@@ -458,7 +466,8 @@ column out of line."
                ;; would abort the render instead of leaving the
                ;; rendering to shr with whatever `overblock-md-command'
                ;; holds.
-               (let ((overblock-md-width (overblock-md-columns indent))
+               (let ((overblock-md-width
+                      (overblock-md-columns (+ indent (overblock-pydoc--bar-room))))
                      (overblock-md-command (overblock-pydoc--command-for-markup)))
                  (when-let* ((prose (overblock-md-rendered source html)))
                    (overblock-pydoc--dressed (string-trim-right prose "\n+")
