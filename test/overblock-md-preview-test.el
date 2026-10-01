@@ -435,6 +435,10 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "# Head\n<!-- a\n\n```\nx\n```\nb -->\n")
     (should (equal (overblock-md-preview-fences (point-max) t) '((8 . 31)))))
+  ;; A comment of more lines is a block under a line of text too.
+  (with-temp-buffer
+    (insert "Some text.\n<!--\nOld.\n\nMore.\n-->\n")
+    (should (equal (overblock-md-preview-fences (point-max) t) '((12 . 32)))))
   ;; Inside a paragraph a comment is part of it.
   (with-temp-buffer
     (insert "Some *long\n<!-- note -->\nend* here.\n")

@@ -144,19 +144,22 @@ line of a paragraph, the comment is part of the paragraph.")
 
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
-It begins one where the line above ends no paragraph, see
-`overblock-md-preview--before-html', and BLOCK, the open fenced block,
-is nil: inside a paragraph it is part of the paragraph, and inside a
-fenced block it is code.  It ends on the line that holds its end,
+It begins one where BLOCK, the open fenced block, is nil, and either it
+runs over more lines, or the line above ends no paragraph, see
+`overblock-md-preview--before-html'.  A comment of one line inside a
+paragraph is part of the paragraph; one of more lines hides what it
+holds, whatever stands above it.  It ends on the line that holds its end,
 before END, whatever blank lines stand in it; one that does not end
 is no region."
   (let ((from (pos-bol)))
     (when (and (not block)
-               (save-excursion
-                 (goto-char from)
-                 (or (bobp)
-                     (progn (forward-line -1)
-                            (looking-at-p overblock-md-preview--before-html))))
+               (or (not (save-excursion (search-forward "-->" (pos-eol) t)))
+                   (save-excursion
+                     (goto-char from)
+                     (or (bobp)
+                         (progn (forward-line -1)
+                                (looking-at-p
+                                 overblock-md-preview--before-html)))))
                (search-forward "-->" end t))
       (cons from (pos-eol)))))
 
@@ -370,7 +373,8 @@ Where TEXT opens with a fence, its own closing fence, if any, gives way
 to one at the column of the opening marks.  The converter then reads
 the block as the preview pairs it, alone and in a batch: a closing
 fence at the margin under a list item would end the list, and pair
-with a fence of the next block."
+with a fence of the next block.  Other TEXT goes to
+`overblock-md-preview--comment-closed'."
   (if (and (string-match (concat "\\` \\{0,3\\}\\(?:\\(?:[-+*]\\|[0-9]+[.)]\\) +\\)?"
                                  "\\(```+\\|~~~+\\)\\([^\n]*\\)")
                          text)
@@ -406,7 +410,6 @@ when a caller sent the whole buffer through one process.
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
   (when-let* ((source (overblock-md-preview--source beg end))
-              ((not (string-blank-p source)))
               ;; A conversion that fails gives an empty block, which
               ;; keeps the source in view and the region from going to
               ;; the converter again on every idle pass.
