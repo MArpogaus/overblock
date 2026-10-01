@@ -1091,6 +1091,18 @@ line does, left that row empty and the rest one row off."
                              (overlays-at (point)))
                    "durian"))))
 
+(ert-deftest overblock-test-a-wrap-before-a-gap-keeps-to-its-row ()
+  "A wrapped line before a blank source line keeps its continuation."
+  (with-temp-buffer
+    (insert "alpha one two three\n\nbeta four\n")
+    (overblock-show (point-min) (point-max)
+                    :over "alpha one\ntwo three\n\nbeta four")
+    (goto-char (point-min))
+    (forward-line 2)
+    (should (equal (seq-some (lambda (ov) (overlay-get ov 'display))
+                             (overlays-at (point)))
+                   "beta four"))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

@@ -532,20 +532,20 @@ after a heading."
 
 (defun overblock--take (lines keys)
   "Return the chunk of LINES a row carries, and the rest, as (CHUNK . REST).
-KEYS are the keys of the rows after it.  The row
-takes the next line, and then every line that belongs to no row near
-while a line soon after belongs to the next row: a source line the
-renderer wrapped.  A blank line is never taken this way: it is a gap,
-and it goes to the next row."
-  (let ((chunk (and lines (list (pop lines)))))
+KEYS are the keys of the rows after it.  The row takes the next line,
+and then every line that belongs to no row near while the next line
+that does belongs to the next row with text: a source line the renderer
+wrapped.  A blank line is never taken this way: it is a gap, and it
+goes to the next row."
+  (let ((chunk (and lines (list (pop lines))))
+        ;; The next row with text: a gap between does not count.
+        (next (seq-position keys t (lambda (key _) key))))
     (while (and lines
                 (not (string-blank-p (car lines)))
                 (null (overblock--ahead (car lines) keys))
-                ;; a line further on in the paragraph belongs to the next row
-                (seq-some (lambda (line) (eql (overblock--ahead line keys) 0))
-                          (seq-take-while (lambda (line)
-                                            (not (string-blank-p line)))
-                                          (cdr lines))))
+                ;; the next line that belongs to a row belongs to the next
+                (eql next (seq-some (lambda (line) (overblock--ahead line keys))
+                                    (cdr lines))))
       (setq chunk (append chunk (list (pop lines)))))
     (cons chunk lines)))
 
