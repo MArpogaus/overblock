@@ -62,7 +62,6 @@
 A click shows the source of the block, to edit it."
   "<mouse-1>" #'overblock-live-edit)
 
-
 ;;;; Which regions
 
 (defconst overblock-md-preview-closing-fence-regexp
@@ -182,7 +181,6 @@ piece to a line, so a tall block scrolls like text."
                               :kind 'md-preview
                               :keymap overblock-md-preview-map
                               :help-echo "mouse-1: edit this text")))
-
 
 ;;;; When to render them
 

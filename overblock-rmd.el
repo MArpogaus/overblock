@@ -140,7 +140,6 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 `overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
-
 ;;;; The result of a chunk
 
 (defun overblock-rmd--strip-prompt (text)
@@ -301,7 +300,6 @@ the value of `overblock-md-preview-regions-function', so the live
 cycle renders the prose and leaves the chunks alone."
   (overblock-md-preview-regions beg end 'prose-only))
 
-
 ;;;; The bar over a chunk header
 
 (defun overblock-rmd--bar (open)
@@ -372,7 +370,6 @@ is walked when the reader stops, not on each keypress."
   (interactive)
   (overblock-rmd--bars)
   (overblock-md-preview-render-buffer))
-
 
 ;;;; R at the other end
 
@@ -529,7 +526,6 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
         :starts #'overblock-rmd--starts
         :redraw #'overblock-rmd--bars
         :buttons 'overblock-rmd-result-buttons))
-
 
 ;;;; The commands
 

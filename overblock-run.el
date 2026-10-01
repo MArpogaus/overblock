@@ -591,6 +591,7 @@ A marker stays in the chain of its buffer until a garbage collection,
 and comint adjusts the whole chain on every insertion."
   (dolist (marker markers)
     (when (markerp marker) (set-marker marker nil))))
+
 (defun overblock-run--end (text &optional died)
   "End the running region and show TEXT as its final result.
 The one exit for every way a run ends; DIED marks abnormal ends.
@@ -918,6 +919,7 @@ caused the cold start can have moved it already."
       (with-current-buffer (marker-buffer beg)
         (when-let* ((proc (overblock-run--call :process)))
           (overblock-run--send proc beg fin))))))
+
 ;;;; The notebook and its commands
 
 (defun overblock-run-attach (backend)

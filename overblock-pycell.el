@@ -806,7 +806,6 @@ The match data belongs to the caller: a change hook can run between a
 search and its `replace-match'."
   (save-match-data (overblock-pycell--cell-bars beg end)))
 
-
 ;;;; Running cells
 
 (defconst overblock-pycell--error-tail
@@ -839,8 +838,6 @@ where the name of the exception is, counts too."
                   (last (car (last lines))))
         (or (string-match-p overblock-pycell--error-tail last)
             (string-match-p overblock-pycell--error-alone last)))))
-
-
 
 (defun overblock-pycell--ipython-syntax-p (beg end)
   "Return non-nil when BEG..END holds syntax that only IPython reads.
