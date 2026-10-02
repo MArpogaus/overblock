@@ -430,17 +430,13 @@ just edited does, holds no [ref]: url line, and its [text][ref] links
 and badges would show as text.  Only the definitions whose [label] the
 block holds go along, so the batch stays the size of the buffer.  The
 converter writes nothing for them."
-  (if (string-empty-p text)
-      text
-    (let* ((definitions (overblock-md-preview--definitions))
-           (used (and (> (hash-table-count definitions) 0)
-                      (delete-dups
-                       (seq-keep (lambda (label)
-                                   (gethash (downcase label) definitions))
-                                 (overblock-md-preview--labels text))))))
-      (if used
-          (concat text "\n\n" (string-join used "\n"))
-        text))))
+  (if-let* ((definitions (overblock-md-preview--definitions))
+            (used (delete-dups
+                   (seq-keep (lambda (label)
+                               (gethash (downcase label) definitions))
+                             (overblock-md-preview--labels text)))))
+      (concat text "\n\n" (string-join used "\n"))
+    text))
 
 (defun overblock-md-preview--closed (text)
   "Return TEXT with its closing fence under its opening one.
