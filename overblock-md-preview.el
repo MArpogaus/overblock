@@ -153,35 +153,27 @@ paragraph.")
                                    (point-max))))))
          (= (cdr matter) end))))
 
-(defun overblock-md-preview--blank-in-comment-p (end)
-  "Return non-nil where the comment that begins here holds a blank line.
-It ends at its --> before END."
-  (save-excursion
-    (let ((from (point)))
-      (when (search-forward "-->" end t)
-        (goto-char from)
-        (re-search-forward "\n[ \t]*\n" (match-beginning 0) t)))))
-
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
 It begins one where BLOCK, the open fenced block, is nil, and either it
 holds a blank line, or the line above ends no paragraph, see
 `overblock-md-preview--before-html'.  Inside a paragraph a comment is
 part of the paragraph, unless a blank line in it would cut the
-paragraph and show what it hides.  It ends on the line that holds its end,
-before END, whatever blank lines stand in it; one that does not end
-is no region."
-  (let ((from (pos-bol)))
-    (when (and (not block)
-               (or (overblock-md-preview--blank-in-comment-p end)
-                   (save-excursion
-                     (goto-char from)
-                     (or (bobp)
-                         (progn (forward-line -1)
-                                (looking-at-p
-                                 overblock-md-preview--before-html)))))
-               (search-forward "-->" end t))
-      (cons from (pos-eol)))))
+paragraph and show what it hides.  It ends on the line that holds its
+end, before END, whatever blank lines stand in it; one that does not
+end is no region."
+  (let ((from (pos-bol))
+        (close (save-excursion (search-forward "-->" end t))))
+    (when (and (not block) close)
+      ;; Past its end either way: a fence in a comment is no fence.
+      (goto-char close)
+      (when (save-excursion
+              (goto-char from)
+              (or (re-search-forward "\n[ \t]*\n" close t)
+                  (bobp)
+                  (progn (forward-line -1)
+                         (looking-at-p overblock-md-preview--before-html))))
+        (cons from (pos-eol))))))
 
 (defun overblock-md-preview--fence (block)
   "Read the fence line just matched, with BLOCK open, and return (NEXT . DONE).
