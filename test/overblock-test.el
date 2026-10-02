@@ -765,6 +765,13 @@ An image is on a space, which shows as a blank row."
     ;; Nothing to name, nothing changed.
     (should (equal (overblock-image-label "plain") "plain"))))
 
+(ert-deftest overblock-test-image-cap-holds-a-given-height ()
+  "A :height taller than the limit comes down to it, with its width."
+  (let ((capped (overblock--image-capped
+                 '(image :type png :file "x.png" :width 200 :height 500) 300)))
+    (should (= (plist-get (cdr capped) :height) 300))
+    (should (= (plist-get (cdr capped) :width) 120))))
+
 (ert-deftest overblock-test-image-cap-caps-an-image ()
   "An image drawn inline is capped to a share of the window.
 A block taller than the window cannot be scrolled past."

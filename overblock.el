@@ -1167,9 +1167,18 @@ would show as a blank row."
 
 (defun overblock--image-capped (image limit)
   "Return IMAGE with its height held to LIMIT, or nil where it has one.
-An image that already has a `:max-height' keeps it."
+An image that already has a `:max-height' keeps it.  A `:height' wins
+over `:max-height' in Emacs, so one taller than LIMIT comes down to it,
+and a `:width' with it in proportion."
   (unless (plist-get (cdr image) :max-height)
-    (cons 'image (plist-put (copy-sequence (cdr image)) :max-height limit))))
+    (let* ((props (copy-sequence (cdr image)))
+           (height (plist-get props :height)))
+      (when (and (numberp height) (> height limit))
+        (when-let* ((width (plist-get props :width))
+                    ((numberp width)))
+          (setq props (plist-put props :width (/ (* width limit) height))))
+        (setq props (plist-put props :height limit)))
+      (cons 'image (plist-put props :max-height limit)))))
 
 (defun overblock--image-runs (string)
   "Return a list of (BEG END IMAGE SLICED) for the images STRING draws.
