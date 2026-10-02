@@ -78,7 +78,7 @@ prose."
 (defcustom overblock-pydoc-command
   '((rst . "pandoc --mathjax --no-highlight --wrap=none -f rst")
     (markdown
-     . "pandoc --mathjax --no-highlight --wrap=none -f markdown+hard_line_breaks"))
+     . "pandoc --mathjax --no-highlight --wrap=none -f markdown+hard_line_breaks-implicit_figures"))
   "How to turn a doc string into HTML, per markup.
 An alist of (MARKUP . COMMAND), where MARKUP is a value of
 `overblock-pydoc-markup' and COMMAND has the form of

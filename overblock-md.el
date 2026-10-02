@@ -1130,7 +1130,7 @@ of the frame.  A block is often narrower (a split window, an indented
 doc string), and a longer row is truncated at the window edge.
 
 The mode that renders binds this, because it knows where its block
-is.  `overblock-window-width' measures the room.")
+is.  `overblock-md-columns' measures the room.")
 
 (defun overblock-md--background (face)
   "Return the background FACE paints with, or nil where it paints none.

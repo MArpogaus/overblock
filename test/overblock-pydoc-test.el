@@ -90,6 +90,15 @@ The rendering comes from an asynchronous process, so a test waits."
                                "\n")))
           (overblock-pydoc--strings)))
 
+(ert-deftest overblock-pydoc-test-an-image-shows-its-alt-text-once ()
+  "The Markdown command makes no figure, whose caption repeats the alt text."
+  (skip-unless (executable-find "pandoc"))
+  (let ((overblock-md-command (alist-get 'markdown overblock-pydoc-command)))
+    (should (= 2 (length (split-string
+                          (overblock-md-rendered
+                           "Text.\n\n![A plotZ](/nonexistent.png)\n\nMore.\n")
+                          "A plotZ"))))))
+
 (ert-deftest overblock-pydoc-test-the-markup-picks-the-command-and-the-mode ()
   "One option says the markup, and the renderer and the editor follow it.
 Both read the same option, so a doc string is not rendered as one
