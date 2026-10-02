@@ -1369,7 +1369,7 @@ buttons, another window width."
   (mapc #'overblock-bar-stale (overblock-bars)))
 
 (defun overblock--forget-glyphs ()
-  "Forget the glyphs answered so far, and draw the bars again.
+  "Forget the glyphs answered so far, and mark the bars to be drawn again.
 The rows of buttons built from those glyphs go too.  This sets no
 option; the `:set' of `overblock-terminal-glyphs' calls `set-default'
 first."

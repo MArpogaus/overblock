@@ -836,9 +836,10 @@ colon and a message.")
 
 (defun overblock-pycell--error-p (text)
   "Return non-nil when TEXT is the output of a cell that failed.
-A traceback says so in its first line, but `SyntaxError' and
-`SystemExit' print only the name of the exception.  So the last line,
-where the name of the exception is, counts too."
+A traceback says so in its first line, but `SyntaxError' prints no
+traceback line, and an interrupt or `sys.exit()' prints only the bare
+name.  So the last line, where the name of the exception is, counts
+too."
   (or (string-match-p "Traceback (most recent call last)" text)
       (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
                   (last (car (last lines))))

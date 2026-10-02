@@ -64,7 +64,8 @@
   "Take the first font of the list that this system has.
 A nerd font first, because the bars draw their buttons with glyphs from
 one; `overblock-glyph' falls back to plain characters where the font is
-missing, so a system without one shows words instead of icons."
+missing, so a system without one shows plain characters instead of
+icons."
   (when (display-graphic-p)
     (when-let* ((font (seq-find (lambda (name)
                                   (find-font (font-spec :name name)))
