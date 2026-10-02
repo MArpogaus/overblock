@@ -130,8 +130,11 @@ text of a block shows its source.
 
 =overblock-md-browse= opens the link. A URL with a scheme goes to
 =browse-url=. A link of a README is often relative: =#slug= moves to
-the heading of the buffer whose id pandoc makes =slug=, and a path opens
-its file, relative to the file of the buffer.
+the heading of the buffer whose id pandoc or GitHub makes =slug=, and a
+path opens its file, relative to the file of the buffer, at its
+=#slug= if it names one. A heading is a line of =#= or a line of text
+over a line of === or ---; a =#= line in a fenced block is code, and
+no heading.
 
 An image inside a link keeps the link. shr puts the link around what
 the renderer inserted, and =overblock-fill-props= writes the keymap of
@@ -254,10 +257,10 @@ A block is the front matter at the top of the buffer, a fenced code
 block, an HTML comment at the left margin, or else the run of lines
 between two blank lines. Front matter runs from a first line of three
 dashes, with text right under it, to the next line of three dashes or
-three dots, whatever blank lines stand in it. A comment of more lines
-is a block wherever it stands. A comment of one line is a block after
-a blank line, a heading, a fence or the end of front matter, and part
-of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
+three dots, whatever blank lines stand in it. A comment that holds a
+blank line is a block wherever it stands. Another comment is a block
+after a blank line, a heading, a fence or the end of front matter, and
+part of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
 lines stand in it, and a fence in it opens nothing. In an Rmd file a chunk inside a comment still runs, so there
 a comment is no block. =overblock-md-preview-fences= finds the fences first.
 =overblock-md-preview-paragraphs= then walks the buffer with those

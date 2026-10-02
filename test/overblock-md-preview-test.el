@@ -443,6 +443,11 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "---\ntitle: a: b\n---\n\nText.\n")
     (should (equal (overblock-md-preview--source 1 20) "")))
+  ;; A comment of more lines with no blank line stays in its paragraph.
+  (with-temp-buffer
+    (insert "Text\n<!-- TODO\nlater -->\nmore.\n")
+    (should (= 1 (length (overblock-md-preview-regions
+                          (point-min) (point-max))))))
   ;; Inside a paragraph a comment is part of it.
   (with-temp-buffer
     (insert "Some *long\n<!-- note -->\nend* here.\n")

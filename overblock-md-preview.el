@@ -152,18 +152,27 @@ line of a paragraph, a comment of one line is part of the paragraph.")
                                    (point-max))))))
          (= (cdr matter) end))))
 
+(defun overblock-md-preview--blank-in-comment-p (end)
+  "Return non-nil where the comment that begins here holds a blank line.
+It ends at its --> before END."
+  (save-excursion
+    (let ((from (point)))
+      (when (search-forward "-->" end t)
+        (goto-char from)
+        (re-search-forward "\n[ \t]*\n" (match-beginning 0) t)))))
+
 (defun overblock-md-preview--comment (end block)
   "Return the bounds of the HTML comment that begins a block on this line.
 It begins one where BLOCK, the open fenced block, is nil, and either it
-runs over more lines, or the line above ends no paragraph, see
-`overblock-md-preview--before-html'.  A comment of one line inside a
-paragraph is part of the paragraph; one of more lines hides what it
-holds, whatever stands above it.  It ends on the line that holds its end,
+holds a blank line, or the line above ends no paragraph, see
+`overblock-md-preview--before-html'.  Inside a paragraph a comment is
+part of the paragraph, unless a blank line in it would cut the
+paragraph and show what it hides.  It ends on the line that holds its end,
 before END, whatever blank lines stand in it; one that does not end
 is no region."
   (let ((from (pos-bol)))
     (when (and (not block)
-               (or (not (save-excursion (search-forward "-->" (pos-eol) t)))
+               (or (overblock-md-preview--blank-in-comment-p end)
                    (save-excursion
                      (goto-char from)
                      (or (bobp)
