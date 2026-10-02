@@ -52,7 +52,7 @@ one leaves the math alone for the preview images:
   handler for it, and the alt text shows twice.
 
 =markdown_py= without its extensions turns a table into one line of
-pipes. =cmark= and Perl =markdown= cannot do a table or a fence.
+pipes. =cmark= can do a fence but no table. Perl =markdown= can do neither.
 =overblock-pydoc-command= asks pandoc for the same; see
 [[file:overblock-pydoc.org][its notes]].
 

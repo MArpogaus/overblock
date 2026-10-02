@@ -86,8 +86,9 @@ buffer, so this face uses a colour.")
   ;; Best first, each told to leave the math alone. Without `--mathjax'
   ;; pandoc renders a simple formula as markup, and nothing reaches the
   ;; previews; with it, pandoc passes "\\(x_1 \\to x_2\\)" through. Without
-  ;; its extensions `markdown_py' cannot do tables or fenced blocks, and
-  ;; `cmark' and Perl `markdown' cannot do them at all.
+  ;; its extensions `markdown_py' cannot do tables or fenced blocks.
+  ;; `cmark' can do fenced blocks but no tables, and Perl `markdown'
+  ;; neither.
   ;;
   ;; `--no-highlight': shr reads no CSS class, so the highlighting only
   ;; costs time and leaves line anchors as dead links.
