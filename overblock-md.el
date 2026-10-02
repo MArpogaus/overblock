@@ -994,6 +994,21 @@ a URL."
         ((string-match-p overblock-md--url-regexp where) "")
         (t (format "[%s]" (file-name-nondirectory where)))))
 
+(defun overblock-md--image (file dom)
+  "Return the image of FILE, at the size that the tag DOM asks for.
+A README sizes a logo with width and height, as <img width=\"80\">
+or pandoc's {width=80}; in pixels, they are the size it is drawn at.
+As in eww, the baseline is at the foot, so a link underline runs under
+the image."
+  (apply #'create-image file (overblock-md--image-p file) nil :ascent 100
+         (mapcan (lambda (attribute)
+                   (when-let* ((value (dom-attr dom attribute))
+                               ((string-match "\\`\\([0-9]+\\)\\(?:px\\)?\\'"
+                                              value)))
+                     (list (intern (format ":%s" attribute))
+                           (string-to-number (match-string 1 value)))))
+                 '(width height))))
+
 (defun overblock-md--tag-img (dom)
   "Draw the image DOM names when it is a file, or else its label.
 shr would fetch an image with `url-queue-retrieve', which answers after
@@ -1024,12 +1039,7 @@ The alt text carries the image; `overblock-md-rendered' caps it.  See
       ;; which would hide the label.
       (insert (propertize (if (and file (display-images-p))
                               (propertize label 'display
-                                          ;; As in eww: the baseline at
-                                          ;; the foot, so a link underline
-                                          ;; runs under the image.
-                                          (create-image
-                                           file (overblock-md--image-p file)
-                                           nil :ascent 100))
+                                          (overblock-md--image file dom))
                             label)
                           'overblock-md-label t)))))
 
@@ -1234,7 +1244,7 @@ LN is line N, as GitHub links code, and LN-LM begins there too; #l2,
 in lower case, is the id of a heading.  Anything else is a heading."
   (if (let ((case-fold-search nil))
         (string-match "\\`L\\([0-9]+\\)\\(?:-L[0-9]+\\)?\\'" anchor))
-      (progn (push-mark)
+      (progn (push-mark nil t)
              (goto-char (point-min))
              (forward-line (1- (string-to-number (match-string 1 anchor)))))
     (overblock-md--goto-heading anchor)))
@@ -1276,7 +1286,7 @@ a run of spaces; GitHub keeps digits, and a dash for every space."
   (if-let* ((pos (save-excursion
                    (goto-char (point-min))
                    (overblock-md--find-heading slug))))
-      (progn (push-mark) (goto-char pos))
+      (progn (push-mark nil t) (goto-char pos))
     (message "No heading #%s here" slug)))
 
 (defun overblock-md--find-heading (slug)
@@ -1378,6 +1388,13 @@ caller then leaves the markdown as it is."
               (img . overblock-md--tag-img)
               (pre . overblock-md--tag-pre)
               (table . overblock-md--tag-table)
+              ;; shr draws h3 in italic and h4 to h6 plain, which a
+              ;; font with no italic shows as body text.
+              ,@(mapcar (lambda (tag)
+                          (cons tag (lambda (dom)
+                                      (shr-heading dom (intern (format "shr-%s" tag))
+                                                   'bold))))
+                        '(h3 h4 h5 h6))
               ,@shr-external-rendering-functions)))
       (with-temp-buffer
         (shr-insert-document dom)

@@ -1005,6 +1005,25 @@ without a formula stays."
               (should (overblock-md--image-file "img/a.png")))))
       (delete-directory dir t))))
 
+(ert-deftest overblock-md-test-an-image-takes-the-size-of-its-tag ()
+  "An image tag with width and height in pixels draws at that size."
+  (overblock-md-test--with-image-file file
+    (let ((image (overblock-md--image
+                  file (dom-node 'img '((width . "80") (height . "40px")
+                                        (style . "x"))))))
+      (should (eq (image-property image :width) 80))
+      (should (eq (image-property image :height) 40))
+      (should-not (image-property
+                   (overblock-md--image file (dom-node 'img '((width . "50%"))))
+                   :width)))))
+
+(ert-deftest overblock-md-test-a-heading-under-h2-is-bold ()
+  "A heading of level 3 to 6 is bold, not italic or plain as in shr.
+A font with no italic shows those as body text."
+  (skip-unless (overblock-md-program))
+  (let ((shown (overblock-md-rendered "### Added\n\nText.\n")))
+    (should (memq 'bold (ensure-list (get-text-property 0 'face shown))))))
+
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
   "An image whose file is not there shows its label, and nothing is fetched."
   (let ((asked nil))
