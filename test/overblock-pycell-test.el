@@ -34,6 +34,7 @@
 (require 'ert)
 (require 'outline)
 (require 'overblock-pycell)
+(require 'overblock-pydoc)
 (require 'overblock-test-common)
 
 (defun overblock-pycell-test--render-all ()
@@ -233,7 +234,6 @@ bar left on the line could not be swept."
 
 (ert-deftest overblock-pycell-test-the-doc-strings-keep-their-setting ()
   "Turning one of the two modes of a notebook off leaves the other's setting."
-  (require 'overblock-pydoc)
   (with-temp-buffer
     (insert "# %%\nx = 1\n")
     (python-mode)
