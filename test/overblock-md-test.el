@@ -1035,6 +1035,13 @@ A font with no italic shows those as body text."
                   (format "| ![ZQX](%s) | b |\n|---|---|\n| c | d |\n" file))))
       (should (= 2 (length (split-string shown "ZQX")))))))
 
+(ert-deftest overblock-md-test-a-task-list-shows-its-boxes ()
+  "A task list item shows whether it is done; shr draws no checkbox."
+  (skip-unless (overblock-md-program))
+  (let ((shown (overblock-md-rendered "- [x] done\n- [ ] open\n")))
+    (should (string-match-p "\\(\\[x\\]\\|☑\\) done" shown))
+    (should (string-match-p "\\(\\[ \\]\\|☐\\) open" shown))))
+
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
   "An image whose file is not there shows its label, and nothing is fetched."
   (let ((asked nil))

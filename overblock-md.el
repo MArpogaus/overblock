@@ -913,6 +913,17 @@ Not inside a fenced block, which shows what was written."
               (insert "<pre>$$\n" body "$$</pre>")))))
       (buffer-string))))
 
+(defun overblock-md--tag-input (dom)
+  "Draw the checkbox DOM of a task list item; shr draws none.
+A box, ticked where it is checked, or [ ] and [x] where the font has
+no box."
+  (when (equal (dom-attr dom 'type) "checkbox")
+    (let* ((checked (dom-attr dom 'checked))
+           (box (if checked ?☑ ?☐)))
+      (shr-insert (if (and (display-graphic-p) (internal-char-font nil box))
+                      (string box ?\s)
+                    (if checked "[x] " "[ ] "))))))
+
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.
 `overblock-md--unstow-math' keeps the width of a formula in marked
@@ -1402,6 +1413,7 @@ caller then leaves the markdown as it is."
               (img . overblock-md--tag-img)
               (pre . overblock-md--tag-pre)
               (table . overblock-md--tag-table)
+              (input . overblock-md--tag-input)
               ;; shr draws h3 in italic and h4 to h6 plain, which a
               ;; font with no italic shows as body text. Bold, they
               ;; look as h2 does, which takes a step up.

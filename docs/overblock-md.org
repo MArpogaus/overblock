@@ -210,6 +210,12 @@ draws them bold over their =shr-h3= to =shr-h6= faces. A level 2
 heading is bold too, so the renderer draws it 1.1 high, a step above
 them. A level 1 heading keeps =shr-h1=.
 
+** Task lists
+
+shr draws no checkbox, so a task list item lost whether it is done.
+The renderer draws a box, ticked where it is checked, or =[ ]= and
+=[x]= where the font has no box or the frame is a terminal.
+
 ** Code blocks
 
 A fenced block that names its language gets the font lock of that
