@@ -659,6 +659,9 @@ These limits apply to each package, unless a limit names one.
   chunk inside it still runs. A paragraph with blank lines above and
   below it in a comment shows as text. Keep a comment in an Rmd file to
   one paragraph.
+- An indented line of HTML in a list of HTML, as in the table of
+  contents of Best-README-Template, is a code block to pandoc's
+  Markdown, and shows as code. GitHub renders it as HTML.
 - A table column aligned with =:---:= or =---:= shows left aligned,
   because shr reads no cell style.
 
