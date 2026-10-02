@@ -348,7 +348,15 @@ An HTML comment split at a blank line takes the marker between its halves."
             (erase-buffer)
             (insert "# 1. Introduction\n")
             (overblock-md-browse "#introduction")
-            (should (bobp))))
+            (should (bobp))
+            ;; GitHub's id, a setext heading, and no comment of code.
+            (erase-buffer)
+            (insert "```sh\n# configure\n```\n\n## Install & Setup\n\n"
+                    "Configure\n---------\n")
+            (overblock-md-browse "#install--setup")
+            (should (looking-at-p "## Install"))
+            (overblock-md-browse "#configure")
+            (should (looking-at-p "Configure"))))
       (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-warning-stays-on-standard-error ()

@@ -1197,37 +1197,67 @@ from buffer text at point.  This reads it from the clicked string."
 (defun overblock-md-browse (url)
   "Open URL, the target of a link in the markdown of this buffer.
 A URL with a scheme goes to `browse-url'.  A link of a README is often
-relative: #SLUG goes to the heading of this buffer whose id pandoc
-makes SLUG, and a path opens its file, relative to this buffer."
-  (cond ((string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url) (browse-url url))
-        ((string-prefix-p "#" url) (overblock-md--goto-heading (substring url 1)))
-        (t (find-file (expand-file-name
-                       (url-unhex-string (car (split-string url "#"))))))))
+relative: #SLUG goes to the heading of this buffer whose id is SLUG,
+and a path opens its file, relative to this buffer, at its #SLUG if it
+names one.  See `overblock-md--slugs' for the ids of a heading."
+  (if (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url)
+      (browse-url url)
+    (pcase-let ((`(,path ,anchor) (split-string url "#")))
+      (unless (string-empty-p path)
+        (find-file (expand-file-name (url-unhex-string path))))
+      (when (and anchor (not (string-empty-p anchor)))
+        (overblock-md--goto-heading (url-unhex-string anchor))))))
 
 (defvar-local overblock-md-heading-regexp "^#+[ \t]+\\(.*?\\)[ \t#]*$"
   "What a heading of the markdown of this buffer looks like.
 Group 1 is its text.  A mode whose markdown is in comments, as the
 cells of a notebook are, sets its own.")
 
-(defun overblock-md--slug (heading)
-  "Return the id pandoc gives the HEADING text.
-Lower case, punctuation gone, spaces turned to dashes, and nothing
-before the first letter."
-  (replace-regexp-in-string
-   " +" "-" (replace-regexp-in-string
-             "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" ""
-             (downcase (string-trim heading)))))
+(defun overblock-md--slugs (heading)
+  "Return the ids that pandoc and GitHub give the HEADING text.
+Both are in lower case, without punctuation, with dashes for spaces.
+Pandoc drops what comes before the first letter and makes one dash of
+a run of spaces; GitHub keeps digits, and a dash for every space."
+  (let ((text (downcase (string-trim heading))))
+    (list (replace-regexp-in-string
+           " +" "-" (replace-regexp-in-string
+                     "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" "" text))
+          (replace-regexp-in-string
+           " " "-" (replace-regexp-in-string "[^[:alnum:] _-]" "" text)))))
 
 (defun overblock-md--goto-heading (slug)
   "Move to the heading of this buffer whose id is SLUG."
   (if-let* ((pos (save-excursion
                    (goto-char (point-min))
-                   (catch 'found
-                     (while (re-search-forward overblock-md-heading-regexp nil t)
-                       (when (equal (overblock-md--slug (match-string 1)) slug)
-                         (throw 'found (pos-bol))))))))
+                   (overblock-md--find-heading slug))))
       (progn (push-mark) (goto-char pos))
     (message "No heading #%s here" slug)))
+
+(defun overblock-md--find-heading (slug)
+  "Return the start of the first heading from point whose id is SLUG.
+A line in a fenced block is code, as a # comment there is, and no
+heading.  Return nil where there is none."
+  (let (fence found)
+    (while (and (not found) (not (eobp)))
+      (cond ((looking-at-p " \\{0,3\\}\\(?:```\\|~~~\\)") (setq fence (not fence)))
+            (fence)
+            ((member slug (ensure-list (overblock-md--slugs-here)))
+             (setq found (point))))
+      (forward-line 1))
+    found))
+
+(defun overblock-md--slugs-here ()
+  "Return the ids of the heading on this line, or nil.
+A heading is a line that `overblock-md-heading-regexp' matches, or a
+line of text over a line of = or of -."
+  (when-let* ((text (cond ((looking-at overblock-md-heading-regexp)
+                           (match-string 1))
+                          ((and (looking-at "[ \t]*\\([^ \t\n].*?\\)[ \t]*$")
+                                (save-excursion
+                                  (forward-line 1)
+                                  (looking-at-p "\\(?:=+\\|-+\\)[ \t]*$")))
+                           (match-string 1)))))
+    (overblock-md--slugs text)))
 
 (defvar-keymap overblock-md-link-map
   :doc "Keymap on a rendered link: `shr-map' with a click that works.
