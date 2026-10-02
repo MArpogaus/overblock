@@ -21,7 +21,7 @@ Everything the pictures were taken with is in this directory:
 * What you need
 
 - An Emacs with X support and a display. A machine without one can use
-  =Xvfb :99 -screen 0 1920x1080x24= and =DISPLAY=:99=.
+  ~Xvfb :99 -screen 0 1920x1080x24~ and ~DISPLAY=:99~.
 - =pandoc= for each rendering, and =latex= with =dvisvgm= for the math.
   Without them a formula stays text, and the engine reports it with a
   link to the LaTeX log.

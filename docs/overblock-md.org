@@ -133,8 +133,10 @@ text of a block shows its source.
 the heading of the buffer whose id pandoc or GitHub makes =slug=, and a
 path opens its file, relative to the file of the buffer, at its
 =#slug= if it names one. A heading is a line of =#= or a line of text
-over a line of === or ---; a =#= line in a fenced block is code, and
-no heading. An HTML anchor, =id="slug"= or =name="slug"=, counts too,
+over a line of ~===~ or ~---~. In a Markdown buffer a =#= line in a
+fenced block is code, and no heading; in a notebook the fences of a
+markdown cell are comments, and are not seen. An HTML anchor,
+~id="slug"~ or ~name="slug"~, counts too,
 and the second of two equal headings is =slug-1=. A path that starts
 with a slash is from the root of the repository, and a link to a file
 that is not there says so and opens nothing.

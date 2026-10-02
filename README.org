@@ -176,11 +176,14 @@ buffer whose major mode derives from =markdown-mode=.
 *** Markdown preview
 
 The unit of the preview is a Markdown block. A block is the front
-matter at the top of the file, a fenced code block, an HTML comment,
-or the run of lines between two blank lines or
-fences. A fence
-indented under a list item is part of that item. A click on
-a rendered block shows its source, and a click on a link opens the link.
+matter at the top of the file, a fenced code block, an HTML comment at
+the left margin after a blank line, or the run of lines between two
+blank lines or fences. A comment that holds a blank line is always a
+block of its own. A fence indented under a list item is part of that
+item. A click on a rendered block shows its source, and a click on a
+link opens the link. A URL with a scheme opens in the browser. A
+relative path opens its file, and =#slug= moves to its heading, as on
+GitHub.
 Edit the source, and the block renders again when point leaves it. A
 marked region also shows its source, so you copy or cut the source.
 

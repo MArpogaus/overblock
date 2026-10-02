@@ -8,13 +8,16 @@
 
 ;; The whole setup behind the animations in the README, and nothing
 ;; else: a built-in theme, one font, line numbers, and the hooks that
-;; turn on the four modes of this repository.  Run it against a checkout:
+;; turn on the Markdown preview, the Rmd mode and, where code-cells-mode
+;; is on, the notebook.  `demo/record.el' turns on the rest.  Run it
+;; against a checkout:
 ;;
 ;;     emacs -Q -l demo/init.el demo/demo.py
 ;;
 ;; `demo/record.el' asks for the frame in pixels, so that every
-;; animation has the same width.  Nothing here is a recommendation.  It is what the
-;; pictures were taken with, so that anyone can take the same ones.
+;; animation has the same width.  Nothing here is a recommendation.  It
+;; is what the pictures were taken with, so that anyone can take the
+;; same ones.
 ;;
 ;; The dependencies the notebooks need are not installed by this file.
 ;; code-cells and comint-mime come from a package archive, ESS as well;
