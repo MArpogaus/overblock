@@ -915,14 +915,12 @@ Not inside a fenced block, which shows what was written."
 
 (defun overblock-md--tag-input (dom)
   "Draw the checkbox DOM of a task list item; shr draws none.
-A box, ticked where it is checked, or [ ] and [x] where the font has
-no box."
+A box, ticked where it is checked, or [ ] and [x] where
+`overblock-glyph' finds no box."
   (when (equal (dom-attr dom 'type) "checkbox")
-    (let* ((checked (dom-attr dom 'checked))
-           (box (if checked ?☑ ?☐)))
-      (shr-insert (if (and (display-graphic-p) (internal-char-font nil box))
-                      (string box ?\s)
-                    (if checked "[x] " "[ ] "))))))
+    (shr-insert (if (dom-attr dom 'checked)
+                    (overblock-glyph "☑ " "[x] ")
+                  (overblock-glyph "☐ " "[ ] ")))))
 
 (defun overblock-md--tag-table (dom)
   "Render the table DOM and mark the text it covers.

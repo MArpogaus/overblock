@@ -214,7 +214,8 @@ them. A level 1 heading keeps =shr-h1=.
 
 shr draws no checkbox, so a task list item lost whether it is done.
 The renderer draws a box, ticked where it is checked, or =[ ]= and
-=[x]= where the font has no box or the frame is a terminal.
+=[x]= where the font has no box, or in a terminal unless
+=overblock-terminal-glyphs= is set.
 
 ** Code blocks
 
