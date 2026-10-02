@@ -987,9 +987,12 @@ without a formula stays."
           (with-temp-file (expand-file-name "notes/img/a.png" dir)
             (set-buffer-multibyte nil)
             (insert "\211PNG\r\n\032\n"))
-          (let ((default-directory (file-name-as-directory dir)))
-            (should (overblock-md--image-file "img/a.png")))
-          (set-buffer-modified-p nil))
+          ;; As in a rendering: shr's buffer is current, and the
+          ;; reader's buffer is the one with the file.
+          (let ((overblock-md--buffer (current-buffer))
+                (default-directory (file-name-as-directory dir)))
+            (with-temp-buffer
+              (should (overblock-md--image-file "img/a.png")))))
       (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()

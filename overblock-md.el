@@ -1243,7 +1243,7 @@ on GitHub, where there is one."
   (if-let* (((string-prefix-p "/" path))
             (root (vc-root-dir)))
       (expand-file-name (substring path 1) root)
-    (expand-file-name path (overblock-md--directory))))
+    (expand-file-name path)))
 
 (defvar-local overblock-md-heading-regexp "^#+[ \t]+\\(.*?\\)[ \t#]*$"
   "What a heading of the markdown of this buffer looks like.
