@@ -139,9 +139,10 @@ Return nil, and leave point, where there is none."
 
 (defconst overblock-md-preview--before-html
   "[[:blank:]]*$\\|#\\| \\{0,3\\}\\(?:```\\|~~~\\)\\|\\(?:---\\|\\.\\.\\.\\)[ \t]*$"
-  "What a line above an HTML block of one line looks like.
+  "What a line above an HTML block looks like.
 A blank line, a heading, a fence or the end of front matter: after a
-line of a paragraph, a comment of one line is part of the paragraph.")
+line of a paragraph, a comment with no blank line in it is part of the
+paragraph.")
 
 (defun overblock-md-preview--front-matter-p (beg end)
   "Return non-nil where BEG..END is the front matter of the buffer."
