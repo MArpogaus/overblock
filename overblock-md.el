@@ -920,6 +920,18 @@ text, because a table is padded to the width of its text."
     (shr-tag-table dom)
     (put-text-property start (point) 'overblock-md--table t)))
 
+(defun overblock-md--directory ()
+  "Return the directory of the file whose markdown is rendering.
+Not `default-directory', which a caller can have bound elsewhere when
+the answer of the converter arrives, as eglot binds it to the root of
+the project."
+  (if-let* ((buffer (if (buffer-live-p overblock-md--buffer)
+                        overblock-md--buffer
+                      (current-buffer)))
+            (file (buffer-file-name buffer)))
+      (file-name-directory file)
+    default-directory))
+
 (defun overblock-md--image-file (src)
   "Return the readable local image file that SRC names, or nil.
 A relative path, as in `![a figure](figure.png)', is relative to the
@@ -931,7 +943,7 @@ URL name the file directly.  Another scheme returns nil."
                                                 src))
                            src)))
               ((not (string-empty-p path)))
-              (file (expand-file-name path))
+              (file (expand-file-name path (overblock-md--directory)))
               ((file-readable-p file))
               ;; The content, not the name: a git-lfs pointer is text.
               ((overblock-md--image-p file)))
@@ -1199,7 +1211,8 @@ from buffer text at point.  This reads it from the clicked string."
 A URL with a scheme goes to `browse-url'.  A link of a README is often
 relative: #SLUG goes to the heading of this buffer whose id is SLUG,
 and a path opens its file, relative to this buffer, at its #SLUG if it
-names one.  See `overblock-md--slugs' for the ids of a heading."
+names one, or at its line N for #LN.  See `overblock-md--slugs' for
+the ids of a heading."
   (if (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url)
       (browse-url url)
     (pcase-let* ((`(,path ,anchor)
@@ -1212,7 +1225,16 @@ names one.  See `overblock-md--slugs' for the ids of a heading."
              (message "No file %s" (abbreviate-file-name file)))
             (t (when file (find-file file))
                (when (and anchor (not (string-empty-p anchor)))
-                 (overblock-md--goto-heading anchor)))))))
+                 (overblock-md--goto-anchor anchor)))))))
+
+(defun overblock-md--goto-anchor (anchor)
+  "Move to the ANCHOR of a link in this buffer.
+LN is line N, as GitHub links code, and anything else a heading."
+  (if (string-match "\\`L\\([0-9]+\\)\\'" anchor)
+      (progn (push-mark)
+             (goto-char (point-min))
+             (forward-line (1- (string-to-number (match-string 1 anchor)))))
+    (overblock-md--goto-heading anchor)))
 
 (defun overblock-md--link-file (path)
   "Return the file that the link PATH names, from this buffer.
@@ -1221,7 +1243,7 @@ on GitHub, where there is one."
   (if-let* (((string-prefix-p "/" path))
             (root (vc-root-dir)))
       (expand-file-name (substring path 1) root)
-    (expand-file-name path)))
+    (expand-file-name path (overblock-md--directory))))
 
 (defvar-local overblock-md-heading-regexp "^#+[ \t]+\\(.*?\\)[ \t#]*$"
   "What a heading of the markdown of this buffer looks like.

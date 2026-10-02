@@ -379,6 +379,9 @@ An HTML comment split at a blank line takes the marker between its halves."
             (should (looking-at-p "## Model"))
             (overblock-md-browse "#%C3%BCber")
             (should (looking-at-p "## Über"))
+            ;; #L2 is a line.
+            (overblock-md-browse "#L2")
+            (should (= (line-number-at-pos) 2))
             ;; A missing file opens nothing.
             (setq found nil)
             (overblock-md-browse "docs/missing.md")
@@ -973,6 +976,21 @@ without a formula stays."
     (with-temp-buffer
       (overblock-md--tag-img (dom-node 'img '((src . "https://x.org/b.svg"))))
       (should (> (buffer-size) 0)))))
+
+(ert-deftest overblock-md-test-an-image-is-found-from-the-file ()
+  "An image path is from the file of the buffer, whatever binds the directory."
+  (let ((dir (make-temp-file "overblock-img" t)))
+    (unwind-protect
+        (with-temp-buffer
+          (setq buffer-file-name (expand-file-name "notes/x.md" dir))
+          (make-directory (expand-file-name "notes/img" dir) t)
+          (with-temp-file (expand-file-name "notes/img/a.png" dir)
+            (set-buffer-multibyte nil)
+            (insert "\211PNG\r\n\032\n"))
+          (let ((default-directory (file-name-as-directory dir)))
+            (should (overblock-md--image-file "img/a.png")))
+          (set-buffer-modified-p nil))
+      (delete-directory dir t))))
 
 (ert-deftest overblock-md-test-a-missing-file-is-its-label ()
   "An image whose file is not there shows its label, and nothing is fetched."

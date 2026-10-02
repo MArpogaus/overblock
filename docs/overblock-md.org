@@ -138,8 +138,10 @@ fenced block is code, and no heading; in a notebook the fences of a
 markdown cell are comments, and are not seen. An HTML anchor,
 ~id="slug"~ or ~name="slug"~, counts too,
 and the second of two equal headings is =slug-1=. A path that starts
-with a slash is from the root of the repository, and a link to a file
-that is not there says so and opens nothing.
+with a slash is from the root of the repository, =#L12= is line 12 of
+the file, as GitHub links code, and a link to a file that is not there
+says so and opens nothing. An image path is from the file of the
+buffer, whatever binds =default-directory= when the answer arrives.
 
 An image inside a link keeps the link. shr puts the link around what
 the renderer inserted, and =overblock-fill-props= writes the keymap of
