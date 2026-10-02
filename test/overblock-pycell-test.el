@@ -231,6 +231,23 @@ bar left on the line could not be swept."
         (should (string-match-p "Some \\*text\\*"
                                 (overblock-get block :over)))))))
 
+(ert-deftest overblock-pycell-test-the-doc-strings-keep-their-setting ()
+  "Turning one of the two modes of a notebook off leaves the other's setting."
+  (require 'overblock-pydoc)
+  (with-temp-buffer
+    (insert "# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (overblock-pycell-test--with-mode
+      (overblock-pydoc-mode 1)
+      (overblock-pydoc-mode -1)
+      (should-not overblock-live-source-at-point)
+      (overblock-pydoc-mode 1)
+      (overblock-pycell-mode -1)
+      (should-not overblock-live-source-at-point)
+      (overblock-pydoc-mode -1)
+      (should overblock-live-source-at-point))))
+
 (ert-deftest overblock-pycell-test-md-an-anchor-link-finds-a-cell-heading ()
   "A #slug link finds the heading of a markdown cell, not a comment."
   (with-temp-buffer

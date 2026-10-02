@@ -1079,7 +1079,10 @@ the converter's HTML with")))
         (overblock-live-start 'markdown #'overblock-pycell-render-buffer))
     (overblock-live-stop 'markdown)
     (overblock-run-detach)
-    (kill-local-variable 'overblock-live-source-at-point)
+    ;; The doc strings of the buffer keep it while they render.
+    (unless (bound-and-true-p overblock-pydoc-mode)
+      (kill-local-variable 'overblock-live-source-at-point))
+    (kill-local-variable 'overblock-md-heading-regexp)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
     ;; The last notebook removes the advice. The mode variable of this
     ;; buffer is already nil.

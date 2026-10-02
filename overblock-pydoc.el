@@ -535,7 +535,9 @@ the converter for the markup in `overblock-pydoc-markup'."
         (setq-local overblock-live-source-at-point nil)
         (overblock-live-start 'pydoc #'overblock-pydoc-render-buffer))
     (overblock-live-stop 'pydoc)
-    (kill-local-variable 'overblock-live-source-at-point)))
+    ;; A notebook keeps it while its markdown cells render.
+    (unless (bound-and-true-p overblock-pycell-mode)
+      (kill-local-variable 'overblock-live-source-at-point))))
 
 (provide 'overblock-pydoc)
 ;;; overblock-pydoc.el ends here
