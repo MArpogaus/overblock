@@ -386,8 +386,8 @@ block goes out closed under its opening marks; see
 
 (defvar-local overblock-md-preview--definitions nil
   "The link reference definitions of this buffer, as (TICK . DEFINITIONS).
-TICK is the `buffer-chars-modified-tick' they were read at, and each
-of DEFINITIONS is (LABEL . LINE), LABEL in lower case.")
+TICK is the `buffer-chars-modified-tick' they were read at.
+DEFINITIONS is a hash table from a LABEL in lower case to its line.")
 
 (defconst overblock-md-preview--definition-regexp
   (concat "^ \\{0,3\\}\\[\\([^]^\n][^]\n]*\\)\\]:[ \t]+"
@@ -406,14 +406,22 @@ such as [1]: Smith, J. (2020), which pandoc shows as text.")
             (cons tick
                   (save-excursion
                     (goto-char (point-min))
-                    (let (definitions)
+                    (let ((definitions (make-hash-table :test #'equal)))
                       (while (re-search-forward
                               overblock-md-preview--definition-regexp nil t)
-                        (push (cons (downcase (match-string-no-properties 1))
-                                    (match-string-no-properties 0))
-                              definitions))
-                      (nreverse definitions))))))
+                        (puthash (downcase (match-string-no-properties 1))
+                                 (match-string-no-properties 0)
+                                 definitions))
+                      definitions)))))
     (cdr overblock-md-preview--definitions)))
+
+(defun overblock-md-preview--labels (text)
+  "Return every [label] that TEXT holds, in order."
+  (let ((pos 0) labels)
+    (while (string-match "\\[\\([^]\n]+\\)\\]" text pos)
+      (push (match-string 1 text) labels)
+      (setq pos (match-end 1)))
+    (nreverse labels)))
 
 (defun overblock-md-preview--with-definitions (text)
   "Return TEXT with the link reference definitions it uses.
@@ -424,12 +432,12 @@ block holds go along, so the batch stays the size of the buffer.  The
 converter writes nothing for them."
   (if (string-empty-p text)
       text
-    (let* ((low (downcase text))
-           (used (seq-keep (lambda (definition)
-                             (and (string-search
-                                   (concat "[" (car definition) "]") low)
-                                  (cdr definition)))
-                           (overblock-md-preview--definitions))))
+    (let* ((definitions (overblock-md-preview--definitions))
+           (used (and (> (hash-table-count definitions) 0)
+                      (delete-dups
+                       (seq-keep (lambda (label)
+                                   (gethash (downcase label) definitions))
+                                 (overblock-md-preview--labels text))))))
       (if used
           (concat text "\n\n" (string-join used "\n"))
         text))))
