@@ -113,6 +113,10 @@ On any display, a local file that is not there, or that holds no image
 such as a git-lfs pointer, shows its label. A file counts as an image by
 its content: a header that Emacs knows, or an svg tag first.
 
+An image is drawn at the =width= and =height= of its tag, in pixels, as
+=<img width="80">= or pandoc's ={width=80}= gives them. A value such as
+=50%= is left out. The cap still holds over that size.
+
 The cap of an image is the work of the layer: =overblock-image-cap= and
 =overblock-image-height=, in [[file:overblock.org][the notes of the
 layer]].
@@ -186,6 +190,10 @@ shr renders a table without rules, and gives a header cell and inline
 code no face of their own. The renderer draws =th= in bold and =code=
 in =overblock-md-code=, through =shr-external-rendering-functions=. The
 columns and the bold header carry the table, without rules.
+
+shr draws a heading of level 3 in italic and one of level 4 to 6
+plain, and a font with no italic shows them as body text. The renderer
+draws them bold over their =shr-h3= to =shr-h6= faces.
 
 A table is laid out in characters and not in pixels. Thus its columns
 align over the fixed-pitch lines of a buffer, and a face cannot move
