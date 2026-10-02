@@ -1202,11 +1202,23 @@ and a path opens its file, relative to this buffer, at its #SLUG if it
 names one.  See `overblock-md--slugs' for the ids of a heading."
   (if (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url)
       (browse-url url)
-    (pcase-let ((`(,path ,anchor) (split-string url "#")))
-      (unless (string-empty-p path)
-        (find-file (expand-file-name (url-unhex-string path))))
-      (when (and anchor (not (string-empty-p anchor)))
-        (overblock-md--goto-heading (url-unhex-string anchor))))))
+    (pcase-let* ((`(,path ,anchor) (split-string url "#"))
+                 (file (and (not (string-empty-p path))
+                            (overblock-md--link-file (url-unhex-string path)))))
+      (cond ((and file (not (file-exists-p file)))
+             (message "No file %s" (abbreviate-file-name file)))
+            (t (when file (find-file file))
+               (when (and anchor (not (string-empty-p anchor)))
+                 (overblock-md--goto-heading (url-unhex-string anchor))))))))
+
+(defun overblock-md--link-file (path)
+  "Return the file that the link PATH names, from this buffer.
+A PATH that starts with a slash is from the root of the repository, as
+on GitHub, where there is one."
+  (if-let* (((string-prefix-p "/" path))
+            (root (vc-root-dir)))
+      (expand-file-name (substring path 1) root)
+    (expand-file-name path)))
 
 (defvar-local overblock-md-heading-regexp "^#+[ \t]+\\(.*?\\)[ \t#]*$"
   "What a heading of the markdown of this buffer looks like.
@@ -1236,15 +1248,30 @@ a run of spaces; GitHub keeps digits, and a dash for every space."
 (defun overblock-md--find-heading (slug)
   "Return the start of the first heading from point whose id is SLUG.
 A line in a fenced block is code, as a # comment there is, and no
-heading.  Return nil where there is none."
-  (let (fence found)
+heading.  A line with an HTML anchor, id=\"SLUG\" or name=\"SLUG\", counts
+too.  Return nil where there is none."
+  (let ((seen (make-hash-table :test #'equal))
+        (anchor (format "\\(?:id\\|name\\)=[\"']%s[\"']" (regexp-quote slug)))
+        fence found)
     (while (and (not found) (not (eobp)))
       (cond ((looking-at-p " \\{0,3\\}\\(?:```\\|~~~\\)") (setq fence (not fence)))
             (fence)
-            ((member slug (ensure-list (overblock-md--slugs-here)))
+            ((or (save-excursion (re-search-forward anchor (pos-eol) t))
+                 (member slug (overblock-md--ids (overblock-md--slugs-here)
+                                                 seen)))
              (setq found (point))))
       (forward-line 1))
     found))
+
+(defun overblock-md--ids (slugs seen)
+  "Return the ids of a heading whose SLUGS are those of its text.
+The second heading of one text gets the id SLUG-1, the third SLUG-2,
+as pandoc and GitHub give them.  SEEN counts the headings so far."
+  (mapcar (lambda (slug)
+            (let ((n (gethash slug seen 0)))
+              (puthash slug (1+ n) seen)
+              (if (zerop n) slug (format "%s-%d" slug n))))
+          (delete-dups (copy-sequence slugs))))
 
 (defun overblock-md--slugs-here ()
   "Return the ids of the heading on this line, or nil.
