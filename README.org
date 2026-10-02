@@ -177,9 +177,9 @@ buffer whose major mode derives from =markdown-mode=.
 
 The unit of the preview is a Markdown block. A block is the front
 matter at the top of the file, a fenced code block, an HTML comment at
-the left margin after a blank line, or the run of lines between two
-blank lines or fences. A comment that holds a blank line is always a
-block of its own. A fence indented under a list item is part of that
+the left margin after a blank line, a heading or a fence, or the run
+of lines between two blank lines or fences. In a Markdown file a
+comment that holds a blank line is a block of its own. A fence indented under a list item is part of that
 item. A click on a rendered block shows its source, and a click on a
 link opens the link. A URL with a scheme opens in the browser. A
 relative path opens its file, and =#slug= moves to its heading, as on
@@ -342,7 +342,8 @@ the =:hook= of overblock-md where the preview is not wanted.
                               :files ("overblock-pycell.el"))
     :hook (code-cells-mode . overblock-pycell-mode-maybe))
 
-  ;; IPython gives rich output.
+  ;; IPython gives rich output. Leave out this form where IPython is
+  ;; not installed: a plain python3 gives text only.
   (use-package python
     :ensure nil
     :custom

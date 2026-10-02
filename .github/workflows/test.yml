@@ -23,7 +23,7 @@ jobs:
       with:
         version: ${{ matrix.emacs-version }}
     # A fifth of the suite renders markdown and skips itself where no
-    # converter is installed: 27 tests, without saying so. STRICT=1
+    # converter is installed: 67 tests, without saying so. STRICT=1
     # below turns that silence into a failure.
     - name: Install a markdown converter
       run: sudo apt-get update -qq && sudo apt-get install -yqq pandoc

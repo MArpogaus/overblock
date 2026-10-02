@@ -129,8 +129,9 @@ and every block uses `overblock-md-code'."
 A badge, such as the Colab badge of a notebook, is an image on the
 web.  shr fetches it with `url-queue-retrieve', which answers after the
 rendering is done, into a buffer that is gone.  With this on, the file
-is fetched once, kept in the cache beside the LaTeX previews, and drawn
-like a local one.  The link around it keeps its click either way.
+is fetched once, kept in the folder overblock-images/ of the XDG cache
+folder, and drawn like a local one.  The link around it keeps its click
+either way.
 
 Nil renders such an image as its alt text and uses no network."
   :type 'boolean
@@ -188,9 +189,9 @@ that begins with an svg tag counts too.  A directory holds no image."
 
 (defun overblock-md--remote-file (url)
   "Return the local file the image URL was fetched into, or nil.
-The file is kept in the cache beside the LaTeX previews, named after
-the URL, so a badge is fetched once per machine.  See
-`overblock-md--fetchable-p' for what is fetched."
+The file is kept in the folder overblock-images/ of the XDG cache
+folder, named after the URL, so a badge is fetched once per machine.
+See `overblock-md--fetchable-p' for what is fetched."
   (when (overblock-md--fetchable-p url)
     (let* ((dir (expand-file-name "overblock-images/" (xdg-cache-home)))
            (file (expand-file-name (overblock-md--cache-name url) dir)))
