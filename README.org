@@ -102,7 +102,7 @@ These options apply to every package of the repository.
 
 A block that is taller than the window stops the wheel. Thus
 =overblock-image-height= caps an inline image. Zero shows an image at
-its own size. The two result limits apply to both notebooks, and zero
+its own size, or at the size its tag gives. The two result limits apply to both notebooks, and zero
 shows all. Set the options with =setopt=. A change of a result limit
 draws the results on the screen again at once. A change of
 =overblock-image-height= or =overblock-terminal-glyphs= applies to the
@@ -177,10 +177,10 @@ buffer whose major mode derives from =markdown-mode=.
 
 The unit of the preview is a Markdown block. A block is the front
 matter at the top of the file, a fenced code block, an HTML comment at
-the left margin after a blank line, a heading or a fence, or the run
-of lines between two blank lines or fences. In a Markdown file a
-comment that holds a blank line is a block of its own. A fence indented under a list item is part of that
-item. A click on a rendered block shows its source, and a click on a
+the left margin that comes after a blank line, a heading line or a
+fence line, or the run of lines between two blank lines or fences. In
+a Markdown file a comment that holds a blank line is a block of its
+own. A fence indented under a list item is part of that item. A click on a rendered block shows its source, and a click on a
 link opens the link. A URL with a scheme opens in the browser. A
 relative path opens its file, and =#slug= moves to its heading, as on
 GitHub.
