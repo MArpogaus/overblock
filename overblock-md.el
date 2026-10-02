@@ -918,7 +918,16 @@ Not inside a fenced block, which shows what was written."
 `overblock-md--unstow-math' keeps the width of a formula in marked
 text, because a table is padded to the width of its text."
   (let ((start (point)))
-    (shr-tag-table dom)
+    ;; shr draws every image of a table again under it, from
+    ;; `shr-collect-extra-strings-in-table', which is no public API; an
+    ;; image in a cell is drawn there once.
+    (cl-letf* ((collect (symbol-function 'shr-collect-extra-strings-in-table))
+               ((symbol-function 'shr-collect-extra-strings-in-table)
+                (lambda (&rest args)
+                  (let ((shr-external-rendering-functions
+                         (cons '(img . ignore) shr-external-rendering-functions)))
+                    (apply collect args)))))
+      (shr-tag-table dom))
     (put-text-property start (point) 'overblock-md--table t)))
 
 (defun overblock-md--directory ()
@@ -1270,11 +1279,16 @@ Pandoc drops what comes before the first letter and makes one dash of
 a run of spaces; GitHub keeps digits, and a dash for every space."
   (let ((text (downcase (string-trim
                          ;; A link counts by its text, as rendered, and a
-                         ;; tag not at all.
+                         ;; tag not at all; in code, < and > are text.
                          (replace-regexp-in-string
                           "<[^>]*>" ""
                           (replace-regexp-in-string
-                           "\\[\\([^]]*\\)\\]([^)]*)" "\\1" heading))))))
+                           "`[^`]*`"
+                           (lambda (code)
+                             (replace-regexp-in-string "[<>`]" "" code))
+                           (replace-regexp-in-string
+                            "\\[\\([^]]*\\)\\]([^)]*)" "\\1" heading)
+                           t t))))))
     (list (replace-regexp-in-string
            " +" "-" (replace-regexp-in-string
                      "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" "" text))
