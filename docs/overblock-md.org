@@ -114,7 +114,7 @@ such as a git-lfs pointer, shows its label. A file counts as an image by
 its content: a header that Emacs knows, or an svg tag first.
 
 An image is drawn at the =width= and =height= of its tag, in pixels, as
-=<img width="80">= or pandoc's ={width=80}= gives them. A value such as
+~<img width="80">~ or pandoc's ={width=80}= gives them. A value such as
 =50%= is left out. The cap still holds over that size.
 
 The cap of an image is the work of the layer: =overblock-image-cap= and
@@ -143,8 +143,9 @@ markdown cell are comments, and are not seen. An HTML anchor,
 ~id="slug"~ or ~name="slug"~, counts too,
 and the second of two equal headings is =slug-1=. A path that starts
 with a slash is from the root of the repository, =#L12= is line 12 of
-the file, as GitHub links code, and a link to a file that is not there
-says so and opens nothing. An image path is from the file of the
+the file, as GitHub links code, and =#L4-L5= begins at line 4; =#l2=
+in lower case is the id of a heading. A link to a file that is not
+there says so and opens nothing. An image path is from the file of the
 buffer, whatever binds =default-directory= when the answer arrives.
 
 An image inside a link keeps the link. shr puts the link around what

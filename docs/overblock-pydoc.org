@@ -88,8 +88,8 @@ stays a line, and an entry and its description stay apart. Only the
 indent of the description is lost. There is no reader for both, so the
 option is a choice, and a Sphinx project sets it in =.dir-locals.el=.
 Both commands carry =--no-highlight= and =--wrap=none=, for the reasons
-in [[file:overblock-md.org][the notes of overblock-md]]. It also turns off
-=implicit_figures=, as =overblock-md-command= does, so an image alone
+in [[file:overblock-md.org][the notes of overblock-md]]. The Markdown command
+also turns off =implicit_figures=, as =overblock-md-command= does, so an image alone
 in a paragraph shows its alt text once.
 
 In a Markdown doc string, each doctest that is not in a fence and is
