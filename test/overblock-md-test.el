@@ -367,6 +367,18 @@ An HTML comment split at a blank line takes the marker between its halves."
             (should (bobp))
             (overblock-md-browse "#added-1")
             (should (= (line-number-at-pos) 5))
+            ;; A link in a heading counts by its text, an anchor only in
+            ;; a tag, and a percent-encoded one as UTF-8.
+            (erase-buffer)
+            (insert "x = f(name=\"model\")\n\n## [1.2.0](https://e.org/c) (2024)\n"
+                    "\n## Model\n\n## Über\n")
+            (goto-char (point-min))
+            (overblock-md-browse "#120-2024")
+            (should (looking-at-p "## \\[1"))
+            (overblock-md-browse "#model")
+            (should (looking-at-p "## Model"))
+            (overblock-md-browse "#%C3%BCber")
+            (should (looking-at-p "## Über"))
             ;; A missing file opens nothing.
             (setq found nil)
             (overblock-md-browse "docs/missing.md")

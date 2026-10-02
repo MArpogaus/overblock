@@ -1202,14 +1202,17 @@ and a path opens its file, relative to this buffer, at its #SLUG if it
 names one.  See `overblock-md--slugs' for the ids of a heading."
   (if (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" url)
       (browse-url url)
-    (pcase-let* ((`(,path ,anchor) (split-string url "#"))
+    (pcase-let* ((`(,path ,anchor)
+                  (mapcar (lambda (part)
+                            (decode-coding-string (url-unhex-string part) 'utf-8))
+                          (split-string url "#")))
                  (file (and (not (string-empty-p path))
-                            (overblock-md--link-file (url-unhex-string path)))))
+                            (overblock-md--link-file path))))
       (cond ((and file (not (file-exists-p file)))
              (message "No file %s" (abbreviate-file-name file)))
             (t (when file (find-file file))
                (when (and anchor (not (string-empty-p anchor)))
-                 (overblock-md--goto-heading (url-unhex-string anchor))))))))
+                 (overblock-md--goto-heading anchor)))))))
 
 (defun overblock-md--link-file (path)
   "Return the file that the link PATH names, from this buffer.
@@ -1230,7 +1233,10 @@ cells of a notebook are, sets its own.")
 Both are in lower case, without punctuation, with dashes for spaces.
 Pandoc drops what comes before the first letter and makes one dash of
 a run of spaces; GitHub keeps digits, and a dash for every space."
-  (let ((text (downcase (string-trim heading))))
+  (let ((text (downcase (string-trim
+                         ;; A link counts by its text, as rendered.
+                         (replace-regexp-in-string
+                          "\\[\\([^]]*\\)\\]([^)]*)" "\\1" heading)))))
     (list (replace-regexp-in-string
            " +" "-" (replace-regexp-in-string
                      "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" "" text))
@@ -1248,10 +1254,12 @@ a run of spaces; GitHub keeps digits, and a dash for every space."
 (defun overblock-md--find-heading (slug)
   "Return the start of the first heading from point whose id is SLUG.
 A line in a fenced block is code, as a # comment there is, and no
-heading.  A line with an HTML anchor, id=\"SLUG\" or name=\"SLUG\", counts
+heading; a fence line of either kind, at the margin, opens or closes
+one.  A line with an HTML anchor, id=\"SLUG\" or name=\"SLUG\", counts
 too.  Return nil where there is none."
   (let ((seen (make-hash-table :test #'equal))
-        (anchor (format "\\(?:id\\|name\\)=[\"']%s[\"']" (regexp-quote slug)))
+        (anchor (format "<[[:alpha:]][^>]*[ \t]\\(?:id\\|name\\)=[\"']%s[\"']"
+                        (regexp-quote slug)))
         fence found)
     (while (and (not found) (not (eobp)))
       (cond ((looking-at-p " \\{0,3\\}\\(?:```\\|~~~\\)") (setq fence (not fence)))
