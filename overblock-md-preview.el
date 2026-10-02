@@ -380,8 +380,34 @@ block goes out closed under its opening marks; see
          (indent (if (overblock-md-preview--in-item-p beg)
                      (or (string-match-p "[^ ]" text) 0)
                    0)))
-    (overblock-md-preview--closed
-     (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text))))
+    (overblock-md-preview--with-definitions
+     (overblock-md-preview--closed
+      (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))))
+
+(defvar-local overblock-md-preview--definitions nil
+  "The link reference definitions of this buffer, as (TICK . TEXT).
+TICK is the `buffer-chars-modified-tick' they were read at.")
+
+(defun overblock-md-preview--with-definitions (text)
+  "Return TEXT with the link reference definitions of this buffer.
+A block that goes to the converter alone, as the one at point or one
+just edited does, holds no [ref]: url line, and its [text][ref] links
+and badges show as text.  The converter writes nothing for them."
+  (let ((tick (buffer-chars-modified-tick)))
+    (unless (eq (car overblock-md-preview--definitions) tick)
+      (setq overblock-md-preview--definitions
+            (cons tick
+                  (save-excursion
+                    (goto-char (point-min))
+                    (let (lines)
+                      (while (re-search-forward
+                              "^ \\{0,3\\}\\[[^]\n]+\\]:[ \t]+[^ \t\n].*$" nil t)
+                        (push (match-string-no-properties 0) lines))
+                      (string-join (nreverse lines) "\n")))))))
+  (let ((definitions (cdr overblock-md-preview--definitions)))
+    (if (or (string-empty-p text) (string-empty-p definitions))
+        text
+      (concat text "\n\n" definitions))))
 
 (defun overblock-md-preview--closed (text)
   "Return TEXT with its closing fence under its opening one.

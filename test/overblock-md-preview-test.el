@@ -326,6 +326,17 @@ The item is one block, and the fence is not a second one over it."
       (should (overblock-md-preview--show 1 (1- (point-max)))))
     (should-not (overblock-live-wanted-p 1 (1- (point-max)) 'md-preview))))
 
+(ert-deftest overblock-md-preview-test-a-block-alone-has-the-definitions ()
+  "A block sent alone carries the link definitions of the buffer."
+  (with-temp-buffer
+    (insert "See [the guide][g].\n\n[g]: docs/guide.md\n")
+    (should (equal (overblock-md-preview--source 1 20)
+                   "See [the guide][g].\n\n[g]: docs/guide.md"))
+    ;; Front matter stays nothing.
+    (erase-buffer)
+    (insert "---\nt: x\n---\n\n[g]: u\n")
+    (should (equal (overblock-md-preview--source 1 13) ""))))
+
 (ert-deftest overblock-md-preview-test-a-later-paragraph-of-an-item-is-dedented ()
   "The fence under a later paragraph of an item keeps its place in it."
   (with-temp-buffer
