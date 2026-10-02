@@ -1403,7 +1403,9 @@ caller then leaves the markdown as it is."
               (pre . overblock-md--tag-pre)
               (table . overblock-md--tag-table)
               ;; shr draws h3 in italic and h4 to h6 plain, which a
-              ;; font with no italic shows as body text.
+              ;; font with no italic shows as body text. Bold, they
+              ;; look as h2 does, which takes a step up.
+              (h2 . ,(lambda (dom) (shr-heading dom 'shr-h2 '(:height 1.1))))
               ,@(mapcar (lambda (tag)
                           (cons tag (lambda (dom)
                                       (shr-heading dom (intern (format "shr-%s" tag))
