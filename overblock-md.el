@@ -1229,8 +1229,10 @@ the ids of a heading."
 
 (defun overblock-md--goto-anchor (anchor)
   "Move to the ANCHOR of a link in this buffer.
-LN is line N, as GitHub links code, and anything else a heading."
-  (if (string-match "\\`L\\([0-9]+\\)\\'" anchor)
+LN is line N, as GitHub links code, and LN-LM begins there too; #l2,
+in lower case, is the id of a heading.  Anything else is a heading."
+  (if (let ((case-fold-search nil))
+        (string-match "\\`L\\([0-9]+\\)\\(?:-L[0-9]+\\)?\\'" anchor))
       (progn (push-mark)
              (goto-char (point-min))
              (forward-line (1- (string-to-number (match-string 1 anchor)))))
@@ -1256,9 +1258,12 @@ Both are in lower case, without punctuation, with dashes for spaces.
 Pandoc drops what comes before the first letter and makes one dash of
 a run of spaces; GitHub keeps digits, and a dash for every space."
   (let ((text (downcase (string-trim
-                         ;; A link counts by its text, as rendered.
+                         ;; A link counts by its text, as rendered, and a
+                         ;; tag not at all.
                          (replace-regexp-in-string
-                          "\\[\\([^]]*\\)\\]([^)]*)" "\\1" heading)))))
+                          "<[^>]*>" ""
+                          (replace-regexp-in-string
+                           "\\[\\([^]]*\\)\\]([^)]*)" "\\1" heading))))))
     (list (replace-regexp-in-string
            " +" "-" (replace-regexp-in-string
                      "\\`[^[:alpha:]]+\\|[^[:alnum:] _.-]" "" text))

@@ -379,9 +379,19 @@ An HTML comment split at a blank line takes the marker between its halves."
             (should (looking-at-p "## Model"))
             (overblock-md-browse "#%C3%BCber")
             (should (looking-at-p "## Über"))
-            ;; #L2 is a line.
+            ;; #L2 and #L2-L3 are lines; #l2 is a heading.
             (overblock-md-browse "#L2")
             (should (= (line-number-at-pos) 2))
+            (goto-char (point-max))
+            (overblock-md-browse "#L2-L3")
+            (should (= (line-number-at-pos) 2))
+            (erase-buffer)
+            (insert "x\n\n## L2\n\n## <a name=\"i\"></a>Install\n")
+            (let ((case-fold-search t))
+              (overblock-md-browse "#l2")
+              (should (looking-at-p "## L2")))
+            (overblock-md-browse "#install")
+            (should (looking-at-p "## <a"))
             ;; A missing file opens nothing.
             (setq found nil)
             (overblock-md-browse "docs/missing.md")
