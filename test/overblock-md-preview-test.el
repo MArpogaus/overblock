@@ -329,7 +329,7 @@ The item is one block, and the fence is not a second one over it."
 (ert-deftest overblock-md-preview-test-a-block-alone-has-the-definitions ()
   "A block sent alone carries the link definitions of the buffer."
   (with-temp-buffer
-    (insert "See [the guide][g].\n\n[g]: docs/guide.md\n")
+    (insert "See [the guide][g].\n\n[^1]: a note\n\n[g]: docs/guide.md\n")
     (should (equal (overblock-md-preview--source 1 20)
                    "See [the guide][g].\n\n[g]: docs/guide.md"))
     ;; Front matter stays nothing.

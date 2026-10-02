@@ -390,9 +390,10 @@ TICK is the `buffer-chars-modified-tick' they were read at.")
 
 (defun overblock-md-preview--with-definitions (text)
   "Return TEXT with the link reference definitions of this buffer.
-A block that goes to the converter alone, as the one at point or one
-just edited does, holds no [ref]: url line, and its [text][ref] links
-and badges show as text.  The converter writes nothing for them."
+Every block carries them.  A block that goes to the converter alone,
+as the one at point or one just edited does, holds no [ref]: url line,
+and its [text][ref] links and badges would show as text.  The
+converter writes nothing for them."
   (let ((tick (buffer-chars-modified-tick)))
     (unless (eq (car overblock-md-preview--definitions) tick)
       (setq overblock-md-preview--definitions
@@ -401,7 +402,9 @@ and badges show as text.  The converter writes nothing for them."
                     (goto-char (point-min))
                     (let (lines)
                       (while (re-search-forward
-                              "^ \\{0,3\\}\\[[^]\n]+\\]:[ \t]+[^ \t\n].*$" nil t)
+                              ;; Not a footnote, [^1]: note, whose text the
+                              ;; next definition would join.
+                              "^ \\{0,3\\}\\[[^]^\n][^]\n]*\\]:[ \t]+[^ \t\n].*$" nil t)
                         (push (match-string-no-properties 0) lines))
                       (string-join (nreverse lines) "\n")))))))
   (let ((definitions (cdr overblock-md-preview--definitions)))
