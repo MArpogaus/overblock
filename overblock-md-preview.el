@@ -385,32 +385,54 @@ block goes out closed under its opening marks; see
       (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))))
 
 (defvar-local overblock-md-preview--definitions nil
-  "The link reference definitions of this buffer, as (TICK . TEXT).
-TICK is the `buffer-chars-modified-tick' they were read at.")
+  "The link reference definitions of this buffer, as (TICK . DEFINITIONS).
+TICK is the `buffer-chars-modified-tick' they were read at, and each
+of DEFINITIONS is (LABEL . LINE), LABEL in lower case.")
 
-(defun overblock-md-preview--with-definitions (text)
-  "Return TEXT with the link reference definitions of this buffer.
-Every block carries them.  A block that goes to the converter alone,
-as the one at point or one just edited does, holds no [ref]: url line,
-and its [text][ref] links and badges would show as text.  The
-converter writes nothing for them."
+(defconst overblock-md-preview--definition-regexp
+  (concat "^ \\{0,3\\}\\[\\([^]^\n][^]\n]*\\)\\]:[ \t]+"
+          "\\(?:<[^>\n]*>\\|[^ \t\n]+\\)"
+          "\\(?:[ \t]+\\(?:\"[^\"\n]*\"\\|'[^'\n]*'\\|([^)\n]*)\\)\\)?[ \t]*$")
+  "What a link reference definition looks like, as pandoc reads one.
+A label, then a destination and at most a title in quotes or
+parentheses.  A footnote, [^1]: note, is none, and neither is a line
+such as [1]: Smith, J. (2020), which pandoc shows as text.")
+
+(defun overblock-md-preview--definitions ()
+  "Return the link reference definitions of this buffer, read once a change."
   (let ((tick (buffer-chars-modified-tick)))
     (unless (eq (car overblock-md-preview--definitions) tick)
       (setq overblock-md-preview--definitions
             (cons tick
                   (save-excursion
                     (goto-char (point-min))
-                    (let (lines)
+                    (let (definitions)
                       (while (re-search-forward
-                              ;; Not a footnote, [^1]: note, whose text the
-                              ;; next definition would join.
-                              "^ \\{0,3\\}\\[[^]^\n][^]\n]*\\]:[ \t]+[^ \t\n].*$" nil t)
-                        (push (match-string-no-properties 0) lines))
-                      (string-join (nreverse lines) "\n")))))))
-  (let ((definitions (cdr overblock-md-preview--definitions)))
-    (if (or (string-empty-p text) (string-empty-p definitions))
-        text
-      (concat text "\n\n" definitions))))
+                              overblock-md-preview--definition-regexp nil t)
+                        (push (cons (downcase (match-string-no-properties 1))
+                                    (match-string-no-properties 0))
+                              definitions))
+                      (nreverse definitions))))))
+    (cdr overblock-md-preview--definitions)))
+
+(defun overblock-md-preview--with-definitions (text)
+  "Return TEXT with the link reference definitions it uses.
+A block that goes to the converter alone, as the one at point or one
+just edited does, holds no [ref]: url line, and its [text][ref] links
+and badges would show as text.  Only the definitions whose [label] the
+block holds go along, so the batch stays the size of the buffer.  The
+converter writes nothing for them."
+  (if (string-empty-p text)
+      text
+    (let* ((low (downcase text))
+           (used (seq-keep (lambda (definition)
+                             (and (string-search
+                                   (concat "[" (car definition) "]") low)
+                                  (cdr definition)))
+                           (overblock-md-preview--definitions))))
+      (if used
+          (concat text "\n\n" (string-join used "\n"))
+        text))))
 
 (defun overblock-md-preview--closed (text)
   "Return TEXT with its closing fence under its opening one.

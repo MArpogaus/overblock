@@ -303,9 +303,10 @@ a block in that item and closes none. A block goes to the converter
 with its closing fence under its opening marks, and with one where it
 closes none. The converter then reads it as the preview pairs it, alone
 and in a batch. Each block also goes out with the link reference
-definitions of the buffer, the lines =[ref]: url=, so a =[text][ref]=
-link or badge renders in a block that holds no definition; the
-converter writes nothing for them. The columns are counted in the text, because a rendering hides
+definitions it uses, the lines =[ref]: url= whose label it holds, so a
+=[text][ref]= link or badge renders in a block that holds no
+definition; the converter writes nothing for them. A line that pandoc
+reads as text, as =[1]: Smith, J. (2020)=, is no definition. The columns are counted in the text, because a rendering hides
 the indentation from =current-indentation=. A later paragraph of a
 list item ends at the next item. In one block with that paragraph, the
 converter reads the item as more text of the paragraph, and the item

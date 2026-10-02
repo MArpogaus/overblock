@@ -332,6 +332,10 @@ The item is one block, and the fence is not a second one over it."
     (insert "See [the guide][g].\n\n[^1]: a note\n\n[g]: docs/guide.md\n")
     (should (equal (overblock-md-preview--source 1 20)
                    "See [the guide][g].\n\n[g]: docs/guide.md"))
+    ;; Only what the block uses, and no line pandoc shows as text.
+    (erase-buffer)
+    (insert "Read [1].\n\n[1]: Smith, J. (2020). A paper.\n\n[x]: u\n")
+    (should (equal (overblock-md-preview--source 1 10) "Read [1]."))
     ;; Front matter stays nothing.
     (erase-buffer)
     (insert "---\nt: x\n---\n\n[g]: u\n")
