@@ -189,11 +189,10 @@ equation, so that it compiles again.
 shr renders a table without rules, and gives a header cell and inline
 code no face of their own. The renderer draws =th= in bold and =code=
 in =overblock-md-code=, through =shr-external-rendering-functions=. The
-columns and the bold header carry the table, without rules.
-
-shr draws a heading of level 3 in italic and one of level 4 to 6
-plain, and a font with no italic shows them as body text. The renderer
-draws them bold over their =shr-h3= to =shr-h6= faces.
+columns and the bold header carry the table, without rules. shr draws
+each image of a table a second time under the table, through
+=shr-collect-extra-strings-in-table=; the renderer draws it in its cell
+only.
 
 A table is laid out in characters and not in pixels. Thus its columns
 align over the fixed-pitch lines of a buffer, and a face cannot move
@@ -202,6 +201,14 @@ them.
 shr paints the background of a code block or a table row only as far
 as the text of each row. The renderer paints each row to the width of
 the longest row, indentation included.
+
+** Headings
+
+shr draws a heading of level 3 in italic and one of level 4 to 6
+plain, and a font with no italic shows them as body text. The renderer
+draws them bold over their =shr-h3= to =shr-h6= faces. A level 2
+heading is bold too, so the renderer draws it 1.1 high, a step above
+them. A level 1 heading keeps =shr-h1=.
 
 ** Code blocks
 
@@ -295,7 +302,10 @@ margin. A fence on the line of a list item, as in =1. ```bash=, opens
 a block in that item and closes none. A block goes to the converter
 with its closing fence under its opening marks, and with one where it
 closes none. The converter then reads it as the preview pairs it, alone
-and in a batch. The columns are counted in the text, because a rendering hides
+and in a batch. Each block also goes out with the link reference
+definitions of the buffer, the lines =[ref]: url=, so a =[text][ref]=
+link or badge renders in a block that holds no definition; the
+converter writes nothing for them. The columns are counted in the text, because a rendering hides
 the indentation from =current-indentation=. A later paragraph of a
 list item ends at the next item. In one block with that paragraph, the
 converter reads the item as more text of the paragraph, and the item

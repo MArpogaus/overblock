@@ -169,7 +169,10 @@ cuts the text out from under a block.
 
 =overblock-image-height= caps an inline image at a share of the
 window. A block taller than the window stops the wheel, which goes back
-and starts again.
+and starts again. An image with its own =:max-height= keeps it. A
+=:height= wins over =:max-height= in Emacs, so the layer brings an
+image with a =:height= over the limit down to it, and its =:width= in
+proportion.
 
 The share comes from the window that shows the buffer. Where no window
 shows it, the share comes from the selected window.
