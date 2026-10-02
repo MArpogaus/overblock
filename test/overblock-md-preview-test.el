@@ -336,6 +336,13 @@ The item is one block, and the fence is not a second one over it."
     (erase-buffer)
     (insert "Read [1].\n\n[1]: Smith, J. (2020). A paper.\n\n[x]: u\n")
     (should (equal (overblock-md-preview--source 1 10) "Read [1]."))
+    ;; A label wrapped over a line, spaced otherwise, or in a link.
+    (erase-buffer)
+    (insert "Read the [release\nnotes] and [API  Ref][], [![logo]](u).\n\n"
+            "[release notes]: c.md\n[api ref]: a.md\n[logo]: l.png\n")
+    (should (equal (overblock-md-preview--source 1 57)
+                   (concat (buffer-substring 1 57)
+                           "\n\n[release notes]: c.md\n[api ref]: a.md\n[logo]: l.png")))
     ;; Front matter stays nothing.
     (erase-buffer)
     (insert "---\nt: x\n---\n\n[g]: u\n")

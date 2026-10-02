@@ -387,7 +387,8 @@ block goes out closed under its opening marks; see
 (defvar-local overblock-md-preview--definitions nil
   "The link reference definitions of this buffer, as (TICK . DEFINITIONS).
 TICK is the `buffer-chars-modified-tick' they were read at.
-DEFINITIONS is a hash table from a LABEL in lower case to its line.")
+DEFINITIONS is a hash table from a label, as
+`overblock-md-preview--label' makes it, to its line.")
 
 (defconst overblock-md-preview--definition-regexp
   (concat "^ \\{0,3\\}\\[\\([^]^\n][^]\n]*\\)\\]:[ \t]+"
@@ -409,16 +410,24 @@ such as [1]: Smith, J. (2020), which pandoc shows as text.")
                     (let ((definitions (make-hash-table :test #'equal)))
                       (while (re-search-forward
                               overblock-md-preview--definition-regexp nil t)
-                        (puthash (downcase (match-string-no-properties 1))
-                                 (match-string-no-properties 0)
-                                 definitions))
+                        (let ((label (match-string-no-properties 1))
+                              (line (match-string-no-properties 0)))
+                          (puthash (overblock-md-preview--label label) line
+                                   definitions)))
                       definitions)))))
     (cdr overblock-md-preview--definitions)))
 
+(defun overblock-md-preview--label (label)
+  "Return LABEL as a reference matches it: lower case, one space a run.
+A label of a reference can wrap over a line, or space its words
+otherwise than its definition does."
+  (downcase (string-join (split-string label) " ")))
+
 (defun overblock-md-preview--labels (text)
-  "Return every [label] that TEXT holds, in order."
+  "Return every [label] that TEXT holds, in order.
+The innermost brackets: the label of [![logo]](url) is logo."
   (let ((pos 0) labels)
-    (while (string-match "\\[\\([^]\n]+\\)\\]" text pos)
+    (while (string-match "\\[\\([^][]+\\)\\]" text pos)
       (push (match-string 1 text) labels)
       (setq pos (match-end 1)))
     (nreverse labels)))
@@ -433,7 +442,8 @@ converter writes nothing for them."
   (if-let* ((definitions (overblock-md-preview--definitions))
             (used (delete-dups
                    (seq-keep (lambda (label)
-                               (gethash (downcase label) definitions))
+                               (gethash (overblock-md-preview--label label)
+                                        definitions))
                              (overblock-md-preview--labels text)))))
       (concat text "\n\n" (string-join used "\n"))
     text))
