@@ -176,8 +176,7 @@ Then the notebook no longer scrolls."
   (overblock-run-test--with-run
     (cancel-timer (plist-get overblock-run--state :timer))
     (setq overblock-run--state nil)
-    ;; As a shell that starts, and never ran a region: before the fix,
-    ;; only a send added this hook.
+    ;; As a shell that starts and has not run a region yet.
     (remove-hook 'kill-buffer-hook #'overblock-run--home-drop t)
     (with-current-buffer notebook (overblock-run--home-set (point-marker)))
     (should (memq notebook overblock-run--scrolled))

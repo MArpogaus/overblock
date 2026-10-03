@@ -169,9 +169,6 @@ then leaves point and the windows alone.  Nil never scrolls."
 An alist of (WINDOW START . POINT), markers: `overblock-run-go-home'
 gives each window its view back.")
 
-(defvar-local overblock-run--placed nil
-  "Where the pass of this notebook last put its windows, or nil.")
-
 (defvar-local overblock-run--home-later nil
   "The home of a pass that ended under an open minibuffer, or nil.
 `overblock-run--scroll-check' gives the view back once none is open.")
@@ -482,7 +479,8 @@ it was sent."
   "Put point back where the pass that has just ended was asked for.
 The windows that show the notebook go there too, because a window
 keeps its own point while its buffer is not selected, and each window
-shows again what it showed as the pass began to scroll.  Where the pass
+shows again what it showed as the pass began to scroll.  Under an open
+minibuffer, this waits until it closes.  Where the pass
 did not scroll to its end (see `overblock-run-scroll'), point and the
 windows stay where the reader put them."
   (when-let* ((shell (overblock-run-shell))
@@ -536,23 +534,12 @@ The command hooks go with the last notebook that scrolls."
                (set-window-point window (cdr view)))
       (set-window-point window home))))
 
-(defun overblock-run--view-untouched-p ()
-  "Non-nil where each window of this notebook starts where the pass put it.
-Before the pass moved any, that is where each started."
-  (seq-every-p (lambda (window)
-                 (eql (window-start window)
-                      (or overblock-run--placed
-                          (when-let* ((view (alist-get window overblock-run--view)))
-                            (marker-position (car view))))))
-               (get-buffer-window-list nil nil t)))
-
 (defun overblock-run--view-free ()
   "Free the markers of `overblock-run--view', and forget it."
   (dolist (view overblock-run--view)
     (set-marker (cadr view) nil)
     (set-marker (cddr view) nil))
-  (setq overblock-run--view nil
-        overblock-run--placed nil)
+  (setq overblock-run--view nil)
   (when overblock-run--home-later
     (set-marker overblock-run--home-later nil)
     (setq overblock-run--home-later nil)))
@@ -568,27 +555,27 @@ Before the pass moved any, that is where each started."
           overblock-run--scrolled))
 
 (defun overblock-run--scroll-see ()
-  "Note how the windows of the scrolling notebooks are before a command."
-  (setq overblock-run--seen (overblock-run--scroll-windows)))
+  "Note how the windows of the scrolling notebooks are before a command.
+Not for a command in the minibuffer: its exit gives the windows back,
+so the command that opened it is compared with how they were before."
+  (when (zerop (minibuffer-depth))
+    (setq overblock-run--seen (overblock-run--scroll-windows))))
 
 (defun overblock-run--scroll-check ()
-  "Stop the scrolling in each notebook whose window the command just moved."
-  (dolist (now (overblock-run--scroll-windows))
-    (let ((before (assq (car now) overblock-run--seen)))
-      (when (and before (not (equal before now)))
-        (with-current-buffer (window-buffer (car now))
-          (overblock-run--scroll-stop)))))
-  ;; A pass that ended under a minibuffer, which is closed now, and no
-  ;; window moved: the view comes back.
+  "Stop the scrolling in each notebook whose window the command just moved.
+A pass that ended under a minibuffer gives the view back once it is
+closed, where no window moved."
   (when (zerop (minibuffer-depth))
+    (dolist (now (overblock-run--scroll-windows))
+      (let ((before (assq (car now) overblock-run--seen)))
+        (when (and before (not (equal before now)))
+          (with-current-buffer (window-buffer (car now))
+            (overblock-run--scroll-stop)))))
     (dolist (buffer (copy-sequence overblock-run--scrolled))
       (with-current-buffer buffer
         (when-let* ((home overblock-run--home-later))
-          ;; The exit gives the windows back where the pass put them;
-          ;; anywhere else, the command of the minibuffer moved them.
-          (when (overblock-run--view-untouched-p)
-            (goto-char home)
-            (overblock-run--view-give-back home))
+          (goto-char home)
+          (overblock-run--view-give-back home)
           (overblock-run--scroll-stop)))))
   ;; A notebook killed while it scrolls takes no stop with it.
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
@@ -602,8 +589,7 @@ region catches up."
   (unless (> (minibuffer-depth) 0)
     (dolist (window (get-buffer-window-list nil nil t))
       (set-window-point window m)
-      (set-window-start window m))
-    (setq overblock-run--placed (marker-position m)))
+      (set-window-start window m)))
   ;; The pass moved them, not the reader, also inside a command.
   (overblock-run--scroll-see))
 
