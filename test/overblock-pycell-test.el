@@ -1485,21 +1485,24 @@ z = 3
               (let ((this-command 'overblock--button-release))
                 (run-hooks 'pre-command-hook 'post-command-hook))
               (should (memq (current-buffer) overblock-run--scrolled))
-              ;; The reader scrolls: a command moves the window.
-              (run-hooks 'pre-command-hook)
-              (set-window-start window third)
-              (run-hooks 'post-command-hook)
+              ;; The reader scrolls the notebook from another window: a
+              ;; command moves its window, and point stays.
+              (with-selected-window (split-window)
+                (switch-to-buffer shell)
+                (run-hooks 'pre-command-hook)
+                (set-window-start window third)
+                (run-hooks 'post-command-hook)
+                (delete-window))
               (should-not (memq (current-buffer) overblock-run--scrolled))
               (should-not (memq #'overblock-run--scroll-check
                                 (default-value 'post-command-hook)))
-              ;; The command found point back where the reader was; the
-              ;; next cell moves neither the window nor point.
+              ;; The next cell moves neither the window nor point.
               (overblock-run--queue-set (list (copy-marker first)))
               (overblock-run-next)
               (should (= (window-start window) third))
-              (should (= (point) (point-max)))
+              (should (= (point) second))
               (overblock-run-go-home)
-              (should (= (point) (point-max)))
+              (should (= (point) second))
               ;; With the option off, nothing moves at all.
               (let ((overblock-run-scroll nil))
                 (goto-char (point-min))
