@@ -156,11 +156,11 @@ screen."
 
 (defcustom overblock-run-scroll t
   "Non-nil scrolls each window of a notebook to the region its pass runs.
-Point goes there too, and comes back where the pass was asked for when
-it ends.  The scrolling stops at the first command of the reader that
-scrolls a window of the notebook or moves point in it, so the reader
-can look at another part while the pass runs; the pass then leaves
-point and the windows alone.  Nil never scrolls."
+Point goes there too.  Point and the view come back where the pass was
+asked for when it ends.  The scrolling stops at the first command of
+the reader that scrolls a window of the notebook or moves point in it,
+so the reader can look at another part while the pass runs; the pass
+then leaves point and the windows alone.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
@@ -296,7 +296,7 @@ where the cell finished.  IMAGEP marks a result with an image."
      icons 'overblock-bar)))
 
 (defun overblock-run-restart (reason restart)
-  "End what runs, drop the queue, the home and the results, then RESTART.
+  "End what runs and take point home, drop the queue and results, RESTART.
 REASON goes to a region still running, through `overblock-run-abort':
 its region can be in another buffer on the same shell, whose block
 would otherwise keep a frozen running header.
@@ -306,7 +306,7 @@ and starts the new interpreter, which is the job of the notebook.  A
 region asked for before its first prompt waits for it."
   (let ((proc (overblock-run--call :process)))
     ;; The pass ends here: point and the windows go back, so a pass
-    ;; asked for at once starts where the first one did.  Before the
+    ;; asked for at once starts where the first one did. Before the
     ;; abort, which drops the home as a death.
     (overblock-run-go-home)
     (when proc
@@ -474,8 +474,8 @@ it was sent."
 (defun overblock-run-go-home ()
   "Put point back where the pass that has just ended was asked for.
 The windows that show the notebook go there too, because a window
-keeps its own point while its buffer is not selected, and each starts
-where it started as the pass began to scroll.  Where the pass
+keeps its own point while its buffer is not selected, and each window
+shows again what it showed as the pass began to scroll.  Where the pass
 did not scroll to its end (see `overblock-run-scroll'), point and the
 windows stay where the reader put them."
   (when-let* ((shell (overblock-run-shell))
@@ -497,11 +497,11 @@ windows stay where the reader put them."
 (defun overblock-run--scroll-start ()
   "Have the pass of this notebook scroll to its regions, where the option says."
   (when overblock-run-scroll
-    (unless (memq (current-buffer) overblock-run--scrolled)
-      (setq overblock-run--view
-            (mapcar (lambda (window)
-                      (cons window (copy-marker (window-start window))))
-                    (get-buffer-window-list nil nil t))))
+    (dolist (view overblock-run--view) (set-marker (cdr view) nil))
+    (setq overblock-run--view
+          (mapcar (lambda (window)
+                    (cons window (copy-marker (window-start window))))
+                  (get-buffer-window-list nil nil t)))
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
     (add-hook 'post-command-hook #'overblock-run--scroll-check)
@@ -877,6 +877,7 @@ shell buffer, where the filter and the ticker read it."
       ;; after comint-mime and the copy carries the images.
       (add-hook 'comint-output-filter-functions #'overblock-run--filter t t)
       (add-hook 'kill-buffer-hook #'overblock-run-abort nil t)
+      (add-hook 'kill-buffer-hook #'overblock-run--home-drop nil t)
       (add-hook 'change-major-mode-hook #'overblock-run-abort nil t)
       ;; The ticker gets its own timer, so it can cancel itself.
       (let (timer)

@@ -170,6 +170,17 @@ the notebook, which is another buffer."
     (should (string-match-p "died\\|Process"
                             (overblock-run-test--shown notebook)))))
 
+(ert-deftest overblock-run-test-a-killed-shell-frees-a-waiting-home ()
+  "Killing a shell where no region runs frees the home of its pass.
+Then the notebook no longer scrolls."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (with-current-buffer notebook (overblock-run--home-set (point-marker)))
+    (should (memq notebook overblock-run--scrolled))
+    (kill-buffer shell)
+    (should-not (memq notebook overblock-run--scrolled))))
+
 (ert-deftest overblock-run-test-a-restarted-shell-ends-the-run ()
   "A restart reinitializes the major mode of the shell, which ends the run.
 `change-major-mode-hook' catches it.  A restart is no unexpected
