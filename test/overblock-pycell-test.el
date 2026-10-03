@@ -1330,7 +1330,7 @@ first line of the cell at the bottom edge, with the code out of sight."
             (let ((second (cadr (overblock-pycell--cell-starts)))
                   (window (get-buffer-window)))
               (set-window-start window (point-max))
-              ;; As a pass starts: the home starts the following.
+              ;; As a pass starts: the home starts the scrolling.
               (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list second))
               (overblock-run-next)
@@ -1339,7 +1339,7 @@ first line of the cell at the bottom edge, with the code out of sight."
               (should (= (window-point window) second))))
         (kill-buffer shell)))))
 
-(ert-deftest overblock-pycell-test-a-pass-stops-following-when-the-reader-scrolls ()
+(ert-deftest overblock-pycell-test-a-pass-stops-scrolling-when-the-reader-scrolls ()
   "A window the reader moved is left alone, and point stays at the end."
   (overblock-pycell-test--with-notebook "# %%
 x = 1
@@ -1373,13 +1373,13 @@ z = 3
               ;; margin, between commands: that is no reader.
               (set-window-start window first)
               (run-hooks 'pre-command-hook 'post-command-hook)
-              (should overblock-run--following)
+              (should overblock-run--scrolling)
               ;; The reader scrolls: a command moves the window.
               (run-hooks 'pre-command-hook)
               (set-window-start window third)
               (run-hooks 'post-command-hook)
-              (should-not overblock-run--following)
-              (should-not (memq #'overblock-run--follow-check
+              (should-not overblock-run--scrolling)
+              (should-not (memq #'overblock-run--scroll-check
                                 (default-value 'post-command-hook)))
               ;; The next cell moves neither the window nor point.
               (overblock-run--queue-set (list (copy-marker first)))
@@ -1389,13 +1389,13 @@ z = 3
               (overblock-run-go-home)
               (should (= (point) second))
               ;; With the option off, nothing moves at all.
-              (let ((overblock-run-follow nil))
+              (let ((overblock-run-scroll nil))
                 (goto-char (point-min))
                 (overblock-run--home-set (point-marker))
                 (overblock-run--queue-set (list (copy-marker second)))
                 (overblock-run-next)
                 (should (= (point) (point-min)))
-                (should-not overblock-run--following))))
+                (should-not overblock-run--scrolling))))
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-pass-asked-while-busy-goes-behind-the-queue ()

@@ -153,27 +153,27 @@ screen."
   :group 'overblock
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-run-follow t
-  "Non-nil follows a pass: each window shows the region that runs.
+(defcustom overblock-run-scroll t
+  "Non-nil scrolls each window of a notebook to the region its pass runs.
 Point goes there too, and comes back where the pass was asked for when
-it ends.  The following stops at the first scroll or move of the reader
-in the notebook, so the reader can look at another part of it while
-the pass runs; the pass then leaves point and the windows alone.  Nil
-never follows."
+it ends.  The scrolling stops at the first command of the reader that
+scrolls a window of the notebook or moves point in it, so the reader
+can look at another part while the pass runs; the pass then leaves
+point and the windows alone.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
-(defvar-local overblock-run--following nil
-  "Non-nil while the pass of this notebook follows its regions.")
+(defvar-local overblock-run--scrolling nil
+  "Non-nil while the pass of this notebook scrolls to its regions.")
 
-(defvar overblock-run--followers nil
-  "The notebooks whose pass follows its regions.")
+(defvar overblock-run--scrolled nil
+  "The notebooks whose pass scrolls to its regions.")
 
 (defvar overblock-run--seen nil
-  "How the windows of `overblock-run--followers' were before this command.
+  "How the windows of `overblock-run--scrolled' were before this command.
 A list of (WINDOW START VSCROLL POINT).  Only a command is the reader:
 redisplay moves a start for a scroll margin, and output arrives
-between commands, so neither stops the following.")
+between commands, so neither stops the scrolling.")
 
 (defvar-keymap overblock-run-result-map
   :doc "Keymap inside a region that shows a result, empty on purpose.
@@ -460,7 +460,7 @@ which runs as it was sent."
   "Put point back where the pass that has just ended was asked for.
 The windows that show the notebook go there too, because a window
 keeps its own point while its buffer is not selected.  Where the pass
-did not follow to its end (see `overblock-run-follow'), point and the
+did not scroll to its end (see `overblock-run-scroll'), point and the
 windows stay where the reader put them."
   (when-let* ((shell (overblock-run-shell))
               (home (buffer-local-value 'overblock-run--home shell)))
@@ -469,60 +469,60 @@ windows stay where the reader put them."
     (with-current-buffer shell (setq overblock-run--home nil))
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
-        (when overblock-run--following
+        (when overblock-run--scrolling
           (goto-char home)
           (dolist (window (get-buffer-window-list nil nil t))
             (set-window-point window home)))
-        (overblock-run--follow-stop)))
+        (overblock-run--scroll-stop)))
     (set-marker home nil)))
 
-(defun overblock-run--follow-start ()
-  "Have the pass of this notebook follow its regions, where the option says."
-  (when overblock-run-follow
-    (setq overblock-run--following t)
-    (add-to-list 'overblock-run--followers (current-buffer))
-    (add-hook 'pre-command-hook #'overblock-run--follow-see)
-    (add-hook 'post-command-hook #'overblock-run--follow-check)))
+(defun overblock-run--scroll-start ()
+  "Have the pass of this notebook scroll to its regions, where the option says."
+  (when overblock-run-scroll
+    (setq overblock-run--scrolling t)
+    (add-to-list 'overblock-run--scrolled (current-buffer))
+    (add-hook 'pre-command-hook #'overblock-run--scroll-see)
+    (add-hook 'post-command-hook #'overblock-run--scroll-check)))
 
-(defun overblock-run--follow-stop ()
-  "Stop the pass of this notebook from following its regions."
-  (setq overblock-run--following nil)
-  (setq overblock-run--followers (delq (current-buffer) overblock-run--followers))
-  (unless overblock-run--followers
+(defun overblock-run--scroll-stop ()
+  "Stop the pass of this notebook from scrolling to its regions."
+  (setq overblock-run--scrolling nil)
+  (setq overblock-run--scrolled (delq (current-buffer) overblock-run--scrolled))
+  (unless overblock-run--scrolled
     (setq overblock-run--seen nil)
-    (remove-hook 'pre-command-hook #'overblock-run--follow-see)
-    (remove-hook 'post-command-hook #'overblock-run--follow-check)))
+    (remove-hook 'pre-command-hook #'overblock-run--scroll-see)
+    (remove-hook 'post-command-hook #'overblock-run--scroll-check)))
 
-(defun overblock-run--follow-windows ()
+(defun overblock-run--scroll-windows ()
   "Return (WINDOW START VSCROLL POINT) for each window of a follower."
-  (setq overblock-run--followers (seq-filter #'buffer-live-p overblock-run--followers))
+  (setq overblock-run--scrolled (seq-filter #'buffer-live-p overblock-run--scrolled))
   (mapcan (lambda (buffer)
             (mapcar (lambda (window)
                       (list window (window-start window)
                             (window-vscroll window t) (window-point window)))
                     (get-buffer-window-list buffer nil t)))
-          overblock-run--followers))
+          overblock-run--scrolled))
 
-(defun overblock-run--follow-see ()
+(defun overblock-run--scroll-see ()
   "Note how the windows of the followers are before a command."
-  (setq overblock-run--seen (overblock-run--follow-windows)))
+  (setq overblock-run--seen (overblock-run--scroll-windows)))
 
-(defun overblock-run--follow-check ()
-  "Stop following in each notebook whose window the command just moved."
-  (dolist (now (overblock-run--follow-windows))
+(defun overblock-run--scroll-check ()
+  "Stop the scrolling in each notebook whose window the command just moved."
+  (dolist (now (overblock-run--scroll-windows))
     (let ((before (assq (car now) overblock-run--seen)))
       (when (and before (not (equal before now)))
         (with-current-buffer (window-buffer (car now))
-          (overblock-run--follow-stop))))))
+          (overblock-run--scroll-stop))))))
 
-(defun overblock-run--follow-to (m)
+(defun overblock-run--scroll-to (m)
   "Put every window that shows this notebook at M, and point too."
   (goto-char m)
   (dolist (window (get-buffer-window-list nil nil t))
     (set-window-point window m)
     (set-window-start window m))
   ;; The pass moved them, not the reader, also inside a command.
-  (overblock-run--follow-see))
+  (overblock-run--scroll-see))
 
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.
@@ -532,14 +532,14 @@ shell on every insertion."
     (with-current-buffer shell
       (overblock-run--home-drop)
       (setq overblock-run--home marker)))
-  (if marker (overblock-run--follow-start) (overblock-run--follow-stop)))
+  (if marker (overblock-run--scroll-start) (overblock-run--scroll-stop)))
 
 (defun overblock-run--home-drop ()
-  "Free the home of this shell, and stop the pass of its notebook following.
+  "Free the home of this shell, and stop the scrolling of its notebook.
 Call this in the shell buffer; it works also when its process is gone."
   (when (markerp overblock-run--home)
     (when-let* ((notebook (marker-buffer overblock-run--home)))
-      (with-current-buffer notebook (overblock-run--follow-stop)))
+      (with-current-buffer notebook (overblock-run--scroll-stop)))
     (set-marker overblock-run--home nil))
   (setq overblock-run--home nil))
 
@@ -912,12 +912,12 @@ out."
 A pair of markers is a region the reader sent, and goes as it is; a
 marker alone is where the `:step' of the backend decides what runs.
 
-While the pass follows, the region goes to the top of every window that
+While the pass scrolls, the region goes to the top of every window that
 shows the notebook, so the code that runs is visible, and
 `overblock-run-go-home' gives point back when the pass ends.  Where it
-does not follow, point and the windows stay as they are."
-  (if overblock-run--following
-      (progn (overblock-run--follow-to m)
+does not scroll, point and the windows stay as they are."
+  (if overblock-run--scrolling
+      (progn (overblock-run--scroll-to m)
              (overblock-run--step-at entry))
     (save-excursion
       (goto-char m)

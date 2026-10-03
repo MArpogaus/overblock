@@ -140,7 +140,7 @@ Nothing else notices: the prompt the filter waits for never comes."
     (setq overblock-run--queue (list (copy-marker 1)))
     (with-current-buffer notebook
       (overblock-run--home-set (point-marker))
-      (should overblock-run--following))
+      (should overblock-run--scrolling))
     (delete-process proc)
     (overblock-run--tick shell (plist-get overblock-run--state :timer))
     (should-not overblock-run--state)
@@ -149,7 +149,7 @@ Nothing else notices: the prompt the filter waits for never comes."
     ;; A death drops the pass too, its home and its following.
     (should-not overblock-run--queue)
     (should-not overblock-run--home)
-    (should-not (buffer-local-value 'overblock-run--following notebook))))
+    (should-not (buffer-local-value 'overblock-run--scrolling notebook))))
 
 (ert-deftest overblock-run-test-a-killed-shell-ends-the-run ()
   "Killing the shell under a running region ends it as a death.
