@@ -499,7 +499,7 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-total=          | the lines it printed, counted as they arrive                 |
 | =overblock-run-follow=         | copy a running output into a buffer as it prints             |
 | =overblock-run-abort=          | end a run whose prompt will never come                       |
-| =overblock-run-restart=        | end the run, drop the queue and the home, and restart        |
+| =overblock-run-restart=        | end the run, clear the queue, home and results, restart      |
 | =overblock-run-set-and-redraw= | the =:set= of an option that the blocks on the screen follow |
 
 The commands of a result are the same in each notebook:
