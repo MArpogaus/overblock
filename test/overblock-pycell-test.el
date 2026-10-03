@@ -558,8 +558,9 @@ so does this."
     (cl-letf (((symbol-function 'project-current) #'ignore))
       (should-not (overblock-pycell--dedicated)))))
 
-(ert-deftest overblock-pycell-test-cold-cell-belongs-to-its-buffer ()
-  "The cell that waits for a cold interpreter is marked in its own buffer.
+(ert-deftest overblock-pycell-test-cold-cells-wait-in-their-own-buffer ()
+  "Cells that wait for a cold interpreter are marked in their own buffer.
+A second cell waits behind the first, and one cell does not scroll.
 `copy-marker' of a number uses the current buffer, so markers made in
 the shell buffer would send its start-up banner as the cell."
   (let* ((shell (generate-new-buffer "*overblock-pycell test shell*"))
@@ -1464,6 +1465,27 @@ z = 3
             (should (overblock-run--busy-p))
             (delete-process proc)
             (should-not (overblock-run--busy-p)))
+        (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-pass-behind-a-waiting-cell-scrolls ()
+  "Run-below asked for while one cell waits on the queue scrolls.
+The cell set the home and does not scroll; the pass that joins it does."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell)))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode)
+              (setq-local overblock-run--state (list :from 1)))
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (overblock-pycell-eval-region beg end))
+            (should-not (memq (current-buffer) overblock-run--scrolled))
+            (overblock-run-cells (overblock-pycell--cell-starts) "running")
+            (should (memq (current-buffer) overblock-run--scrolled)))
+        (overblock-run--scroll-stop)
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-move-in-the-starting-command-stops-the-scroll ()
