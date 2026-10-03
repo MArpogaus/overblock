@@ -479,6 +479,7 @@ release shows the newest message, which can be one logged since."
       (log "queued [2 times]")
       (should (equal (release) "queued"))
       (setq overblock--pressed "queued")
+      (log "older")
       (let ((message-log-max nil))
         (should (equal (release) "queued"))))))
 
