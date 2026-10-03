@@ -1422,26 +1422,34 @@ some start with a space."
 ;; bar redrawn between press and release would lose it. A command that
 ;; moves the text under the pointer, such as a move button, turns the
 ;; release into a drag, so the drag is bound too. Reading the release
-;; clears the echo area, so the release says again what the press said.
+;; clears the echo area, so the release says the newest message again,
+;; such as the one of the press.
 (defvar overblock--button-keymaps (make-hash-table :test #'eq)
   "The keymap each button command is pressed through.
 A keymap depends only on the command, and the header of a running
 result is built five times a second.")
 
 (defvar overblock--pressed nil
-  "Non-nil where the press of a button said something.")
+  "What the press of a button said, or nil where it said nothing.")
 
 (defun overblock--release ()
   "Say again the last message, where the press of a button said one.
 Reading the release clears the echo area.  The last message is the one
-of the press, or one logged since, such as the end of a short pass."
+of the press, or one logged since, such as the end of a short pass.
+The log counts a repeated message, and that count is not said; with
+no log, the message of the press is."
   (interactive)
   (when overblock--pressed
-    (let ((last (with-current-buffer (messages-buffer)
-                  (save-excursion
-                    (goto-char (point-max))
-                    (buffer-substring-no-properties
-                     (line-beginning-position 0) (line-end-position 0)))))
+    (let ((last (if (not message-log-max)
+                    overblock--pressed
+                  (with-current-buffer (messages-buffer)
+                    (save-excursion
+                      (goto-char (point-max))
+                      (replace-regexp-in-string
+                       " \\[[0-9]+ times\\]\\'" ""
+                       (buffer-substring-no-properties
+                        (line-beginning-position 0)
+                        (line-end-position 0)))))))
           (message-log-max nil))
       (message "%s" last)))
   (setq overblock--pressed nil))

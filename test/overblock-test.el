@@ -440,9 +440,10 @@ invisible."
   "A button command for the tests.  The test stubs it."
   (interactive))
 
-(ert-deftest overblock-test-a-button-release-says-again-what-its-press-said ()
+(ert-deftest overblock-test-a-button-release-says-the-newest-message-again ()
   "Reading the release of a click clears the echo area, so it says again.
-The press runs the command and keeps its message; the release shows it."
+The press runs the command and notes that it said something; the
+release shows the newest message, which can be one logged since."
   (let* ((map (get-text-property 0 'keymap
                                  (overblock-button "x" "help" #'overblock-test--said)))
          (press (keymap-lookup map "<down-mouse-1>"))
@@ -471,7 +472,15 @@ The press runs the command and keeps its message; the release shows it."
       (log "done")
       (should (equal (release) "done"))
       ;; A press that said nothing has nothing said again.
-      (should-not (release)))))
+      (should-not (release))
+      ;; The log counts a repeat, which is not said; with no log, the
+      ;; message of the press is.
+      (setq overblock--pressed "queued")
+      (log "queued [2 times]")
+      (should (equal (release) "queued"))
+      (setq overblock--pressed "queued")
+      (let ((message-log-max nil))
+        (should (equal (release) "queued"))))))
 
 (ert-deftest overblock-test-a-button-row-is-kept-per-display ()
   "The row a display draws is not the row another display draws.
