@@ -160,8 +160,8 @@ Point goes there too.  Point and the view come back where the pass was
 asked for when it ends.  The scrolling stops at the first command of
 the reader that scrolls a window of the notebook or moves point in it,
 so the reader can look at another part while the pass runs; the pass
-then leaves point and the windows alone.  A stop or an interrupt leaves
-them where they are, too.  Nil never scrolls."
+then leaves point and the windows alone.  A failed region, a stop or an
+interrupt leaves them where they are, too.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
@@ -461,8 +461,9 @@ because a caller that moves text must know what must not move."
 (defvar-local overblock-run--home nil
   "Where point goes in the notebook when the queue of this shell ends.
 While the pass scrolls (see `overblock-run-scroll'), point walks
-down the notebook.  Where the pass scrolled to its end, point then goes
-back to where the pass was asked for.")
+down the notebook.  Where the pass scrolled to its end and ended
+without an error, point then goes back to where the pass was asked
+for.")
 
 (defvar-local overblock-run--armed nil
   "The process of this shell that has not prompted yet since it started.
@@ -1112,7 +1113,7 @@ none is set.  A pass or a region takes over the home of its notebook
 where that notebook does not scroll, as after a waiting region or a
 pass that no longer scrolls; a pass then scrolls where
 `overblock-run-scroll' says.  Point comes back to the home where the
-pass scrolled to its end (see `overblock-run-go-home')."
+pass scrolled to its end and did not fail (see `overblock-run-go-home')."
   ;; A click on another cell moved point in this command: the scrolling
   ;; stops now, not at the end of the command.
   (overblock-run--scroll-check)
