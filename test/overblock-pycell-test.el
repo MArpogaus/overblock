@@ -1373,12 +1373,12 @@ z = 3
               ;; margin, between commands: that is no reader.
               (set-window-start window first)
               (run-hooks 'pre-command-hook 'post-command-hook)
-              (should overblock-run--scrolling)
+              (should (memq (current-buffer) overblock-run--scrolled))
               ;; The reader scrolls: a command moves the window.
               (run-hooks 'pre-command-hook)
               (set-window-start window third)
               (run-hooks 'post-command-hook)
-              (should-not overblock-run--scrolling)
+              (should-not (memq (current-buffer) overblock-run--scrolled))
               (should-not (memq #'overblock-run--scroll-check
                                 (default-value 'post-command-hook)))
               ;; The next cell moves neither the window nor point.
@@ -1395,8 +1395,19 @@ z = 3
                 (overblock-run--queue-set (list (copy-marker second)))
                 (overblock-run-next)
                 (should (= (point) (point-min)))
-                (should-not overblock-run--scrolling))))
+                (should-not (memq (current-buffer) overblock-run--scrolled)))))
         (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
+  "The command hooks of the scrolling go when the last such notebook dies."
+  (let ((notebook (generate-new-buffer " *overblock-pycell-test-scroll*")))
+    (with-current-buffer notebook (overblock-run--scroll-start))
+    (should (memq #'overblock-run--scroll-check (default-value 'post-command-hook)))
+    (kill-buffer notebook)
+    (run-hooks 'pre-command-hook 'post-command-hook)
+    (should-not overblock-run--scrolled)
+    (should-not (memq #'overblock-run--scroll-check
+                      (default-value 'post-command-hook)))))
 
 (ert-deftest overblock-pycell-test-a-pass-asked-while-busy-goes-behind-the-queue ()
   "Run-above or run-below while a cell runs queues behind it, not over it."

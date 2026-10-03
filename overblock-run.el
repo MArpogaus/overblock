@@ -163,9 +163,6 @@ point and the windows alone.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
-(defvar-local overblock-run--scrolling nil
-  "Non-nil while the pass of this notebook scrolls to its regions.")
-
 (defvar overblock-run--scrolled nil
   "The notebooks whose pass scrolls to its regions.")
 
@@ -445,8 +442,9 @@ because a caller that moves text must know what must not move."
 
 (defvar-local overblock-run--home nil
   "Where point goes in the notebook when the queue of this shell ends.
-`overblock-run-next' walks point down the notebook, so a pass is
-visible.  At the end point goes back to where the pass was started.")
+While the pass scrolls (see `overblock-run-scroll'), point walks
+down the notebook, and at the end it goes back to where the pass was
+started.")
 
 (defun overblock-run--queued ()
   "Return the regions a pass still has to run, in order.
@@ -469,7 +467,7 @@ windows stay where the reader put them."
     (with-current-buffer shell (setq overblock-run--home nil))
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
-        (when overblock-run--scrolling
+        (when (memq (current-buffer) overblock-run--scrolled)
           (goto-char home)
           (dolist (window (get-buffer-window-list nil nil t))
             (set-window-point window home)))
@@ -479,14 +477,13 @@ windows stay where the reader put them."
 (defun overblock-run--scroll-start ()
   "Have the pass of this notebook scroll to its regions, where the option says."
   (when overblock-run-scroll
-    (setq overblock-run--scrolling t)
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
     (add-hook 'post-command-hook #'overblock-run--scroll-check)))
 
 (defun overblock-run--scroll-stop ()
-  "Stop the pass of this notebook from scrolling to its regions."
-  (setq overblock-run--scrolling nil)
+  "Stop the pass of this notebook from scrolling to its regions.
+The command hooks go with the last notebook that scrolls."
   (setq overblock-run--scrolled (delq (current-buffer) overblock-run--scrolled))
   (unless overblock-run--scrolled
     (setq overblock-run--seen nil)
@@ -494,7 +491,7 @@ windows stay where the reader put them."
     (remove-hook 'post-command-hook #'overblock-run--scroll-check)))
 
 (defun overblock-run--scroll-windows ()
-  "Return (WINDOW START VSCROLL POINT) for each window of a follower."
+  "Return (WINDOW START VSCROLL POINT) for each window of a scrolling notebook."
   (setq overblock-run--scrolled (seq-filter #'buffer-live-p overblock-run--scrolled))
   (mapcan (lambda (buffer)
             (mapcar (lambda (window)
@@ -504,7 +501,7 @@ windows stay where the reader put them."
           overblock-run--scrolled))
 
 (defun overblock-run--scroll-see ()
-  "Note how the windows of the followers are before a command."
+  "Note how the windows of the scrolling notebooks are before a command."
   (setq overblock-run--seen (overblock-run--scroll-windows)))
 
 (defun overblock-run--scroll-check ()
@@ -513,7 +510,9 @@ windows stay where the reader put them."
     (let ((before (assq (car now) overblock-run--seen)))
       (when (and before (not (equal before now)))
         (with-current-buffer (window-buffer (car now))
-          (overblock-run--scroll-stop))))))
+          (overblock-run--scroll-stop)))))
+  ;; A notebook killed while it scrolls takes no stop with it.
+  (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
 (defun overblock-run--scroll-to (m)
   "Put every window that shows this notebook at M, and point too."
@@ -531,8 +530,8 @@ shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (overblock-run--home-drop)
-      (setq overblock-run--home marker)))
-  (if marker (overblock-run--scroll-start) (overblock-run--scroll-stop)))
+      (setq overblock-run--home marker))
+    (when marker (overblock-run--scroll-start))))
 
 (defun overblock-run--home-drop ()
   "Free the home of this shell, and stop the scrolling of its notebook.
@@ -880,7 +879,8 @@ cell of a pass can be one the notebook answered itself."
 
 (defun overblock-run-next ()
   "Run the regions of the queue of the shell until one has to wait.
-Point follows, so a pass is visible.  Called from the shell on its
+Point follows while the pass scrolls (see `overblock-run-scroll').
+Called from the shell on its
 first prompt and from `overblock-run--end' when a region finishes, so
 the queue is reached through `overblock-run-shell'.
 
@@ -916,7 +916,7 @@ While the pass scrolls, the region goes to the top of every window that
 shows the notebook, so the code that runs is visible, and
 `overblock-run-go-home' gives point back when the pass ends.  Where it
 does not scroll, point and the windows stay as they are."
-  (if overblock-run--scrolling
+  (if (memq (current-buffer) overblock-run--scrolled)
       (progn (overblock-run--scroll-to m)
              (overblock-run--step-at entry))
     (save-excursion
@@ -970,12 +970,7 @@ runs a region, CELLS go behind what is queued, as a region does."
   (cond
    ((and (overblock-run--call :process)
          (buffer-local-value 'overblock-run--state (overblock-run-shell)))
-    (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
-      (overblock-run--home-set (point-marker)))
-    (overblock-run--queue-set (append (overblock-run--queued) cells))
-    (message "%s: %d %s queued behind the running %s"
-             (overblock-run--name) (length cells)
-             (overblock-run--unit (cdr cells)) (overblock-run--unit)))
+    (overblock-run--enqueue cells))
    ((or (overblock-run--call :process) (overblock-run--call :start))
     (overblock-run--pass cells message))
    (t (message "%s: starting the interpreter…" (overblock-run--name))
@@ -989,7 +984,8 @@ the interpreter starts, the region waits for its first prompt."
   (overblock-run--must)
   (if-let* ((proc (overblock-run--call :process)))
       (if (buffer-local-value 'overblock-run--state (overblock-run-shell))
-          (overblock-run--enqueue start end)
+          (overblock-run--enqueue (list (cons (copy-marker start)
+                                              (copy-marker end t))))
         (overblock-run--send proc start end))
     ;; Markers here, in the notebook: the thunk runs in the shell, and
     ;; `copy-marker' of a number uses the current buffer.
@@ -1000,17 +996,19 @@ the interpreter starts, the region waits for its first prompt."
         (overblock-run--call :arm (overblock-run--sender beg fin))
         (message "%s: starting the interpreter…" (overblock-run--name))))))
 
-(defun overblock-run--enqueue (start end)
-  "Put the region START..END behind whatever the shell is running.
+(defun overblock-run--enqueue (entries)
+  "Put the queue ENTRIES behind whatever the shell is running.
 Point comes back here when the queue ends, unless a pass has set its
 home already."
   (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
     (overblock-run--home-set (point-marker)))
-  (overblock-run--queue-set (append (overblock-run--queued)
-                                    (list (cons (copy-marker start)
-                                                (copy-marker end t)))))
-  (message "%s: queued behind the running %s"
-           (overblock-run--name) (overblock-run--unit)))
+  (overblock-run--queue-set (append (overblock-run--queued) entries))
+  (message "%s: %s queued behind the running %s"
+           (overblock-run--name)
+           (if (cdr entries)
+               (format "%d %s" (length entries) (overblock-run--unit t))
+             (concat "this " (overblock-run--unit)))
+           (overblock-run--unit)))
 
 (defun overblock-run--sender (beg fin)
   "Return a thunk that sends BEG..FIN once the interpreter has prompted.
