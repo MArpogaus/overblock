@@ -533,8 +533,8 @@ notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
 scrolls. A single region does not start the scrolling, also when it
 waits on the queue. One that joins a scrolling pass goes with it, and
-a pass that joins a waiting region or a stopped pass of its own
-notebook takes over its home, and scrolls.
+a pass that joins a waiting region or a pass that no longer scrolls,
+in its own notebook, takes over its home, and scrolls.
 
 At its end, the pass says =NAME: done=, with the =:name= of the
 backend. A failed region ends the pass with =NAME: stopped at error=.

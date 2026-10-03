@@ -525,9 +525,9 @@ The command hooks go with the last notebook that scrolls."
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
 (defun overblock-run--scroll-to (m)
-  "Put every window that shows this notebook at M, and point too.
-Not while a minibuffer is open: its exit gives the windows back as
-they were, which would read as a scroll of the reader.  The next
+  "Put point at M, and every window that shows this notebook there too.
+The windows stay while a minibuffer is open: its exit gives them back
+as they were, which would read as a scroll of the reader.  The next
 region catches up."
   (goto-char m)
   (unless (> (minibuffer-depth) 0)
@@ -931,7 +931,8 @@ A pair of markers is a region the reader sent, and goes as it is; a
 marker alone is where the `:step' of the backend decides what runs.
 
 While the pass scrolls, the region goes to the top of every window that
-shows the notebook, so the code that runs is visible, and
+shows the notebook (see `overblock-run--scroll-to'), so the code that
+runs is visible, and
 `overblock-run-go-home' gives point back when the pass ends.  Where it
 does not scroll, point and the windows stay as they are."
   (if (memq (current-buffer) overblock-run--scrolled)
@@ -1044,7 +1045,8 @@ a restart.  A process that died leaves nothing to wait for."
 Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  The home is set here where
 none is set.  A pass takes over the home of its notebook where that
-notebook does not scroll, as after a waiting region or a stopped pass.
+notebook does not scroll, as after a waiting region or a pass that no
+longer scrolls.
 Then the pass scrolls.
 Point comes back to the home where the pass scrolled to its end (see
 `overblock-run-go-home')."
@@ -1053,8 +1055,7 @@ Point comes back to the home where the pass scrolled to its end (see
   (overblock-run--scroll-check)
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
     (when (or (not home)
-              (and overblock-run-scroll
-                   (eq (marker-buffer home) (current-buffer))
+              (and (eq (marker-buffer home) (current-buffer))
                    (not (memq (current-buffer) overblock-run--scrolled))))
       (overblock-run--home-set (point-marker))))
   (overblock-run--queue-set (append (overblock-run--queued) entries))
