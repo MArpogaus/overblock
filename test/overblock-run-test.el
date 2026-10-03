@@ -242,15 +242,6 @@ this test runs them."
         (overblock-run-restart "runtest: restarting" #'ignore))
       (should-not overblock-run--home)
       (should-not (memq notebook overblock-run--scrolled))
-      ;; A shell that has not prompted yet is fresh: it is not started
-      ;; again.
-      (with-current-buffer shell (setq-local overblock-run--armed proc))
-      (setq restarted nil)
-      (with-current-buffer notebook
-        (overblock-run-restart "runtest: restarting"
-                               (lambda (_) (setq restarted t))))
-      (should-not restarted)
-      (with-current-buffer shell (setq overblock-run--armed nil))
       ;; A backend that can arm waits for the first prompt again.
       (with-current-buffer notebook
         (setq-local overblock-run-backend

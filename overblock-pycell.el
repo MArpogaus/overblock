@@ -997,15 +997,18 @@ the cells after it plain."
   (overblock-run-restart
    "The interpreter was restarted"
    (lambda (proc)
-     ;; `python-shell-restart' needs a shell.
-     (if (not proc)
-         (overblock-pycell--start)
-       (python-shell-restart)
-       ;; The `save-excursion' of `python-shell-make-comint' leaves point
-       ;; in the shell before what the restart inserted, and the
-       ;; first-prompt filter of python.el then signals: the first
-       ;; prompt, and the pass armed on it, never come.
-       (with-current-buffer (process-buffer proc)
+     ;; Not `python-shell-restart': it waits for the last output of the
+     ;; process it killed, and a shell that had not prompted yet sends
+     ;; its first prompt into that wait.  The setup of python.el then
+     ;; waits for ever on the dead process.  The process goes at once,
+     ;; and a new one starts in the same buffer.
+     (when proc (delete-process proc))
+     (overblock-pycell--start)
+     ;; The first-prompt filter of python.el searches back from point;
+     ;; point left before the new output makes it signal, and the first
+     ;; prompt, with the pass armed on it, never comes.
+     (when-let* ((new (python-shell-get-process)))
+       (with-current-buffer (process-buffer new)
          (goto-char (point-max)))))))
 
 (defun overblock-pycell--cell-starts ()

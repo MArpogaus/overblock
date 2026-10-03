@@ -298,9 +298,7 @@ would otherwise keep a frozen running header.
 
 RESTART is called with the old process, or nil where there was none,
 and starts the new interpreter, which is the job of the notebook.  A
-region asked for before its first prompt waits for it.  A shell that
-has not prompted yet is fresh, and is not started again: python.el
-does not stop waiting on a shell killed before its first prompt."
+region asked for before its first prompt waits for it."
   (let ((proc (overblock-run--call :process)))
     (when proc
       (with-current-buffer (process-buffer proc)
@@ -308,9 +306,7 @@ does not stop waiting on a shell killed before its first prompt."
     (overblock-run--queue-set nil)
     (overblock-run--home-set nil)
     (overblock-run-clear-results)
-    (unless (and proc (eq proc (buffer-local-value 'overblock-run--armed
-                                                   (process-buffer proc))))
-      (funcall restart proc))
+    (funcall restart proc)
     (overblock-run--arm)))
 
 ;;;###autoload
@@ -971,8 +967,7 @@ For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
 once, however often this is called before its prompt, and a stop
 keeps the wait: a region sent before the prompt would get the start-up
-banner.  A restart leaves such a shell as it is; only the end of its
-process, such as killing its buffer, ends the wait.  A
+banner.  A restart ends a wait for a prompt that never comes.  A
 backend with no `:arm' has a shell that prompts at once, and nothing
 waits."
   (when-let* (((plist-get overblock-run-backend :arm))
