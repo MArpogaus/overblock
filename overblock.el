@@ -1429,15 +1429,21 @@ A keymap depends only on the command, and the header of a running
 result is built five times a second.")
 
 (defvar overblock--pressed nil
-  "What the press of a button said, for its release to say again.")
+  "Non-nil where the press of a button said something.")
 
 (defun overblock--release ()
-  "Say again what the press of a button said.
-Reading the release clears the echo area."
+  "Say again the last message, where the press of a button said one.
+Reading the release clears the echo area.  The last message is the one
+of the press, or one logged since, such as the end of a short pass."
   (interactive)
   (when overblock--pressed
-    (let ((message-log-max nil))
-      (message "%s" overblock--pressed)))
+    (let ((last (with-current-buffer (messages-buffer)
+                  (save-excursion
+                    (goto-char (point-max))
+                    (buffer-substring-no-properties
+                     (line-beginning-position 0) (line-end-position 0)))))
+          (message-log-max nil))
+      (message "%s" last)))
   (setq overblock--pressed nil))
 
 (defun overblock-button (label help command)

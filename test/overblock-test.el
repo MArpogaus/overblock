@@ -452,11 +452,26 @@ The press runs the command and keeps its message; the release shows it."
               ((symbol-function 'current-message) (lambda () "queued")))
       (call-interactively press))
     (should (eq said 'pressed))
-    (let (shown)
-      (cl-letf (((symbol-function 'message)
-                 (lambda (_format text) (setq shown text))))
-        (call-interactively (keymap-lookup map "<mouse-1>")))
-      (should (equal shown "queued")))))
+    (cl-flet ((log (text)
+                (with-current-buffer (messages-buffer)
+                  (let ((inhibit-read-only t))
+                    (goto-char (point-max))
+                    (insert text "\n"))))
+              (release ()
+                (let (shown)
+                  (cl-letf (((symbol-function 'message)
+                             (lambda (_format text) (setq shown text))))
+                    (call-interactively (keymap-lookup map "<mouse-1>")))
+                  shown)))
+      (log "queued")
+      (should (equal (release) "queued"))
+      ;; A message logged since the press, the end of a short pass,
+      ;; wins.
+      (setq overblock--pressed "queued")
+      (log "done")
+      (should (equal (release) "done"))
+      ;; A press that said nothing has nothing said again.
+      (should-not (release)))))
 
 (ert-deftest overblock-test-a-button-row-is-kept-per-display ()
   "The row a display draws is not the row another display draws.
