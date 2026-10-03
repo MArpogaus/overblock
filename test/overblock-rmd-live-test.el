@@ -235,7 +235,8 @@ Point comes back to where the second chunk was asked for."
     (goto-char (point-max))
     (pcase-let ((`(,_open ,beg ,end) (cadr (overblock-rmd-chunks))))
       (overblock-run-region beg end)
-      (should (equal (mapcar #'marker-position (overblock-run--queued))
+      (should (equal (mapcar (lambda (region) (marker-position (car region)))
+                             (overblock-run--queued))
                      (list beg))))
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
