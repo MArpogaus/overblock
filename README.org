@@ -669,7 +669,7 @@ These limits apply to each package, unless a limit names one.
 For the two notebooks:
 
 - One region runs at a time for each interpreter. A region sent while
-  another runs waits in the queue.
+  another runs, or while the interpreter starts, waits in the queue.
 - A table in a result is a copy with the columns as plain text. Thus
   the header can stand one column left of its data, and you cannot
   sort the copy. Sort the table in the buffer of

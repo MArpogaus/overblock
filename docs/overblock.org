@@ -487,7 +487,6 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-region=         | run one region, and start the shell where there is none      |
 | =overblock-run-cells=          | run several regions in order, to the first error             |
 | =overblock-run-on-prompt=      | run such a pass when a new shell prompts                     |
-| =overblock-run-arm=            | run the queue on the first prompt of a new shell             |
 | =overblock-run-next=           | run the next region of the queue                             |
 | =overblock-run-shell=          | the buffer that holds the queue and the run state            |
 | =overblock-run-running-region= | the region that runs now                                     |
@@ -531,7 +530,8 @@ redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
-scrolls. At its end, the pass says =NAME: done=, with the =:name= of
+scrolls. A single region never scrolls, also when it waits on the
+queue. At its end, the pass says =NAME: done=, with the =:name= of
 the backend. A failed region ends the pass with =NAME: stopped at
 error=. A single region sent to a free shell says neither message. A
 region that waited on the queue, behind a busy shell or a starting
