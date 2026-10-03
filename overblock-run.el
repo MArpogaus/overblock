@@ -1094,9 +1094,12 @@ pass scrolled to its end (see `overblock-run-go-home')."
   (overblock-run--queue-set (append (overblock-run--queued) entries))
   (message "%s: %s queued"
            (overblock-run--name)
-           (if (cdr entries)
-               (format "%d %s" (length entries) (overblock-run--unit t))
-             (concat "this " (overblock-run--unit)))))
+           ;; A region is a pair of markers; the cells of a pass are not
+           ;; the one at point, so they are counted.
+           (if (consp (car entries))
+               (concat "this " (overblock-run--unit))
+             (format "%d %s" (length entries)
+                     (overblock-run--unit (cdr entries))))))
 
 ;;;; The notebook and its commands
 

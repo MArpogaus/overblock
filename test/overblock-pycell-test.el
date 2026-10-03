@@ -1676,6 +1676,12 @@ for at once starts where the first one did."
             (overblock-run-cells (list (copy-marker 1) (copy-marker 13)) "running")
             (should (equal (mapcar #'marker-position (overblock-run--queued))
                            '(13 1 13)))
+            ;; One cell of a pass is not the one at point: it is counted.
+            (let (said)
+              (cl-letf (((symbol-function 'message)
+                         (lambda (&rest args) (setq said (apply #'format args)))))
+                (overblock-run-cells (list (copy-marker 1)) "running"))
+              (should (string-match-p "1 cell queued" said)))
             (should (buffer-local-value 'overblock-run--home shell)))
         (kill-buffer shell)))))
 
