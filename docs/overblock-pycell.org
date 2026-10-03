@@ -125,10 +125,11 @@ output. A shell that has not prompted yet sends its first prompt into
 that wait, and the setup of python.el then waits on the dead process
 until =C-g=. Thus =overblock-pycell-restart= deletes the process at
 once, and =python-shell-make-comint= starts a new one in the same
-buffer, with the command of the shell and under its name. Thus a
-command typed with =C-u C-c C-p= and a shell dedicated by hand stay.
-Where the interpreter had died, =run-python= starts a new one with the
-command of the notebook.
+buffer, under its name, so a shell dedicated by hand stays so. The
+command is the one of the notebook, also where the interpreter had
+died: an environment switched in the notebook takes effect at the
+restart. A command typed with =C-u C-c C-p= does not survive it;
+python.el keeps no sign of which command was typed.
 
 The first-prompt filter of python.el needs point at the end of the
 shell buffer. =comint-exec= puts it there, and each window of the

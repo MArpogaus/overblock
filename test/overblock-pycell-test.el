@@ -653,9 +653,9 @@ A cell sent before that prompt would get the start-up banner."
   "A restart deletes the process at once and starts a new one in its buffer.
 `python-shell-restart' waits for the last output of the process, and a
 shell that had not prompted yet freezes Emacs in that wait.  The new
-one takes the command of the shell and the name of its buffer, so a
-command typed with a prefix to `run-python' and a dedication by hand
-stay.  A window that shows the shell scrolled up goes to its end, also
+one takes the command of the notebook, so a switch of its environment
+takes effect, and the name of the buffer, so a dedication by hand
+stays.  A window that shows the shell scrolled up goes to its end, also
 where the old interpreter had died."
   (let* ((shell (generate-new-buffer "*Python[nb.py]*"))
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
@@ -682,16 +682,17 @@ where the old interpreter had died."
                                     :noquery t :filter #'ignore)))))
               (with-current-buffer shell
                 (setq major-mode 'inferior-python-mode)
-                (setq-local python-shell-interpreter "typed-ipython")
+                (setq-local python-shell-interpreter "old-ipython")
                 (insert "Python 3\n>>> x\n>>> "))
               (let ((window (split-window)))
                 (set-window-buffer window shell)
                 (set-window-point window 1)
+                (setq-local python-shell-interpreter "switched-ipython")
                 (overblock-pycell-restart)
                 (should (= (window-point window)
                            (with-current-buffer shell (point-max))))
                 (should-not (process-live-p proc))
-                (should (string-prefix-p "typed-ipython" (car started)))
+                (should (string-prefix-p "switched-ipython" (car started)))
                 (should (equal (cadr started) "Python[nb.py]"))
                 ;; The interpreter died: the restart starts one, and the
                 ;; window goes to the end all the same.

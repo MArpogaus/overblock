@@ -1001,12 +1001,13 @@ the cells after it plain."
      ;; restart" in docs/overblock-pycell.org.
      (if (not proc)
          (overblock-pycell--start)
-       (let* ((buffer (process-buffer proc))
-              (command (with-current-buffer buffer
-                         (python-shell-calculate-command))))
+       ;; The command of the notebook: a switch of its environment
+       ;; takes effect at the restart.
+       (let ((buffer (process-buffer proc)))
          (delete-process proc)
-         (python-shell-make-comint command (string-trim (buffer-name buffer)
-                                                        "\\*" "\\*"))))
+         (python-shell-make-comint (python-shell-calculate-command)
+                                   (string-trim (buffer-name buffer)
+                                                "\\*" "\\*"))))
      ;; A window that shows the shell scrolled up gives its point back
      ;; to the buffer at the next redisplay, before the new output, and
      ;; the first-prompt filter of python.el then signals: the pass
