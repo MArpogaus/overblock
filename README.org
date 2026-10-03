@@ -445,7 +445,7 @@ The Markdown features are those of
 |----------------------------------------+--------------------------------------------------------------------------------|
 | =overblock-pycell-mode=                | turn the mode on or off for a buffer                                           |
 | =overblock-pycell-mode-maybe=          | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
-| =overblock-pycell-restart=             | restart the interpreter, and remove the results                                |
+| =overblock-pycell-restart=             | restart with the environment of the notebook, and remove the results           |
 | =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                                           |
 | =overblock-run-above=                  | run each cell above this one                                                   |
 | =overblock-run-below=                  | run this cell and each cell below it                                           |
