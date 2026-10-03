@@ -769,7 +769,7 @@ second time.  `overblock-run-abort' checks the same."
       (overblock-run--follow-tick)
       (setq overblock-run--state nil)
       (cancel-timer timer)
-      ;; Else the next single cell takes point to the old home.
+      ;; Else the next single region says done.
       (when died
         (setq overblock-run--queue nil)
         (overblock-run--home-drop))
