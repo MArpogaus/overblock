@@ -487,7 +487,9 @@ windows stay where the reader put them."
       (with-current-buffer (marker-buffer home)
         (when (memq (current-buffer) overblock-run--scrolled)
           (goto-char home)
-          (overblock-run--view-give-back home))
+          (if (> (minibuffer-depth) 0)
+              (overblock-run--view-give-back-later home)
+            (overblock-run--view-give-back home)))
         (overblock-run--scroll-stop)))
     (set-marker home nil)))
 
@@ -524,6 +526,27 @@ The command hooks go with the last notebook that scrolls."
         (progn (set-window-start window (car view) t)
                (set-window-point window (cdr view)))
       (set-window-point window home))))
+
+(defun overblock-run--view-give-back-later (home)
+  "Give the view back to HOME once no minibuffer is open.
+The exit of a minibuffer gives the windows back as they were when it
+opened, which would undo the view given back before."
+  (let ((buffer (current-buffer))
+        (view overblock-run--view)
+        (home (copy-marker home)))
+    ;; The markers are this function's now: the stop frees nothing.
+    (setq overblock-run--view nil)
+    (letrec ((later
+              (lambda ()
+                (when (zerop (minibuffer-depth))
+                  (remove-hook 'post-command-hook later)
+                  (when (buffer-live-p buffer)
+                    (with-current-buffer buffer
+                      (let ((overblock-run--view view))
+                        (overblock-run--view-give-back home)
+                        (overblock-run--view-free))))
+                  (set-marker home nil)))))
+      (add-hook 'post-command-hook later))))
 
 (defun overblock-run--view-free ()
   "Free the markers of `overblock-run--view', and forget it."

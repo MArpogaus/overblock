@@ -1631,6 +1631,17 @@ for at once starts where the first one did."
               (funcall stop)
               (should (= (window-start window) (point-min)))
               (should (= (point) (+ (point-min) 2))))
+            ;; A pass that ends while a minibuffer is open gives the view
+            ;; back after it closed: its exit would undo the view.
+            (overblock-run--home-set (point-marker))
+            (overblock-run--scroll-to two)
+            (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
+              (overblock-run-go-home)
+              (should (= (window-start window) two))
+              (run-hooks 'post-command-hook)
+              (should (= (window-start window) two)))
+            (run-hooks 'post-command-hook)
+            (should (= (window-start window) (point-min)))
             ;; A second window on another part keeps its own view.
             (let ((other (split-window window))
                   (three (save-excursion (goto-char (point-max))
