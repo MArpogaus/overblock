@@ -412,11 +412,12 @@ that ends with done, and scrolled to its end, puts point and the view
 back where you asked for it. A failed cell leaves them on that cell.
 The interrupt button leaves the view where it is. A key you press in
 the notebook during a pass, a stop key too, gives point and the view
-back and acts there, not at the cell that runs. A scroll or a click
-moves on from the view you see. Each stops the scrolling. A cell you
-ask for while another runs, or while the interpreter starts, waits its
-turn. The echo area then says =overblock-pycell: this cell queued=, or
-=N cells queued= for a pass, which counts its markdown cells too.
+back and acts there, not at the cell that runs. A scroll or a click in
+the notebook moves on from the view you see, and stops the scrolling.
+A cell you ask for while another runs, or while the interpreter
+starts, waits its turn. The echo area then says =overblock-pycell:
+this cell queued=, or =N cells queued= for a pass, which counts its
+markdown cells too.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
