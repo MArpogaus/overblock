@@ -99,7 +99,7 @@ These options apply to every package of the repository.
 | =overblock-live-idle=           |     0.2 | the seconds of quiet before a mode renders again |
 | =overblock-run-max-lines=       |      12 | the result lines that show inline                |
 | =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
-| =overblock-run-scroll=          |       t | a pass scrolls until you press a key or click    |
+| =overblock-run-scroll=          |       t | a pass scrolls until you type, scroll or click   |
 
 A block that is taller than the window stops the wheel. Thus
 =overblock-image-height= caps an inline image. Zero shows an image at
