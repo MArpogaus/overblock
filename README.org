@@ -412,8 +412,8 @@ that ends with done, and scrolled to its end, puts point and the view
 back where you asked for it. A failed cell leaves them on that cell. A
 stop or an interrupt leaves them where they are. A cell you ask for
 while another runs, or while the interpreter starts, waits its turn,
-and the echo area says =overblock-pycell: this cell queued=, or =N
-cells queued= for a pass, which counts its markdown cells too.
+and the echo area says =overblock-pycell: this cell queued=, or
+=N cells queued= for a pass, which counts its markdown cells too.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
