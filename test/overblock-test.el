@@ -436,6 +436,10 @@ invisible."
                                   (overlays-in (point-min) (point-max)))))
       (overblock-live-stop 'probe))))
 
+(defun overblock-test--said ()
+  "A button command for the tests; each test stubs it."
+  (interactive))
+
 (ert-deftest overblock-test-a-button-release-says-again-what-its-press-said ()
   "Reading the release of a click clears the echo area, so it says again.
 The press runs the command and keeps its message; the release shows it."
