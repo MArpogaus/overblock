@@ -1642,6 +1642,30 @@ for at once starts where the first one did."
               (should (= (window-start window) two)))
             (run-hooks 'post-command-hook)
             (should (= (window-start window) (point-min)))
+            ;; Where the command of that minibuffer moved the window, as a
+            ;; jump to a line does, the window keeps where it went.
+            (overblock-run--home-set (point-marker))
+            (overblock-run--scroll-to two)
+            (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
+              (overblock-run-go-home))
+            (set-window-start window (point-max))
+            (run-hooks 'post-command-hook)
+            (should (= (window-start window) (point-max)))
+            ;; A preview in the minibuffer moves the window to the line
+            ;; the jump then goes to: the jump stays all the same.
+            (set-window-start window (point-min))
+            (overblock-run--home-set (point-marker))
+            (overblock-run--scroll-to two)
+            (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
+              (overblock-run-go-home)
+              ;; The preview moves it from a timer, then a key is typed.
+              (set-window-start window (point-max))
+              (run-hooks 'pre-command-hook 'post-command-hook)
+              (run-hooks 'pre-command-hook))
+            ;; The minibuffer closed, and the jump went where the preview
+            ;; was.
+            (run-hooks 'post-command-hook)
+            (should (= (window-start window) (point-max)))
             ;; A second window on another part keeps its own view.
             (let ((other (split-window window))
                   (three (save-excursion (goto-char (point-max))

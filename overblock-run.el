@@ -169,6 +169,13 @@ then leaves point and the windows alone.  Nil never scrolls."
 An alist of (WINDOW START . POINT), markers: `overblock-run-go-home'
 gives each window its view back.")
 
+(defvar-local overblock-run--placed nil
+  "Where the pass of this notebook last put its windows, or nil.")
+
+(defvar-local overblock-run--home-later nil
+  "The home of a pass that ended under an open minibuffer, or nil.
+`overblock-run--scroll-check' gives the view back once none is open.")
+
 (defvar overblock-run--scrolled nil
   "The notebooks whose pass scrolls to its regions.")
 
@@ -486,11 +493,13 @@ windows stay where the reader put them."
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
         (when (memq (current-buffer) overblock-run--scrolled)
-          (goto-char home)
           (if (> (minibuffer-depth) 0)
-              (overblock-run--view-give-back-later home)
+              ;; Its exit gives the windows back as they were: the view
+              ;; comes back after it closed, where the reader moved none.
+              (setq overblock-run--home-later (copy-marker home))
+            (goto-char home)
             (overblock-run--view-give-back home)))
-        (overblock-run--scroll-stop)))
+        (unless overblock-run--home-later (overblock-run--scroll-stop))))
     (set-marker home nil)))
 
 (defun overblock-run--scroll-start ()
@@ -527,33 +536,26 @@ The command hooks go with the last notebook that scrolls."
                (set-window-point window (cdr view)))
       (set-window-point window home))))
 
-(defun overblock-run--view-give-back-later (home)
-  "Give the view back to HOME once no minibuffer is open.
-The exit of a minibuffer gives the windows back as they were when it
-opened, which would undo the view given back before."
-  (let ((buffer (current-buffer))
-        (view overblock-run--view)
-        (home (copy-marker home)))
-    ;; The markers are this function's now: the stop frees nothing.
-    (setq overblock-run--view nil)
-    (letrec ((later
-              (lambda ()
-                (when (zerop (minibuffer-depth))
-                  (remove-hook 'post-command-hook later)
-                  (when (buffer-live-p buffer)
-                    (with-current-buffer buffer
-                      (let ((overblock-run--view view))
-                        (overblock-run--view-give-back home)
-                        (overblock-run--view-free))))
-                  (set-marker home nil)))))
-      (add-hook 'post-command-hook later))))
+(defun overblock-run--view-untouched-p ()
+  "Non-nil where each window of this notebook starts where the pass put it.
+Before the pass moved any, that is where each started."
+  (seq-every-p (lambda (window)
+                 (eql (window-start window)
+                      (or overblock-run--placed
+                          (when-let* ((view (alist-get window overblock-run--view)))
+                            (marker-position (car view))))))
+               (get-buffer-window-list nil nil t)))
 
 (defun overblock-run--view-free ()
   "Free the markers of `overblock-run--view', and forget it."
   (dolist (view overblock-run--view)
     (set-marker (cadr view) nil)
     (set-marker (cddr view) nil))
-  (setq overblock-run--view nil))
+  (setq overblock-run--view nil
+        overblock-run--placed nil)
+  (when overblock-run--home-later
+    (set-marker overblock-run--home-later nil)
+    (setq overblock-run--home-later nil)))
 
 (defun overblock-run--scroll-windows ()
   "Return (WINDOW START VSCROLL POINT) for each window of a scrolling notebook."
@@ -576,6 +578,18 @@ opened, which would undo the view given back before."
       (when (and before (not (equal before now)))
         (with-current-buffer (window-buffer (car now))
           (overblock-run--scroll-stop)))))
+  ;; A pass that ended under a minibuffer, which is closed now, and no
+  ;; window moved: the view comes back.
+  (when (zerop (minibuffer-depth))
+    (dolist (buffer (copy-sequence overblock-run--scrolled))
+      (with-current-buffer buffer
+        (when-let* ((home overblock-run--home-later))
+          ;; The exit gives the windows back where the pass put them;
+          ;; anywhere else, the command of the minibuffer moved them.
+          (when (overblock-run--view-untouched-p)
+            (goto-char home)
+            (overblock-run--view-give-back home))
+          (overblock-run--scroll-stop)))))
   ;; A notebook killed while it scrolls takes no stop with it.
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
@@ -588,7 +602,8 @@ region catches up."
   (unless (> (minibuffer-depth) 0)
     (dolist (window (get-buffer-window-list nil nil t))
       (set-window-point window m)
-      (set-window-start window m)))
+      (set-window-start window m))
+    (setq overblock-run--placed (marker-position m)))
   ;; The pass moved them, not the reader, also inside a command.
   (overblock-run--scroll-see))
 
@@ -601,7 +616,8 @@ adjusts every marker of the shell on every insertion."
     (with-current-buffer shell
       (overblock-run--home-drop)
       (setq overblock-run--home marker)
-      ;; Also a shell that never ran a region, such as one that starts.
+      ;; Also for a shell that did not run a region yet, such as one that
+      ;; starts.
       (add-hook 'kill-buffer-hook #'overblock-run--home-drop nil t))
     (when marker
       (with-current-buffer (marker-buffer marker)
