@@ -530,11 +530,11 @@ redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
-scrolls. At its end, the pass says =NAME: done=,
-with the =:name= of the backend. A failed region ends the pass with
-=NAME: stopped at error=. A single region that is not part of a pass
-says neither. The home marker is in the shell
-buffer too, and is set when the shell exists.
+scrolls. At its end, the pass says =NAME: done=, with the =:name= of
+the backend. A failed region ends the pass with =NAME: stopped at
+error=. A single region that is not part of a pass says neither. The
+home marker is in the shell buffer too, and is set when the shell
+exists.
 
 A region sent while the shell is busy waits in the queue, and runs as
 it was sent. A pass asked for while the shell is busy goes behind the
