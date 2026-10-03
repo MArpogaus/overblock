@@ -534,9 +534,9 @@ were when the minibuffer opened. While a minibuffer is open, a step
 moves neither point nor the windows, and the next region catches up.
 With the option nil, a pass never scrolls. A single region does not
 start the scrolling, also when it waits on the queue. A region that
-joins a scrolling pass goes with it. A pass or a region that joins a
-waiting region or a pass that no longer scrolls, in its own notebook,
-takes over the home, and a pass scrolls.
+joins a scrolling pass goes with it. A pass or a region can join a
+region that waits, or a pass that no longer scrolls. Where that home
+is in its own notebook, it takes the home over. Then a pass scrolls.
 
 Before each key of the reader, point and the view go back to the home,
 so the key acts where the reader was and not at the region that runs.
