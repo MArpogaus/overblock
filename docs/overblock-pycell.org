@@ -122,14 +122,18 @@ typing before the marker is not typing inside the bar.
 
 =python-shell-restart= kills the process and waits for its last
 output. A shell that has not prompted yet sends its first prompt into
-that wait, and the setup of python.el then never stops waiting on the dead
-process: Emacs freezes until =C-g=. Thus =overblock-pycell-restart=
-deletes the process at once, and =python-shell-make-comint= starts a
-new one in the same buffer, under its name, so a shell dedicated by
-hand stays so. The first-prompt filter of python.el needs point at the
-end of that buffer. =comint-exec= puts it there, and each window of the
-shell goes there too: a window scrolled up would give its point back
-at the next redisplay.
+that wait, and the setup of python.el then waits on the dead process
+until =C-g=. Thus =overblock-pycell-restart= deletes the process at
+once, and =python-shell-make-comint= starts a new one in the same
+buffer, with the command of the shell and under its name. Thus a
+command typed with =C-u C-c C-p= and a shell dedicated by hand stay.
+Where the interpreter had died, =run-python= starts a new one with the
+command of the notebook.
+
+The first-prompt filter of python.el needs point at the end of the
+shell buffer. =comint-exec= puts it there, and each window of the
+shell goes there too, also where the interpreter had died: a window
+scrolled up would give its point back at the next redisplay.
 
 * Moving a cell
 

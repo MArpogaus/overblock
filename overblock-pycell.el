@@ -999,9 +999,6 @@ the cells after it plain."
    (lambda (proc)
      ;; Not `python-shell-restart', which can freeze Emacs: see "The
      ;; restart" in docs/overblock-pycell.org.
-     ;; The command comes from the shell, which keeps one typed with
-     ;; C-u C-c C-p, and the name from its buffer, which keeps one
-     ;; dedicated by hand.
      (if (not proc)
          (overblock-pycell--start)
        (let* ((buffer (process-buffer proc))

@@ -285,9 +285,10 @@ the last glyph of the bar, and the label follows what is written on the
 line. Folding works from there.
 
 The commands are on =<down-mouse-1>=. Thus the press runs the command
-before a redraw can change what is under the pointer. Reading the
-release clears the echo area, so =<mouse-1>= and =<drag-mouse-1>= say
-the newest message again where the command said one.
+before a redraw can change what is under the pointer. When Emacs reads
+the release, it clears the echo area, so =<mouse-1>= and
+=<drag-mouse-1>= say the newest message again where the command said
+one.
 
 ** The width a bar is cut to
 

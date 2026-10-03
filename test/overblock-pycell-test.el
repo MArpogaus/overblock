@@ -655,9 +655,8 @@ A cell sent before that prompt would get the start-up banner."
 shell that had not prompted yet freezes Emacs in that wait.  The new
 one takes the command of the shell and the name of its buffer, so a
 command typed with a prefix to `run-python' and a dedication by hand
-stay.  A window
-that shows the shell scrolled up goes to its end, also where the old
-interpreter had died."
+stay.  A window that shows the shell scrolled up goes to its end, also
+where the old interpreter had died."
   (let* ((shell (generate-new-buffer "*Python[nb.py]*"))
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
