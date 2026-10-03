@@ -997,12 +997,8 @@ the cells after it plain."
   (overblock-run-restart
    "The interpreter was restarted"
    (lambda (proc)
-     ;; Not `python-shell-restart': it waits for the last output of the
-     ;; process it killed, and a shell that had not prompted yet sends
-     ;; its first prompt into that wait. The setup of python.el then
-     ;; waits for ever on the dead process. The process goes at once,
-     ;; and a new one starts in the same buffer, under its own name: a
-     ;; shell dedicated by hand keeps its dedication.
+     ;; Not `python-shell-restart', which can freeze Emacs: see "The
+     ;; restart" in docs/overblock-pycell.org.
      (if (not proc)
          (overblock-pycell--start)
        (let ((buffer (process-buffer proc)))

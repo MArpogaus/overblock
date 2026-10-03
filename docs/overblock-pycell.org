@@ -122,7 +122,7 @@ typing before the marker is not typing inside the bar.
 
 =python-shell-restart= kills the process and waits for its last
 output. A shell that has not prompted yet sends its first prompt into
-that wait, and the setup of python.el then waits for ever on the dead
+that wait, and the setup of python.el then never stops waiting on the dead
 process: Emacs freezes until =C-g=. Thus =overblock-pycell-restart=
 deletes the process at once, and =python-shell-make-comint= starts a
 new one in the same buffer, under its name, so a shell dedicated by
