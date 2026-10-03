@@ -525,11 +525,15 @@ The command hooks go with the last notebook that scrolls."
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
 (defun overblock-run--scroll-to (m)
-  "Put every window that shows this notebook at M, and point too."
+  "Put every window that shows this notebook at M, and point too.
+Not while a minibuffer is open: its exit gives the windows back as
+they were, which would read as a scroll of the reader.  The next
+region catches up."
   (goto-char m)
-  (dolist (window (get-buffer-window-list nil nil t))
-    (set-window-point window m)
-    (set-window-start window m))
+  (unless (> (minibuffer-depth) 0)
+    (dolist (window (get-buffer-window-list nil nil t))
+      (set-window-point window m)
+      (set-window-start window m)))
   ;; The pass moved them, not the reader, also inside a command.
   (overblock-run--scroll-see))
 

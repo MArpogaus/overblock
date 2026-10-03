@@ -1488,6 +1488,20 @@ The cell set the home and does not scroll; the pass that joins it does."
         (overblock-run--scroll-stop)
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-pass-leaves-the-windows-to-an-open-minibuffer ()
+  "A pass does not move a window while a minibuffer is open.
+Its exit restores the windows, which would read as a scroll."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((window (get-buffer-window))
+          (two (save-excursion (goto-char (point-max))
+                               (code-cells-backward-cell) (point-marker))))
+      (set-window-start window (point-min))
+      (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
+        (overblock-run--scroll-to two))
+      (should (= (window-start window) (point-min)))
+      (overblock-run--scroll-to two)
+      (should (= (window-start window) two)))))
+
 (ert-deftest overblock-pycell-test-a-move-in-the-starting-command-stops-the-scroll ()
   "A command that starts a pass and then moves point stops the scrolling.
 The command began before the scrolling did, so the windows are noted
