@@ -1042,14 +1042,16 @@ a restart.  A process that died leaves nothing to wait for."
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
 Each request queues what it asks for, as in Jupyter: a region asked
-for twice runs twice, in the order asked.  The home is set here,
-unless one is set already; a pass takes a home in its notebook over,
-and scrolls.  Point comes back to the home where the pass scrolled to
-its end (see `overblock-run-go-home')."
+for twice runs twice, in the order asked.  The home is set here where
+none is set.  A pass takes over a home of its notebook that does not
+scroll, the home of a waiting region or of a stopped pass, and scrolls.
+Point comes back to the home where the pass scrolled to its end (see
+`overblock-run-go-home')."
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
     (when (or (not home)
               (and overblock-run-scroll
-                   (eq (marker-buffer home) (current-buffer))))
+                   (eq (marker-buffer home) (current-buffer))
+                   (not (memq (current-buffer) overblock-run--scrolled))))
       (overblock-run--home-set (point-marker))))
   (overblock-run--queue-set (append (overblock-run--queued) entries))
   (message "%s: %s queued"
