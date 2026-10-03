@@ -582,7 +582,7 @@ the shell buffer would send its start-up banner as the cell."
                          (lambda (&rest _) (setq started t) shell)))
                 (overblock-pycell-eval-region beg end))
               ;; The cell waits for the first prompt of the shell, and a
-              ;; second one asked for meanwhile waits behind it.  One
+              ;; second one asked for meanwhile waits behind it. One
               ;; cell leaves the windows alone: nothing scrolls.
               (should (buffer-local-value 'python-shell-first-prompt-hook shell))
               (should-not (memq notebook overblock-run--scrolled))
@@ -594,7 +594,7 @@ the shell buffer would send its start-up banner as the cell."
                                  sent))))
                 (overblock-pycell-eval-region beg end)
                 (should-not sent)
-                ;; Let the prompt arrive.  Only what the package armed:
+                ;; Let the prompt arrive. Only what the package armed:
                 ;; the members of python.el talk to the interpreter,
                 ;; which here is a pipe that ignores them, and they
                 ;; would wait for ever on Emacs 29.
@@ -1466,7 +1466,7 @@ z = 3
             (should-not (overblock-run--busy-p)))
         (kill-buffer shell)))))
 
-(ert-deftest overblock-pycell-test-a-pass-started-by-a-move-does-not-scroll ()
+(ert-deftest overblock-pycell-test-a-move-in-the-starting-command-stops-the-scroll ()
   "A command that starts a pass and then moves point stops the scrolling.
 The command began before the scrolling did, so the windows are noted
 as the scrolling starts."

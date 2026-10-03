@@ -234,6 +234,12 @@ this test runs them."
       (should restarted)
       (should-not overblock-run--state)
       (should-not overblock-run--queue)
+      ;; A backend that can arm waits for the first prompt again.
+      (with-current-buffer notebook
+        (setq-local overblock-run-backend
+                    (append (list :arm #'ignore) overblock-run-backend))
+        (overblock-run-restart "runtest: restarting" #'ignore)
+        (should (overblock-run--busy-p)))
       ;; The result of the running region goes too.
       (should-not (overblock-run-test--result notebook)))))
 
