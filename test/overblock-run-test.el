@@ -131,16 +131,16 @@ The rest of a pass is dropped where one region failed."
     (overblock-run--filter "Error: no\n>>> ")
     (should-not overblock-run--queue)))
 
-;;;; The three ways a run dies
-
 (ert-deftest overblock-run-test-a-backend-with-no-arm-never-waits ()
   "Arming a shell whose backend cannot arm leaves it free."
   (overblock-run-test--with-run
     (cancel-timer (plist-get overblock-run--state :timer))
     (setq overblock-run--state nil)
     (with-current-buffer notebook
-      (overblock-run-arm)
+      (overblock-run--arm)
       (should-not (overblock-run--busy-p)))))
+
+;;;; The three ways a run dies
 
 (ert-deftest overblock-run-test-the-ticker-finds-a-dead-interpreter ()
   "The interpreter goes away under a running region and the ticker says so.

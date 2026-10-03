@@ -1006,9 +1006,7 @@ the cells after it plain."
        ;; first-prompt filter of python.el then signals: the first
        ;; prompt, and the pass armed on it, never come.
        (with-current-buffer (process-buffer proc)
-         (goto-char (point-max))))
-     ;; A cell asked for before the first prompt waits for it.
-     (overblock-run-arm))))
+         (goto-char (point-max)))))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.

@@ -1467,9 +1467,9 @@ z = 3
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-pass-started-by-a-move-does-not-scroll ()
-  "A command that queues a cell and then moves on stops the scrolling.
-Shift-Enter queues the cell behind a busy shell and steps to the next
-one, in one command that began before the scrolling did."
+  "A command that starts a pass and then moves point stops the scrolling.
+The command began before the scrolling did, so the windows are noted
+as the scrolling starts."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
     (run-hooks 'pre-command-hook)
     (overblock-run--scroll-start)

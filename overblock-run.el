@@ -296,14 +296,16 @@ its region can be in another buffer on the same shell, whose block
 would otherwise keep a frozen running header.
 
 RESTART is called with the old process, or nil where there was none,
-and starts the new interpreter, which is the job of the notebook."
+and starts the new interpreter, which is the job of the notebook.  A
+region asked for before its first prompt waits for it."
   (let ((proc (overblock-run--call :process)))
     (when proc
       (with-current-buffer (process-buffer proc)
         (overblock-run-abort reason)))
     (overblock-run--queue-set nil)
     (overblock-run-clear-results)
-    (funcall restart proc)))
+    (funcall restart proc)
+    (overblock-run--arm)))
 
 ;;;###autoload
 (defun overblock-run-clear-results ()
@@ -947,15 +949,15 @@ does not scroll, point and the windows stay as they are."
 For a shell that has not prompted yet: one just started or restarted.
 The `:arm' of the backend knows when it prompts.
 
-The queue is set after `:arm', which makes the shell buffer that holds
-the home and the queue.  A shell that signals here leaves nothing
-armed."
-  (overblock-run-arm)
+The queue is set after `overblock-run--arm', which makes the shell
+buffer that holds the home and the queue.  A shell that signals here
+leaves nothing armed."
+  (overblock-run--arm)
   (overblock-run--home-set (point-marker))
   (overblock-run--queue-set cells)
   (message "%s" message))
 
-(defun overblock-run-arm ()
+(defun overblock-run--arm ()
   "Run the queue on the first prompt of the shell, which is busy till then.
 For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
@@ -1013,24 +1015,20 @@ waits on the queue for its first prompt, so a second one waits behind."
   (overblock-run--must)
   ;; Markers here, in the notebook: the queue is in the shell, and
   ;; `copy-marker' of a number uses the current buffer.
-  (let ((region (lambda () (list (cons (copy-marker start) (copy-marker end t))))))
+  ;; One region leaves point and the windows alone; a pass it joins
+  ;; goes on as it was.
+  (let ((region (lambda () (list (cons (copy-marker start) (copy-marker end t)))))
+        (overblock-run-scroll nil))
     (cond
      ((overblock-run--busy-p)
-      (let ((pass (buffer-local-value 'overblock-run--home
-                                      (overblock-run-shell))))
-        (overblock-run--enqueue (funcall region))
-        ;; One region leaves point and the windows alone; a pass that
-        ;; it joins goes on as it was.
-        (unless pass (overblock-run--scroll-stop))))
+      (overblock-run--enqueue (funcall region)))
      ((when-let* ((proc (or (overblock-run--call :process)
                             (overblock-run--call :start))))
         (overblock-run--send proc start end)
         t))
      (t (overblock-run-on-prompt
          (funcall region)
-         (format "%s: starting the interpreter…" (overblock-run--name)))
-        ;; One region sent leaves point and the windows alone.
-        (overblock-run--scroll-stop)))))
+         (format "%s: starting the interpreter…" (overblock-run--name)))))))
 
 (defun overblock-run--busy-p ()
   "Non-nil where the shell runs a region, or a pass waits for its prompt.
