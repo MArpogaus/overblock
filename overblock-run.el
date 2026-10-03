@@ -1119,7 +1119,8 @@ pass scrolled to its end (see `overblock-run-go-home')."
   ;; stops now, not at the end of the command.
   (overblock-run--scroll-check)
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
-    (when (or (not home)
+    ;; A home whose notebook was killed is none.
+    (when (or (not (and home (marker-buffer home)))
               (and (eq (marker-buffer home) (current-buffer))
                    (not (memq (current-buffer) overblock-run--scrolled))))
       (overblock-run--home-set (point-marker))))
