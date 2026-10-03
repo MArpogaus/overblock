@@ -530,8 +530,8 @@ redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
-scrolls. A single region never scrolls, also when it waits on the
-queue. At its end, the pass says =NAME: done=, with the =:name= of
+scrolls. A single region does not start the scrolling, also when it
+waits on the queue; one that joins a scrolling pass goes with it. At its end, the pass says =NAME: done=, with the =:name= of
 the backend. A failed region ends the pass with =NAME: stopped at
 error=. A single region sent to a free shell says neither message. A
 region that waited on the queue, behind a busy shell or a starting
