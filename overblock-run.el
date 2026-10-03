@@ -164,13 +164,16 @@ never follows."
   :group 'overblock)
 
 (defvar-local overblock-run--following nil
-  "Where the pass of this notebook put each window, while it follows.
-A list of (WINDOW START POINT FRESH), non-nil while a pass follows its
-regions.  FRESH is non-nil until redisplay has shown the START the
-pass set: it can move that start, for a scroll margin or a rendering
-the start fell in, and the first start redisplay reports is taken as
-the pass's own.  A window whose start or point is then no longer where
-the pass put it was moved by the reader, and the following stops.")
+  "Non-nil while the pass of this notebook follows its regions.")
+
+(defvar overblock-run--followers nil
+  "The notebooks whose pass follows its regions.")
+
+(defvar overblock-run--seen nil
+  "How the windows of `overblock-run--followers' were before this command.
+A list of (WINDOW START VSCROLL POINT).  Only a command is the reader:
+redisplay moves a start for a scroll margin, and output arrives
+between commands, so neither stops the following.")
 
 (defvar-keymap overblock-run-result-map
   :doc "Keymap inside a region that shows a result, empty on purpose.
@@ -476,39 +479,50 @@ windows stay where the reader put them."
 (defun overblock-run--follow-start ()
   "Have the pass of this notebook follow its regions, where the option says."
   (when overblock-run-follow
-    (setq overblock-run--following (list t))
-    (add-hook 'window-scroll-functions #'overblock-run--follow-check nil t)
-    (add-hook 'post-command-hook #'overblock-run--follow-check nil t)))
+    (setq overblock-run--following t)
+    (add-to-list 'overblock-run--followers (current-buffer))
+    (add-hook 'pre-command-hook #'overblock-run--follow-see)
+    (add-hook 'post-command-hook #'overblock-run--follow-check)))
 
 (defun overblock-run--follow-stop ()
   "Stop the pass of this notebook from following its regions."
   (setq overblock-run--following nil)
-  (remove-hook 'window-scroll-functions #'overblock-run--follow-check t)
-  (remove-hook 'post-command-hook #'overblock-run--follow-check t))
+  (setq overblock-run--followers (delq (current-buffer) overblock-run--followers))
+  (unless overblock-run--followers
+    (setq overblock-run--seen nil)
+    (remove-hook 'pre-command-hook #'overblock-run--follow-see)
+    (remove-hook 'post-command-hook #'overblock-run--follow-check)))
 
-(defun overblock-run--follow-check (&optional window start)
-  "Stop following where the reader moved a window from where the pass put it.
-On `window-scroll-functions', WINDOW now starts at START: the first
-START after the pass set the window is redisplay's own, and is kept.
-On `post-command-hook', the command just run may have moved point."
-  (when-let* ((entry (assq (or window (selected-window)) overblock-run--following)))
-    (cond ((and window (nth 3 entry))
-           (setf (nth 1 entry) start (nth 3 entry) nil))
-          ((if window
-               (not (eq start (nth 1 entry)))
-             (not (eq (point) (nth 2 entry))))
-           (overblock-run--follow-stop)))))
+(defun overblock-run--follow-windows ()
+  "Return (WINDOW START VSCROLL POINT) for each window of a follower."
+  (setq overblock-run--followers (seq-filter #'buffer-live-p overblock-run--followers))
+  (mapcan (lambda (buffer)
+            (mapcar (lambda (window)
+                      (list window (window-start window)
+                            (window-vscroll window t) (window-point window)))
+                    (get-buffer-window-list buffer nil t)))
+          overblock-run--followers))
+
+(defun overblock-run--follow-see ()
+  "Note how the windows of the followers are before a command."
+  (setq overblock-run--seen (overblock-run--follow-windows)))
+
+(defun overblock-run--follow-check ()
+  "Stop following in each notebook whose window the command just moved."
+  (dolist (now (overblock-run--follow-windows))
+    (let ((before (assq (car now) overblock-run--seen)))
+      (when (and before (not (equal before now)))
+        (with-current-buffer (window-buffer (car now))
+          (overblock-run--follow-stop))))))
 
 (defun overblock-run--follow-to (m)
-  "Put every window that shows this notebook at M, and remember where.
-Point goes to M too."
+  "Put every window that shows this notebook at M, and point too."
   (goto-char m)
   (dolist (window (get-buffer-window-list nil nil t))
-    (let ((fresh (/= (window-start window) m)))
-      (set-window-point window m)
-      (set-window-start window m)
-      (setf (alist-get window overblock-run--following)
-            (list m (marker-position m) fresh)))))
+    (set-window-point window m)
+    (set-window-start window m))
+  ;; The pass moved them, not the reader, also inside a command.
+  (overblock-run--follow-see))
 
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.

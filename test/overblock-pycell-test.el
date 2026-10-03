@@ -1370,15 +1370,17 @@ z = 3
               (should (= (window-start window) second))
               (should (= (point) second))
               ;; Redisplay moves the start the pass set, for a scroll
-              ;; margin: that first report is the pass's own.
-              (run-hook-with-args 'window-scroll-functions window first)
+              ;; margin, between commands: that is no reader.
+              (set-window-start window first)
+              (run-hooks 'pre-command-hook 'post-command-hook)
               (should overblock-run--following)
-              (run-hook-with-args 'window-scroll-functions window first)
-              (should overblock-run--following)
-              ;; The reader scrolls, as redisplay reports it.
+              ;; The reader scrolls: a command moves the window.
+              (run-hooks 'pre-command-hook)
               (set-window-start window third)
-              (run-hook-with-args 'window-scroll-functions window third)
+              (run-hooks 'post-command-hook)
               (should-not overblock-run--following)
+              (should-not (memq #'overblock-run--follow-check
+                                (default-value 'post-command-hook)))
               ;; The next cell moves neither the window nor point.
               (overblock-run--queue-set (list (copy-marker first)))
               (overblock-run-next)
