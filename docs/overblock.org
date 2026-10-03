@@ -287,7 +287,7 @@ line. Folding works from there.
 The commands are on =<down-mouse-1>=. Thus the press runs the command
 before a redraw can change what is under the pointer. Reading the
 release clears the echo area, so =<mouse-1>= and =<drag-mouse-1>= say
-again what the command said.
+the newest message again, such as the one of the command.
 
 ** The width a bar is cut to
 
@@ -533,7 +533,7 @@ notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
 scrolls. A single region does not start the scrolling, also when it
 waits on the queue. One that joins a scrolling pass goes with it, and
-a pass that joins a waiting region scrolls.
+a pass that joins a waiting region of its own notebook scrolls.
 
 At its end, the pass says =NAME: done=, with the =:name= of the
 backend. A failed region ends the pass with =NAME: stopped at error=.

@@ -1043,9 +1043,9 @@ a restart.  A process that died leaves nothing to wait for."
   "Put the queue ENTRIES behind whatever the shell is running.
 Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  Point comes back here when
-the queue ends, unless a pass has set its home already.  A pass that
-joins a home in this notebook takes it over: it scrolls, and point
-comes back here."
+the queue ends, unless the home is in another notebook, or this is a
+single region that joins a home: a pass takes a home in its notebook
+over, and scrolls."
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
     (when (or (not home)
               (and overblock-run-scroll
