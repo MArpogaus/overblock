@@ -448,7 +448,7 @@ The shell and the regions:
 | =:unit=      | string           | what a region is called: "cell", "chunk"          |
 | =:process=   | () → process     | the live shell process, or nil                    |
 | =:start=     | () → process     | start a shell; nil where it prompts later         |
-| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional             |
+| =:arm=       | (THUNK)          | run THUNK on a first prompt; else =:start= returns|
 | =:send=      | (PROC BEG END)   | send the region to the process                    |
 | =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt               |
 | =:clean=     | (TEXT) → string  | the output as a block can show it                 |
@@ -535,8 +535,9 @@ moves neither point nor the windows, and the next region catches up.
 With the option nil, a pass never scrolls. A single region does not
 start the scrolling, also when it waits on the queue. A region that
 joins a scrolling pass goes with it. A pass or a region can join a
-region that waits, or a pass that no longer scrolls. Where that home
-is in its own notebook, it takes the home over. Then a pass scrolls.
+region that waits, or a pass that no longer scrolls. Where the home of
+that pass is in the same notebook, the new request takes the home
+over. Then a pass scrolls.
 
 Before each key of the reader, point and the view go back to the home,
 so the key acts where the reader was and not at the region that runs.
