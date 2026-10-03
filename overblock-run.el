@@ -974,14 +974,20 @@ out."
           (overblock-run--pass-over)
           (throw 'waiting nil))
         (overblock-run--queue-set (cdr cells))
-        (unless (buffer-live-p (marker-buffer m))
-          ;; The notebook is gone: so are its pass and its home.
-          (overblock-run--queue-set nil)
-          (overblock-run--home-set nil)
-          (throw 'waiting nil))
-        (with-current-buffer (marker-buffer m)
-          (when (overblock-run--step entry m)
-            (throw 'waiting nil)))))))
+        (if (buffer-live-p (marker-buffer m))
+            (with-current-buffer (marker-buffer m)
+              (when (overblock-run--step entry m)
+                (throw 'waiting nil)))
+          (overblock-run--home-drop-dead))))))
+
+(defun overblock-run--home-drop-dead ()
+  "Free the home where its notebook was killed.
+A queue entry of a killed notebook goes, and the rest of the queue,
+such as what a reopened notebook asked for, runs on."
+  (when-let* ((home (buffer-local-value 'overblock-run--home
+                                        (overblock-run-shell)))
+              ((not (buffer-live-p (marker-buffer home)))))
+    (overblock-run--home-set nil)))
 
 (defun overblock-run--step (entry m)
   "Run the queue ENTRY that begins at M, and say whether to wait.
