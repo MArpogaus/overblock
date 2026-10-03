@@ -572,7 +572,8 @@ the shell buffer would send its start-up banner as the cell."
           (overblock-pycell-test--with-mode
             (setq notebook (current-buffer))
             (with-current-buffer shell
-              (insert "Python 3.14.6 | packaged by conda-forge\nIn [1]: "))
+              (python-shell-prompt-set-calculated-regexps)
+              (insert "Python 3.14.6 | packaged by conda-forge\n"))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
               ;; As python.el: the process is there once it was started.
               (cl-letf (((symbol-function 'python-shell-get-process)
@@ -600,6 +601,7 @@ the shell buffer would send its start-up banner as the cell."
                 ;; which here is a pipe that ignores them, and they
                 ;; would wait for ever on Emacs 29.
                 (with-current-buffer shell
+                  (insert "In [1]: ")
                   (mapc #'funcall (remq t python-shell-first-prompt-hook)))
                 ;; The first goes on the prompt, the second on the next.
                 (should (equal sent (list (list notebook notebook))))
@@ -614,6 +616,7 @@ A cell sent before that prompt would get the start-up banner."
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
          started)
+    (with-current-buffer shell (python-shell-prompt-set-calculated-regexps))
     (unwind-protect
         (overblock-pycell-test--with-cells
           (overblock-pycell-test--with-mode
@@ -1525,10 +1528,33 @@ z = 3
                      (lambda (&rest _) proc)))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode)
-              (setq-local overblock-run--armed proc))
+              (setq-local overblock-run--armed proc)
+              (python-shell-prompt-set-calculated-regexps))
             (should (overblock-run--busy-p))
             (delete-process proc)
             (should-not (overblock-run--busy-p)))
+        (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-prompt-frees-an-armed-shell ()
+  "A shell that prompted is free, also where its armed thunk never ran.
+A quit in the setup of python.el stops the first-prompt hook before
+the thunk."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
+    (let* ((shell (generate-new-buffer " *overblock-pycell-test-shell*"))
+           (proc (make-pipe-process :name "overblock-pycell armed" :buffer shell
+                                    :noquery t :filter #'ignore)))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) proc)))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode)
+              (setq-local overblock-run--armed proc)
+              (python-shell-prompt-set-calculated-regexps)
+              (insert "Python 3.12\nType 'copyright' for more.\n"))
+            (should (overblock-run--busy-p))
+            (with-current-buffer shell (insert "\nIn [1]: "))
+            (should-not (overblock-run--busy-p)))
+        (delete-process proc)
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-pass-behind-a-waiting-cell-scrolls ()
