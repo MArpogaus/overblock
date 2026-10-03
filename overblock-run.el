@@ -999,14 +999,17 @@ waits on the queue for its first prompt, so a second one waits behind."
   ;; Markers here, in the notebook: the queue is in the shell, and
   ;; `copy-marker' of a number uses the current buffer.
   (let ((region (list (cons (copy-marker start) (copy-marker end t)))))
-    (if-let* (((not (overblock-run--busy-p)))
-              (proc (or (overblock-run--call :process)
-                        (overblock-run--call :start))))
+    (cond
+     ((overblock-run--busy-p)
+      (overblock-run--enqueue region))
+     ((when-let* ((proc (or (overblock-run--call :process)
+                            (overblock-run--call :start))))
         (overblock-run--send proc start end)
-      (if (overblock-run--busy-p)
-          (overblock-run--enqueue region)
-        (overblock-run-on-prompt
-         region (format "%s: starting the interpreter…" (overblock-run--name)))))))
+        t))
+     (t (overblock-run-on-prompt
+         region (format "%s: starting the interpreter…" (overblock-run--name)))
+        ;; One region sent leaves point and the windows alone.
+        (overblock-run--scroll-stop)))))
 
 (defun overblock-run--busy-p ()
   "Non-nil where the shell runs a region, or a pass waits for its prompt.

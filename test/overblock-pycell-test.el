@@ -582,8 +582,10 @@ the shell buffer would send its start-up banner as the cell."
                          (lambda (&rest _) (setq started t) shell)))
                 (overblock-pycell-eval-region beg end))
               ;; The cell waits for the first prompt of the shell, and a
-              ;; second one asked for meanwhile waits behind it.
+              ;; second one asked for meanwhile waits behind it.  One
+              ;; cell leaves the windows alone: nothing scrolls.
               (should (buffer-local-value 'python-shell-first-prompt-hook shell))
+              (should-not (memq notebook overblock-run--scrolled))
               (cl-letf (((symbol-function 'python-shell-get-process)
                          (lambda (&rest _) proc))
                         ((symbol-function 'overblock-run--send)
