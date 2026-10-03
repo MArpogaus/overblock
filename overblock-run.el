@@ -448,8 +448,8 @@ because a caller that moves text must know what must not move."
 (defvar-local overblock-run--home nil
   "Where point goes in the notebook when the queue of this shell ends.
 While the pass scrolls (see `overblock-run-scroll'), point walks
-down the notebook, and at the end it goes back to where the pass was
-asked for, where it scrolled to its end.")
+down the notebook.  Where the pass scrolled to its end, point then goes
+back to where the pass was asked for.")
 
 (defvar-local overblock-run--armed nil
   "The process of this shell that has not prompted yet since it started.

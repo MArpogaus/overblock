@@ -410,7 +410,7 @@ echo area says =overblock-pycell: done=, or =overblock-pycell: stopped
 at error= after a cell that failed. A pass that scrolled to its end
 puts point back where you asked for it. A cell you ask for while
 another runs, or while the interpreter starts, waits its turn, and the
-echo area says =this cell queued=.
+echo area says =overblock-pycell: this cell queued=.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
@@ -441,7 +441,7 @@ The Markdown features are those of
 | =overblock-pycell-mode-maybe=          | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
 | =overblock-pycell-restart=             | restart the interpreter, and remove the results                                |
 | =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                                           |
-| =overblock-run-above=                  | run each cell above this one, and this one                                     |
+| =overblock-run-above=                  | run each cell above this one                                                   |
 | =overblock-run-below=                  | run this cell and each cell below it                                           |
 | =overblock-run-stop=                   | stop the pass after the cell that runs now                                     |
 | =overblock-run-clear-results=          | remove each result                                                             |
