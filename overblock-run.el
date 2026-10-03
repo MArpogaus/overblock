@@ -514,6 +514,8 @@ where the reader put them."
                   (get-buffer-window-list nil nil t)))
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
+    ;; After the note, so the move back stops the scrolling.
+    (add-hook 'pre-command-hook #'overblock-run--scroll-hand-back 90)
     (add-hook 'post-command-hook #'overblock-run--scroll-check)
     ;; This command can move point after it started the scrolling.
     (overblock-run--scroll-see)))
@@ -526,7 +528,24 @@ The command hooks go with the last notebook that scrolls."
   (unless overblock-run--scrolled
     (setq overblock-run--seen nil)
     (remove-hook 'pre-command-hook #'overblock-run--scroll-see)
+    (remove-hook 'pre-command-hook #'overblock-run--scroll-hand-back)
     (remove-hook 'post-command-hook #'overblock-run--scroll-check)))
+
+(defun overblock-run--scroll-hand-back ()
+  "Before a command of the reader, put point back where the pass was asked.
+The pass moved point to the region that runs; a command typed then
+would act there, and an edit or a yank would land in that cell.  The
+move back stops the scrolling, as any move does.  Not for the release
+of a button, whose press can have started the pass."
+  (let ((buffer (window-buffer (selected-window))))
+    (when (and (zerop (minibuffer-depth))
+               (not (eq this-command 'overblock--button-release))
+               (memq buffer overblock-run--scrolled))
+      (with-current-buffer buffer
+        (when-let* ((shell (overblock-run-shell))
+                    (home (buffer-local-value 'overblock-run--home shell))
+                    ((eq (marker-buffer home) buffer)))
+          (goto-char home))))))
 
 (defun overblock-run--view-give-back (home)
   "Give each window of this notebook its view back, or HOME where it had none."

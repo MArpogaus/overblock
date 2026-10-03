@@ -1479,9 +1479,11 @@ z = 3
               (should (= (window-start window) second))
               (should (= (point) second))
               ;; Redisplay moves the start the pass set, for a scroll
-              ;; margin, between commands: that is no reader.
+              ;; margin, between commands: that is no reader, and nor is
+              ;; the release of the button that started the pass.
               (set-window-start window first)
-              (run-hooks 'pre-command-hook 'post-command-hook)
+              (let ((this-command 'overblock--button-release))
+                (run-hooks 'pre-command-hook 'post-command-hook))
               (should (memq (current-buffer) overblock-run--scrolled))
               ;; The reader scrolls: a command moves the window.
               (run-hooks 'pre-command-hook)
@@ -1490,13 +1492,14 @@ z = 3
               (should-not (memq (current-buffer) overblock-run--scrolled))
               (should-not (memq #'overblock-run--scroll-check
                                 (default-value 'post-command-hook)))
-              ;; The next cell moves neither the window nor point.
+              ;; The command found point back where the reader was; the
+              ;; next cell moves neither the window nor point.
               (overblock-run--queue-set (list (copy-marker first)))
               (overblock-run-next)
               (should (= (window-start window) third))
-              (should (= (point) second))
+              (should (= (point) (point-max)))
               (overblock-run-go-home)
-              (should (= (point) second))
+              (should (= (point) (point-max)))
               ;; With the option off, nothing moves at all.
               (let ((overblock-run-scroll nil))
                 (goto-char (point-min))
@@ -1687,6 +1690,27 @@ for at once starts where the first one did."
               (delete-window other)))
         (overblock-run--scroll-stop)
         (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-key-during-a-pass-acts-where-the-reader-was ()
+  "The first command of the reader acts at the home, not at the running cell.
+A yank typed while the pass stood on a cell would land in that cell."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((two (save-excursion (goto-char (point-max))
+                               (code-cells-backward-cell) (point-marker))))
+      (cl-letf (((symbol-function 'overblock-run-shell)
+                 (lambda () (current-buffer))))
+        (goto-char (point-min))
+        (forward-line 1)
+        (let ((home (point-marker)))
+          (setq-local overblock-run--home home)
+          (overblock-run--scroll-start)
+          (overblock-run--scroll-to two)
+          (run-hooks 'pre-command-hook)
+          (should (= (point) home))
+          (insert "typed")
+          (run-hooks 'post-command-hook)
+          (should (string-match-p "^typedx = 1" (buffer-string)))
+          (should-not (memq (current-buffer) overblock-run--scrolled)))))))
 
 (ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
   "The command hooks of the scrolling go when the last such notebook dies."
