@@ -1538,7 +1538,7 @@ z = 3
 (ert-deftest overblock-pycell-test-a-prompt-frees-an-armed-shell ()
   "A shell that prompted is free, also where its armed thunk never ran.
 A quit in the setup of python.el stops the first-prompt hook before
-the thunk."
+the thunk.  The wait ends for good, and what waited is dropped."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
     (let* ((shell (generate-new-buffer " *overblock-pycell-test-shell*"))
            (proc (make-pipe-process :name "overblock-pycell armed" :buffer shell
@@ -1552,7 +1552,11 @@ the thunk."
               (python-shell-prompt-set-calculated-regexps)
               (insert "Python 3.12\nType 'copyright' for more.\n"))
             (should (overblock-run--busy-p))
+            (overblock-run--queue-set (list (point-marker)))
             (with-current-buffer shell (insert "\nIn [1]: "))
+            (should-not (overblock-run--busy-p))
+            (should-not (overblock-run--queued))
+            (with-current-buffer shell (insert "x"))
             (should-not (overblock-run--busy-p)))
         (delete-process proc)
         (kill-buffer shell)))))

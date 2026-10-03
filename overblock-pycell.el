@@ -919,8 +919,7 @@ This is the `:arm' of the backend.  THUNK runs after the setup of
 comint-mime on the same hook, hence the depth.  A shell that signals
 here leaves nothing armed.
 
-The hook is local and the function removes itself, so no stale thunk
-stays.
+The hook is local and the function removes itself as it runs.
 
 A window that shows the shell scrolled up would give its point back to
 the buffer at the next redisplay, before the new output, and the

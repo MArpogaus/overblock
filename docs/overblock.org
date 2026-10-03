@@ -448,7 +448,7 @@ The shell and the regions:
 | =:unit=      | string           | what a region is called: "cell", "chunk"          |
 | =:process=   | () → process     | the live shell process, or nil                    |
 | =:start=     | () → process     | start a shell; nil where it prompts later         |
-| =:arm=       | (THUNK)          | run THUNK on a first prompt; else =:start= returns|
+| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional             |
 | =:send=      | (PROC BEG END)   | send the region to the process                    |
 | =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt               |
 | =:clean=     | (TEXT) → string  | the output as a block can show it                 |

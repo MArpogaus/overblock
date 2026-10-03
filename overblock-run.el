@@ -1128,17 +1128,22 @@ waits on the queue for its first prompt, so a second one waits behind."
 (defun overblock-run--busy-p ()
   "Non-nil where the shell runs a region, or has not prompted yet.
 The shell waits for the first prompt of its process after a start or
-a restart.  A process that died leaves nothing to wait for.  Nor does
-a prompt that came while its `:arm' thunk did not run, for example
-after a \\[keyboard-quit] in the setup of the interpreter."
+a restart.  A process that died leaves nothing to wait for.  A prompt
+that came while the `:arm' thunk did not run, as after a
+\\[keyboard-quit] in the setup of the interpreter, ends the wait: the
+regions that waited are dropped, as by `overblock-run-stop'."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (or overblock-run--state
           (and (process-live-p overblock-run--armed)
-               (not (overblock-run--call
-                     :prompt-p
-                     (buffer-substring-no-properties
-                      (max (point-min) (- (point-max) 256)) (point-max)))))))))
+               (not (and (overblock-run--call
+                          :prompt-p
+                          (buffer-substring-no-properties
+                           (max (point-min) (- (point-max) 256)) (point-max)))
+                         (progn (setq overblock-run--armed nil
+                                      overblock-run--queue nil)
+                                (overblock-run--home-drop)
+                                t))))))))
 
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
