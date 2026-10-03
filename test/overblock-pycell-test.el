@@ -650,10 +650,12 @@ A cell sent before that prompt would get the start-up banner."
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-restart-deletes-the-process-and-starts-again ()
-  "A restart deletes the process at once and starts a new one.
+  "A restart deletes the process at once and starts a new one in its buffer.
 `python-shell-restart' waits for the last output of the process, and a
-shell that had not prompted yet freezes Emacs in that wait."
-  (let* ((shell (generate-new-buffer "*overblock-pycell test shell*"))
+shell that had not prompted yet freezes Emacs in that wait.  The new
+one takes the name of the buffer, so a shell dedicated by hand stays
+so, and a window that shows the shell scrolled up goes to its end."
+  (let* ((shell (generate-new-buffer "*Python[nb.py]*"))
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
          started)
@@ -664,13 +666,20 @@ shell that had not prompted yet freezes Emacs in that wait."
                        (lambda (&rest _) (and (process-live-p proc) proc)))
                       ((symbol-function 'python-shell-restart)
                        (lambda (&rest _) (ert-fail "python-shell-restart waits")))
-                      ((symbol-function 'run-python)
-                       (lambda (&rest _) (setq started t) shell)))
+                      ((symbol-function 'python-shell-make-comint)
+                       (lambda (_cmd name &rest _) (setq started name))))
               (with-current-buffer shell
-                (setq major-mode 'inferior-python-mode))
-              (overblock-pycell-restart)
+                (setq major-mode 'inferior-python-mode)
+                (insert "Python 3\n>>> x\n>>> "))
+              (let ((window (split-window)))
+                (set-window-buffer window shell)
+                (set-window-point window 1)
+                (overblock-pycell-restart)
+                (should (= (window-point window)
+                           (with-current-buffer shell (point-max))))
+                (delete-window window))
               (should-not (process-live-p proc))
-              (should started))))
+              (should (equal started "Python[nb.py]")))))
       (when (process-live-p proc) (delete-process proc))
       (kill-buffer shell))))
 
