@@ -165,9 +165,9 @@ then leaves point and the windows alone.  Nil never scrolls."
   :group 'overblock)
 
 (defvar-local overblock-run--view nil
-  "The start of each window of this notebook as its pass began to scroll.
-An alist of (WINDOW . MARKER): `overblock-run-go-home' gives each
-window its view back.")
+  "The view of each window of this notebook as its pass began to scroll.
+An alist of (WINDOW START . POINT), markers: `overblock-run-go-home'
+gives each window its view back.")
 
 (defvar overblock-run--scrolled nil
   "The notebooks whose pass scrolls to its regions.")
@@ -487,20 +487,19 @@ windows stay where the reader put them."
       (with-current-buffer (marker-buffer home)
         (when (memq (current-buffer) overblock-run--scrolled)
           (goto-char home)
-          (dolist (window (get-buffer-window-list nil nil t))
-            (when-let* ((start (alist-get window overblock-run--view)))
-              (set-window-start window start t))
-            (set-window-point window home)))
+          (overblock-run--view-give-back home))
         (overblock-run--scroll-stop)))
     (set-marker home nil)))
 
 (defun overblock-run--scroll-start ()
   "Have the pass of this notebook scroll to its regions, where the option says."
   (when overblock-run-scroll
-    (dolist (view overblock-run--view) (set-marker (cdr view) nil))
+    (overblock-run--view-free)
     (setq overblock-run--view
           (mapcar (lambda (window)
-                    (cons window (copy-marker (window-start window))))
+                    (cons window
+                          (cons (copy-marker (window-start window))
+                                (copy-marker (window-point window)))))
                   (get-buffer-window-list nil nil t)))
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
@@ -512,12 +511,26 @@ windows stay where the reader put them."
   "Stop the pass of this notebook from scrolling to its regions.
 The command hooks go with the last notebook that scrolls."
   (setq overblock-run--scrolled (delq (current-buffer) overblock-run--scrolled))
-  (dolist (view overblock-run--view) (set-marker (cdr view) nil))
-  (setq overblock-run--view nil)
+  (overblock-run--view-free)
   (unless overblock-run--scrolled
     (setq overblock-run--seen nil)
     (remove-hook 'pre-command-hook #'overblock-run--scroll-see)
     (remove-hook 'post-command-hook #'overblock-run--scroll-check)))
+
+(defun overblock-run--view-give-back (home)
+  "Give each window of this notebook its view back, or HOME where it had none."
+  (dolist (window (get-buffer-window-list nil nil t))
+    (if-let* ((view (alist-get window overblock-run--view)))
+        (progn (set-window-start window (car view) t)
+               (set-window-point window (cdr view)))
+      (set-window-point window home))))
+
+(defun overblock-run--view-free ()
+  "Free the markers of `overblock-run--view', and forget it."
+  (dolist (view overblock-run--view)
+    (set-marker (cadr view) nil)
+    (set-marker (cddr view) nil))
+  (setq overblock-run--view nil))
 
 (defun overblock-run--scroll-windows ()
   "Return (WINDOW START VSCROLL POINT) for each window of a scrolling notebook."
