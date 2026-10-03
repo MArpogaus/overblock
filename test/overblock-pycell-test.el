@@ -1490,7 +1490,9 @@ does, and point comes back where the pass was asked for."
             (should (memq (current-buffer) overblock-run--scrolled))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
-            ;; Asked for again while it scrolls: the home stays.
+            ;; Asked for again while it scrolls: the home stays.  The pass
+            ;; put point on the cell that runs.
+            (overblock-run--scroll-to (cadr (overblock-pycell--cell-starts)))
             (run-hooks 'pre-command-hook)
             (overblock-run-cells (overblock-pycell--cell-starts) "running")
             (run-hooks 'post-command-hook)

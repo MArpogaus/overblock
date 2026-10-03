@@ -491,7 +491,7 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-next=           | run the next region of the queue                             |
 | =overblock-run-shell=          | the buffer that holds the queue and the run state            |
 | =overblock-run-running-region= | the region that runs now                                     |
-| =overblock-run-go-home=        | put point back where the pass was asked, if it scrolled      |
+| =overblock-run-go-home=        | put point back where the pass was asked for, if it scrolled  |
 | =overblock-run-show=           | draw a result                                                |
 | =overblock-run-update=         | draw a result again                                          |
 | =overblock-run-header=         | the bar of a result                                          |
