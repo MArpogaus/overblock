@@ -367,6 +367,7 @@ the buttons of =overblock-pycell-cell-buttons=:
 |--------+-----------------------------------+------------------------------|
 | =⇈=    | =overblock-run-above=             | run each cell above this one |
 | =▷=    | =overblock-pycell-run-cell=       | run this cell                |
+| =⇊=    | =overblock-run-below=             | run this cell and each below |
 | =⌃=    | =overblock-pycell-move-cell-up=   | move this cell up            |
 | =⌄=    | =overblock-pycell-move-cell-down= | move this cell down          |
 
@@ -536,7 +537,8 @@ turns =overblock-md-preview-mode= off, because it renders the prose itself.
 A bar stands in place of the fence line of each =```{r}= chunk. The bar
 shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
 shows /plot-one/. The buttons of =overblock-rmd-chunk-buttons= are =⇈=,
-which runs each chunk above this one, and =▷=, which runs this chunk.
+which runs each chunk above this one, =▷=, which runs this chunk, and
+=⇊=, which runs this chunk and each one below it.
 
 The closing fence is hidden, and the file does not change. A chunk of
 another engine, such as =```{python}=, stays as it is. The bars show

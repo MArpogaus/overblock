@@ -1188,6 +1188,22 @@ They run in order and the pass stops at the first error, or on
                                         (overblock-run--unit t)))))
 
 ;;;###autoload
+(defun overblock-run-below (&optional event)
+  "Run the region at point and every one below it, or those at EVENT.
+They run in order and the pass stops at the first error, or on
+`overblock-run-stop'.  The interpreter keeps its state."
+  (interactive (list last-input-event))
+  (overblock-goto-event event)
+  (overblock-run--must)
+  (let* ((beg (car (or (overblock-run--call :region-at)
+                       (user-error "No %s here" (overblock-run--unit)))))
+         (starts (seq-drop-while (lambda (m) (< m beg))
+                                 (overblock-run--call :starts))))
+    (overblock-run-cells starts (format "%s: running the %s from here down"
+                                        (overblock-run--name)
+                                        (overblock-run--unit t)))))
+
+;;;###autoload
 (defun overblock-run-stop (&optional event)
   "Stop the pass after the region that is running now.
 That region runs to its end; `overblock-run-interrupt' is the harder

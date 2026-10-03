@@ -127,7 +127,9 @@ render button renders it."
 (defcustom overblock-pycell-cell-buttons
   (append '((run-above ("" "⇈" "above") "Run every cell above this one"
                        overblock-run-above t)
-            (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t))
+            (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t)
+            (run-below ("" "⇊" "below") "Run this cell and every one below it"
+                       overblock-run-below t))
           overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
 An entry has the shape `overblock-buttons' reads.  A cell bar is drawn

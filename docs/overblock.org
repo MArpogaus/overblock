@@ -505,7 +505,7 @@ The commands of a result are the same in each notebook:
 =overblock-run-toggle-output=, =overblock-run-copy-output=,
 =overblock-run-pop-output=, =overblock-run-save-image=,
 =overblock-run-discard-output=, =overblock-run-clear-results=,
-=overblock-run-above=, =overblock-run-stop= and
+=overblock-run-above=, =overblock-run-below=, =overblock-run-stop= and
 =overblock-run-interrupt=. Each package keeps its own buttons and the
 commands that know its regions.
 

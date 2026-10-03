@@ -1391,6 +1391,27 @@ z = 3
                 (should-not overblock-run--following))))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-run-below-takes-this-cell-and-the-rest ()
+  "`overblock-run-below' queues the cell at point and every one below it."
+  (overblock-pycell-test--with-notebook "# %% One
+x = 1
+
+# %% Two
+y = 2
+
+# %% Three
+z = 3
+"
+    (let (passed)
+      (cl-letf (((symbol-function 'overblock-run-cells)
+                 (lambda (cells _message) (setq passed cells))))
+        (goto-char (cadr (overblock-pycell--cell-starts)))
+        (forward-line 1)
+        (overblock-run-below)
+        (should (equal (mapcar #'marker-position passed)
+                       (cdr (mapcar #'marker-position
+                                    (overblock-pycell--cell-starts)))))))))
+
 (ert-deftest overblock-pycell-test-a-new-button-list-redraws-the-bars ()
   "Customizing the buttons draws the bars of an open notebook again.
 A bar stays as it is where nothing it compares changed, and the button

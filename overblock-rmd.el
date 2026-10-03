@@ -119,7 +119,9 @@ list: they show the state of the result."
 (defcustom overblock-rmd-chunk-buttons
   '((run-above ("" "⇈" "above") "Run every chunk above this one"
                overblock-run-above t)
-    (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t))
+    (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t)
+    (run-below ("" "⇊" "below") "Run this chunk and every one below it"
+               overblock-run-below t))
   "The buttons on the bar of an R chunk, left to right.
 An entry has the shape `overblock-buttons' reads.  A chunk bar is
 drawn before the chunk runs, so `lines' means nothing here.
