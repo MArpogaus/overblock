@@ -124,9 +124,12 @@ typing before the marker is not typing inside the bar.
 output. A shell that has not prompted yet sends its first prompt into
 that wait, and the setup of python.el then waits for ever on the dead
 process: Emacs freezes until =C-g=. Thus =overblock-pycell-restart=
-deletes the process at once, and =run-python= starts a new one in the
-same buffer. =comint-exec= puts point at the end of that buffer, which
-the first-prompt filter of python.el needs.
+deletes the process at once, and =python-shell-make-comint= starts a
+new one in the same buffer, under its name, so a shell dedicated by
+hand stays so. The first-prompt filter of python.el needs point at the
+end of that buffer. =comint-exec= puts it there, and each window of the
+shell goes there too: a window scrolled up would give its point back
+at the next redisplay.
 
 * Moving a cell
 
