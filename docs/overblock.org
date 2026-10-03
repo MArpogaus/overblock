@@ -529,13 +529,14 @@ and =overblock-run-go-home= puts point and the view of each window
 back when the pass ends with done. Where a minibuffer is open, this
 occurs after it closes, because its exit gives the windows back as
 they were. A restart ends the pass the same way. A failed region
-leaves them on it. While a minibuffer is open, a step moves neither
-point nor the windows, and the next region catches up. With the option
-nil, a pass never scrolls. A single region does not start the
-scrolling, also when it waits on the queue. A region that joins a
-scrolling pass goes with it. A pass that joins a waiting region or a
-pass that no longer scrolls, in its own notebook, takes over the home
-and scrolls.
+leaves them on it; where a minibuffer was open when it failed, they
+stay where they were when the minibuffer opened. While a minibuffer is
+open, a step moves neither point nor the windows, and the next region
+catches up. With the option nil, a pass never scrolls. A single region
+does not start the scrolling, also when it waits on the queue. A
+region that joins a scrolling pass goes with it. A pass that joins a
+waiting region or a pass that no longer scrolls, in its own notebook,
+takes over the home and scrolls.
 
 The scrolling stops at the first command of the reader that scrolls a
 window of the notebook or moves point in it. Only a command counts:
