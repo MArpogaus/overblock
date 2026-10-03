@@ -151,8 +151,9 @@ which offers to kill the buffers of the session. Thus
 new one in the same buffer.
 
 =overblock-run-restart= runs first. It puts point and the view back
-where a pass was asked for, then ends the running chunk as a death, because the chunk can belong to another buffer on the same R.
-It empties the queue, so no pass continues into a dead process, and it
+where a pass was asked for, then ends the running chunk as a death,
+because the chunk can belong to another buffer on the same R. It
+empties the queue, so no pass continues into a dead process, and it
 removes the results.
 
 After the kill, =update-ess-process-name-list= runs. ESS keeps the

@@ -529,7 +529,7 @@ each window that shows the notebook, so the code that runs is visible.
 when the pass ends with done. Where a minibuffer is open, this occurs
 after it closes, because its exit gives the windows back as they were.
 A restart ends the pass the same way. A failed region leaves them on
-it; where a minibuffer was open when it failed, they stay where they
+it. Where a minibuffer was open when it failed, they stay where they
 were when the minibuffer opened. While a minibuffer is open, a step
 moves neither point nor the windows, and the next region catches up.
 With the option nil, a pass never scrolls. A single region does not
