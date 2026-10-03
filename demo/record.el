@@ -255,7 +255,7 @@ doc string carries: sections, math, a table and a code block."
   (goto-char (point-min))
   (search-forward "import numpy" nil t)
   (call-interactively #'overblock-pycell-run-cell)
-  ;; The cell while it runs: a spinner, a stopwatch and a stop button.
+  ;; The cell while it runs: a spinner, a stopwatch and an interrupt button.
   (ob-gif-wait 120 (lambda () (overblock-in (point-min) (point-max) 'result)))
   (ob-gif-frame 200)
   ;; and what it answered

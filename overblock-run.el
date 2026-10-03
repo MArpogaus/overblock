@@ -1115,17 +1115,17 @@ waits on the queue for its first prompt, so a second one waits behind."
   ;; `copy-marker' of a number uses the current buffer.
   ;; One region leaves point and the windows alone; a pass it joins
   ;; goes on as it was.
-  (let ((region (lambda () (list (cons (copy-marker start) (copy-marker end t)))))
+  (let ((region (list (cons (copy-marker start) (copy-marker end t))))
         (overblock-run-scroll nil))
     (cond
      ((overblock-run--busy-p)
-      (overblock-run--enqueue (funcall region)))
+      (overblock-run--enqueue region))
      ((when-let* ((proc (or (overblock-run--call :process)
                             (overblock-run--call :start))))
         (overblock-run--send proc start end)
         t))
      (t (overblock-run-on-prompt
-         (funcall region)
+         region
          (format "%s: starting the interpreter…" (overblock-run--name)))))))
 
 (defun overblock-run--busy-p ()

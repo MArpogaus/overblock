@@ -1930,8 +1930,8 @@ in the cell: the filter keeps the two apart."
         (goto-char (1- (overlay-end block)))
         (should-not (overblock-pycell-tab-filter 'a-command))))))
 
-(ert-deftest overblock-pycell-test-a-running-cell-carries-a-stop-button ()
-  "The header of a running cell holds a stop button, a finished one none.
+(ert-deftest overblock-pycell-test-a-running-cell-carries-an-interrupt-button ()
+  "The header of a running cell holds an interrupt button, a finished one none.
 The button shows only while the cell runs, and its click is
 `overblock-run-interrupt'."
   (cl-flet ((stops (header)
