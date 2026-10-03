@@ -158,11 +158,11 @@ screen."
   "Non-nil scrolls each window of a notebook to the region its pass runs.
 Point goes there too.  Point and the view come back where the pass was
 asked for when it ends.  The scrolling stops at the first command of
-the reader in the notebook, which acts where the reader was, or at one
-that scrolls a window of it, so the reader can look at another part
-while the pass runs; the pass then leaves point and the windows alone.
-A failed region leaves them on it, and a stop or an interrupt leaves
-the view where it is.  Nil never scrolls."
+the reader in the notebook, which gets point and the view back and
+acts there, or at a scroll, which moves on from the view the reader
+sees; the pass then leaves point and the windows alone.  A failed
+region leaves them on it, and a stop or an interrupt button leaves the
+view where it is.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
