@@ -160,7 +160,8 @@ Point goes there too.  Point and the view come back where the pass was
 asked for when it ends.  The scrolling stops at the first command of
 the reader that scrolls a window of the notebook or moves point in it,
 so the reader can look at another part while the pass runs; the pass
-then leaves point and the windows alone.  Nil never scrolls."
+then leaves point and the windows alone.  A stop or an interrupt leaves
+them where they are, too.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
@@ -944,8 +945,10 @@ shell buffer, where the filter and the ticker read it."
   "End the pass: say that it is done, and take point home.
 Here, where the queue runs out, and not where a run ends: the last
 cell of a pass can be one the notebook answered itself."
+  ;; No done for a notebook that was killed.
   (when-let* ((shell (overblock-run-shell))
-              ((buffer-local-value 'overblock-run--home shell)))
+              (home (buffer-local-value 'overblock-run--home shell))
+              ((buffer-live-p (marker-buffer home))))
     (message "%s: done" (overblock-run--name)))
   (overblock-run-go-home))
 
@@ -974,18 +977,11 @@ out."
           (overblock-run--pass-over)
           (throw 'waiting nil))
         (overblock-run--queue-set (cdr cells))
-        (if (buffer-live-p (marker-buffer m))
-            (with-current-buffer (marker-buffer m)
-              (when (overblock-run--step entry m)
-                (throw 'waiting nil)))
-          (overblock-run--home-drop-dead))))))
-
-(defun overblock-run--home-drop-dead ()
-  "Free the home where its notebook was killed."
-  (when-let* ((home (buffer-local-value 'overblock-run--home
-                                        (overblock-run-shell)))
-              ((not (buffer-live-p (marker-buffer home)))))
-    (overblock-run--home-set nil)))
+        ;; The entry of a killed notebook goes; the rest runs on.
+        (when (buffer-live-p (marker-buffer m))
+          (with-current-buffer (marker-buffer m)
+            (when (overblock-run--step entry m)
+              (throw 'waiting nil))))))))
 
 (defun overblock-run--step (entry m)
   "Run the queue ENTRY that begins at M, and say whether to wait.

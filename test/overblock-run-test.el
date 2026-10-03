@@ -188,7 +188,6 @@ notebook on the same shell asked for runs."
       (cl-letf (((symbol-function 'overblock-run--step)
                  (lambda (&rest _) (setq stepped (current-buffer)) t)))
         (overblock-run-next))
-      (should-not overblock-run--home)
       (should (eq stepped notebook))))
   ;; A pass asked for while the home is that of a killed notebook takes
   ;; it over.
@@ -200,6 +199,22 @@ notebook on the same shell asked for runs."
         (goto-char (point-max))
         (overblock-run-cells (list (point-marker)) "running"))
       (should (eq (marker-buffer overblock-run--home) notebook)))))
+
+(ert-deftest overblock-run-test-a-killed-notebook-says-no-done ()
+  "A pass whose notebook was killed ends without a done, and frees its home.
+Else the next region sent to the idle shell would say done."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (let ((other (generate-new-buffer " *overblock-run-test-gone*"))
+          said)
+      (setq overblock-run--home (with-current-buffer other (point-marker)))
+      (kill-buffer other)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (&rest args) (setq said (apply #'format args)))))
+        (overblock-run-next))
+      (should-not (and said (string-match-p "done" said)))
+      (should-not overblock-run--home))))
 
 (ert-deftest overblock-run-test-a-killed-shell-frees-a-waiting-home ()
   "Killing a shell where no region runs frees the home of its pass.
