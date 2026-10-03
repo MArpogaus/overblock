@@ -495,13 +495,18 @@ On `window-scroll-functions', WINDOW now starts at START; on
 
 (defun overblock-run--follow-to (m)
   "Put every window that shows this notebook at M, and remember where.
-Point goes to M too."
+Point goes to M too.  The window starts `scroll-margin' lines above M:
+redisplay would move a start that leaves point no margin, and the
+check would take that for the reader's scroll."
   (goto-char m)
-  (dolist (window (get-buffer-window-list nil nil t))
-    (set-window-point window m)
-    (set-window-start window m)
-    (setf (alist-get window overblock-run--following)
-          (cons (marker-position m) (marker-position m)))))
+  (let ((start (save-excursion
+                 (forward-line (- scroll-margin))
+                 (point))))
+    (dolist (window (get-buffer-window-list nil nil t))
+      (set-window-point window m)
+      (set-window-start window start)
+      (setf (alist-get window overblock-run--following)
+            (cons start (marker-position m))))))
 
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.

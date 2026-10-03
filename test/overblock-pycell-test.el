@@ -1365,22 +1365,29 @@ z = 3
                          (window (get-buffer-window)))
               (goto-char (point-max))
               (overblock-run--home-set (point-marker))
-              (overblock-run--queue-set (list (car starts)))
-              (overblock-run-next)
-              (should (= (window-start window) first))
-              (should (= (point) first))
-              (should overblock-run--following)
+              (overblock-run--queue-set (list (cadr starts)))
+              ;; A scroll margin: the window starts that many lines
+              ;; above the cell, so redisplay finds nothing to move.
+              (let ((scroll-margin 2))
+                (overblock-run-next)
+                (should (= (window-start window)
+                           (save-excursion (goto-char second)
+                                           (forward-line -2) (point))))
+                (should (= (point) second))
+                (run-hook-with-args 'window-scroll-functions window
+                                    (window-start window))
+                (should overblock-run--following))
               ;; The reader scrolls, as redisplay reports it.
               (set-window-start window third)
               (run-hook-with-args 'window-scroll-functions window third)
               (should-not overblock-run--following)
               ;; The next cell moves neither the window nor point.
-              (overblock-run--queue-set (list (copy-marker second)))
+              (overblock-run--queue-set (list (copy-marker first)))
               (overblock-run-next)
               (should (= (window-start window) third))
-              (should (= (point) first))
+              (should (= (point) second))
               (overblock-run-go-home)
-              (should (= (point) first))
+              (should (= (point) second))
               ;; With the option off, nothing moves at all.
               (let ((overblock-run-follow nil))
                 (goto-char (point-min))
