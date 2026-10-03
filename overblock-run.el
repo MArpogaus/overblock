@@ -531,7 +531,9 @@ shell on every insertion."
     (with-current-buffer shell
       (overblock-run--home-drop)
       (setq overblock-run--home marker))
-    (when marker (overblock-run--scroll-start))))
+    (when marker
+      (with-current-buffer (marker-buffer marker)
+        (overblock-run--scroll-start)))))
 
 (defun overblock-run--home-drop ()
   "Free the home of this shell, and stop the scrolling of its notebook.
@@ -880,9 +882,9 @@ cell of a pass can be one the notebook answered itself."
 (defun overblock-run-next ()
   "Run the regions of the queue of the shell until one has to wait.
 Point follows while the pass scrolls (see `overblock-run-scroll').
-Called from the shell on its
-first prompt and from `overblock-run--end' when a region finishes, so
-the queue is reached through `overblock-run-shell'.
+Called from the shell on its first prompt and from `overblock-run--end'
+when a region finishes, so the queue is reached through
+`overblock-run-shell'.
 
 The `:step' of the backend runs what is at point, and says whether the
 walk must wait: a region sent to the shell waits, and one the notebook

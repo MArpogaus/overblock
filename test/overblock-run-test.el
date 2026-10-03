@@ -146,7 +146,7 @@ Nothing else notices: the prompt the filter waits for never comes."
     (should-not overblock-run--state)
     (let ((shown (overblock-run-test--shown notebook)))
       (should (string-match-p "died\\|Process" shown)))
-    ;; A death drops the pass too, its home and its following.
+    ;; A death drops the pass too, its home and its scrolling.
     (should-not overblock-run--queue)
     (should-not overblock-run--home)
     (should-not (memq notebook overblock-run--scrolled))))
