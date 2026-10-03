@@ -492,7 +492,7 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-next=           | run the next region of the queue                             |
 | =overblock-run-shell=          | the buffer that holds the queue and the run state            |
 | =overblock-run-running-region= | the region that runs now                                     |
-| =overblock-run-go-home=        | put point back where the pass was asked for, if it scrolled  |
+| =overblock-run-go-home=        | put point and the view back where the pass was asked for     |
 | =overblock-run-show=           | draw a result                                                |
 | =overblock-run-update=         | draw a result again                                          |
 | =overblock-run-header=         | the bar of a result                                          |
@@ -500,7 +500,7 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-total=          | the lines it printed, counted as they arrive                 |
 | =overblock-run-follow=         | copy a running output into a buffer as it prints             |
 | =overblock-run-abort=          | end a run whose prompt will never come                       |
-| =overblock-run-restart=        | end the run, clear the queue, home and results, restart      |
+| =overblock-run-restart=        | go home, end the run, clear the queue and results, restart   |
 | =overblock-run-set-and-redraw= | the =:set= of an option that the blocks on the screen follow |
 
 The commands of a result are the same in each notebook:
@@ -525,7 +525,8 @@ cell in a row, and each frame would run its tail on the way out.
 
 With =overblock-run-scroll=, each region of a pass goes to the top of
 each window that shows the notebook, so the code that runs is visible,
-and =overblock-run-go-home= puts point back when the queue is empty.
+and =overblock-run-go-home= puts point and each window start back when
+the pass ends. A restart ends the pass the same way.
 The scrolling stops at the first command of the reader that scrolls a
 window of the notebook or moves point in it. Only a command counts:
 redisplay moves a window start for =scroll-margin=, and output arrives
