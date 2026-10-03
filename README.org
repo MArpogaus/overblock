@@ -395,7 +395,7 @@ The fold arrow =▾= is at the left of the bar, and the buttons of
 | =✕=    | =overblock-run-discard-output= | discard the result                     |
 
 The move buttons =⌃= and =⌄= of [[#cells][Cells]] come after them. The
-stop button shows while the cell runs, and the discard button when the
+interrupt button shows while the cell runs, and the discard button when the
 run has ended.
 
 =overblock-run-pop-output= opens the result in a buffer of its own. A

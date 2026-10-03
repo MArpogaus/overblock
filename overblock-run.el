@@ -45,8 +45,8 @@
 ;;   :start     () -> start one; the process where it is ready to take a
 ;;              region at once, nil where it will only prompt later
 ;;   :arm       (THUNK) -> run THUNK on the first prompt of a new or
-;;              restarted shell.  Optional: without it, a shell prompts
-;;              at once
+;;              restarted shell.  Optional: without it, `:start' must
+;;              return the process
 ;;   :send      (PROC BEG END) -> send the region.  In the notebook
 ;;   :prompt-p  (TAIL) -> non-nil where TAIL ends at a prompt.  In the shell
 ;;   :clean     (TEXT) -> TEXT as a block can show it.  In the shell
@@ -1403,7 +1403,7 @@ shell of the result."
 This works in the notebook and in a buffer that follows a result.
 There it interrupts only the region that buffer shows: a follower of
 an ended result, or of a shell that is gone, says so.  EVENT is the
-click on the stop button of a running result, and names the notebook
+click on the interrupt button of a running result, and names the notebook
 to act on.
 
 The pass stops too, in R and in Python alike: R answers an interrupt

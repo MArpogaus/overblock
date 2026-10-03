@@ -150,8 +150,8 @@ which offers to kill the buffers of the session. Thus
 =overblock-rmd-restart= kills the process, and =inferior-ess= starts a
 new one in the same buffer.
 
-=overblock-run-restart= runs first. It ends the running chunk as a
-death, because the chunk can belong to another buffer on the same R.
+=overblock-run-restart= runs first. It puts point and the view back
+where a pass was asked for, then ends the running chunk as a death, because the chunk can belong to another buffer on the same R.
 It empties the queue, so no pass continues into a dead process, and it
 removes the results.
 
