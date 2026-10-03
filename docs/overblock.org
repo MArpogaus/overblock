@@ -533,8 +533,11 @@ command of the reader that scrolls a window of the notebook or moves
 point in it. Only a command counts: redisplay moves a window start for
 =scroll-margin=, and output arrives between commands. Thus
 =pre-command-hook= notes each window of the notebook, and
-=post-command-hook= compares. The pass then leaves point
-and the windows alone, to its end. With the option nil, a pass never
+=post-command-hook= compares. Commands in a minibuffer are not noted
+or compared: its exit gives the windows back, so the command that
+opened it counts as one. While a minibuffer is open, a step moves
+neither point nor the windows, and the next region catches up. Once
+stopped, the pass leaves point and the windows alone, to its end. With the option nil, a pass never
 scrolls. A single region does not start the scrolling, also when it
 waits on the queue. A region that joins a scrolling pass goes with it.
 A pass that joins a waiting region, or a pass that no longer scrolls,

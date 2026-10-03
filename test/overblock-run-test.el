@@ -171,7 +171,7 @@ the notebook, which is another buffer."
                             (overblock-run-test--shown notebook)))))
 
 (ert-deftest overblock-run-test-a-killed-notebook-takes-its-home-along ()
-  "A pass whose notebook was killed ends with its home freed.
+  "A pass whose next region's buffer was killed ends with its home freed.
 Else the next single region says done, and a pass does not scroll."
   (overblock-run-test--with-run
     (cancel-timer (plist-get overblock-run--state :timer))
