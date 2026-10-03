@@ -538,7 +538,9 @@ region that joins a scrolling pass goes with it. A pass that joins a
 waiting region or a pass that no longer scrolls, in its own notebook,
 takes over the home and scrolls.
 
-The scrolling stops at the first command of the reader that scrolls a
+Before each command of the reader, point goes back to the home, so a
+key acts where the reader was and not at the region that runs. The
+scrolling stops at the first command of the reader that scrolls a
 window of the notebook or moves point in it. Only a command counts:
 redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
