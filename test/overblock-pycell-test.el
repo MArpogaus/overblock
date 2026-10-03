@@ -1482,7 +1482,8 @@ z = 3
               ;; margin, between commands: that is no reader, and nor is
               ;; the release of the button that started the pass.
               (set-window-start window first)
-              (let ((this-command 'overblock--button-release))
+              (let ((this-command 'overblock--button-release)
+                    (last-input-event (list 'mouse-1 (list window 1 '(0 . 0) 0))))
                 (run-hooks 'pre-command-hook 'post-command-hook))
               (should (memq (current-buffer) overblock-run--scrolled))
               ;; The reader scrolls the notebook from another window: a
@@ -1553,20 +1554,27 @@ does, and point comes back where the pass was asked for."
             (should (memq (current-buffer) overblock-run--scrolled))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
-            ;; Asked for again while it scrolls: the home stays. The pass
-            ;; put point on the cell that runs.
+            ;; Asked for again while it scrolls, by a click on the bar of
+            ;; the cell that runs: the home stays. The pass put point on
+            ;; that cell.
             (overblock-run--scroll-to (cadr (overblock-pycell--cell-starts)))
-            (run-hooks 'pre-command-hook)
-            (overblock-run-cells (overblock-pycell--cell-starts) "running")
-            (run-hooks 'post-command-hook)
+            (let ((last-input-event
+                   (list 'down-mouse-1
+                         (list (get-buffer-window) (point) '(0 . 0) 0))))
+              (run-hooks 'pre-command-hook)
+              (overblock-run-cells (overblock-pycell--cell-starts) "running")
+              (run-hooks 'post-command-hook))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
             ;; Asked for by a click on another cell, which moves point in
             ;; the same command: the pass takes the home over.
-            (run-hooks 'pre-command-hook)
-            (goto-char (point-min))
-            (overblock-run-cells (overblock-pycell--cell-starts) "running")
-            (run-hooks 'post-command-hook)
+            (let ((last-input-event
+                   (list 'down-mouse-1
+                         (list (get-buffer-window) (point-min) '(0 . 0) 0))))
+              (run-hooks 'pre-command-hook)
+              (goto-char (point-min))
+              (overblock-run-cells (overblock-pycell--cell-starts) "running")
+              (run-hooks 'post-command-hook))
             (should (= (point-min)
                        (buffer-local-value 'overblock-run--home shell)))
             (should (memq (current-buffer) overblock-run--scrolled))
@@ -1721,6 +1729,13 @@ A yank typed while the pass stood on a cell would land in that cell."
                    (list 'down-mouse-1 (list other 1 '(0 . 0) 0))))
               (run-hooks 'pre-command-hook))
             (delete-window other))
+          (should (= (point) two))
+          ;; Nor is a click in the notebook, which sets point itself,
+          ;; nor a page key that scrolls with no `scroll-command'.
+          (let ((last-input-event (list 'down-mouse-1 (list window 1 '(0 . 0) 0))))
+            (run-hooks 'pre-command-hook))
+          (let ((this-command 'pixel-scroll-interpolate-down))
+            (run-hooks 'pre-command-hook))
           (should (= (point) two))
           ;; A key gets point and the view back, and acts there.
           (run-hooks 'pre-command-hook)

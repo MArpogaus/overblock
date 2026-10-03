@@ -157,12 +157,12 @@ screen."
 (defcustom overblock-run-scroll t
   "Non-nil scrolls each window of a notebook to the region its pass runs.
 Point goes there too.  Point and the view come back where the pass was
-asked for when it ends.  The scrolling stops at the first command of
-the reader in the notebook, which gets point and the view back and
-acts there, or at a scroll, which moves on from the view the reader
-sees; the pass then leaves point and the windows alone.  A failed
-region leaves them on it, and a stop or an interrupt button leaves the
-view where it is.  Nil never scrolls."
+asked for when it ends.  The first key of the reader in the notebook
+gets point and the view back, acts there and stops the scrolling.  A
+scroll or a click stops it too, and moves on from the view the reader
+sees.  The pass then leaves point and the windows alone.  A failed
+region leaves them on it, and the interrupt button leaves the view
+where it is.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
@@ -515,8 +515,7 @@ where the reader put them."
                   (get-buffer-window-list nil nil t)))
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
-    ;; After the note, so the move back stops the scrolling.
-    (add-hook 'pre-command-hook #'overblock-run--scroll-hand-back 90)
+    (add-hook 'pre-command-hook #'overblock-run--scroll-hand-back)
     (add-hook 'post-command-hook #'overblock-run--scroll-check)
     ;; This command can move point after it started the scrolling.
     (overblock-run--scroll-see)))
@@ -537,18 +536,16 @@ The command hooks go with the last notebook that scrolls."
 The pass moved point to the region that runs; a command typed then
 would act there, and an edit or a yank would land in that cell.  Not
 for a scroll command, which moves on from the view the reader sees,
-for a mouse event aimed at another window, or for the release of a
-button, whose press can have started the pass."
+nor for a mouse event: a click sets point itself, and a button press
+can have started the pass."
   (let ((buffer (window-buffer (selected-window))))
     (when (and (zerop (minibuffer-depth))
-               (not (eq this-command 'overblock--button-release))
+               (not (consp last-input-event))
+               ;; `pixel-scroll-interpolate-down', on <next> with
+               ;; `pixel-scroll-precision-mode', has no `scroll-command'.
                (not (and (symbolp this-command)
-                         (get this-command 'scroll-command)))
-               (not (and (consp last-input-event)
-                         (let ((window (posn-window
-                                        (event-start last-input-event))))
-                           (and (windowp window)
-                                (not (eq window (selected-window)))))))
+                         (or (get this-command 'scroll-command)
+                             (string-match-p "scroll" (symbol-name this-command)))))
                (memq buffer overblock-run--scrolled))
       (with-current-buffer buffer
         (when-let* ((shell (overblock-run-shell))
