@@ -1419,25 +1419,57 @@ some start with a space."
 
 ;; The press runs the command, not the release: in the text area a
 ;; press reaches `mouse-drag-region', which keeps the release. The
-;; release and the drag go to `ignore': a command that moves the text
-;; under the pointer, such as a move button, turns the release into a
-;; drag, which would leave a region.
+;; release and the drag only say again what the press said, because
+;; reading the release clears the echo area: a command that moves the
+;; text under the pointer, such as a move button, turns the release
+;; into a drag, which would leave a region.
 (defvar overblock--button-keymaps (make-hash-table :test #'eq)
   "The keymap each button command is pressed through.
 A keymap depends only on the command, and the header of a running
 result is built five times a second.")
 
+(defvar overblock--pressed nil
+  "What the press of a button said, for its release to say again.")
+
+(defun overblock--press (command)
+  "Return the command a press on a button for COMMAND runs.
+For a symbol, that calls COMMAND and keeps what it said, and its
+symbol property `overblock-command' names COMMAND.  Any other command
+runs as it is."
+  (if (not (symbolp command))
+      command
+    (let ((press (intern (format "overblock--press-%s" command))))
+      (unless (fboundp press)
+        (defalias press
+          (lambda ()
+            (interactive)
+            (setq overblock--pressed nil)
+            (call-interactively command)
+            (setq overblock--pressed (current-message)))
+          (format "Call `%s', and keep what it says for the release." command))
+        (put press 'overblock-command command))
+      press)))
+
+(defun overblock--release ()
+  "Say again what the press of a button said.
+Reading the release clears the echo area."
+  (interactive)
+  (when overblock--pressed
+    (let ((message-log-max nil))
+      (message "%s" overblock--pressed)))
+  (setq overblock--pressed nil))
+
 (defun overblock-button (label help command)
   "Return LABEL as a button.
-A left click calls COMMAND, and HELP becomes the tooltip.  The keymap
-is kept per command in `overblock--button-keymaps'."
+A left click calls COMMAND, and HELP becomes the tooltip.
+The keymap is kept per command in `overblock--button-keymaps'."
   (propertize label 'mouse-face 'highlight 'help-echo help
               'keymap (with-memoization
                           (gethash command overblock--button-keymaps)
                         (define-keymap
-                          "<down-mouse-1>" command
-                          "<mouse-1>" #'ignore
-                          "<drag-mouse-1>" #'ignore))))
+                          "<down-mouse-1>" (overblock--press command)
+                          "<mouse-1>" #'overblock--release
+                          "<drag-mouse-1>" #'overblock--release))))
 
 (defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.

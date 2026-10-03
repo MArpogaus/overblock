@@ -436,6 +436,25 @@ invisible."
                                   (overlays-in (point-min) (point-max)))))
       (overblock-live-stop 'probe))))
 
+(ert-deftest overblock-test-a-button-release-says-again-what-its-press-said ()
+  "Reading the release of a click clears the echo area, so it says again.
+The press runs the command and keeps its message; the release shows it."
+  (let* ((map (get-text-property 0 'keymap
+                                 (overblock-button "x" "help" #'overblock-test--said)))
+         (press (keymap-lookup map "<down-mouse-1>"))
+         (said nil))
+    (should (eq (get press 'overblock-command) #'overblock-test--said))
+    (cl-letf (((symbol-function 'overblock-test--said)
+               (lambda () (interactive) (setq said 'pressed)))
+              ((symbol-function 'current-message) (lambda () "queued")))
+      (call-interactively press))
+    (should (eq said 'pressed))
+    (let (shown)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (_format text) (setq shown text))))
+        (call-interactively (keymap-lookup map "<mouse-1>")))
+      (should (equal shown "queued")))))
+
 (ert-deftest overblock-test-a-button-row-is-kept-per-display ()
   "The row a display draws is not the row another display draws.
 `overblock-glyph' answers by the kind of display, the frame font and
