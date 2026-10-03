@@ -981,9 +981,7 @@ out."
           (overblock-run--home-drop-dead))))))
 
 (defun overblock-run--home-drop-dead ()
-  "Free the home where its notebook was killed.
-A queue entry of a killed notebook goes, and the rest of the queue,
-such as what a reopened notebook asked for, runs on."
+  "Free the home where its notebook was killed."
   (when-let* ((home (buffer-local-value 'overblock-run--home
                                         (overblock-run-shell)))
               ((not (buffer-live-p (marker-buffer home)))))
