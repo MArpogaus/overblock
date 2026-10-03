@@ -446,11 +446,15 @@ While the pass scrolls (see `overblock-run-scroll'), point walks
 down the notebook, and at the end it goes back to where the pass was
 started.")
 
+(defvar-local overblock-run--armed nil
+  "The process of this shell whose first prompt a pass waits for.
+`overblock-run-next' runs on that prompt and clears it.")
+
 (defun overblock-run--queued ()
   "Return the regions a pass still has to run, in order.
 Each is a marker, where the `:step' of the backend decides what runs,
-or a cons of two markers for a region sent while the shell was busy,
-which runs as it was sent."
+or a cons of two markers for a region the reader sent, which runs as
+it was sent."
   (when-let* ((shell (overblock-run-shell)))
     (buffer-local-value 'overblock-run--queue shell)))
 
@@ -895,6 +899,8 @@ handles itself (a markdown cell) does not.
 A loop, not recursion: a recursive call per markdown cell can reach
 `max-lisp-eval-depth', and each frame would run its tail on the way
 out."
+  (when-let* ((shell (overblock-run-shell)))
+    (with-current-buffer shell (setq overblock-run--armed nil)))
   (catch 'waiting
     (while t
       (let* ((cells (overblock-run--queued))
@@ -946,6 +952,9 @@ armed."
   (overblock-run--call :arm #'overblock-run-next)
   (overblock-run--home-set (point-marker))
   (overblock-run--queue-set cells)
+  (when-let* ((shell (overblock-run-shell)))
+    (with-current-buffer shell
+      (setq overblock-run--armed (get-buffer-process shell))))
   (message "%s" message))
 
 (defun overblock-run--pass (cells message)
@@ -969,11 +978,11 @@ starts the pass now, one that prompts later starts it then.
 
 A region that will not start cancels the whole pass:
 `overblock-run--pass' empties the queue on a signal.  While the shell
-runs a region, CELLS go behind what is queued, as a region does."
+is busy (see `overblock-run--busy-p'), CELLS go behind what is queued,
+as a region does."
   (overblock-run--must)
   (cond
-   ((and (overblock-run--call :process)
-         (buffer-local-value 'overblock-run--state (overblock-run-shell)))
+   ((overblock-run--busy-p)
     (overblock-run--enqueue cells))
    ((or (overblock-run--call :process) (overblock-run--call :start))
     (overblock-run--pass cells message))
@@ -982,23 +991,33 @@ runs a region, CELLS go behind what is queued, as a region does."
 
 (defun overblock-run-region (start end)
   "Run START..END, starting the interpreter where there is none.
-A region sent while another one runs goes on the queue and runs when
-the shell is free; the pass stops if the running region fails.  While
-the interpreter starts, the region waits for its first prompt."
+A region sent while the shell is busy (see `overblock-run--busy-p')
+goes on the queue and runs when the shell is free; the pass stops if
+the running region fails.  While the interpreter starts, the region
+waits on the queue for its first prompt, so a second one waits behind."
   (overblock-run--must)
-  (if-let* ((proc (overblock-run--call :process)))
-      (if (buffer-local-value 'overblock-run--state (overblock-run-shell))
-          (overblock-run--enqueue (list (cons (copy-marker start)
-                                              (copy-marker end t))))
-        (overblock-run--send proc start end))
-    ;; Markers here, in the notebook: the thunk runs in the shell, and
-    ;; `copy-marker' of a number uses the current buffer.
-    (let ((beg (copy-marker start))
-          (fin (copy-marker end t)))
-      (if-let* ((proc (overblock-run--call :start)))
-          (overblock-run--send proc beg fin)
-        (overblock-run--call :arm (overblock-run--sender beg fin))
-        (message "%s: starting the interpreter…" (overblock-run--name))))))
+  ;; Markers here, in the notebook: the queue is in the shell, and
+  ;; `copy-marker' of a number uses the current buffer.
+  (let ((region (list (cons (copy-marker start) (copy-marker end t)))))
+    (if-let* (((not (overblock-run--busy-p)))
+              (proc (or (overblock-run--call :process)
+                        (overblock-run--call :start))))
+        (overblock-run--send proc start end)
+      (if (overblock-run--busy-p)
+          (overblock-run--enqueue region)
+        (overblock-run-on-prompt
+         region (format "%s: starting the interpreter…" (overblock-run--name)))))))
+
+(defun overblock-run--busy-p ()
+  "Non-nil where the shell runs a region, or a pass waits for its prompt.
+The pass waits for the first prompt of one process: a process that
+died or was restarted leaves nothing waiting."
+  (when-let* ((shell (overblock-run-shell)))
+    (with-current-buffer shell
+      (or overblock-run--state
+          (and overblock-run--armed
+               (eq overblock-run--armed (get-buffer-process shell))
+               (process-live-p overblock-run--armed))))))
 
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
@@ -1014,16 +1033,6 @@ the queue ends, unless a pass has set its home already."
                (format "%d %s" (length entries) (overblock-run--unit t))
              (concat "this " (overblock-run--unit)))
            (overblock-run--unit)))
-
-(defun overblock-run--sender (beg fin)
-  "Return a thunk that sends BEG..FIN once the interpreter has prompted.
-Unlike `overblock-run-next' this does not move point: the command that
-caused the cold start can have moved it already."
-  (lambda ()
-    (when (buffer-live-p (marker-buffer beg))
-      (with-current-buffer (marker-buffer beg)
-        (when-let* ((proc (overblock-run--call :process)))
-          (overblock-run--send proc beg fin))))))
 
 ;;;; The notebook and its commands
 

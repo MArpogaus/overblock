@@ -565,7 +565,7 @@ the shell buffer would send its start-up banner as the cell."
   (let* ((shell (generate-new-buffer "*overblock-pycell test shell*"))
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
-         notebook sent)
+         notebook sent started)
     (unwind-protect
         (overblock-pycell-test--with-cells
           (overblock-pycell-test--with-mode
@@ -573,27 +573,34 @@ the shell buffer would send its start-up banner as the cell."
             (with-current-buffer shell
               (insert "Python 3.14.6 | packaged by conda-forge\nIn [1]: "))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              ;; As python.el: the process is there once it was started.
               (cl-letf (((symbol-function 'python-shell-get-process)
-                         (lambda (&rest _) nil))
+                         (lambda (&rest _) (and started proc)))
                         ((symbol-function 'python-shell-get-process-or-error)
                          (lambda (&rest _) proc))
-                        ((symbol-function 'run-python) (lambda (&rest _) shell)))
-                (overblock-pycell-eval-region beg end)))
-            ;; The cell waits for the first prompt of the shell. Let it
-            ;; arrive.
-            (should (buffer-local-value 'python-shell-first-prompt-hook shell))
-            (cl-letf (((symbol-function 'python-shell-get-process)
-                       (lambda (&rest _) proc))
-                      ((symbol-function 'overblock-run--send)
-                       (lambda (_proc beg end)
-                         (setq sent (list (marker-buffer beg)
-                                          (marker-buffer end))))))
-              ;; Only what the package armed: the members of python.el
-              ;; talk to the interpreter, which here is a pipe that
-              ;; ignores them, and they would wait for ever on Emacs 29.
-              (with-current-buffer shell
-                (mapc #'funcall (remq t python-shell-first-prompt-hook))))
-            (should (equal sent (list notebook notebook)))))
+                        ((symbol-function 'run-python)
+                         (lambda (&rest _) (setq started t) shell)))
+                (overblock-pycell-eval-region beg end))
+              ;; The cell waits for the first prompt of the shell, and a
+              ;; second one asked for meanwhile waits behind it.
+              (should (buffer-local-value 'python-shell-first-prompt-hook shell))
+              (cl-letf (((symbol-function 'python-shell-get-process)
+                         (lambda (&rest _) proc))
+                        ((symbol-function 'overblock-run--send)
+                         (lambda (_proc beg end)
+                           (push (list (marker-buffer beg) (marker-buffer end))
+                                 sent))))
+                (overblock-pycell-eval-region beg end)
+                (should-not sent)
+                ;; Let the prompt arrive.  Only what the package armed:
+                ;; the members of python.el talk to the interpreter,
+                ;; which here is a pipe that ignores them, and they
+                ;; would wait for ever on Emacs 29.
+                (with-current-buffer shell
+                  (mapc #'funcall (remq t python-shell-first-prompt-hook)))
+                ;; The first goes on the prompt, the second on the next.
+                (should (equal sent (list (list notebook notebook))))
+                (should (= 1 (length (overblock-run--queued))))))))
       (delete-process proc)
       (kill-buffer shell))))
 
