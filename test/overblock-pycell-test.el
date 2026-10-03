@@ -1407,6 +1407,23 @@ z = 3
                 (should-not (memq (current-buffer) overblock-run--scrolled)))))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-dead-armed-process-leaves-the-shell-free ()
+  "A shell whose armed process died before its prompt is not busy."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
+    (let* ((shell (generate-new-buffer " *overblock-pycell-test-shell*"))
+           (proc (make-pipe-process :name "overblock-pycell armed" :buffer shell
+                                    :noquery t :filter #'ignore)))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) proc)))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode)
+              (setq-local overblock-run--armed proc))
+            (should (overblock-run--busy-p))
+            (delete-process proc)
+            (should-not (overblock-run--busy-p)))
+        (kill-buffer shell)))))
+
 (ert-deftest overblock-pycell-test-a-pass-started-by-a-move-does-not-scroll ()
   "A command that queues a cell and then moves on stops the scrolling.
 Shift-Enter queues the cell behind a busy shell and steps to the next

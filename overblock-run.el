@@ -393,10 +393,11 @@ the part that shows; without it the lines of TEXT are counted."
 
 (defvar-local overblock-run--queue nil
   "The regions a pass, or a reader pressing early, has left to run.
-`overblock-run--queued' says what an entry is.  `overblock-run-cells'
-and `overblock-run--enqueue' fill it, and `overblock-run-next' empties
-it.  It is local to the shell buffer, beside `overblock-run--state', so
-each shell has its own queue.  `overblock-run-shell' finds it.")
+`overblock-run--queued' says what an entry is.
+`overblock-run-cells', `overblock-run-on-prompt' and
+`overblock-run--enqueue' fill it, and `overblock-run-next' empties it.
+It is local to the shell buffer, beside `overblock-run--state', so each
+shell has its own queue.  `overblock-run-shell' finds it.")
 
 (defvar-local overblock-run--follower nil
   "What a buffer that follows one result knows of it: (SHELL . REGION).
@@ -949,13 +950,22 @@ The `:arm' of the backend knows when it prompts.
 The queue is set after `:arm', which makes the shell buffer that holds
 the home and the queue.  A shell that signals here leaves nothing
 armed."
-  (overblock-run--call :arm #'overblock-run-next)
+  (overblock-run-arm)
   (overblock-run--home-set (point-marker))
   (overblock-run--queue-set cells)
-  (when-let* ((shell (overblock-run-shell)))
-    (with-current-buffer shell
-      (setq overblock-run--armed (get-buffer-process shell))))
   (message "%s" message))
+
+(defun overblock-run-arm ()
+  "Run the queue on the first prompt of the shell, which is busy till then.
+For a shell that has not prompted yet: one just started or restarted.
+A region asked for meanwhile waits on the queue.  A process is armed
+once, however often this is called before its prompt."
+  (when-let* ((shell (overblock-run-shell))
+              ((not (process-live-p
+                     (buffer-local-value 'overblock-run--armed shell)))))
+    (overblock-run--call :arm #'overblock-run-next)
+    (with-current-buffer shell
+      (setq overblock-run--armed (get-buffer-process shell)))))
 
 (defun overblock-run--pass (cells message)
   "Put CELLS on the queue of the shell and start the pass, saying MESSAGE."
@@ -1017,10 +1027,7 @@ The pass waits for the first prompt of one process: a process that
 died or was restarted leaves nothing waiting."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
-      (or overblock-run--state
-          (and overblock-run--armed
-               (eq overblock-run--armed (get-buffer-process shell))
-               (process-live-p overblock-run--armed))))))
+      (or overblock-run--state (process-live-p overblock-run--armed)))))
 
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
@@ -1030,12 +1037,11 @@ the queue ends, unless a pass has set its home already."
   (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
     (overblock-run--home-set (point-marker)))
   (overblock-run--queue-set (append (overblock-run--queued) entries))
-  (message "%s: %s queued behind the running %s"
+  (message "%s: %s queued"
            (overblock-run--name)
            (if (cdr entries)
                (format "%d %s" (length entries) (overblock-run--unit t))
-             (concat "this " (overblock-run--unit)))
-           (overblock-run--unit)))
+             (concat "this " (overblock-run--unit)))))
 
 ;;;; The notebook and its commands
 
@@ -1269,6 +1275,9 @@ shell of the result."
   (overblock-goto-event event)
   (let ((queued (length (overblock-run--queued))))
     (overblock-run--queue-set nil)
+    ;; Also the way out of a first prompt that never comes.
+    (when-let* ((shell (overblock-run-shell)))
+      (with-current-buffer shell (setq overblock-run--armed nil)))
     ;; A stopped pass does not take point home.
     (overblock-run--home-set nil)
     (message "%s: %s" (overblock-run--name)
@@ -1304,7 +1313,9 @@ with only a new prompt, so no output can stop the pass."
                      (= running mine))
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
-    (with-current-buffer shell (setq overblock-run--queue nil))
+    (with-current-buffer shell
+      (setq overblock-run--queue nil
+            overblock-run--armed nil))
     ;; A stopped pass does not take point home.
     (overblock-run--home-set nil)
     (interrupt-process (or (get-buffer-process shell)

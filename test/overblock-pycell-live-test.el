@@ -126,6 +126,27 @@ an error in the process filter would leave the shell busy."
                             (overblock-test-common-text
                              (cadr (overblock-test-common-results)))))))
 
+(ert-deftest overblock-pycell-live-test-a-cell-after-a-restart-waits-for-the-prompt ()
+  "A cell asked for at once after a restart gets its output, not the banner."
+  (overblock-pycell-live-test--with-notebook
+      "# %%\nprint('one')\n\n# %%\nprint('two')\n"
+    (overblock-pycell-eval-region (point-min) (point-max))
+    (should (overblock-test-common-wait
+             (lambda () (and (overblock-pycell-live-test--idle-p)
+                             (overblock-test-common-results)))
+             60))
+    (overblock-pycell-restart)
+    (goto-char (point-max))
+    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+      (overblock-pycell-eval-region beg end))
+    (should (overblock-test-common-wait
+             (lambda () (and (overblock-pycell-live-test--idle-p)
+                             (= (length (overblock-test-common-results)) 1)))
+             60))
+    (should (equal (overblock-test-common-text
+                    (car (overblock-test-common-results)))
+                   "two"))))
+
 (ert-deftest overblock-pycell-live-test-stop-works-while-the-last-cell-runs ()
   "`overblock-run-stop' during the last cell of a pass leaves nothing queued.
 The last cell of a pass is sent with the queue already empty, and the
