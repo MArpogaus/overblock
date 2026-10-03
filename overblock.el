@@ -1432,7 +1432,7 @@ result is built five times a second.")
 (defvar overblock--pressed nil
   "What the press of a button said, or nil where it said nothing.")
 
-(defun overblock--release ()
+(defun overblock--button-release ()
   "Say again the last message, where the press of a button said one.
 Reading the release clears the echo area.  The last message is the one
 of the press, or one logged since, such as the end of a short pass.
@@ -1468,8 +1468,8 @@ is kept per command in `overblock--button-keymaps'."
                                              (call-interactively command)
                                              (setq overblock--pressed
                                                    (current-message)))
-                          "<mouse-1>" #'overblock--release
-                          "<drag-mouse-1>" #'overblock--release))))
+                          "<mouse-1>" #'overblock--button-release
+                          "<drag-mouse-1>" #'overblock--button-release))))
 
 (defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.

@@ -989,7 +989,7 @@ waits."
   (message "%s" message))
 
 (defun overblock-run-cells (cells message)
-  "Run CELLS in order, and say MESSAGE while they run.
+  "Run CELLS in order, and say MESSAGE, or what was queued where busy.
 Each region goes on the prompt of the one before it: the queue is in
 the shell, and `overblock-run-next' takes the next one.  The
 interpreter starts where there is none: one that is ready at once
@@ -1044,12 +1044,11 @@ a restart.  A process that died leaves nothing to wait for."
   "Put the queue ENTRIES behind whatever the shell is running.
 Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  The home is set here where
-none is set.  A pass takes over the home of its notebook where that
-notebook does not scroll, as after a waiting region or a pass that no
-longer scrolls.
-Then the pass scrolls.
-Point comes back to the home where the pass scrolled to its end (see
-`overblock-run-go-home')."
+none is set.  A pass or a region takes over the home of its notebook
+where that notebook does not scroll, as after a waiting region or a
+pass that no longer scrolls; a pass then scrolls where
+`overblock-run-scroll' says.  Point comes back to the home where the
+pass scrolled to its end (see `overblock-run-go-home')."
   ;; A click on another cell moved point in this command: the scrolling
   ;; stops now, not at the end of the command.
   (overblock-run--scroll-check)
