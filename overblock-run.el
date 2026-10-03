@@ -45,7 +45,8 @@
 ;;   :start     () -> start one; the process where it is ready to take a
 ;;              region at once, nil where it will only prompt later
 ;;   :arm       (THUNK) -> run THUNK on the first prompt of a new or
-;;              restarted shell
+;;              restarted shell.  Optional: without it, a shell prompts
+;;              at once
 ;;   :send      (PROC BEG END) -> send the region.  In the notebook
 ;;   :prompt-p  (TAIL) -> non-nil where TAIL ends at a prompt.  In the shell
 ;;   :clean     (TEXT) -> TEXT as a block can show it.  In the shell
@@ -71,8 +72,8 @@
 ;; `overblock-pycell' sends Python cells to an inferior Python, and
 ;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
 ;; Each keeps its own buttons and options.  The commands (run
-;; what is above, stop, interrupt, fold, copy and discard a result) are
-;; below, the same in both.
+;; what is above or below, stop, interrupt, fold, copy and discard a
+;; result) are below, the same in both.
 
 ;;; Code:
 
@@ -1028,8 +1029,8 @@ waits on the queue for its first prompt, so a second one waits behind."
 
 (defun overblock-run--busy-p ()
   "Non-nil where the shell runs a region, or has not prompted yet.
-That is the first prompt of one process, since it started or
-restarted: a process that died leaves nothing waiting."
+The shell waits for the first prompt of its process after a start or
+a restart.  A process that died leaves nothing to wait for."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (or overblock-run--state (process-live-p overblock-run--armed)))))

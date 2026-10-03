@@ -446,7 +446,7 @@ The shell and the regions:
 | =:unit=      | string           | what a region is called: "cell", "chunk"          |
 | =:process=   | () → process     | the live shell process, or nil                    |
 | =:start=     | () → process     | start a shell; nil where it prompts later         |
-| =:arm=       | (THUNK)          | run THUNK on the first prompt of a new shell      |
+| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional             |
 | =:send=      | (PROC BEG END)   | send the region to the process                    |
 | =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt               |
 | =:clean=     | (TEXT) → string  | the output as a block can show it                 |
@@ -486,7 +486,7 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-detach=         | stop being a notebook                                        |
 | =overblock-run-region=         | run one region, and start the shell where there is none      |
 | =overblock-run-cells=          | run several regions in order, to the first error             |
-| =overblock-run-on-prompt=      | run such a pass when a new shell prompts                     |
+| =overblock-run-on-prompt=      | queue regions to run when a new shell prompts                |
 | =overblock-run-next=           | run the next region of the queue                             |
 | =overblock-run-shell=          | the buffer that holds the queue and the run state            |
 | =overblock-run-running-region= | the region that runs now                                     |
@@ -531,10 +531,13 @@ between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
 scrolls. A single region does not start the scrolling, also when it
-waits on the queue; one that joins a scrolling pass goes with it. At its end, the pass says =NAME: done=, with the =:name= of
-the backend. A failed region ends the pass with =NAME: stopped at
-error=. A single region sent to a free shell says neither message. A
-region that waited on the queue, behind a busy shell or a starting
+waits on the queue. One that joins a scrolling pass goes with it, and
+a pass that joins a waiting region scrolls.
+
+At its end, the pass says =NAME: done=, with the =:name= of the
+backend. A failed region ends the pass with =NAME: stopped at error=.
+A single region sent to a free shell says neither message. A region
+that waited on the queue, behind a busy shell or a starting
 interpreter, ends its pass the same way. The home marker is in the
 shell buffer too, and is set when the shell exists.
 
