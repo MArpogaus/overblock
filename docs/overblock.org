@@ -530,10 +530,10 @@ when the pass ends. Where a minibuffer is open, this occurs after it
 closes, because its exit gives the windows back as they were. A
 restart ends the pass the same way. The scrolling stops at the first
 command of the reader that scrolls a window of the notebook or moves
-point in it. Only a command counts:
-redisplay moves a window start for =scroll-margin=, and output arrives
-between commands. Thus =pre-command-hook= notes each window of the
-notebook, and =post-command-hook= compares. The pass then leaves point
+point in it. Only a command counts: redisplay moves a window start for
+=scroll-margin=, and output arrives between commands. Thus
+=pre-command-hook= notes each window of the notebook, and
+=post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
 scrolls. A single region does not start the scrolling, also when it
 waits on the queue. A region that joins a scrolling pass goes with it.

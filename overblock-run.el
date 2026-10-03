@@ -300,7 +300,7 @@ where the cell finished.  IMAGEP marks a result with an image."
      icons 'overblock-bar)))
 
 (defun overblock-run-restart (reason restart)
-  "End what runs and take point home, drop the queue and results, RESTART.
+  "Take point home, end what runs, drop the queue and results, then RESTART.
 REASON goes to a region still running, through `overblock-run-abort':
 its region can be in another buffer on the same shell, whose block
 would otherwise keep a frozen running header.
@@ -480,9 +480,9 @@ it was sent."
 The windows that show the notebook go there too, because a window
 keeps its own point while its buffer is not selected, and each window
 shows again what it showed as the pass began to scroll.  Under an open
-minibuffer, this waits until it closes.  Where the pass
-did not scroll to its end (see `overblock-run-scroll'), point and the
-windows stay where the reader put them."
+minibuffer, this waits until it closes.  Where the pass did not scroll
+to its end (see `overblock-run-scroll'), point and the windows stay
+where the reader put them."
   (when-let* ((shell (overblock-run-shell))
               (home (buffer-local-value 'overblock-run--home shell)))
     ;; Freed first, also when the notebook is killed: comint adjusts
