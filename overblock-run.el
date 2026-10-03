@@ -309,7 +309,8 @@ would otherwise keep a frozen running header.
 
 RESTART is called with the old process, or nil where there was none,
 and starts the new interpreter, which is the job of the notebook.  A
-region asked for before its first prompt waits for it."
+region asked for before its first prompt waits for it, where the
+backend has an `:arm'."
   (let ((proc (overblock-run--call :process)))
     ;; The pass ends here: point and the windows go back, so a pass
     ;; asked for at once starts where the first one did. Before the
@@ -1024,7 +1025,8 @@ marker alone is where the `:step' of the backend decides what runs.
 
 While the pass scrolls and no minibuffer is open, the region goes to
 the top of each window (see `overblock-run--scroll-to'); else point
-and the windows stay, and the next region catches up."
+and the windows stay, and under a minibuffer the next region catches
+up."
   (if (and (memq (current-buffer) overblock-run--scrolled)
            (zerop (minibuffer-depth)))
       (progn (overblock-run--scroll-to m)
