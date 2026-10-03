@@ -404,9 +404,13 @@ So a .py file and an Rmd file show the same row."
       (should (equal said "runtest: done")))))
 
 (ert-deftest overblock-run-test-a-pass-that-ends-in-an-error-says-so ()
-  "A pass whose last region fails says it stopped, not that it is done."
+  "A pass whose last region fails says it stopped, not that it is done.
+Point stays on the failed region, and the home goes."
   (overblock-run-test--with-run
-    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (with-current-buffer notebook
+      (goto-char (point-min))
+      (overblock-run--home-set (point-marker))
+      (goto-char (point-max)))
     (let (said)
       (cl-letf (((symbol-function 'message)
                  (lambda (format-string &rest args)
@@ -415,7 +419,10 @@ So a .py file and an Rmd file show the same row."
         (goto-char (point-max))
         (insert "Error\n>>> ")
         (overblock-run--filter "Error\n>>> "))
-      (should (equal said "runtest: stopped at error")))))
+      (should (equal said "runtest: stopped at error"))
+      (should (= (with-current-buffer notebook (point))
+                 (with-current-buffer notebook (point-max))))
+      (should-not overblock-run--home))))
 
 (ert-deftest overblock-run-test-a-pass-ending-on-a-cell-without-output-says-done ()
   "A pass whose last region the notebook answers itself still says done.

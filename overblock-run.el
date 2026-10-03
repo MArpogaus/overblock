@@ -785,12 +785,13 @@ second time.  `overblock-run-abort' checks the same."
 
 (defun overblock-run--continue (failed)
   "Go on with the pass after a region ended, FAILED or not.
-A failure ends the pass and takes point home; otherwise
-`overblock-run-next' goes on."
+A failure ends the pass, and point and the view stay on the failed
+region, which the reader wants to see; otherwise `overblock-run-next'
+goes on."
   (if (and failed (or overblock-run--queue overblock-run--home))
       (progn (setq overblock-run--queue nil)
              (message "%s: stopped at error" (overblock-run--name))
-             (overblock-run-go-home))
+             (overblock-run--home-drop))
     (overblock-run-next)))
 
 (defun overblock-run-abort (&optional reason)
