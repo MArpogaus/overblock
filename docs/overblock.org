@@ -527,9 +527,10 @@ With =overblock-run-scroll=, each region of a pass goes to the top of
 each window that shows the notebook, so the code that runs is visible,
 and =overblock-run-go-home= puts point and the view of each window back
 when the pass ends. Where a minibuffer is open, this occurs after it
-closes, because its exit gives the windows back as they were. A restart ends the pass the same way.
-The scrolling stops at the first command of the reader that scrolls a
-window of the notebook or moves point in it. Only a command counts:
+closes, because its exit gives the windows back as they were. A
+restart ends the pass the same way. The scrolling stops at the first
+command of the reader that scrolls a window of the notebook or moves
+point in it. Only a command counts:
 redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
