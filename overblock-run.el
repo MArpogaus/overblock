@@ -298,7 +298,9 @@ would otherwise keep a frozen running header.
 
 RESTART is called with the old process, or nil where there was none,
 and starts the new interpreter, which is the job of the notebook.  A
-region asked for before its first prompt waits for it."
+region asked for before its first prompt waits for it.  A shell that
+has not prompted yet is fresh, and is not started again: python.el
+waits for ever on a shell killed before its first prompt."
   (let ((proc (overblock-run--call :process)))
     (when proc
       (with-current-buffer (process-buffer proc)
@@ -306,7 +308,9 @@ region asked for before its first prompt waits for it."
     (overblock-run--queue-set nil)
     (overblock-run--home-set nil)
     (overblock-run-clear-results)
-    (funcall restart proc)
+    (unless (and proc (eq proc (buffer-local-value 'overblock-run--armed
+                                                   (process-buffer proc))))
+      (funcall restart proc))
     (overblock-run--arm)))
 
 ;;;###autoload
