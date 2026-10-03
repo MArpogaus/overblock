@@ -1001,9 +1001,10 @@ the cells after it plain."
      (if (not proc)
          (overblock-pycell--start)
        (python-shell-restart)
-       ;; Its `save-excursion' leaves point in the shell before what the
-       ;; restart inserted, and the first-prompt filter of python.el then
-       ;; signals: the first prompt, and the pass armed on it, never come.
+       ;; The `save-excursion' of `python-shell-make-comint' leaves point
+       ;; in the shell before what the restart inserted, and the
+       ;; first-prompt filter of python.el then signals: the first
+       ;; prompt, and the pass armed on it, never come.
        (with-current-buffer (process-buffer proc)
          (goto-char (point-max)))))))
 

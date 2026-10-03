@@ -530,7 +530,7 @@ redisplay moves a window start for =scroll-margin=, and output arrives
 between commands. Thus =pre-command-hook= notes each window of the
 notebook, and =post-command-hook= compares. The pass then leaves point
 and the windows alone, to its end. With the option nil, a pass never
-scrolls. The pass then says =NAME: done=,
+scrolls. At its end, the pass says =NAME: done=,
 with the =:name= of the backend. A failed region ends the pass with
 =NAME: stopped at error=. A single region that is not part of a pass
 says neither. The home marker is in the shell
