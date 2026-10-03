@@ -176,6 +176,8 @@ Then the notebook no longer scrolls."
   (overblock-run-test--with-run
     (cancel-timer (plist-get overblock-run--state :timer))
     (setq overblock-run--state nil)
+    ;; As a shell that starts, and never ran a region.
+    (remove-hook 'kill-buffer-hook #'overblock-run--home-drop t)
     (with-current-buffer notebook (overblock-run--home-set (point-marker)))
     (should (memq notebook overblock-run--scrolled))
     (kill-buffer shell)
@@ -261,9 +263,9 @@ this test runs them."
       (with-current-buffer notebook
         (overblock-run-restart "runtest: restarting" #'ignore)
         (should (= (point) (point-min))))
-      ;; A pass that waits while nothing runs: the restart drops its
-      ;; home too, so the prompt of the new shell takes no point back,
-      ;; and the notebook no longer scrolls.
+      ;; A pass that waits while nothing runs: the restart takes point
+      ;; home and frees the home, so the prompt of the new shell takes
+      ;; no point back, and the notebook no longer scrolls.
       (with-current-buffer notebook
         (overblock-run--home-set (point-marker))
         (overblock-run-restart "runtest: restarting" #'ignore))

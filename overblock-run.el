@@ -577,7 +577,9 @@ adjusts every marker of the shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (overblock-run--home-drop)
-      (setq overblock-run--home marker))
+      (setq overblock-run--home marker)
+      ;; Also a shell that never ran a region, such as one that starts.
+      (add-hook 'kill-buffer-hook #'overblock-run--home-drop nil t))
     (when marker
       (with-current-buffer (marker-buffer marker)
         (overblock-run--scroll-start)))))
@@ -890,7 +892,6 @@ shell buffer, where the filter and the ticker read it."
       ;; after comint-mime and the copy carries the images.
       (add-hook 'comint-output-filter-functions #'overblock-run--filter t t)
       (add-hook 'kill-buffer-hook #'overblock-run-abort nil t)
-      (add-hook 'kill-buffer-hook #'overblock-run--home-drop nil t)
       (add-hook 'change-major-mode-hook #'overblock-run-abort nil t)
       ;; The ticker gets its own timer, so it can cancel itself.
       (let (timer)
@@ -966,9 +967,9 @@ marker alone is where the `:step' of the backend decides what runs.
 
 While the pass scrolls, the region goes to the top of every window that
 shows the notebook (see `overblock-run--scroll-to'), so the code that
-runs is visible, and
-`overblock-run-go-home' gives point back when the pass ends.  Where it
-does not scroll, point and the windows stay as they are."
+runs is visible, and `overblock-run-go-home' gives point and the view
+back when the pass ends.  Where it does not scroll, point and the
+windows stay as they are."
   (if (memq (current-buffer) overblock-run--scrolled)
       (progn (overblock-run--scroll-to m)
              (overblock-run--step-at entry))
