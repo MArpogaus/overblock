@@ -1657,9 +1657,8 @@ The button shows only while the cell runs, and its click is
                     found)
                 (while (and (not found) (< pos len))
                   (when-let* ((map (get-text-property pos 'keymap header)))
-                    (when (eq (get (keymap-lookup map "<down-mouse-1>")
-                                   'overblock-command)
-                              #'overblock-run-interrupt)
+                    (when (eq map (gethash #'overblock-run-interrupt
+                                           overblock--button-keymaps))
                       (setq found t)))
                   (setq pos (1+ pos)))
                 found)))

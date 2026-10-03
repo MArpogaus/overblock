@@ -284,9 +284,10 @@ The line is still there to edit. Point can be on it, the caret shows on
 the last glyph of the bar, and the label follows what is written on the
 line. Folding works from there.
 
-The commands are on =<down-mouse-1>=, and =<mouse-1>= is bound to
-=ignore=. Thus the press runs the command before a redraw can change
-what is under the pointer.
+The commands are on =<down-mouse-1>=. Thus the press runs the command
+before a redraw can change what is under the pointer. Reading the
+release clears the echo area, so =<mouse-1>= and =<drag-mouse-1>= say
+again what the command said.
 
 ** The width a bar is cut to
 

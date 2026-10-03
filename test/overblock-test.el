@@ -437,7 +437,7 @@ invisible."
       (overblock-live-stop 'probe))))
 
 (defun overblock-test--said ()
-  "A button command for the tests; each test stubs it."
+  "A button command for the tests.  The test stubs it."
   (interactive))
 
 (ert-deftest overblock-test-a-button-release-says-again-what-its-press-said ()
@@ -447,7 +447,6 @@ The press runs the command and keeps its message; the release shows it."
                                  (overblock-button "x" "help" #'overblock-test--said)))
          (press (keymap-lookup map "<down-mouse-1>"))
          (said nil))
-    (should (eq (get press 'overblock-command) #'overblock-test--said))
     (cl-letf (((symbol-function 'overblock-test--said)
                (lambda () (interactive) (setq said 'pressed)))
               ((symbol-function 'current-message) (lambda () "queued")))
