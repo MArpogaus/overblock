@@ -649,6 +649,31 @@ A cell sent before that prompt would get the start-up banner."
             (should-not (memq (current-buffer) overblock-run--scrolled)))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-restart-deletes-the-process-and-starts-again ()
+  "A restart deletes the process at once and starts a new one.
+`python-shell-restart' waits for the last output of the process, and a
+shell that had not prompted yet freezes Emacs in that wait."
+  (let* ((shell (generate-new-buffer "*overblock-pycell test shell*"))
+         (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
+                                  :noquery t :filter #'ignore))
+         started)
+    (unwind-protect
+        (overblock-pycell-test--with-cells
+          (overblock-pycell-test--with-mode
+            (cl-letf (((symbol-function 'python-shell-get-process)
+                       (lambda (&rest _) (and (process-live-p proc) proc)))
+                      ((symbol-function 'python-shell-restart)
+                       (lambda (&rest _) (ert-fail "python-shell-restart waits")))
+                      ((symbol-function 'run-python)
+                       (lambda (&rest _) (setq started t) shell)))
+              (with-current-buffer shell
+                (setq major-mode 'inferior-python-mode))
+              (overblock-pycell-restart)
+              (should-not (process-live-p proc))
+              (should started))))
+      (when (process-live-p proc) (delete-process proc))
+      (kill-buffer shell))))
+
 (ert-deftest overblock-pycell-test-clean-strips-a-prompt-on-the-same-line ()
   "A prompt that follows output on one line goes too.
 Output that ends without a newline leaves the prompt of the shell on
