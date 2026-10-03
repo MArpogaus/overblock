@@ -164,6 +164,11 @@ point and the windows alone.  Nil never scrolls."
   :type 'boolean
   :group 'overblock)
 
+(defvar-local overblock-run--view nil
+  "The start of each window of this notebook as its pass began to scroll.
+An alist of (WINDOW . MARKER): `overblock-run-go-home' gives each
+window its view back.")
+
 (defvar overblock-run--scrolled nil
   "The notebooks whose pass scrolls to its regions.")
 
@@ -300,11 +305,14 @@ RESTART is called with the old process, or nil where there was none,
 and starts the new interpreter, which is the job of the notebook.  A
 region asked for before its first prompt waits for it."
   (let ((proc (overblock-run--call :process)))
+    ;; The pass ends here: point and the windows go back, so a pass
+    ;; asked for at once starts where the first one did.  Before the
+    ;; abort, which drops the home as a death.
+    (overblock-run-go-home)
     (when proc
       (with-current-buffer (process-buffer proc)
         (overblock-run-abort reason)))
     (overblock-run--queue-set nil)
-    (overblock-run--home-set nil)
     (overblock-run-clear-results)
     (funcall restart proc)
     (overblock-run--arm)))
@@ -466,7 +474,8 @@ it was sent."
 (defun overblock-run-go-home ()
   "Put point back where the pass that has just ended was asked for.
 The windows that show the notebook go there too, because a window
-keeps its own point while its buffer is not selected.  Where the pass
+keeps its own point while its buffer is not selected, and each starts
+where it started as the pass began to scroll.  Where the pass
 did not scroll to its end (see `overblock-run-scroll'), point and the
 windows stay where the reader put them."
   (when-let* ((shell (overblock-run-shell))
@@ -479,6 +488,8 @@ windows stay where the reader put them."
         (when (memq (current-buffer) overblock-run--scrolled)
           (goto-char home)
           (dolist (window (get-buffer-window-list nil nil t))
+            (when-let* ((start (alist-get window overblock-run--view)))
+              (set-window-start window start t))
             (set-window-point window home)))
         (overblock-run--scroll-stop)))
     (set-marker home nil)))
@@ -486,6 +497,11 @@ windows stay where the reader put them."
 (defun overblock-run--scroll-start ()
   "Have the pass of this notebook scroll to its regions, where the option says."
   (when overblock-run-scroll
+    (unless (memq (current-buffer) overblock-run--scrolled)
+      (setq overblock-run--view
+            (mapcar (lambda (window)
+                      (cons window (copy-marker (window-start window))))
+                    (get-buffer-window-list nil nil t))))
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
     (add-hook 'post-command-hook #'overblock-run--scroll-check)
@@ -496,6 +512,8 @@ windows stay where the reader put them."
   "Stop the pass of this notebook from scrolling to its regions.
 The command hooks go with the last notebook that scrolls."
   (setq overblock-run--scrolled (delq (current-buffer) overblock-run--scrolled))
+  (dolist (view overblock-run--view) (set-marker (cdr view) nil))
+  (setq overblock-run--view nil)
   (unless overblock-run--scrolled
     (setq overblock-run--seen nil)
     (remove-hook 'pre-command-hook #'overblock-run--scroll-see)

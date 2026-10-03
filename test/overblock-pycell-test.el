@@ -1603,6 +1603,37 @@ as the scrolling starts."
     (run-hooks 'post-command-hook)
     (should-not (memq (current-buffer) overblock-run--scrolled))))
 
+(ert-deftest overblock-pycell-test-a-pass-gives-the-view-back ()
+  "A pass that scrolled to its end gives point and the window start back.
+A restart in the middle of a pass ends it the same way, so a pass asked
+for at once starts where the first one did."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n\n# %% Three\nz = 3\n"
+    (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*"))
+          (window (get-buffer-window))
+          (two (save-excursion (goto-char (point-min)) (forward-line 3)
+                               (point-marker))))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell))
+                    ((symbol-function 'overblock-run-clear-results) #'ignore))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode))
+            (set-window-start window (point-min))
+            (goto-char (+ (point-min) 2))
+            (dolist (stop (list #'overblock-run-go-home
+                                (lambda ()
+                                  (overblock-run-restart "restarting" #'ignore))))
+              (overblock-run--home-set (point-marker))
+              (overblock-run--scroll-to two)
+              (should (= (window-start window) two))
+              (funcall stop)
+              (should (= (window-start window) (point-min)))
+              (should (= (point) (+ (point-min) 2)))))
+        (overblock-run--scroll-stop)
+        (kill-buffer shell)))))
+
 (ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
   "The command hooks of the scrolling go when the last such notebook dies."
   (let ((notebook (generate-new-buffer " *overblock-pycell-test-scroll*")))

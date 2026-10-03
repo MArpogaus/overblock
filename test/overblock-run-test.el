@@ -234,6 +234,22 @@ this test runs them."
       (should restarted)
       (should-not overblock-run--state)
       (should-not overblock-run--queue)
+      ;; A pass whose region runs: the restart takes point home, before
+      ;; the abort drops the home.
+      (with-current-buffer notebook
+        (goto-char (point-min))
+        (overblock-run--home-set (point-marker))
+        (goto-char (point-max)))
+      (with-current-buffer shell
+        (setq overblock-run--state
+              (list :from (point-max) :beg (with-current-buffer notebook
+                                             (copy-marker (point-min)))
+                    :end (with-current-buffer notebook
+                           (copy-marker (point-max) t))
+                    :start (float-time) :timer (timer-create))))
+      (with-current-buffer notebook
+        (overblock-run-restart "runtest: restarting" #'ignore)
+        (should (= (point) (point-min))))
       ;; A pass that waits while nothing runs: the restart drops its
       ;; home too, so the prompt of the new shell takes no point back,
       ;; and the notebook no longer scrolls.
