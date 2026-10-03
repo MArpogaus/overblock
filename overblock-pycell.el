@@ -999,17 +999,11 @@ the cells after it plain."
    (lambda (proc)
      ;; Not `python-shell-restart': it waits for the last output of the
      ;; process it killed, and a shell that had not prompted yet sends
-     ;; its first prompt into that wait.  The setup of python.el then
-     ;; waits for ever on the dead process.  The process goes at once,
+     ;; its first prompt into that wait. The setup of python.el then
+     ;; waits for ever on the dead process. The process goes at once,
      ;; and a new one starts in the same buffer.
      (when proc (delete-process proc))
-     (overblock-pycell--start)
-     ;; The first-prompt filter of python.el searches back from point;
-     ;; point left before the new output makes it signal, and the first
-     ;; prompt, with the pass armed on it, never comes.
-     (when-let* ((new (python-shell-get-process)))
-       (with-current-buffer (process-buffer new)
-         (goto-char (point-max)))))))
+     (overblock-pycell--start))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
