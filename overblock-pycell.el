@@ -920,8 +920,15 @@ comint-mime on the same hook, hence the depth.  A shell that signals
 here leaves nothing armed.
 
 The hook is local and the function removes itself, so no stale thunk
-stays."
+stays.
+
+A window that shows the shell scrolled up would give its point back to
+the buffer at the next redisplay, before the new output, and the
+first-prompt filter of python.el then signals: the thunk would never
+run.  So each window of the shell goes to its end first."
   (with-current-buffer (process-buffer (python-shell-get-process-or-error))
+    (dolist (window (get-buffer-window-list nil nil t))
+      (set-window-point window (point-max)))
     (letrec ((once (lambda ()
                      (remove-hook 'python-shell-first-prompt-hook once t)
                      (funcall thunk))))
@@ -1007,16 +1014,7 @@ the cells after it plain."
          (delete-process proc)
          (python-shell-make-comint (python-shell-calculate-command)
                                    (string-trim (buffer-name buffer)
-                                                "\\*" "\\*"))))
-     ;; A window that shows the shell scrolled up gives its point back
-     ;; to the buffer at the next redisplay, before the new output, and
-     ;; the first-prompt filter of python.el then signals: the pass
-     ;; armed on that prompt never runs.
-     (when-let* ((proc (python-shell-get-process))
-                 (buffer (process-buffer proc))
-                 (end (with-current-buffer buffer (point-max))))
-       (dolist (window (get-buffer-window-list buffer nil t))
-         (set-window-point window end))))))
+                                                "\\*" "\\*")))))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
