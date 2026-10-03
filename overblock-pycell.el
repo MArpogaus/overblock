@@ -998,7 +998,14 @@ the cells after it plain."
    "The interpreter was restarted"
    (lambda (proc)
      ;; `python-shell-restart' needs a shell.
-     (if proc (python-shell-restart) (overblock-pycell--start)))))
+     (if (not proc)
+         (overblock-pycell--start)
+       (python-shell-restart)
+       ;; Its `save-excursion' leaves point in the shell before what the
+       ;; restart inserted, and the first-prompt filter of python.el then
+       ;; signals: the first prompt, and the pass armed on it, never come.
+       (with-current-buffer (process-buffer proc)
+         (goto-char (point-max)))))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
