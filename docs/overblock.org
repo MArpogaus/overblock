@@ -537,8 +537,8 @@ home marker is in the shell buffer too, and is set when the shell
 exists.
 
 A region sent while the shell is busy waits in the queue, and runs as
-it was sent. A pass asked for while the shell is busy goes behind the
-queue in the same way. Each request queues what it asks for, as in
+it was sent. A pass asked for while the shell is busy also goes behind the
+queue. Each request queues what it asks for, as in
 Jupyter: a region asked for twice runs twice, in the order asked.
 
 ** What the ticker reads

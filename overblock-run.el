@@ -881,10 +881,10 @@ cell of a pass can be one the notebook answered itself."
 
 (defun overblock-run-next ()
   "Run the regions of the queue of the shell until one has to wait.
-Point follows while the pass scrolls (see `overblock-run-scroll').
-Called from the shell on its first prompt and from `overblock-run--end'
-when a region finishes, so the queue is reached through
-`overblock-run-shell'.
+Point walks down the notebook while the pass scrolls (see
+`overblock-run-scroll').  Called from the shell on its first prompt and
+from `overblock-run--end' when a region finishes, so the queue is
+reached through `overblock-run-shell'.
 
 The `:step' of the backend runs what is at point, and says whether the
 walk must wait: a region sent to the shell waits, and one the notebook
