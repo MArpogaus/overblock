@@ -998,17 +998,30 @@ the interpreter starts, the region waits for its first prompt."
 
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
+An entry that starts where a queued one starts is queued already, and
+goes only once.  The running region can go again: it was asked for.
 Point comes back here when the queue ends, unless a pass has set its
 home already."
-  (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
-    (overblock-run--home-set (point-marker)))
-  (overblock-run--queue-set (append (overblock-run--queued) entries))
-  (message "%s: %s queued behind the running %s"
-           (overblock-run--name)
-           (if (cdr entries)
-               (format "%d %s" (length entries) (overblock-run--unit t))
-             (concat "this " (overblock-run--unit)))
-           (overblock-run--unit)))
+  (let* ((queued (overblock-run--queued))
+         (starts (mapcar #'overblock-run--entry-start queued))
+         (new (seq-remove (lambda (entry)
+                            (member (overblock-run--entry-start entry) starts))
+                          entries)))
+    (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
+      (overblock-run--home-set (point-marker)))
+    (overblock-run--queue-set (append queued new))
+    (message "%s: %s queued behind the running %s"
+             (overblock-run--name)
+             (pcase (length new)
+               (0 "all already")
+               (1 (concat "one " (overblock-run--unit)))
+               (n (format "%d %s" n (overblock-run--unit t))))
+             (overblock-run--unit))))
+
+(defun overblock-run--entry-start (entry)
+  "Return where the queue ENTRY starts, as (BUFFER . POSITION)."
+  (let ((m (if (consp entry) (car entry) entry)))
+    (cons (marker-buffer m) (marker-position m))))
 
 (defun overblock-run--sender (beg fin)
   "Return a thunk that sends BEG..FIN once the interpreter has prompted.

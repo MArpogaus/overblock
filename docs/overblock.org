@@ -538,7 +538,8 @@ buffer too, and is set when the shell exists.
 
 A region sent while the shell is busy waits in the queue, and runs as
 it was sent. A pass asked for while the shell is busy goes behind the
-queue in the same way.
+queue in the same way. A region that waits already goes only once, and
+the running one can go again, because the reader asked for it.
 
 ** What the ticker reads
 

@@ -1423,9 +1423,11 @@ z = 3
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode)
               (setq-local overblock-run--state (list :from 1)))
-            (overblock-run--queue-set '(a))
-            (overblock-run-cells '(b c) "running")
-            (should (equal (overblock-run--queued) '(a b c)))
+            ;; The second cell waits already, and goes only once.
+            (overblock-run--queue-set (list (copy-marker 13)))
+            (overblock-run-cells (list (copy-marker 1) (copy-marker 13)) "running")
+            (should (equal (mapcar #'marker-position (overblock-run--queued))
+                           '(13 1)))
             (should (buffer-local-value 'overblock-run--home shell)))
         (kill-buffer shell)))))
 
