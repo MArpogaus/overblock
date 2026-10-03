@@ -1579,18 +1579,25 @@ does, and point comes back where the pass was asked for."
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-pass-leaves-the-windows-to-an-open-minibuffer ()
-  "A pass does not move a window while a minibuffer is open.
-Its exit restores the windows, which would read as a scroll."
+  "A pass moves no window and not point while a minibuffer is open.
+Its exit restores the windows, which would read as a scroll, and the
+reader can be in the notebook meanwhile."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
     (let ((window (get-buffer-window))
           (two (save-excursion (goto-char (point-max))
                                (code-cells-backward-cell) (point-marker))))
       (set-window-start window (point-min))
-      (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
-        (overblock-run--scroll-to two))
-      (should (= (window-start window) (point-min)))
-      (overblock-run--scroll-to two)
-      (should (= (window-start window) two)))))
+      (goto-char (point-min))
+      (overblock-run--scroll-start)
+      (cl-letf (((symbol-function 'overblock-run--step-at) #'ignore))
+        (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
+          (overblock-run--step two two))
+        (should (= (window-start window) (point-min)))
+        (should (= (point) (point-min)))
+        (overblock-run--step two two)
+        (should (= (window-start window) two))
+        (should (= (point) two)))
+      (overblock-run--scroll-stop))))
 
 (ert-deftest overblock-pycell-test-a-move-in-the-starting-command-stops-the-scroll ()
   "A command that starts a pass and then moves point stops the scrolling.

@@ -170,6 +170,20 @@ the notebook, which is another buffer."
     (should (string-match-p "died\\|Process"
                             (overblock-run-test--shown notebook)))))
 
+(ert-deftest overblock-run-test-a-killed-notebook-takes-its-home-along ()
+  "A pass whose notebook was killed ends with its home freed.
+Else the next single region says done, and a pass does not scroll."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (let ((other (generate-new-buffer " *overblock-run-test-gone*")))
+      (setq overblock-run--queue (list (with-current-buffer other
+                                         (point-marker))))
+      (with-current-buffer notebook (overblock-run--home-set (point-marker)))
+      (kill-buffer other)
+      (overblock-run-next)
+      (should-not overblock-run--home))))
+
 (ert-deftest overblock-run-test-a-killed-shell-frees-a-waiting-home ()
   "Killing a shell where no region runs frees the home of its pass.
 Then the notebook no longer scrolls."

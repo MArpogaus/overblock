@@ -581,15 +581,11 @@ closed, where no window moved."
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
 (defun overblock-run--scroll-to (m)
-  "Put point at M, and every window that shows this notebook there too.
-The windows stay while a minibuffer is open: its exit gives them back
-as they were, which would read as a scroll of the reader.  The next
-region catches up."
+  "Put point at M, and every window that shows this notebook there too."
   (goto-char m)
-  (unless (> (minibuffer-depth) 0)
-    (dolist (window (get-buffer-window-list nil nil t))
-      (set-window-point window m)
-      (set-window-start window m)))
+  (dolist (window (get-buffer-window-list nil nil t))
+    (set-window-point window m)
+    (set-window-start window m))
   ;; The pass moved them, not the reader, also inside a command.
   (overblock-run--scroll-see))
 
@@ -979,7 +975,9 @@ out."
           (throw 'waiting nil))
         (overblock-run--queue-set (cdr cells))
         (unless (buffer-live-p (marker-buffer m))
+          ;; The notebook is gone: so are its pass and its home.
           (overblock-run--queue-set nil)
+          (overblock-run--home-set nil)
           (throw 'waiting nil))
         (with-current-buffer (marker-buffer m)
           (when (overblock-run--step entry m)
@@ -994,8 +992,12 @@ While the pass scrolls, the region goes to the top of every window that
 shows the notebook (see `overblock-run--scroll-to'), so the code that
 runs is visible, and `overblock-run-go-home' gives point and the view
 back when the pass ends.  Where it does not scroll, point and the
-windows stay as they are."
-  (if (memq (current-buffer) overblock-run--scrolled)
+windows stay as they are, and so they do while a minibuffer is open:
+its exit gives the windows back as they were, and point is the
+reader's, who can be in the notebook meanwhile.  The next region
+catches up."
+  (if (and (memq (current-buffer) overblock-run--scrolled)
+           (zerop (minibuffer-depth)))
       (progn (overblock-run--scroll-to m)
              (overblock-run--step-at entry))
     (save-excursion
