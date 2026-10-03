@@ -959,8 +959,10 @@ armed."
   "Run the queue on the first prompt of the shell, which is busy till then.
 For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
-once, however often this is called before its prompt."
-  (when-let* ((shell (overblock-run-shell))
+once, however often this is called before its prompt.  A backend with
+no `:arm' has a shell that prompts at once, and nothing waits."
+  (when-let* (((plist-get overblock-run-backend :arm))
+              (shell (overblock-run-shell))
               ((not (process-live-p
                      (buffer-local-value 'overblock-run--armed shell)))))
     (overblock-run--call :arm #'overblock-run-next)
@@ -1008,16 +1010,17 @@ waits on the queue for its first prompt, so a second one waits behind."
   (overblock-run--must)
   ;; Markers here, in the notebook: the queue is in the shell, and
   ;; `copy-marker' of a number uses the current buffer.
-  (let ((region (list (cons (copy-marker start) (copy-marker end t)))))
+  (let ((region (lambda () (list (cons (copy-marker start) (copy-marker end t))))))
     (cond
      ((overblock-run--busy-p)
-      (overblock-run--enqueue region))
+      (overblock-run--enqueue (funcall region)))
      ((when-let* ((proc (or (overblock-run--call :process)
                             (overblock-run--call :start))))
         (overblock-run--send proc start end)
         t))
      (t (overblock-run-on-prompt
-         region (format "%s: starting the interpreter…" (overblock-run--name)))
+         (funcall region)
+         (format "%s: starting the interpreter…" (overblock-run--name)))
         ;; One region sent leaves point and the windows alone.
         (overblock-run--scroll-stop)))))
 
