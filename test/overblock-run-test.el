@@ -234,6 +234,14 @@ this test runs them."
       (should restarted)
       (should-not overblock-run--state)
       (should-not overblock-run--queue)
+      ;; A pass that waits while nothing runs: the restart drops its
+      ;; home too, so the prompt of the new shell takes no point back,
+      ;; and the notebook no longer scrolls.
+      (with-current-buffer notebook
+        (overblock-run--home-set (point-marker))
+        (overblock-run-restart "runtest: restarting" #'ignore))
+      (should-not overblock-run--home)
+      (should-not (memq notebook overblock-run--scrolled))
       ;; A backend that can arm waits for the first prompt again.
       (with-current-buffer notebook
         (setq-local overblock-run-backend

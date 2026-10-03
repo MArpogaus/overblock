@@ -291,7 +291,7 @@ where the cell finished.  IMAGEP marks a result with an image."
      icons 'overblock-bar)))
 
 (defun overblock-run-restart (reason restart)
-  "End what runs, drop the queue and the results, then call RESTART.
+  "End what runs, drop the queue, the home and the results, then RESTART.
 REASON goes to a region still running, through `overblock-run-abort':
 its region can be in another buffer on the same shell, whose block
 would otherwise keep a frozen running header.
@@ -304,6 +304,7 @@ region asked for before its first prompt waits for it."
       (with-current-buffer (process-buffer proc)
         (overblock-run-abort reason)))
     (overblock-run--queue-set nil)
+    (overblock-run--home-set nil)
     (overblock-run-clear-results)
     (funcall restart proc)
     (overblock-run--arm)))
@@ -539,6 +540,8 @@ region catches up."
 
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.
+A marker starts the scrolling of its notebook, where
+`overblock-run-scroll' says.
 A marker it held before is freed: comint adjusts every marker of the
 shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
@@ -960,7 +963,7 @@ there leaves nothing set."
   (message "%s" message))
 
 (defun overblock-run--arm ()
-  "Run the queue on the first prompt of the shell, which is busy till then.
+  "Run the queue on the first prompt of the shell, which is busy until then.
 For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
 once, however often this is called before its prompt, and a stop
