@@ -540,12 +540,12 @@ takes over the home and scrolls.
 
 Before each key of the reader, point and the view go back to the home,
 so the key acts where the reader was and not at the region that runs.
-A scroll command moves on from the view the reader sees, and a mouse
-event aimed at another window leaves the notebook alone. The scrolling
-stops at the first command of the reader in the notebook, or at one
-that scrolls a window of it. Only a command counts: redisplay moves a
-window start for =scroll-margin=, and output arrives between commands.
-Thus =pre-command-hook= notes each window of the notebook, and
+A scroll command or a mouse event moves on from the view the reader
+sees: a click sets point itself. The scrolling stops at the first
+command of the reader in the notebook, or at one that scrolls a window
+of it. Only a command counts: redisplay moves a window start for
+=scroll-margin=, and output arrives between commands. Thus
+=pre-command-hook= notes each window of the notebook, and
 =post-command-hook= compares. Commands in a minibuffer are not noted
 or compared: its exit gives the windows back, so the command that
 opened it counts as one. Once stopped, the pass leaves point and the
