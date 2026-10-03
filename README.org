@@ -99,7 +99,7 @@ These options apply to every package of the repository.
 | =overblock-live-idle=           |     0.2 | the seconds of quiet before a mode renders again |
 | =overblock-run-max-lines=       |      12 | the result lines that show inline                |
 | =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
-| =overblock-run-scroll=          |       t | a pass scrolls to its cell until you move        |
+| =overblock-run-scroll=          |       t | a pass scrolls until you scroll or move point    |
 
 A block that is taller than the window stops the wheel. Thus
 =overblock-image-height= caps an inline image. Zero shows an image at
@@ -479,7 +479,7 @@ keys in the =:config= of the package.
 | Option                            | Default       | Meaning                                    |
 |-----------------------------------+---------------+--------------------------------------------|
 | =overblock-pycell-result-buttons= | seven buttons | the buttons on the bar of a result         |
-| =overblock-pycell-cell-buttons=   | four buttons  | the buttons on the bar of a code cell      |
+| =overblock-pycell-cell-buttons=   | five buttons  | the buttons on the bar of a code cell      |
 | =overblock-pycell-md-buttons=     | three buttons | the buttons on a rendered markdown cell    |
 | =overblock-pycell-source-buttons= | three buttons | the buttons on an unrendered markdown cell |
 
@@ -595,7 +595,7 @@ Put the keys in the =:config= of the package:
 | Option                         | Default   | Meaning                                     |
 |--------------------------------+-----------+---------------------------------------------|
 | =overblock-rmd-figure-size=    | =(7 . 5)= | the width and height of a figure, in inches |
-| =overblock-rmd-chunk-buttons=  | two       | the buttons on the bar of a chunk           |
+| =overblock-rmd-chunk-buttons=  | three     | the buttons on the bar of a chunk           |
 | =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
 
 For the button format, see [[#buttons][Buttons]]. The details are in
