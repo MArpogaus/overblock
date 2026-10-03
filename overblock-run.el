@@ -1404,8 +1404,8 @@ shell of the result."
 This works in the notebook and in a buffer that follows a result.
 There it interrupts only the region that buffer shows: a follower of
 an ended result, or of a shell that is gone, says so.  EVENT is the
-click on the interrupt button of a running result, and names the notebook
-to act on.
+click on the interrupt button of a running result, and names the
+notebook to act on.
 
 The pass stops too, in R and in Python alike: R answers an interrupt
 with only a new prompt, so no output can stop the pass."
