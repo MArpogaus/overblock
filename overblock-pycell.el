@@ -1044,7 +1044,7 @@ The pass stops at the first error, or on `overblock-run-stop'."
   (overblock-pycell-restart)
   ;; A restarted shell has a live process that has not prompted yet.
   (overblock-run-on-prompt (overblock-pycell--cell-starts)
-                           "overblock-pycell: evaluating all cells"))
+                           "overblock-pycell: running every cell"))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.
