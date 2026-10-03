@@ -1391,6 +1391,26 @@ z = 3
                 (should-not overblock-run--following))))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-pass-asked-while-busy-goes-behind-the-queue ()
+  "Run-above or run-below while a cell runs queues behind it, not over it."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell))
+                    ((symbol-function 'overblock-run-next)
+                     (lambda () (ert-fail "the pass must not start over the running one"))))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode)
+              (setq-local overblock-run--state (list :from 1)))
+            (overblock-run--queue-set '(a))
+            (overblock-run-cells '(b c) "running")
+            (should (equal (overblock-run--queued) '(a b c)))
+            (should (buffer-local-value 'overblock-run--home shell)))
+        (kill-buffer shell)))))
+
 (ert-deftest overblock-pycell-test-run-below-takes-this-cell-and-the-rest ()
   "`overblock-run-below' queues the cell at point and every one below it."
   (overblock-pycell-test--with-notebook "# %% One

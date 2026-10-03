@@ -934,12 +934,22 @@ interpreter starts where there is none: one that is ready at once
 starts the pass now, one that prompts later starts it then.
 
 A region that will not start cancels the whole pass:
-`overblock-run--pass' empties the queue on a signal."
+`overblock-run--pass' empties the queue on a signal.  While the shell
+runs a region, CELLS go behind what is queued, as a region does."
   (overblock-run--must)
-  (if (or (overblock-run--call :process) (overblock-run--call :start))
-      (overblock-run--pass cells message)
-    (message "%s: starting the interpreter…" (overblock-run--name))
-    (overblock-run-on-prompt cells message)))
+  (cond
+   ((and (overblock-run--call :process)
+         (buffer-local-value 'overblock-run--state (overblock-run-shell)))
+    (unless (buffer-local-value 'overblock-run--home (overblock-run-shell))
+      (overblock-run--home-set (point-marker)))
+    (overblock-run--queue-set (append (overblock-run--queued) cells))
+    (message "%s: %d %s queued behind the running %s"
+             (overblock-run--name) (length cells)
+             (overblock-run--unit (cdr cells)) (overblock-run--unit)))
+   ((or (overblock-run--call :process) (overblock-run--call :start))
+    (overblock-run--pass cells message))
+   (t (message "%s: starting the interpreter…" (overblock-run--name))
+      (overblock-run-on-prompt cells message))))
 
 (defun overblock-run-region (start end)
   "Run START..END, starting the interpreter where there is none.
