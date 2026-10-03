@@ -300,7 +300,7 @@ RESTART is called with the old process, or nil where there was none,
 and starts the new interpreter, which is the job of the notebook.  A
 region asked for before its first prompt waits for it.  A shell that
 has not prompted yet is fresh, and is not started again: python.el
-waits for ever on a shell killed before its first prompt."
+does not stop waiting on a shell killed before its first prompt."
   (let ((proc (overblock-run--call :process)))
     (when proc
       (with-current-buffer (process-buffer proc)
@@ -545,9 +545,8 @@ region catches up."
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.
 A marker starts the scrolling of its notebook, where
-`overblock-run-scroll' says.
-A marker it held before is freed: comint adjusts every marker of the
-shell on every insertion."
+`overblock-run-scroll' says.  A marker it held before is freed: comint
+adjusts every marker of the shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (overblock-run--home-drop)
@@ -972,7 +971,8 @@ For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
 once, however often this is called before its prompt, and a stop
 keeps the wait: a region sent before the prompt would get the start-up
-banner.  A restart ends a wait for a prompt that never comes.  A
+banner.  A restart leaves such a shell as it is; only the end of its
+process, such as killing its buffer, ends the wait.  A
 backend with no `:arm' has a shell that prompts at once, and nothing
 waits."
   (when-let* (((plist-get overblock-run-backend :arm))
