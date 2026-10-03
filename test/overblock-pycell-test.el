@@ -1330,11 +1330,65 @@ first line of the cell at the bottom edge, with the code out of sight."
             (let ((second (cadr (overblock-pycell--cell-starts)))
                   (window (get-buffer-window)))
               (set-window-start window (point-max))
+              ;; As a pass starts: the home starts the following.
+              (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list second))
               (overblock-run-next)
               (should (>= sent second))
               (should (= (window-start window) second))
               (should (= (window-point window) second))))
+        (kill-buffer shell)))))
+
+(ert-deftest overblock-pycell-test-a-pass-stops-following-when-the-reader-scrolls ()
+  "A window the reader moved is left alone, and point stays at the end."
+  (overblock-pycell-test--with-notebook "# %%
+x = 1
+
+# %%
+y = 2
+
+# %%
+z = 3
+"
+    (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell))
+                    ((symbol-function 'overblock-run--send) #'ignore))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode))
+            (pcase-let* ((starts (overblock-pycell--cell-starts))
+                         (`(,first ,second ,third)
+                          (mapcar #'marker-position starts))
+                         (window (get-buffer-window)))
+              (goto-char (point-max))
+              (overblock-run--home-set (point-marker))
+              (overblock-run--queue-set (list (car starts)))
+              (overblock-run-next)
+              (should (= (window-start window) first))
+              (should (= (point) first))
+              (should overblock-run--following)
+              ;; The reader scrolls, as redisplay reports it.
+              (set-window-start window third)
+              (run-hook-with-args 'window-scroll-functions window third)
+              (should-not overblock-run--following)
+              ;; The next cell moves neither the window nor point.
+              (overblock-run--queue-set (list (copy-marker second)))
+              (overblock-run-next)
+              (should (= (window-start window) third))
+              (should (= (point) first))
+              (overblock-run-go-home)
+              (should (= (point) first))
+              ;; With the option off, nothing moves at all.
+              (let ((overblock-run-follow nil))
+                (goto-char (point-min))
+                (overblock-run--home-set (point-marker))
+                (overblock-run--queue-set (list (copy-marker second)))
+                (overblock-run-next)
+                (should (= (point) (point-min)))
+                (should-not overblock-run--following))))
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-new-button-list-redraws-the-bars ()

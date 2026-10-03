@@ -153,6 +153,22 @@ screen."
   :group 'overblock
   :set #'overblock-run-set-and-redraw)
 
+(defcustom overblock-run-follow t
+  "Non-nil follows a pass: each window shows the region that runs.
+Point goes there too, and comes back where the pass was asked for when
+it ends.  The following stops at the first scroll or move of the reader
+in the notebook, so the reader can look at another part of it while
+the pass runs; the pass then leaves point and the windows alone.  Nil
+never follows."
+  :type 'boolean
+  :group 'overblock)
+
+(defvar-local overblock-run--following nil
+  "Where the pass of this notebook put each window: ((WINDOW START . POINT)...).
+Non-nil while a pass follows its regions.  A window whose start or
+point is no longer where the pass put it was moved by the reader, and
+the following stops.")
+
 (defvar-keymap overblock-run-result-map
   :doc "Keymap inside a region that shows a result, empty on purpose.
 The runner binds no keys; put your own here, for the cells of a
@@ -437,7 +453,9 @@ which runs as it was sent."
 (defun overblock-run-go-home ()
   "Put point back where the pass that has just ended was asked for.
 The windows that show the notebook go there too, because a window
-keeps its own point while its buffer is not selected."
+keeps its own point while its buffer is not selected.  Where the pass
+did not follow to its end (see `overblock-run-follow'), point and the
+windows stay where the reader put them."
   (when-let* ((shell (overblock-run-shell))
               (home (buffer-local-value 'overblock-run--home shell)))
     ;; Freed first, also when the notebook is killed: comint adjusts
@@ -445,10 +463,45 @@ keeps its own point while its buffer is not selected."
     (with-current-buffer shell (setq overblock-run--home nil))
     (when (buffer-live-p (marker-buffer home))
       (with-current-buffer (marker-buffer home)
-        (goto-char home)
-        (dolist (window (get-buffer-window-list nil nil t))
-          (set-window-point window home))))
+        (when overblock-run--following
+          (goto-char home)
+          (dolist (window (get-buffer-window-list nil nil t))
+            (set-window-point window home)))
+        (overblock-run--follow-stop)))
     (set-marker home nil)))
+
+(defun overblock-run--follow-start ()
+  "Have the pass of this notebook follow its regions, where the option says."
+  (when overblock-run-follow
+    (setq overblock-run--following (list t))
+    (add-hook 'window-scroll-functions #'overblock-run--follow-check nil t)
+    (add-hook 'post-command-hook #'overblock-run--follow-check nil t)))
+
+(defun overblock-run--follow-stop ()
+  "Stop the pass of this notebook from following its regions."
+  (setq overblock-run--following nil)
+  (remove-hook 'window-scroll-functions #'overblock-run--follow-check t)
+  (remove-hook 'post-command-hook #'overblock-run--follow-check t))
+
+(defun overblock-run--follow-check (&optional window start)
+  "Stop following where the reader moved a window from where the pass put it.
+On `window-scroll-functions', WINDOW now starts at START; on
+`post-command-hook', the command just run may have moved point."
+  (when-let* ((entry (assq (or window (selected-window)) overblock-run--following)))
+    (when (if window
+              (not (eq start (cadr entry)))
+            (not (eq (point) (cddr entry))))
+      (overblock-run--follow-stop))))
+
+(defun overblock-run--follow-to (m)
+  "Put every window that shows this notebook at M, and remember where.
+Point goes to M too."
+  (goto-char m)
+  (dolist (window (get-buffer-window-list nil nil t))
+    (set-window-point window m)
+    (set-window-start window m)
+    (setf (alist-get window overblock-run--following)
+          (cons (marker-position m) (marker-position m)))))
 
 (defun overblock-run--home-set (marker)
   "Give the shell MARKER as the place its pass came from, or nil for none.
@@ -457,7 +510,8 @@ shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (when (markerp overblock-run--home) (set-marker overblock-run--home nil))
-      (setq overblock-run--home marker))))
+      (setq overblock-run--home marker)))
+  (if marker (overblock-run--follow-start) (overblock-run--follow-stop)))
 
 (defun overblock-run--queue-set (cells)
   "Give the shell CELLS to run, and return them."
@@ -828,13 +882,19 @@ out."
 A pair of markers is a region the reader sent, and goes as it is; a
 marker alone is where the `:step' of the backend decides what runs.
 
-The region goes to the top of every window that shows the notebook, so
-the code that runs is visible.
-`overblock-run-go-home' gives point back when the pass ends."
-  (goto-char m)
-  (dolist (window (get-buffer-window-list nil nil t))
-    (set-window-point window m)
-    (set-window-start window m))
+While the pass follows, the region goes to the top of every window that
+shows the notebook, so the code that runs is visible, and
+`overblock-run-go-home' gives point back when the pass ends.  Where it
+does not follow, point and the windows stay as they are."
+  (if overblock-run--following
+      (progn (overblock-run--follow-to m)
+             (overblock-run--step-at entry))
+    (save-excursion
+      (goto-char m)
+      (overblock-run--step-at entry))))
+
+(defun overblock-run--step-at (entry)
+  "Run the queue ENTRY at point, and say whether to wait."
   (if (consp entry)
       (progn (overblock-run--send (overblock-run--call :process)
                                   (car entry) (cdr entry))

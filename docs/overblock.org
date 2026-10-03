@@ -521,9 +521,13 @@ to the queue through it.
 that runs one region. A recursion would build a frame for each markdown
 cell in a row, and each frame would run its tail on the way out.
 
-Each region of a pass goes to the top of each window that shows the
-notebook, so the code that runs is visible. =overblock-run-go-home= puts
-point back when the queue is empty. The pass then says =NAME: done=,
+With =overblock-run-follow=, each region of a pass goes to the top of
+each window that shows the notebook, so the code that runs is visible,
+and =overblock-run-go-home= puts point back when the queue is empty.
+The following stops at the first scroll or move of the reader in the
+notebook: a window whose start or point is no longer where the pass
+put it was moved by the reader. The pass then leaves point and the
+windows alone, to its end. With the option nil, a pass never follows. The pass then says =NAME: done=,
 with the =:name= of the backend. A failed region ends the pass with
 =NAME: stopped at error=. A single region that is not part of a pass
 says neither. The home marker is in the shell
