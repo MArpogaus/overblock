@@ -1385,8 +1385,8 @@ They run in order and the pass stops at the first error, or on
 (defun overblock-run-stop (&optional event)
   "Stop the pass after the region that is running now.
 That region runs to its end; `overblock-run-interrupt' is the harder
-stop.  EVENT is the click on a stop button, and names the notebook to
-act on.  In a buffer that follows a result, this stops the pass of the
+stop.  EVENT is a click on a button that runs this command, and names the
+notebook to act on.  In a buffer that follows a result, this stops the pass of the
 shell of the result."
   (interactive (list last-input-event))
   (overblock-goto-event event)
