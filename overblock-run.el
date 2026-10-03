@@ -479,7 +479,9 @@ windows stay where the reader put them."
   (when overblock-run-scroll
     (add-to-list 'overblock-run--scrolled (current-buffer))
     (add-hook 'pre-command-hook #'overblock-run--scroll-see)
-    (add-hook 'post-command-hook #'overblock-run--scroll-check)))
+    (add-hook 'post-command-hook #'overblock-run--scroll-check)
+    ;; This command can move point after it started the scrolling.
+    (overblock-run--scroll-see)))
 
 (defun overblock-run--scroll-stop ()
   "Stop the pass of this notebook from scrolling to its regions.

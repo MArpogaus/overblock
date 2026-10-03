@@ -1398,6 +1398,17 @@ z = 3
                 (should-not (memq (current-buffer) overblock-run--scrolled)))))
         (kill-buffer shell)))))
 
+(ert-deftest overblock-pycell-test-a-pass-started-by-a-move-does-not-scroll ()
+  "A command that queues a cell and then moves on stops the scrolling.
+Shift-Enter queues the cell behind a busy shell and steps to the next
+one, in one command that began before the scrolling did."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (run-hooks 'pre-command-hook)
+    (overblock-run--scroll-start)
+    (goto-char (point-max))
+    (run-hooks 'post-command-hook)
+    (should-not (memq (current-buffer) overblock-run--scrolled))))
+
 (ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
   "The command hooks of the scrolling go when the last such notebook dies."
   (let ((notebook (generate-new-buffer " *overblock-pycell-test-scroll*")))
