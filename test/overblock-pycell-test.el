@@ -1704,16 +1704,32 @@ A yank typed while the pass stood on a cell would land in that cell."
                  (lambda () (current-buffer))))
         (goto-char (point-min))
         (forward-line 1)
-        (let ((home (point-marker)))
+        (let ((home (point-marker))
+              (window (get-buffer-window)))
+          (set-window-start window (point-min))
           (setq-local overblock-run--home home)
           (overblock-run--scroll-start)
           (overblock-run--scroll-to two)
+          ;; A scroll command moves on from the view the reader sees.
+          (let ((this-command 'mwheel-scroll))
+            (run-hooks 'pre-command-hook))
+          (should (= (point) two))
+          (should (memq (current-buffer) overblock-run--scrolled))
+          ;; A click aimed at another window is not for the notebook.
+          (let ((other (split-window)))
+            (let ((last-input-event
+                   (list 'down-mouse-1 (list other 1 '(0 . 0) 0))))
+              (run-hooks 'pre-command-hook))
+            (delete-window other))
+          (should (= (point) two))
+          ;; A key gets point and the view back, and acts there.
           (run-hooks 'pre-command-hook)
           (should (= (point) home))
+          (should (= (window-start window) (point-min)))
+          (should-not (memq (current-buffer) overblock-run--scrolled))
           (insert "typed")
           (run-hooks 'post-command-hook)
-          (should (string-match-p "^typedx = 1" (buffer-string)))
-          (should-not (memq (current-buffer) overblock-run--scrolled)))))))
+          (should (string-match-p "^typedx = 1" (buffer-string))))))))
 
 (ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
   "The command hooks of the scrolling go when the last such notebook dies."

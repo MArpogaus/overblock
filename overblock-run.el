@@ -533,19 +533,30 @@ The command hooks go with the last notebook that scrolls."
     (remove-hook 'post-command-hook #'overblock-run--scroll-check)))
 
 (defun overblock-run--scroll-hand-back ()
-  "Before a command of the reader, put point back where the pass was asked.
+  "Before a command of the reader, give point and the view back, and stop.
 The pass moved point to the region that runs; a command typed then
-would act there, and an edit or a yank would land in that cell.  The
-move back stops the scrolling, as any move does.  Not for the release
-of a button, whose press can have started the pass."
+would act there, and an edit or a yank would land in that cell.  Not
+for a scroll command, which moves on from the view the reader sees,
+for a mouse event aimed at another window, or for the release of a
+button, whose press can have started the pass."
   (let ((buffer (window-buffer (selected-window))))
     (when (and (zerop (minibuffer-depth))
                (not (eq this-command 'overblock--button-release))
+               (not (and (symbolp this-command)
+                         (get this-command 'scroll-command)))
+               (not (and (consp last-input-event)
+                         (let ((window (posn-window
+                                        (event-start last-input-event))))
+                           (and (windowp window)
+                                (not (eq window (selected-window)))))))
                (memq buffer overblock-run--scrolled))
       (with-current-buffer buffer
         (when-let* ((shell (overblock-run-shell))
-                    (home (buffer-local-value 'overblock-run--home shell)))
-          (goto-char home))))))
+                    (home (buffer-local-value 'overblock-run--home shell))
+                    ((eq (marker-buffer home) buffer)))
+          (goto-char home)
+          (overblock-run--view-give-back home)
+          (overblock-run--scroll-stop))))))
 
 (defun overblock-run--view-give-back (home)
   "Give each window of this notebook its view back, or HOME where it had none."
