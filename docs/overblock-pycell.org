@@ -118,6 +118,16 @@ A bar is looked for on its whole line and not at one position. Text
 typed at the start of the line moves the overlay off that start. Thus
 typing before the marker is not typing inside the bar.
 
+* The restart
+
+=python-shell-restart= kills the process and waits for its last
+output. A shell that has not prompted yet sends its first prompt into
+that wait, and the setup of python.el then waits for ever on the dead
+process: Emacs freezes until =C-g=. Thus =overblock-pycell-restart=
+deletes the process at once, and =run-python= starts a new one in the
+same buffer. =comint-exec= puts point at the end of that buffer, which
+the first-prompt filter of python.el needs.
+
 * Moving a cell
 
 =code-cells-mode= puts the cell boundaries into =outline-regexp=. Thus
