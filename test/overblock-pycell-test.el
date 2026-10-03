@@ -606,6 +606,29 @@ the shell buffer would send its start-up banner as the cell."
       (delete-process proc)
       (kill-buffer shell))))
 
+(ert-deftest overblock-pycell-test-a-stop-keeps-a-starting-shell-busy ()
+  "A stop while the interpreter starts keeps the wait for its prompt.
+A cell sent before that prompt would get the start-up banner."
+  (let* ((shell (generate-new-buffer "*overblock-pycell test shell*"))
+         (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
+                                  :noquery t :filter #'ignore))
+         started)
+    (unwind-protect
+        (overblock-pycell-test--with-cells
+          (overblock-pycell-test--with-mode
+            (cl-letf (((symbol-function 'python-shell-get-process)
+                       (lambda (&rest _) (and started proc)))
+                      ((symbol-function 'python-shell-get-process-or-error)
+                       (lambda (&rest _) proc))
+                      ((symbol-function 'run-python)
+                       (lambda (&rest _) (setq started t) shell)))
+              (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+                (overblock-pycell-eval-region beg end))
+              (overblock-run-stop)
+              (should (overblock-run--busy-p)))))
+      (delete-process proc)
+      (kill-buffer shell))))
+
 (ert-deftest overblock-pycell-test-one-cell-queued-behind-a-busy-shell-does-not-scroll ()
   "A cell that waits behind a running one leaves the windows alone."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"

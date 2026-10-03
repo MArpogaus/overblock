@@ -959,8 +959,11 @@ armed."
   "Run the queue on the first prompt of the shell, which is busy till then.
 For a shell that has not prompted yet: one just started or restarted.
 A region asked for meanwhile waits on the queue.  A process is armed
-once, however often this is called before its prompt.  A backend with
-no `:arm' has a shell that prompts at once, and nothing waits."
+once, however often this is called before its prompt, and a stop
+keeps the wait: a region sent before the prompt would get the start-up
+banner.  A restart ends a wait for a prompt that never comes.  A
+backend with no `:arm' has a shell that prompts at once, and nothing
+waits."
   (when-let* (((plist-get overblock-run-backend :arm))
               (shell (overblock-run-shell))
               ((not (process-live-p
@@ -1283,9 +1286,6 @@ shell of the result."
   (overblock-goto-event event)
   (let ((queued (length (overblock-run--queued))))
     (overblock-run--queue-set nil)
-    ;; Also the way out of a first prompt that never comes.
-    (when-let* ((shell (overblock-run-shell)))
-      (with-current-buffer shell (setq overblock-run--armed nil)))
     ;; A stopped pass does not take point home.
     (overblock-run--home-set nil)
     (message "%s: %s" (overblock-run--name)
@@ -1321,9 +1321,7 @@ with only a new prompt, so no output can stop the pass."
                      (= running mine))
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
-    (with-current-buffer shell
-      (setq overblock-run--queue nil
-            overblock-run--armed nil))
+    (with-current-buffer shell (setq overblock-run--queue nil))
     ;; A stopped pass does not take point home.
     (overblock-run--home-set nil)
     (interrupt-process (or (get-buffer-process shell)
