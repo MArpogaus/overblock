@@ -653,23 +653,37 @@ A cell sent before that prompt would get the start-up banner."
   "A restart deletes the process at once and starts a new one in its buffer.
 `python-shell-restart' waits for the last output of the process, and a
 shell that had not prompted yet freezes Emacs in that wait.  The new
-one takes the name of the buffer, so a shell dedicated by hand stays
-so, and a window that shows the shell scrolled up goes to its end."
+one takes the command of the shell and the name of its buffer, so a
+command typed with a prefix to `run-python' and a dedication by hand
+stay.  A window
+that shows the shell scrolled up goes to its end, also where the old
+interpreter had died."
   (let* ((shell (generate-new-buffer "*Python[nb.py]*"))
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
-         started)
+         new started)
     (unwind-protect
         (overblock-pycell-test--with-cells
           (overblock-pycell-test--with-mode
             (cl-letf (((symbol-function 'python-shell-get-process)
-                       (lambda (&rest _) (and (process-live-p proc) proc)))
+                       (lambda (&rest _)
+                         (seq-find #'process-live-p (list proc new))))
                       ((symbol-function 'python-shell-restart)
                        (lambda (&rest _) (ert-fail "python-shell-restart waits")))
                       ((symbol-function 'python-shell-make-comint)
-                       (lambda (_cmd name &rest _) (setq started name))))
+                       (lambda (cmd name &rest _)
+                         (setq started (list cmd name)
+                               new (make-pipe-process
+                                    :name "overblock-pycell new" :buffer shell
+                                    :noquery t :filter #'ignore))))
+                      ((symbol-function 'run-python)
+                       (lambda (&rest _)
+                         (setq new (make-pipe-process
+                                    :name "overblock-pycell cold" :buffer shell
+                                    :noquery t :filter #'ignore)))))
               (with-current-buffer shell
                 (setq major-mode 'inferior-python-mode)
+                (setq-local python-shell-interpreter "typed-ipython")
                 (insert "Python 3\n>>> x\n>>> "))
               (let ((window (split-window)))
                 (set-window-buffer window shell)
@@ -677,10 +691,19 @@ so, and a window that shows the shell scrolled up goes to its end."
                 (overblock-pycell-restart)
                 (should (= (window-point window)
                            (with-current-buffer shell (point-max))))
-                (delete-window window))
-              (should-not (process-live-p proc))
-              (should (equal started "Python[nb.py]")))))
-      (when (process-live-p proc) (delete-process proc))
+                (should-not (process-live-p proc))
+                (should (string-prefix-p "typed-ipython" (car started)))
+                (should (equal (cadr started) "Python[nb.py]"))
+                ;; The interpreter died: the restart starts one, and the
+                ;; window goes to the end all the same.
+                (delete-process new)
+                (setq new nil)
+                (set-window-point window 1)
+                (overblock-pycell-restart)
+                (should (= (window-point window)
+                           (with-current-buffer shell (point-max))))
+                (delete-window window)))))
+      (dolist (p (list proc new)) (when (process-live-p p) (delete-process p)))
       (kill-buffer shell))))
 
 (ert-deftest overblock-pycell-test-clean-strips-a-prompt-on-the-same-line ()

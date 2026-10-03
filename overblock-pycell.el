@@ -999,20 +999,26 @@ the cells after it plain."
    (lambda (proc)
      ;; Not `python-shell-restart', which can freeze Emacs: see "The
      ;; restart" in docs/overblock-pycell.org.
+     ;; The command comes from the shell, which keeps one typed with
+     ;; C-u C-c C-p, and the name from its buffer, which keeps one
+     ;; dedicated by hand.
      (if (not proc)
          (overblock-pycell--start)
-       (let ((buffer (process-buffer proc)))
+       (let* ((buffer (process-buffer proc))
+              (command (with-current-buffer buffer
+                         (python-shell-calculate-command))))
          (delete-process proc)
-         (python-shell-make-comint (python-shell-calculate-command)
-                                   (string-trim (buffer-name buffer)
-                                                "\\*" "\\*"))
-         ;; A window that shows the shell scrolled up gives its point
-         ;; back to the buffer at the next redisplay, before the new
-         ;; output, and the first-prompt filter of python.el then
-         ;; signals: the pass armed on that prompt never runs.
-         (dolist (window (get-buffer-window-list buffer nil t))
-           (set-window-point window (with-current-buffer buffer
-                                      (point-max)))))))))
+         (python-shell-make-comint command (string-trim (buffer-name buffer)
+                                                        "\\*" "\\*"))))
+     ;; A window that shows the shell scrolled up gives its point back
+     ;; to the buffer at the next redisplay, before the new output, and
+     ;; the first-prompt filter of python.el then signals: the pass
+     ;; armed on that prompt never runs.
+     (when-let* ((new (python-shell-get-process))
+                 (buffer (process-buffer new)))
+       (dolist (window (get-buffer-window-list buffer nil t))
+         (set-window-point window (with-current-buffer buffer
+                                    (point-max))))))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
