@@ -128,7 +128,7 @@ once, and =python-shell-make-comint= starts a new one in the same
 buffer, under its name, so a shell dedicated by hand stays so. The
 command is the one of the notebook, also where the interpreter had
 died: an environment switched in the notebook takes effect at the
-restart. A command typed with =C-u C-c C-p= does not survive it;
+restart. A command typed with =C-u C-c C-p= does not survive it.
 python.el keeps no sign of which command was typed.
 
 The first-prompt filter of python.el needs point at the end of the

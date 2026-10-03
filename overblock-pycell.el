@@ -1012,11 +1012,11 @@ the cells after it plain."
      ;; to the buffer at the next redisplay, before the new output, and
      ;; the first-prompt filter of python.el then signals: the pass
      ;; armed on that prompt never runs.
-     (when-let* ((new (python-shell-get-process))
-                 (buffer (process-buffer new)))
+     (when-let* ((proc (python-shell-get-process))
+                 (buffer (process-buffer proc))
+                 (end (with-current-buffer buffer (point-max))))
        (dolist (window (get-buffer-window-list buffer nil t))
-         (set-window-point window (with-current-buffer buffer
-                                    (point-max))))))))
+         (set-window-point window end))))))
 
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
