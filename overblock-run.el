@@ -44,8 +44,8 @@
 ;;   :process   () -> the live shell process, or nil.  In the notebook
 ;;   :start     () -> start one; the process where it is ready to take a
 ;;              region at once, nil where it will only prompt later
-;;   :arm       (THUNK) -> run THUNK on the shell's first prompt.  Only
-;;              a `:start' that answers nil needs this
+;;   :arm       (THUNK) -> run THUNK on the first prompt of a new or
+;;              restarted shell
 ;;   :send      (PROC BEG END) -> send the region.  In the notebook
 ;;   :prompt-p  (TAIL) -> non-nil where TAIL ends at a prompt.  In the shell
 ;;   :clean     (TEXT) -> TEXT as a block can show it.  In the shell
@@ -450,7 +450,7 @@ down the notebook, and at the end it goes back to where the pass was
 started.")
 
 (defvar-local overblock-run--armed nil
-  "The process of this shell whose first prompt a pass waits for.
+  "The process of this shell that has not prompted yet since it started.
 `overblock-run-next' runs on that prompt and clears it.")
 
 (defun overblock-run--queued ()
@@ -946,12 +946,8 @@ does not scroll, point and the windows stay as they are."
 
 (defun overblock-run-on-prompt (cells message)
   "Arm CELLS to run on the first prompt of the shell, and say MESSAGE.
-For a shell that has not prompted yet: one just started or restarted.
-The `:arm' of the backend knows when it prompts.
-
-The queue is set after `overblock-run--arm', which makes the shell
-buffer that holds the home and the queue.  A shell that signals here
-leaves nothing armed."
+The queue is set after `overblock-run--arm': a shell that signals
+there leaves nothing set."
   (overblock-run--arm)
   (overblock-run--home-set (point-marker))
   (overblock-run--queue-set cells)
@@ -1031,9 +1027,9 @@ waits on the queue for its first prompt, so a second one waits behind."
          (format "%s: starting the interpreter…" (overblock-run--name)))))))
 
 (defun overblock-run--busy-p ()
-  "Non-nil where the shell runs a region, or a pass waits for its prompt.
-The pass waits for the first prompt of one process: a process that
-died or was restarted leaves nothing waiting."
+  "Non-nil where the shell runs a region, or has not prompted yet.
+That is the first prompt of one process, since it started or
+restarted: a process that died leaves nothing waiting."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
       (or overblock-run--state (process-live-p overblock-run--armed)))))
