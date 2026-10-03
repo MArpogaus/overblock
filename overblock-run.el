@@ -536,7 +536,8 @@ The command hooks go with the last notebook that scrolls."
       (set-window-point window home))))
 
 (defun overblock-run--view-free ()
-  "Free the markers of `overblock-run--view', and forget it."
+  "Free the markers of `overblock-run--view' and `overblock-run--home-later'.
+Both are forgotten."
   (dolist (view overblock-run--view)
     (set-marker (cadr view) nil)
     (set-marker (cddr view) nil))

@@ -533,8 +533,8 @@ moves neither point nor the windows, and the next region catches up.
 With the option nil, a pass never scrolls. A single region does not
 start the scrolling, also when it waits on the queue. A region that
 joins a scrolling pass goes with it. A pass that joins a waiting
-region, or a pass that no longer scrolls, in its own notebook takes
-over its home and scrolls.
+region or a pass that no longer scrolls, in its own notebook, takes
+over the home and scrolls.
 
 The scrolling stops at the first command of the reader that scrolls a
 window of the notebook or moves point in it. Only a command counts:

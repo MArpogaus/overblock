@@ -403,14 +403,14 @@ table there is a live vtable, so you can sort it with =S=. The buffer
 follows a cell that still runs. =overblock-run-interrupt= and
 =overblock-run-stop= also work in that buffer.
 
-=overblock-run-interrupt= stops the cell and the cells queued after it.
-=overblock-run-stop= lets the cell finish and empties the queue. A pass
-over several cells stops at the first error. At the end of a pass, the
-echo area says =overblock-pycell: done=, or =overblock-pycell: stopped
-at error= after a cell that failed. A pass that scrolled to its end
-puts point and the view back where you asked for it. A stop or an
-interrupt leaves them where they are. A cell you ask
-for while another runs, or while the interpreter starts, waits its
+=overblock-run-interrupt= stops the cell and the cells queued after
+it. =overblock-run-stop= lets the cell finish and empties the queue. A
+pass over several cells stops at the first error. At the end of a
+pass, the echo area says =overblock-pycell: done=, or
+=overblock-pycell: stopped at error= after a cell that failed. A pass
+that scrolled to its end puts point and the view back where you asked
+for it. A stop or an interrupt leaves them where they are. A cell you
+ask for while another runs, or while the interpreter starts, waits its
 turn, and the echo area says =overblock-pycell: this cell queued=, or
 =N cells queued= for a pass, which counts its markdown cells too.
 
