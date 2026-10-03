@@ -138,9 +138,10 @@ The rest of a pass is dropped where one region failed."
 Nothing else notices: the prompt the filter waits for never comes."
   (overblock-run-test--with-run
     (setq overblock-run--queue (list (copy-marker 1)))
-    (with-current-buffer notebook
-      (overblock-run--home-set (point-marker))
-      (should (memq (current-buffer) overblock-run--scrolled)))
+    ;; Set from the shell: the home starts the scrolling in its notebook.
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (should (memq notebook overblock-run--scrolled))
+    (should-not (memq shell overblock-run--scrolled))
     (delete-process proc)
     (overblock-run--tick shell (plist-get overblock-run--state :timer))
     (should-not overblock-run--state)
