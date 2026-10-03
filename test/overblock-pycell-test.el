@@ -1554,6 +1554,12 @@ the thunk.  The wait ends for good, and what waited is dropped."
             (should (overblock-run--busy-p))
             (overblock-run--queue-set (list (point-marker)))
             (with-current-buffer shell (insert "\nIn [1]: "))
+            ;; A timer in the setup of the interpreter asks with the
+            ;; thunk still due: nothing is dropped.
+            (should (overblock-run--busy-p))
+            (should (overblock-run--queued))
+            ;; A command asks after the setup.
+            (overblock-run--wait-lost)
             (should-not (overblock-run--busy-p))
             (should-not (overblock-run--queued))
             (with-current-buffer shell (insert "x"))

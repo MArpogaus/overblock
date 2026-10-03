@@ -1093,6 +1093,7 @@ A region that will not start cancels the whole pass:
 is busy (see `overblock-run--busy-p'), CELLS go behind what is queued,
 as a region does."
   (overblock-run--must)
+  (overblock-run--wait-lost)
   (cond
    ((overblock-run--busy-p)
     (overblock-run--enqueue cells))
@@ -1108,6 +1109,7 @@ goes on the queue and runs when the shell is free; the pass stops if
 the running region fails.  While the interpreter starts, the region
 waits on the queue for its first prompt, so a second one waits behind."
   (overblock-run--must)
+  (overblock-run--wait-lost)
   ;; Markers here, in the notebook: the queue is in the shell, and
   ;; `copy-marker' of a number uses the current buffer.
   ;; One region leaves point and the windows alone; a pass it joins
@@ -1128,22 +1130,27 @@ waits on the queue for its first prompt, so a second one waits behind."
 (defun overblock-run--busy-p ()
   "Non-nil where the shell runs a region, or has not prompted yet.
 The shell waits for the first prompt of its process after a start or
-a restart.  A process that died leaves nothing to wait for.  A prompt
-that came while the `:arm' thunk did not run, as after a
-\\[keyboard-quit] in the setup of the interpreter, ends the wait: the
-regions that waited are dropped, as by `overblock-run-stop'."
+a restart.  A process that died leaves nothing to wait for."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
-      (or overblock-run--state
-          (and (process-live-p overblock-run--armed)
-               (not (and (overblock-run--call
-                          :prompt-p
-                          (buffer-substring-no-properties
-                           (max (point-min) (- (point-max) 256)) (point-max)))
-                         (progn (setq overblock-run--armed nil
-                                      overblock-run--queue nil)
-                                (overblock-run--home-drop)
-                                t))))))))
+      (or overblock-run--state (process-live-p overblock-run--armed)))))
+
+(defun overblock-run--wait-lost ()
+  "End a wait for a first prompt that came while no `:arm' thunk ran.
+A \\[keyboard-quit] in the setup of the interpreter stops the hook
+before the thunk.  The regions that waited are dropped, as by
+`overblock-run-stop'.  Only a command calls this: the setup of the
+interpreter can run timers between the prompt and the thunk."
+  (when-let* ((shell (overblock-run-shell)))
+    (with-current-buffer shell
+      (when (and (process-live-p overblock-run--armed)
+                 (overblock-run--call
+                  :prompt-p
+                  (buffer-substring-no-properties
+                   (max (point-min) (- (point-max) 256)) (point-max))))
+        (setq overblock-run--armed nil
+              overblock-run--queue nil)
+        (overblock-run--home-drop)))))
 
 (defun overblock-run--enqueue (entries)
   "Put the queue ENTRIES behind whatever the shell is running.
