@@ -411,7 +411,7 @@ the part that shows; without it the lines of TEXT are counted."
 (defvar-local overblock-run--queue nil
   "The regions a pass, or a reader pressing early, has left to run.
 `overblock-run--queued' says what an entry is.
-`overblock-run-cells', `overblock-run-on-prompt' and
+`overblock-run--pass', `overblock-run-on-prompt' and
 `overblock-run--enqueue' fill it, and `overblock-run-next' empties it.
 It is local to the shell buffer, beside `overblock-run--state', so each
 shell has its own queue.  `overblock-run-shell' finds it.")
@@ -537,8 +537,7 @@ The command hooks go with the last notebook that scrolls."
       (set-window-point window home))))
 
 (defun overblock-run--view-free ()
-  "Free the markers of `overblock-run--view' and `overblock-run--home-later'.
-Both are forgotten."
+  "Free the markers of `overblock-run--view' and `overblock-run--home-later'."
   (dolist (view overblock-run--view)
     (set-marker (cadr view) nil)
     (set-marker (cddr view) nil))
@@ -991,14 +990,9 @@ out."
 A pair of markers is a region the reader sent, and goes as it is; a
 marker alone is where the `:step' of the backend decides what runs.
 
-While the pass scrolls, the region goes to the top of every window that
-shows the notebook (see `overblock-run--scroll-to'), so the code that
-runs is visible, and `overblock-run-go-home' gives point and the view
-back when the pass ends.  Where it does not scroll, point and the
-windows stay as they are, and so they do while a minibuffer is open:
-its exit gives the windows back as they were, and point is the
-reader's, who can be in the notebook meanwhile.  The next region
-catches up."
+While the pass scrolls and no minibuffer is open, the region goes to
+the top of each window (see `overblock-run--scroll-to'); else point
+and the windows stay, and the next region catches up."
   (if (and (memq (current-buffer) overblock-run--scrolled)
            (zerop (minibuffer-depth)))
       (progn (overblock-run--scroll-to m)
@@ -1110,8 +1104,7 @@ a restart.  A process that died leaves nothing to wait for."
 Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  The home is set here where
 none is set.  A pass or a region takes over the home of its notebook
-where that notebook does not scroll, as after a waiting region or a
-pass that no longer scrolls; a pass then scrolls where
+where that notebook does not scroll.  A pass then scrolls where
 `overblock-run-scroll' says.  Point comes back to the home where the
 pass scrolled to its end and did not fail (see `overblock-run-go-home')."
   ;; A click on another cell moved point in this command: the scrolling
