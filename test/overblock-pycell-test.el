@@ -616,7 +616,6 @@ A cell sent before that prompt would get the start-up banner."
          (proc (make-pipe-process :name "overblock-pycell test" :buffer shell
                                   :noquery t :filter #'ignore))
          started)
-    (with-current-buffer shell (python-shell-prompt-set-calculated-regexps))
     (unwind-protect
         (overblock-pycell-test--with-cells
           (overblock-pycell-test--with-mode
@@ -1528,8 +1527,7 @@ z = 3
                      (lambda (&rest _) proc)))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode)
-              (setq-local overblock-run--armed proc)
-              (python-shell-prompt-set-calculated-regexps))
+              (setq-local overblock-run--armed proc))
             (should (overblock-run--busy-p))
             (delete-process proc)
             (should-not (overblock-run--busy-p)))
@@ -1538,7 +1536,7 @@ z = 3
 (ert-deftest overblock-pycell-test-a-prompt-frees-an-armed-shell ()
   "A shell that prompted is free, also where its armed thunk never ran.
 A quit in the setup of python.el stops the first-prompt hook before
-the thunk.  The wait ends for good, and what waited is dropped."
+the thunk.  A command ends the wait, and what waited is dropped."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
     (let* ((shell (generate-new-buffer " *overblock-pycell-test-shell*"))
            (proc (make-pipe-process :name "overblock-pycell armed" :buffer shell
@@ -1561,9 +1559,7 @@ the thunk.  The wait ends for good, and what waited is dropped."
             ;; A command asks after the setup.
             (overblock-run--wait-lost)
             (should-not (overblock-run--busy-p))
-            (should-not (overblock-run--queued))
-            (with-current-buffer shell (insert "x"))
-            (should-not (overblock-run--busy-p)))
+            (should-not (overblock-run--queued)))
         (delete-process proc)
         (kill-buffer shell)))))
 

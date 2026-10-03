@@ -469,7 +469,8 @@ for.")
 
 (defvar-local overblock-run--armed nil
   "The process of this shell that has not prompted yet since it started.
-`overblock-run-next' runs on that prompt and clears it.")
+`overblock-run-next' clears it on that prompt, and
+`overblock-run--wait-lost' after a prompt whose thunk did not run.")
 
 (defun overblock-run--queued ()
   "Return the regions a pass still has to run, in order.

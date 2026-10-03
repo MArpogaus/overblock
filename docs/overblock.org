@@ -564,7 +564,10 @@ the shell exists.
 A region sent while the shell is busy or starting waits in the queue,
 and runs as it was sent. A pass asked for then also goes behind the
 queue. Each request queues what it asks for, as in Jupyter: a region
-asked for twice runs twice, in the order asked.
+asked for twice runs twice, in the order asked. A =C-g= in the setup
+of a starting interpreter can stop the hook before the queue starts.
+The next run command then drops the regions that waited, as a stop
+does, and runs what it asks for.
 
 ** What the ticker reads
 
