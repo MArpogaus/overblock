@@ -524,6 +524,12 @@ The command hooks go with the last notebook that scrolls."
   ;; A notebook killed while it scrolls takes no stop with it.
   (unless overblock-run--scrolled (overblock-run--scroll-stop)))
 
+(defun overblock-run--scroll-moved-p ()
+  "Non-nil where this command moved point in the selected window.
+Against how `overblock-run--scroll-see' saw it before the command."
+  (when-let* ((before (assq (selected-window) overblock-run--seen)))
+    (/= (point) (nth 3 before))))
+
 (defun overblock-run--scroll-to (m)
   "Put every window that shows this notebook at M, and point too.
 Not while a minibuffer is open: its exit gives the windows back as
@@ -1045,13 +1051,17 @@ Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  The home is set here where
 none is set.  A pass takes over a home of its notebook that does not
 scroll, the home of a waiting region or of a stopped pass, and scrolls.
+A pass asked for by a command that moved point, such as a click on a
+button of another cell, stops the scrolling with that move, so it
+takes the home over too.
 Point comes back to the home where the pass scrolled to its end (see
 `overblock-run-go-home')."
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
     (when (or (not home)
               (and overblock-run-scroll
                    (eq (marker-buffer home) (current-buffer))
-                   (not (memq (current-buffer) overblock-run--scrolled))))
+                   (or (not (memq (current-buffer) overblock-run--scrolled))
+                       (overblock-run--scroll-moved-p))))
       (overblock-run--home-set (point-marker))))
   (overblock-run--queue-set (append (overblock-run--queued) entries))
   (message "%s: %s queued"
