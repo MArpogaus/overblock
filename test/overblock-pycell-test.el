@@ -1737,10 +1737,15 @@ A yank typed while the pass stood on a cell would land in that cell."
           (let ((this-command 'pixel-scroll-interpolate-down))
             (run-hooks 'pre-command-hook))
           (should (= (point) two))
-          ;; A middle click that yanks at point is a key.
+          ;; A middle click on a rendered cell is a click; one that
+          ;; yanks at point is a key.
           (let ((mouse-yank-at-point t)
                 (last-input-event (list 'mouse-2 (list window 1 '(0 . 0) 0))))
-            (run-hooks 'pre-command-hook))
+            (let ((this-command 'overblock-pycell-md-edit))
+              (run-hooks 'pre-command-hook))
+            (should (= (point) two))
+            (let ((this-command 'mouse-yank-primary))
+              (run-hooks 'pre-command-hook)))
           (should (= (point) home))
           (overblock-run--scroll-start)
           (overblock-run--scroll-to two)

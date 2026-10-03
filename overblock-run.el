@@ -537,14 +537,15 @@ The pass moved point to the region that runs; a command typed then
 would act there, and an edit or a yank would land in that cell.  Not
 for a scroll command, which moves on from the view the reader sees,
 nor for a mouse event: a click sets point itself, and a button press
-can have started the pass.  A middle click that yanks at point, with
+can have started the pass.  A mouse yank at point, with
 `mouse-yank-at-point', is a key."
   (let ((buffer (window-buffer (selected-window))))
     (when (and (zerop (minibuffer-depth))
                (not (and (consp last-input-event)
                          (not (and mouse-yank-at-point
-                                   (eq (event-basic-type last-input-event)
-                                       'mouse-2)))))
+                                   (memq this-command
+                                         '(mouse-yank-primary
+                                           mouse-yank-secondary))))))
                ;; `pixel-scroll-interpolate-down', on <next> with
                ;; `pixel-scroll-precision-mode', has no `scroll-command'.
                (not (and (symbolp this-command)
