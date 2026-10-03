@@ -1366,17 +1366,15 @@ z = 3
               (goto-char (point-max))
               (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list (cadr starts)))
-              ;; A scroll margin: the window starts that many lines
-              ;; above the cell, so redisplay finds nothing to move.
-              (let ((scroll-margin 2))
-                (overblock-run-next)
-                (should (= (window-start window)
-                           (save-excursion (goto-char second)
-                                           (forward-line -2) (point))))
-                (should (= (point) second))
-                (run-hook-with-args 'window-scroll-functions window
-                                    (window-start window))
-                (should overblock-run--following))
+              (overblock-run-next)
+              (should (= (window-start window) second))
+              (should (= (point) second))
+              ;; Redisplay moves the start the pass set, for a scroll
+              ;; margin: that first report is the pass's own.
+              (run-hook-with-args 'window-scroll-functions window first)
+              (should overblock-run--following)
+              (run-hook-with-args 'window-scroll-functions window first)
+              (should overblock-run--following)
               ;; The reader scrolls, as redisplay reports it.
               (set-window-start window third)
               (run-hook-with-args 'window-scroll-functions window third)
