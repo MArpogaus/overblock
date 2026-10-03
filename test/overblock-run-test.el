@@ -138,13 +138,18 @@ The rest of a pass is dropped where one region failed."
 Nothing else notices: the prompt the filter waits for never comes."
   (overblock-run-test--with-run
     (setq overblock-run--queue (list (copy-marker 1)))
+    (with-current-buffer notebook
+      (overblock-run--home-set (point-marker))
+      (should overblock-run--following))
     (delete-process proc)
     (overblock-run--tick shell (plist-get overblock-run--state :timer))
     (should-not overblock-run--state)
     (let ((shown (overblock-run-test--shown notebook)))
       (should (string-match-p "died\\|Process" shown)))
-    ;; A death drops the pass too.
-    (should-not overblock-run--queue)))
+    ;; A death drops the pass too, its home and its following.
+    (should-not overblock-run--queue)
+    (should-not overblock-run--home)
+    (should-not (buffer-local-value 'overblock-run--following notebook))))
 
 (ert-deftest overblock-run-test-a-killed-shell-ends-the-run ()
   "Killing the shell under a running region ends it as a death.

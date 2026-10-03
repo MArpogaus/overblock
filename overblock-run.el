@@ -530,9 +530,18 @@ A marker it held before is freed: comint adjusts every marker of the
 shell on every insertion."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
-      (when (markerp overblock-run--home) (set-marker overblock-run--home nil))
+      (overblock-run--home-drop)
       (setq overblock-run--home marker)))
   (if marker (overblock-run--follow-start) (overblock-run--follow-stop)))
+
+(defun overblock-run--home-drop ()
+  "Free the home of this shell, and stop the pass of its notebook following.
+Call this in the shell buffer; it works also when its process is gone."
+  (when (markerp overblock-run--home)
+    (when-let* ((notebook (marker-buffer overblock-run--home)))
+      (with-current-buffer notebook (overblock-run--follow-stop)))
+    (set-marker overblock-run--home nil))
+  (setq overblock-run--home nil))
 
 (defun overblock-run--queue-set (cells)
   "Give the shell CELLS to run, and return them."
@@ -690,7 +699,7 @@ second time.  `overblock-run-abort' checks the same."
       ;; Else the next single cell takes point to the old home.
       (when died
         (setq overblock-run--queue nil)
-        (overblock-run--home-set nil))
+        (overblock-run--home-drop))
       (setq failed (and (not died) (overblock-run--call :error-p text)))
       (overblock-run--show-in-notebook beg fin text (- (float-time) start)
                                        (cond (died 'died) (failed 'failed)))
