@@ -606,6 +606,25 @@ the shell buffer would send its start-up banner as the cell."
       (delete-process proc)
       (kill-buffer shell))))
 
+(ert-deftest overblock-pycell-test-one-cell-queued-behind-a-busy-shell-does-not-scroll ()
+  "A cell that waits behind a running one leaves the windows alone."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
+    (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'python-shell-get-process)
+                     (lambda (&rest _) 'proc))
+                    ((symbol-function 'process-buffer)
+                     (lambda (_proc) shell)))
+            (with-current-buffer shell
+              (setq major-mode 'inferior-python-mode)
+              (setq-local overblock-run--state (list :from 1)))
+            (goto-char (point-max))
+            (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+              (overblock-pycell-eval-region beg end))
+            (should (= 1 (length (overblock-run--queued))))
+            (should-not (memq (current-buffer) overblock-run--scrolled)))
+        (kill-buffer shell)))))
+
 (ert-deftest overblock-pycell-test-clean-strips-a-prompt-on-the-same-line ()
   "A prompt that follows output on one line goes too.
 Output that ends without a newline leaves the prompt of the shell on

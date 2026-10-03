@@ -1013,7 +1013,12 @@ waits on the queue for its first prompt, so a second one waits behind."
   (let ((region (lambda () (list (cons (copy-marker start) (copy-marker end t))))))
     (cond
      ((overblock-run--busy-p)
-      (overblock-run--enqueue (funcall region)))
+      (let ((pass (buffer-local-value 'overblock-run--home
+                                      (overblock-run-shell))))
+        (overblock-run--enqueue (funcall region))
+        ;; One region leaves point and the windows alone; a pass that
+        ;; it joins goes on as it was.
+        (unless pass (overblock-run--scroll-stop))))
      ((when-let* ((proc (or (overblock-run--call :process)
                             (overblock-run--call :start))))
         (overblock-run--send proc start end)
