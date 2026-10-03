@@ -1044,11 +1044,13 @@ a restart.  A process that died leaves nothing to wait for."
 Each request queues what it asks for, as in Jupyter: a region asked
 for twice runs twice, in the order asked.  Point comes back here when
 the queue ends, unless a pass has set its home already.  A pass that
-joins a home in this notebook scrolls, also when one region set it."
+joins a home in this notebook takes it over: it scrolls, and point
+comes back here."
   (let ((home (buffer-local-value 'overblock-run--home (overblock-run-shell))))
-    (cond ((not home) (overblock-run--home-set (point-marker)))
-          ((eq (marker-buffer home) (current-buffer))
-           (overblock-run--scroll-start))))
+    (when (or (not home)
+              (and overblock-run-scroll
+                   (eq (marker-buffer home) (current-buffer))))
+      (overblock-run--home-set (point-marker))))
   (overblock-run--queue-set (append (overblock-run--queued) entries))
   (message "%s: %s queued"
            (overblock-run--name)

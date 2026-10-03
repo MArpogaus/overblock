@@ -1469,7 +1469,8 @@ z = 3
 
 (ert-deftest overblock-pycell-test-a-pass-behind-a-waiting-cell-scrolls ()
   "Run-below asked for while one cell waits on the queue scrolls.
-The cell set the home and does not scroll; the pass that joins it does."
+The cell set the home and does not scroll; the pass that joins it
+does, and point comes back where the pass was asked for."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
     (let ((shell (generate-new-buffer " *overblock-pycell-test-shell*")))
       (unwind-protect
@@ -1483,8 +1484,12 @@ The cell set the home and does not scroll; the pass that joins it does."
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
               (overblock-pycell-eval-region beg end))
             (should-not (memq (current-buffer) overblock-run--scrolled))
+            ;; Asked for further down: the pass takes the home over.
+            (goto-char (point-max))
             (overblock-run-cells (overblock-pycell--cell-starts) "running")
-            (should (memq (current-buffer) overblock-run--scrolled)))
+            (should (memq (current-buffer) overblock-run--scrolled))
+            (should (= (point-max)
+                       (buffer-local-value 'overblock-run--home shell))))
         (overblock-run--scroll-stop)
         (kill-buffer shell)))))
 
