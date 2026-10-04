@@ -49,7 +49,7 @@
   :group 'overblock
   :prefix "overblock-quote-")
 
-(defface overblock-quote '((t :inherit italic))
+(defface overblock-quote '((t :inherit (italic font-lock-comment-face)))
   "Face of a rendered quote.")
 
 ;;;; Regions
