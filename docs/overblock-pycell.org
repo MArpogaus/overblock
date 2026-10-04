@@ -382,7 +382,6 @@ because its result hangs on that newline. This is the only change
 
 * The tests
 
-=make test= runs the batch suites, one for each file.
 =test/overblock-pycell-test.el= belongs to this package. It tests the
 clean of the output, the body lines, the cell markers and the folds. It
 also tests the edit buffers, the mirror, and the move of a cell. A test
@@ -394,8 +393,9 @@ the blocks show. No batch test of this package starts a Python
 process. Where no ipython is installed, the target says so and passes.
 
 =make scroll= needs a graphic frame, see
-[[file:../README.org::*Development][Development]] in the README. It builds a buffer with markdown
-cells and scrolls through it with =pixel-scroll-precision-scroll-up= and
+[[file:../README.org::*Development][Development]] in the README. It
+builds a buffer with markdown cells and scrolls through it with
+=pixel-scroll-precision-scroll-up= and
 =pixel-scroll-precision-scroll-down=. It uses the default values of the
 scroll options. The test fails when:
 

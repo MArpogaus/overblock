@@ -784,4 +784,5 @@ It uses the renderer of overblock-md.
 
 The notes of the other four packages list their suites. About one test
 in six renders markup, and skips where no converter is installed.
-=make test STRICT=1= makes such a skip a failure, and the CI sets it.
+[[file:../README.org::*Development][Development]] in the README tells
+how =STRICT=1= makes such a skip a failure.
