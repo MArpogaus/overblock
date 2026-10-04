@@ -690,17 +690,24 @@ there is no shell, and then nothing is queued.
 
 The backend is copied into the shell, because the filter, the ticker
 and the walk armed on the first prompt read it there, also before the
-first send."
-  (if (local-variable-p 'overblock-run--follower)
-      (let ((shell (car overblock-run--follower)))
-        (and (buffer-live-p shell) shell))
+first send.
+
+In the shell, the backend is not asked: its `:process' may know only
+the notebook, and the filter ends a run and takes the next region of
+a pass here."
+  (cond
+   ((local-variable-p 'overblock-run--follower)
+    (let ((shell (car overblock-run--follower)))
+      (and (buffer-live-p shell) shell)))
+   ((get-buffer-process (current-buffer)) (current-buffer))
+   (t
     (when-let* ((proc (overblock-run--call :process))
                 (shell (process-buffer proc)))
       (unless (buffer-local-value 'overblock-run-backend shell)
         (let ((backend overblock-run-backend))
           (with-current-buffer shell
             (setq-local overblock-run-backend backend))))
-      shell)))
+      shell))))
 
 (defun overblock-run-running-region ()
   "Return the region the shell of this buffer runs, as (BEG . END).

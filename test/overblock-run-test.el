@@ -121,6 +121,15 @@ shell, are freed."
       (should-not (string-search "⠋" (overblock-run-test--shown notebook)))
       (should-not (marker-position from)))))
 
+(ert-deftest overblock-run-test-the-shell-is-its-own-shell ()
+  "In the shell buffer, the shell is that buffer, whatever `:process' says.
+A `:process' that finds the shell by the name of the notebook answers
+nil in the shell, where the filter ends a run and takes the next
+region of a pass."
+  (overblock-run-test--with-run
+    (let ((overblock-run-test--shell nil))
+      (should (eq (overblock-run-shell) shell)))))
+
 (ert-deftest overblock-run-test-an-error-stops-the-pass ()
   "A result the backend calls an error empties the queue.
 The rest of a pass is dropped where one region failed."
