@@ -181,7 +181,7 @@ cells of a notebook are, sets its own.")
 AGAIN is non-nil where a cycle asked for KIND meanwhile: that cycle
 renders again once the batch has landed.")
 
-(defvar-local overblock-md--definitions nil
+(defvar-local overblock-md--definitions-cache nil
   "The link reference definitions of this buffer, for `overblock-cached'.
 They are a hash table from a label, as `overblock-md--label' makes it,
 to its line.")
@@ -791,7 +791,7 @@ such as [1]: Smith, J. (2020), which pandoc shows as text.")
 (defun overblock-md--definitions ()
   "Return the link reference definitions of this buffer, read once a change."
   (overblock-cached
-   'overblock-md--definitions
+   'overblock-md--definitions-cache
    (lambda ()
      (save-excursion
        (goto-char (point-min))
