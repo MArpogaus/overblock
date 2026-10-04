@@ -23,29 +23,13 @@
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
-;; A notebook is a buffer of regions and a shell to send them to.  Send
-;; one, watch what the shell prints, notice the prompt that says it is
-;; done, and show the result under the region.  That loop is the same
-;; for every language, and this file holds it.  It holds the run state,
-;; the queue of a pass over the buffer and the result block.  It also
-;; holds the ticker that mirrors a running region five times a second,
-;; and the filter that waits for the prompt.
+;; This file holds the run loop that every notebook shares.  It sends a
+;; region to a shell, waits for the prompt, and shows the result under
+;; the region.  Nothing here knows a language: the plist
+;; `overblock-run--backend' says what one is.
 ;;
-;; Nothing here knows a language.  One plist says what one is.
-;;
-;; `overblock-run--backend' is the notebook.  It is a buffer-local plist
-;; that `overblock-run-attach' sets for the mode of the notebook.  A
-;; send copies it into the shell buffer for the filter and the ticker.
-;; docs/custom-mode.org lists its slots, and walks through a notebook
-;; of bash cells, examples/overblock-sh.el.
-;;
-;; The walk that draws the bars and the commands are below, the same
-;; in each notebook.  The commands run the region at point, step to the
-;; next one, move between regions, and run what is above or below.  They
-;; also stop, interrupt, restart, and fold, copy and discard a result.
-;;
-;; docs/overblock.org has the details, under "The run loop".
+;; docs/overblock.org has the details, under "The run loop", and
+;; docs/custom-mode.org walks through a notebook of bash cells.
 
 ;;; Code:
 

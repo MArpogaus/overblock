@@ -24,24 +24,8 @@
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
-;; What a shell prints is not what a block can show.  A copy of it
-;; carries the keymap of the shell and alignment measured in another
-;; window.  It also carries a live vtable that belongs to that buffer,
-;; and images at whatever size they came in.
-;;
-;;     (overblock-repl-detach (buffer-substring beg end))
-;;
-;; cuts a copy loose from all of that.  The properties of the shell go,
-;; and the columns of a table are laid out in characters.  The table
-;; keeps its object under `overblock-repl-table', so a caller can show
-;; it live elsewhere.  Capping the images of a line belongs to the
-;; layer: `overblock-image-cap'.
-;;
-;; What a prompt looks like is the caller's business: it belongs to the
-;; shell it came from.  `overblock-repl-strip-trailing-prompt' takes it
-;; off the end of an output.  `overblock-repl-file-images' reads back
-;; the image files a program named, one to a line.
+;; This file makes a copy of shell output that a block can show.  The
+;; properties of the shell go, and tables are laid out in characters.
 ;;
 ;; docs/overblock.org has the details, under "The output of a shell".
 
