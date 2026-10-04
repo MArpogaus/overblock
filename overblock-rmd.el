@@ -104,22 +104,13 @@
 (defvar overblock-md-preview-mode)
 (declare-function overblock-md-preview-mode "overblock-md-preview" (&optional arg))
 
+;;;; Options
+
 (defgroup overblock-rmd nil
   "Inline results for the R chunks of an Rmd file."
   :group 'ess
   :group 'overblock
   :prefix "overblock-rmd-")
-
-(defcustom overblock-rmd-result-buttons
-  (overblock-run-result-buttons "chunk" "figure")
-  "The buttons on the header of a result, left to right.
-An entry has the shape `overblock-buttons' reads.  The default is
-`overblock-run-result-buttons' worded for a chunk: the row of the
-`.py' notebook without the two that move a cell, because a chunk sits
-inside prose about it.  The fold arrow and the spinner are not in this
-list: they show the state of the result."
-  :type overblock-button-type
-  :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-bar-buttons
   (overblock-run-bar-buttons "chunk")
@@ -133,6 +124,17 @@ chunk sits inside prose about it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
+(defcustom overblock-rmd-result-buttons
+  (overblock-run-result-buttons "chunk" "figure")
+  "The buttons on the header of a result, left to right.
+An entry has the shape `overblock-buttons' reads.  The default is
+`overblock-run-result-buttons' worded for a chunk: the row of the
+`.py' notebook without the two that move a cell, because a chunk sits
+inside prose about it.  The fold arrow and the spinner are not in this
+list: they show the state of the result."
+  :type overblock-button-type
+  :set #'overblock-run-set-and-redraw)
+
 (defcustom overblock-rmd-figure-size '(7 . 5)
   "Width and height of a figure a chunk draws, in inches.
 This is knitr's `fig.width' and `fig.height', with the same default,
@@ -143,27 +145,7 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 `overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
-;;;; The result of a chunk
-
-(defun overblock-rmd--clean (text)
-  "Return TEXT as a result block can show it.
-The prompt goes, the figures come in, and the copy is cut loose from
-the shell.  Call this in the shell buffer.
-
-A chunk goes to R as one statement, so one prompt comes back, last.
-The prompt is `inferior-ess-primary-prompt', not `comint-prompt-regexp':
-ess-tracebug (on by default) calls `comint-output-filter' with
-`comint-prompt-regexp' bound to \"^$\", and this runs from that filter.
-
-The wrapper of `overblock-rmd--send' names each figure on a line of its
-own, which `overblock-repl-file-images' reads back."
-  (overblock-repl-detach
-   (overblock-repl-file-images
-    (overblock-repl-drop-prompt-face
-     (overblock-repl-strip-trailing-prompt text inferior-ess-primary-prompt))
-    "overblock-figure:")))
-
-;;;; The chunks
+;;;; Regions
 
 (defconst overblock-rmd-chunk-regexp
   "^[[:blank:]]*```+[[:blank:]]*{[[:blank:]]*[rR][[:blank:],}]"
@@ -226,6 +208,24 @@ a point at the end of the code find the same one."
                                (pos-eol)))))
               (overblock-rmd-chunks))))
 
+(defun overblock-rmd--region-at ()
+  "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
+From its opening fence, where `overblock-rmd--starts' marks it, to the
+end of its code, where its result hangs."
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (cons (nth 0 chunk) (nth 2 chunk))))
+
+(defun overblock-rmd--starts ()
+  "Return a marker on the opening fence of every chunk, in order."
+  (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
+          (overblock-rmd-chunks)))
+
+(defun overblock-rmd--code-at ()
+  "Return the code of the chunk point is in as (BEG . END), or nil.
+This is the `:code-at' of the backend: the code between the fences."
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (cons (nth 1 chunk) (nth 2 chunk))))
+
 (defun overblock-rmd--chunk-name (bol eol)
   "Return the name written in the chunk header BOL..EOL, or nil.
 The name is the word after the engine and before the first comma or
@@ -240,75 +240,13 @@ chunk."
            eol t)
       (match-string-no-properties 1))))
 
-(defun overblock-rmd--figure-size (open)
-  "Return (WIDTH HEIGHT DPI) for the chunk whose header begins at OPEN.
-These are the knitr options `fig.width', `fig.height' and `dpi' of the
-header, else `overblock-rmd-figure-size' and 96 dots an inch.  Only a
-literal number counts: an expression is for R to evaluate, so the
-default applies."
-  (save-excursion
-    (goto-char open)
-    (let ((eol (pos-eol)))
-      (mapcar (lambda (option)
-                (goto-char open)
-                (if (re-search-forward
-                     ;; Anchored at both ends, so `fig.width=2*w' does
-                     ;; not read as 2.
-                     (concat "[,{[:blank:]]" (regexp-quote (car option))
-                             "[[:blank:]]*=[[:blank:]]*"
-                             "\\([0-9.]+\\)[[:blank:]]*\\(?:[,}]\\|$\\)")
-                     eol t)
-                    (string-to-number (match-string 1))
-                  (cdr option)))
-              (list (cons "fig.width" (car overblock-rmd-figure-size))
-                    (cons "fig.height" (cdr overblock-rmd-figure-size))
-                    (cons "dpi" 96))))))
-
-;;;; The prose between the chunks
-
 (defun overblock-rmd--regions ()
   "Return the prose blocks of the buffer, in order.
 The paragraphs, not the fences: a chunk is code that runs, so the live
 cycle renders the prose and leaves the chunks alone."
   (overblock-md-regions 'prose-only))
 
-(defun overblock-rmd--show (beg end &optional html)
-  "Render the prose BEG..END over its own source, and return the block.
-HTML is the answer of the converter for it, where a batch converted
-the buffer."
-  (overblock-md-show beg end (overblock-md-source beg end) html 'default
-                     :kind 'rmd
-                     :keymap overblock-live-map
-                     :help-echo "mouse-1: edit this text"))
-
-;;;###autoload
-(defun overblock-rmd-render-buffer ()
-  "Render the prose of the buffer that is not rendered yet.
-One asynchronous converter process does all of it, so the reader does
-not wait.  `overblock-live-start' calls this again whenever the reader
-stops."
-  (interactive)
-  (overblock-md-render-regions (overblock-rmd--regions) 'rmd
-                               #'overblock-md-source #'overblock-rmd--show))
-
-;;;; The bar over a chunk header
-
-(defun overblock-rmd--bar ()
-  "Draw the bar over the chunk header point is on, and hide its closing fence.
-This is the `:bar' of the backend, and returns both overlays.  A bar
-that is already there is drawn again, not replaced, so
-`overblock-bar-draw' compares against its state.
-
-The glyph is the R logo of the devicons, the family of the Python
-notebook glyphs.  The label is the chunk name, or R when there is
-none."
-  (when-let* ((chunk (overblock-rmd--chunk-at)))
-    (list (overblock-bar-line (pos-bol) (pos-eol) 'chunk
-                              (overblock-glyph "" "◆" "R")
-                              (or (overblock-rmd--chunk-name (pos-bol) (pos-eol))
-                                  "R")
-                              (overblock-buttons overblock-rmd-bar-buttons))
-          (overblock-rmd--hide-fence (nth 2 chunk)))))
+;;;; Bars
 
 (defun overblock-rmd--hide-fence (close)
   "Hide the closing fence line that begins at CLOSE, and return the overlay.
@@ -338,7 +276,45 @@ when its chunk is gone."
         (overlay-put ov 'invisible t)
         (move-overlay ov bol end)))))
 
-;;;; R at the other end
+(defun overblock-rmd--bar ()
+  "Draw the bar over the chunk header point is on, and hide its closing fence.
+This is the `:bar' of the backend, and returns both overlays.  A bar
+that is already there is drawn again, not replaced, so
+`overblock-bar-draw' compares against its state.
+
+The glyph is the R logo of the devicons, the family of the Python
+notebook glyphs.  The label is the chunk name, or R when there is
+none."
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (list (overblock-bar-line (pos-bol) (pos-eol) 'chunk
+                              (overblock-glyph "" "◆" "R")
+                              (or (overblock-rmd--chunk-name (pos-bol) (pos-eol))
+                                  "R")
+                              (overblock-buttons overblock-rmd-bar-buttons))
+          (overblock-rmd--hide-fence (nth 2 chunk)))))
+
+;;;; Rendering
+
+(defun overblock-rmd--show (beg end &optional html)
+  "Render the prose BEG..END over its own source, and return the block.
+HTML is the answer of the converter for it, where a batch converted
+the buffer."
+  (overblock-md-show beg end (overblock-md-source beg end) html 'default
+                     :kind 'rmd
+                     :keymap overblock-live-map
+                     :help-echo "mouse-1: edit this text"))
+
+;;;###autoload
+(defun overblock-rmd-render-buffer ()
+  "Render the prose of the buffer that is not rendered yet.
+One asynchronous converter process does all of it, so the reader does
+not wait.  `overblock-live-start' calls this again whenever the reader
+stops."
+  (interactive)
+  (overblock-md-render-regions (overblock-rmd--regions) 'rmd
+                               #'overblock-md-source #'overblock-rmd--show))
+
+;;;; Backend
 
 (defun overblock-rmd--r-processes ()
   "Return the names of the R processes ESS has running, dead ones aside.
@@ -406,6 +382,30 @@ continuation prompt in the middle of the result."
   (let ((print-escape-newlines t))
     (prin1-to-string text)))
 
+(defun overblock-rmd--figure-size (open)
+  "Return (WIDTH HEIGHT DPI) for the chunk whose header begins at OPEN.
+These are the knitr options `fig.width', `fig.height' and `dpi' of the
+header, else `overblock-rmd-figure-size' and 96 dots an inch.  Only a
+literal number counts: an expression is for R to evaluate, so the
+default applies."
+  (save-excursion
+    (goto-char open)
+    (let ((eol (pos-eol)))
+      (mapcar (lambda (option)
+                (goto-char open)
+                (if (re-search-forward
+                     ;; Anchored at both ends, so `fig.width=2*w' does
+                     ;; not read as 2.
+                     (concat "[,{[:blank:]]" (regexp-quote (car option))
+                             "[[:blank:]]*=[[:blank:]]*"
+                             "\\([0-9.]+\\)[[:blank:]]*\\(?:[,}]\\|$\\)")
+                     eol t)
+                    (string-to-number (match-string 1))
+                  (cdr option)))
+              (list (cons "fig.width" (car overblock-rmd-figure-size))
+                    (cons "fig.height" (cdr overblock-rmd-figure-size))
+                    (cons "dpi" 96))))))
+
 (defun overblock-rmd--send (proc beg end)
   "Send the chunk BEG..END to PROC, as the backend's `:send'.
 The chunk is wrapped in a `source' of its own parse, so it is one
@@ -449,6 +449,24 @@ source(exprs = parse(text = %s), print.eval = TRUE)})"
 variable has its value."
   (string-match-p (concat inferior-ess-primary-prompt "\\'") tail))
 
+(defun overblock-rmd--clean (text)
+  "Return TEXT as a result block can show it.
+The prompt goes, the figures come in, and the copy is cut loose from
+the shell.  Call this in the shell buffer.
+
+A chunk goes to R as one statement, so one prompt comes back, last.
+The prompt is `inferior-ess-primary-prompt', not `comint-prompt-regexp':
+ess-tracebug (on by default) calls `comint-output-filter' with
+`comint-prompt-regexp' bound to \"^$\", and this runs from that filter.
+
+The wrapper of `overblock-rmd--send' names each figure on a line of its
+own, which `overblock-repl-file-images' reads back."
+  (overblock-repl-detach
+   (overblock-repl-file-images
+    (overblock-repl-drop-prompt-face
+     (overblock-repl-strip-trailing-prompt text inferior-ess-primary-prompt))
+    "overblock-figure:")))
+
 (defconst overblock-rmd--error-regexp "^Error\\(?: in\\>\\|:\\|$\\)"
   "What R writes at the start of a line when a chunk fails.
 `Error in CALL : MESSAGE' where there is a call to name, also with the
@@ -487,24 +505,6 @@ finds nothing, and the walk goes on to the next one."
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))
     t))
 
-(defun overblock-rmd--region-at ()
-  "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
-From its opening fence, where `overblock-rmd--starts' marks it, to the
-end of its code, where its result hangs."
-  (when-let* ((chunk (overblock-rmd--chunk-at)))
-    (cons (nth 0 chunk) (nth 2 chunk))))
-
-(defun overblock-rmd--code-at ()
-  "Return the code of the chunk point is in as (BEG . END), or nil.
-This is the `:code-at' of the backend: the code between the fences."
-  (when-let* ((chunk (overblock-rmd--chunk-at)))
-    (cons (nth 1 chunk) (nth 2 chunk))))
-
-(defun overblock-rmd--starts ()
-  "Return a marker on the opening fence of every chunk, in order."
-  (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
-          (overblock-rmd-chunks)))
-
 (defun overblock-rmd--backend ()
   "Return what `overblock-run' needs to drive an inferior R.
 The commentary of `overblock-run' lists the slots.  There is no `:arm':
@@ -525,28 +525,7 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
         :bar #'overblock-rmd--bar
         :buttons 'overblock-rmd-result-buttons))
 
-;;;; The mode
-
-(defun overblock-rmd--stay-in-host (&optional off)
-  "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
-The commentary of this file says why.  Nothing happens where polymode
-is off.
-
-Called when the mode goes on and from `polymode-init-host-hook':
-polymode runs `markdown-mode-hook', which turns the mode on, before it
-sets `pm/polymode'."
-  (when (bound-and-true-p pm/polymode)
-    (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
-
-(defun overblock-rmd--no-preview ()
-  "Turn `overblock-md-preview-mode' off, because this mode renders the prose.
-Both would render the same paragraphs over each other.  Called when
-this mode goes on, and from the preview's own hook after that, so the
-order in which a configuration turns the two on does not matter."
-  (when (bound-and-true-p overblock-md-preview-mode)
-    (overblock-md-preview-mode -1)
-    (message "overblock-rmd: overblock-md-preview-mode off, %s"
-             "this mode renders the prose itself")))
+;;;; Mode
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
@@ -607,6 +586,29 @@ The package installs no hook itself."
   (when (and buffer-file-name
              (string-match-p "\\.[rR]md\\'" buffer-file-name))
     (overblock-rmd-mode)))
+
+;;;; Hooks
+
+(defun overblock-rmd--stay-in-host (&optional off)
+  "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
+The commentary of this file says why.  Nothing happens where polymode
+is off.
+
+Called when the mode goes on and from `polymode-init-host-hook':
+polymode runs `markdown-mode-hook', which turns the mode on, before it
+sets `pm/polymode'."
+  (when (bound-and-true-p pm/polymode)
+    (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
+
+(defun overblock-rmd--no-preview ()
+  "Turn `overblock-md-preview-mode' off, because this mode renders the prose.
+Both would render the same paragraphs over each other.  Called when
+this mode goes on, and from the preview's own hook after that, so the
+order in which a configuration turns the two on does not matter."
+  (when (bound-and-true-p overblock-md-preview-mode)
+    (overblock-md-preview-mode -1)
+    (message "overblock-rmd: overblock-md-preview-mode off, %s"
+             "this mode renders the prose itself")))
 
 (provide 'overblock-rmd)
 ;;; overblock-rmd.el ends here
