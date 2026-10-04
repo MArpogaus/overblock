@@ -89,14 +89,14 @@ to it belong to the layer: see [[file:overblock.org][its notes]].
 
 *** What draws them, and when
 
-=overblock-run-bars= draws them when the mode starts, and again when
+=overblock-run--bars= draws them when the mode starts, and again when
 the reader stops, as in the Rmd notebook. Thus a bar arrives a moment
 after its line is written. The bar cycle does not depend on =jit-lock=.
 One error in a jit-lock function stops the rest, and a =python-ts-mode=
 buffer whose grammar does not match the mode signals from redisplay. See
 [[file:overblock.org][the notes of the layer]].
 
-=overblock-bar-draw= rebuilds a bar only when its line, its label or
+=overblock--bar-draw= rebuilds a bar only when its line, its label or
 its icons change. Thus a walk over the cells costs a comparison for
 each bar that did not change. A change of width marks each bar stale,
 and the runner draws them again.
@@ -175,8 +175,8 @@ the buffer as it was.
 
 A ticker runs each 0.2 seconds while a cell runs. It shows the output
 so far, a spinner and a stopwatch. The ticker and its bounds belong to
-the runner: =overblock-run-output-head= reads the head of the output,
-and =overblock-run-total= counts the lines as they arrive.
+the runner: =overblock-run--output-head= reads the head of the output,
+and =overblock-run--total= counts the lines as they arrive.
 
 This package tells what an IPython prompt looks like and how to clean
 it away. =overblock-pycell--clean= removes the prompts and the =Out[N]=

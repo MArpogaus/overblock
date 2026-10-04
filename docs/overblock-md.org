@@ -19,18 +19,15 @@ the live cycle asks for.
 | Function                        | What it does                                     |
 |---------------------------------+--------------------------------------------------|
 | =overblock-md-rendered=         | markup in, one propertized string out            |
-| =overblock-md-html-batch-async= | convert many texts in one process                |
 | =overblock-md-render-regions=   | render the regions of a buffer in one process    |
 | =overblock-md-show=             | show a rendering over its own source             |
 | =overblock-md-columns=          | the columns that a window gives a rendering      |
 | =overblock-md-program=          | the converter that is installed, or nil          |
 | =overblock-md-missing=          | why nothing renders, or nil                      |
 | =overblock-md-follow-link=      | open a rendered link, clicked or at point        |
-| =overblock-md-browse=           | open a link: a URL, a =#slug= heading, or a file |
 | =overblock-md-eglot-renderer=   | render the documentation of a language server    |
 | =overblock-md-regions=          | the Markdown blocks of a buffer                  |
 | =overblock-md-fences=           | the front matter and the fenced blocks           |
-| =overblock-md-paragraphs=       | the paragraphs between the fences                |
 | =overblock-md-source=           | the text of a block, as the converter reads it   |
 
 ** The converter
@@ -68,7 +65,7 @@ plain text. =overblock-md-missing= tells which part is missing.
 =overblock-pycell-mode= says it once, and the other modes give no
 message.
 
-=overblock-md-html-batch-async= sends many texts to the converter in
+=overblock-md--html-batch-async= sends many texts to the converter in
 one call, and does not wait for the answer. It puts a marker between
 the texts and cuts the HTML at that marker. One process for a buffer is
 much faster than one for each region. Where the number of pieces is
@@ -141,7 +138,7 @@ URL from the clicked string. The parent is =shr-map=, whose
 text of a block shows its source. From a key, =overblock-md-follow-link=
 reads the links of the block at point, and offers them.
 
-=overblock-md-browse= opens the link. A URL with a scheme goes to
+=overblock-md--browse= opens the link. A URL with a scheme goes to
 =browse-url=. A link of a README is often relative: =#slug= moves to
 the heading of the buffer whose id pandoc or GitHub makes =slug=, and a
 path opens its file, relative to the file of the buffer, at its
@@ -294,7 +291,7 @@ after a blank line, a heading, a fence or the end of front matter, and
 part of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
 lines stand in it, and a fence in it opens nothing. In an Rmd file a chunk inside a comment still runs, so there
 a comment is no block. =overblock-md-fences= finds the fences first.
-=overblock-md-paragraphs= then walks the buffer with those
+=overblock-md--paragraphs= then walks the buffer with those
 bounds. It jumps over a fence, so a blank line inside a fence ends no
 paragraph. A fence also ends the paragraph that touches it, as in
 CommonMark. Thus prose with no blank line before a fence is a block of

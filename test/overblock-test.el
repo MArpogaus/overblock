@@ -885,14 +885,14 @@ whose fractions are for the old height."
 (ert-deftest overblock-test-a-window-too-narrow-for-the-icons-loses-them ()
   "Where not even the icons fit, they go and the label is an ellipsis.
 Else the icons wrap, and the bar takes two rows."
-  (cl-letf (((symbol-function 'overblock-window-width) (lambda () 12)))
+  (cl-letf (((symbol-function 'overblock--window-width) (lambda () 12)))
     (let ((bar (substring-no-properties
                 (overblock-bar "" "a long label indeed" "u  d  a  r " 'default))))
       (should (string-prefix-p "…" (string-trim bar)))
       (should-not (string-search "u" bar))
       (should-not (string-search "r" bar))))
   ;; Where they fit, they are all there.
-  (cl-letf (((symbol-function 'overblock-window-width) (lambda () 400)))
+  (cl-letf (((symbol-function 'overblock--window-width) (lambda () 400)))
     (let ((bar (substring-no-properties
                 (overblock-bar "" "label" "u  d  a  r " 'default))))
       (should (string-search "u  d  a  r" bar))
@@ -1351,10 +1351,10 @@ does not keep shows the source of the region at point."
 A bar of a block takes its block with it, and the source comes back."
   (with-temp-buffer
     (insert "head\nbody\n")
-    (let* ((bar (overblock-bar-over 1 5))
+    (let* ((bar (overblock--bar-over 1 5))
            (block (overblock-show 6 10 :kind 'rendered :over "x"
                                   :attached (list bar))))
-      (overblock-bar-draw bar 'rendered "" "old" "")
+      (overblock--bar-draw bar 'rendered "" "old" "")
       (let ((new (overblock-bar-line 1 5 'source "" "new" "")))
         (should (equal (overblock-bars) (list new)))
         (should-not (overlay-buffer block))

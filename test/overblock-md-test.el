@@ -272,7 +272,7 @@ Pixel filling needs font metrics, which batch does not have."
 
 (defun overblock-md-test--batch (texts)
   "Return the HTML of each of TEXTS from one call of the converter.
-This is what `overblock-md-html-batch-async' does around its process:
+This is what `overblock-md--html-batch-async' does around its process:
 the texts are joined with the marker, and the answer is split at it."
   (when-let* ((joined (overblock-md--batch-text texts)))
     (overblock-md--batch-pieces (overblock-md--html joined) texts)))
@@ -303,7 +303,7 @@ An HTML comment split at a blank line takes the marker between its halves."
                   (when (equal (plist-get args :name) "overblock-md")
                     (setq runs (1+ runs)))
                   (apply make args))))
-      (overblock-md-html-batch-async texts (lambda (htmls) (setq answered htmls)))
+      (overblock-md--html-batch-async texts (lambda (htmls) (setq answered htmls)))
       (overblock-test-common-wait (lambda () (not (eq answered 'not-yet))) 10))
     (should (= (length answered) 4))
     (should (string-match-p "one" (nth 0 answered)))
@@ -340,34 +340,34 @@ An HTML comment split at a blank line takes the marker between its halves."
             (setq default-directory (file-name-as-directory dir))
             (insert "# Top\n\n## Getting Started!\n\nText.\n")
             (goto-char (point-max))
-            (overblock-md-browse "#getting-started")
+            (overblock-md--browse "#getting-started")
             (should (looking-at-p "## Getting"))
             (make-directory (expand-file-name "docs" dir))
             (write-region "" nil (expand-file-name "docs/guide.md" dir))
-            (overblock-md-browse "docs/guide.md#usage")
+            (overblock-md--browse "docs/guide.md#usage")
             (should (equal found (expand-file-name "docs/guide.md" dir)))
-            (overblock-md-browse "https://example.org")
+            (overblock-md--browse "https://example.org")
             (should (equal browsed "https://example.org"))
             ;; Nothing before the first letter, as in pandoc.
             (erase-buffer)
             (insert "# 1. Introduction\n")
-            (overblock-md-browse "#introduction")
+            (overblock-md--browse "#introduction")
             (should (bobp))
             ;; GitHub's id, a setext heading, and no comment of code.
             (erase-buffer)
             (insert "```sh\n# configure\n```\n\n## Install & Setup\n\n"
                     "Configure\n---------\n")
-            (overblock-md-browse "#install--setup")
+            (overblock-md--browse "#install--setup")
             (should (looking-at-p "## Install"))
-            (overblock-md-browse "#configure")
+            (overblock-md--browse "#configure")
             (should (looking-at-p "Configure"))
             ;; An HTML anchor, and the second of two equal headings.
             (erase-buffer)
             (insert "<a id=\"readme-top\"></a>\n\n### Added\n\n### Added\n")
             (goto-char (point-max))
-            (overblock-md-browse "#readme-top")
+            (overblock-md--browse "#readme-top")
             (should (bobp))
-            (overblock-md-browse "#added-1")
+            (overblock-md--browse "#added-1")
             (should (= (line-number-at-pos) 5))
             ;; A link in a heading counts by its text, an anchor only in
             ;; a tag, and a percent-encoded one as UTF-8.
@@ -375,31 +375,31 @@ An HTML comment split at a blank line takes the marker between its halves."
             (insert "x = f(name=\"model\")\n\n## [1.2.0](https://e.org/c) (2024)\n"
                     "\n## Model\n\n## Über\n")
             (goto-char (point-min))
-            (overblock-md-browse "#120-2024")
+            (overblock-md--browse "#120-2024")
             (should (looking-at-p "## \\[1"))
-            (overblock-md-browse "#model")
+            (overblock-md--browse "#model")
             (should (looking-at-p "## Model"))
-            (overblock-md-browse "#%C3%BCber")
+            (overblock-md--browse "#%C3%BCber")
             (should (looking-at-p "## Über"))
             ;; #L2 and #L2-L3 are lines; #l2 is a heading.
-            (overblock-md-browse "#L2")
+            (overblock-md--browse "#L2")
             (should (= (line-number-at-pos) 2))
             (goto-char (point-max))
-            (overblock-md-browse "#L2-L3")
+            (overblock-md--browse "#L2-L3")
             (should (= (line-number-at-pos) 2))
             (erase-buffer)
             (insert "x\n\n## L2\n\n## <a name=\"i\"></a>Install\n")
             (let ((case-fold-search t))
-              (overblock-md-browse "#l2")
+              (overblock-md--browse "#l2")
               (should (looking-at-p "## L2")))
-            (overblock-md-browse "#install")
+            (overblock-md--browse "#install")
             (should (looking-at-p "## <a"))
             (insert "\n### `Option<T>` support\n")
-            (overblock-md-browse "#optiont-support")
+            (overblock-md--browse "#optiont-support")
             (should (looking-at-p "### `Option"))
             ;; A missing file opens nothing.
             (setq found nil)
-            (overblock-md-browse "docs/missing.md")
+            (overblock-md--browse "docs/missing.md")
             (should-not found)))
       (delete-directory dir t))))
 
@@ -409,7 +409,7 @@ An HTML comment split at a blank line takes the marker between its halves."
   (skip-unless (executable-find "sh"))
   (let ((overblock-md-command "sh -c 'echo [WARNING] noise >&2; cat'")
         (answered 'not-yet))
-    (overblock-md-html-batch-async
+    (overblock-md--html-batch-async
      '("<p>the whole answer</p>")
      (lambda (htmls) (setq answered htmls)))
     (overblock-test-common-wait (lambda () (not (eq answered 'not-yet))) 10)
@@ -451,8 +451,8 @@ who kept moving started a converter for every pause."
     (let ((overblock-md-command "sh -c cat")
           (cycles 0) (sent 0) (shown nil))
       (unwind-protect
-          (cl-letf* ((send (symbol-function 'overblock-md-html-batch-async))
-                     ((symbol-function 'overblock-md-html-batch-async)
+          (cl-letf* ((send (symbol-function 'overblock-md--html-batch-async))
+                     ((symbol-function 'overblock-md--html-batch-async)
                       (lambda (&rest args) (setq sent (1+ sent)) (apply send args))))
             (overblock-live-start 'md-test (lambda () (setq cycles (1+ cycles))) t)
             (let ((render (lambda ()
@@ -1416,7 +1416,7 @@ Three backquotes inside a ~~~ block stay one block."
   (with-temp-buffer
     (insert "Some prose:\n```r\nx <- 1\n```\nMore prose.\n")
     (let ((fences (overblock-md-fences)))
-      (should (equal (overblock-md-paragraphs fences)
+      (should (equal (overblock-md--paragraphs fences)
                      '((1 . 12) (29 . 40)))))))
 
 (ert-deftest overblock-md-test-an-indented-fence-stays-in-its-item ()
@@ -1432,7 +1432,7 @@ The item is one block, and the fence is not a second one over it."
   (with-temp-buffer
     (insert "Intro text\n  ```\n  code\n  ```\nAfter text\n\nNext para\n")
     (let ((fences (overblock-md-fences)))
-      (should (equal (overblock-md-paragraphs fences)
+      (should (equal (overblock-md--paragraphs fences)
                      '((1 . 11) (31 . 41) (43 . 52)))))))
 
 (ert-deftest overblock-md-test-a-fence-after-an-item-s-second-paragraph-stays-in-it ()
@@ -1442,7 +1442,7 @@ The item is one block, and the fence is not a second one over it."
     (let ((fences (overblock-md-fences)))
       (should-not (seq-some (lambda (p) (string-prefix-p "  tail\n- Item"
                                                          (buffer-substring (car p) (min (point-max) (+ (car p) 14)))))
-                            (overblock-md-paragraphs fences))))))
+                            (overblock-md--paragraphs fences))))))
 
 (ert-deftest overblock-md-test-a-chunk-under-an-item-is-no-prose ()
   "With PROSE-ONLY each fence ends a paragraph: in an Rmd file it is a chunk."

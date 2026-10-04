@@ -402,15 +402,15 @@ The idle cycle draws the bars, and the same pass removes stale ones."
     ;; No longer an R chunk.
     (delete-region (point-min) (pos-eol))
     (insert "```{python}")
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should-not (overblock-rmd-test--bar-labels))))
 
 (ert-deftest overblock-rmd-test-the-bar-of-a-chunk-is-drawn-once ()
   "A second pass over the buffer reuses the bar rather than adding one."
   (overblock-rmd-test--with-mode overblock-rmd-test--document
     (let ((bars (overblock-rmd-test--bar-labels)))
-      (overblock-run-bars)
-      (overblock-run-bars)
+      (overblock-run--bars)
+      (overblock-run--bars)
       (should (equal (overblock-rmd-test--bar-labels) bars)))))
 
 
@@ -420,7 +420,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
   "The result of a chunk shows after its code and before the closing fence."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (should (overblock-run-show beg end "[1] 1" 0.4))
+      (should (overblock-run--show beg end "[1] 1" 0.4))
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         (should block)
         ;; The header says what it holds, and the body shows it.
@@ -434,7 +434,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
   "The fold button hides the body and leaves the header."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-run-show beg end "one\ntwo" 0.1)
+      (overblock-run--show beg end "one\ntwo" 0.1)
       (goto-char beg)
       (overblock-run-toggle-output)
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
@@ -449,7 +449,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
   "The two buttons that take a result away and put it on the kill ring."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-run-show beg end "[1] 1" 0.1)
+      (overblock-run--show beg end "[1] 1" 0.1)
       (goto-char beg)
       (let ((kill-ring nil))
         (overblock-run-copy-output)
@@ -467,7 +467,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
   "A result stands for the code it was run from; editing that takes it down."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
     (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-      (overblock-run-show beg end "[1] 1" 0.1)
+      (overblock-run--show beg end "[1] 1" 0.1)
       (should (overblock-in (point-min) (point-max) 'result))
       (goto-char beg)
       (insert "2 + ")
@@ -504,7 +504,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 
 (ert-deftest overblock-rmd-test-the-step-of-a-vanished-chunk-walks-on ()
   "A queued marker whose chunk the reader has deleted stops nothing.
-`overblock-run-next' takes a non-nil answer as \"wait for a prompt\",
+`overblock-run--next' takes a non-nil answer as \"wait for a prompt\",
 so a step that ran nothing returns nil."
   (overblock-rmd-test--with-mode "prose only, no chunk\n"
     (goto-char (point-min))
@@ -533,15 +533,15 @@ another option, or eval=TRUE, is sent."
 The runner runs and draws only in a buffer with a backend, and a
 command called with the mode off signals."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
-    (should-not overblock-run-backend)
+    (should-not overblock-run--backend)
     (should-error (overblock-run-this) :type 'user-error)
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
-      (should (equal (plist-get overblock-run-backend :name) "overblock-rmd"))
+      (should (equal (plist-get overblock-run--backend :name) "overblock-rmd"))
       ;; What ESS reads in a buffer it starts a process for.
       (should (equal ess-dialect "R"))
       (overblock-rmd-mode -1))
-    (should-not overblock-run-backend)))
+    (should-not overblock-run--backend)))
 
 (ert-deftest overblock-rmd-test-the-mode-off-leaves-nothing-behind ()
   "Turning the mode off takes the bars and the blocks with it."
@@ -549,7 +549,7 @@ command called with the mode off signals."
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
       (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
-        (overblock-run-show beg end "[1] 1" 0.1))
+        (overblock-run--show beg end "[1] 1" 0.1))
       (should (overblock-bars))
       (should (overblock-in (point-min) (point-max) 'result))
       (overblock-rmd-mode -1)

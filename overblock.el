@@ -1273,7 +1273,7 @@ font is much larger than the window."
     (save-excursion
       (max 0 (apply #'min (mapcar measure windows))))))
 
-(defun overblock-window-width ()
+(defun overblock--window-width ()
   "Return the pixel width of the narrowest window that shows this buffer.
 `window-max-chars-per-line' leaves out the line-number area and the
 margins, unlike `window-body-width', and uses the font of the window.
@@ -1307,7 +1307,7 @@ rendering, so a drag of the window edge does not start a converter at
 every column.
 
 Every bar is marked stale: a bar is cut in pixels for the current
-font, and `overblock-bar-draw' does not redraw a label it has seen."
+font, and `overblock--bar-draw' does not redraw a label it has seen."
   (when-let* ((columns (overblock-window-columns))
               ((not (eql columns overblock--columns))))
     (setq overblock--columns columns)
@@ -1521,7 +1521,7 @@ See `overblock-flatten-alignment' for why a copy needs them literal."
   "Mark every bar of this buffer stale, so the next draw rebuilds it.
 For a change that no bar can see: another glyph, another list of
 buttons, another window width."
-  (mapc #'overblock-bar-stale (overblock-bars)))
+  (mapc #'overblock--bar-stale (overblock-bars)))
 
 (defun overblock--forget-glyphs ()
   "Forget the glyphs answered so far, and mark the bars to be drawn again.
@@ -1693,7 +1693,7 @@ The padding is counted in columns and measured in pixels, because a
 nerd glyph draws wider than it counts.  A column of slack keeps the row
 from wrapping.  The row is built for the current width, which the
 layer writes on the block for `overblock--width-changed'."
-  (let* ((width (overblock-window-width))
+  (let* ((width (overblock--window-width))
          ;; The buffer's own cell: `text-scale-adjust' widens it.
          (cell (default-font-width))
          ;; The room of LEFT: the window less the indent, the icons and
@@ -1724,7 +1724,7 @@ character cell in a graphic frame and three columns in a terminal (see
 
 The label is cut, in pixels, where the icons leave no room for it: the
 stretch shrinks to nothing after the label passes its target, and the
-icons would wrap.  The room is what `overblock-window-width' measures,
+icons would wrap.  The room is what `overblock--window-width' measures,
 less the icons, the slack and one more character cell.
 
 A buffer in no visible window is not cut at all, because the cut stays
@@ -1744,7 +1744,7 @@ or the width changes."
          (slack (if (display-graphic-p) (frame-char-width) 3))
          (width (+ (overblock--pixel-width (propertize icons 'face face))
                    slack))
-         (available (overblock-window-width))
+         (available (overblock--window-width))
          ;; One more column of slack: a label cut exactly still wraps.
          (room (and available (- available width (frame-char-width)))))
     ;; Not even the icons fit, so they go, and the bar stays one row.
@@ -1761,10 +1761,10 @@ or the width changes."
              icons)
      face)))
 
-(defun overblock-bar-over (beg end)
+(defun overblock--bar-over (beg end)
   "Return an overlay that shows a bar in place of the text BEG..END.
 The text stays in the buffer and draws as nothing until
-`overblock-bar-draw' puts the bar on this overlay, again whenever the
+`overblock--bar-draw' puts the bar on this overlay, again whenever the
 label or the window width changes.
 
 Most of the bar is an overlay string, not a display property: a
@@ -1773,14 +1773,14 @@ display string ignores (space :align-to (- right ...))."
     (overlay-put ov 'evaporate t)
     (overlay-put ov 'display "")
     ;; A bar from the start, of kind t, so a `C-g' before
-    ;; `overblock-bar-draw' leaves an overlay that `overblock-bars'
+    ;; `overblock--bar-draw' leaves an overlay that `overblock-bars'
     ;; still finds.
     (overlay-put ov 'overblock-bar t)
     ov))
 
-(defun overblock-bar-draw (ov kind glyph label icons)
+(defun overblock--bar-draw (ov kind glyph label icons)
   "Draw the bar of KIND on OV: GLYPH, LABEL, and ICONS at the edge.
-OV comes from `overblock-bar-over'.  KIND is the word of the caller
+OV comes from `overblock--bar-over'.  KIND is the word of the caller
 for what the bar stands on, which `overblock-bar-kind' returns.
 `overblock--bar-left' joins GLYPH and LABEL, and the bar has the face
 `overblock-bar'.
@@ -1802,7 +1802,7 @@ stale."
 
 (defun overblock-bar-line (bol eol kind glyph label icons)
   "Draw the bar of KIND over the line BOL..EOL, and return its overlay.
-GLYPH, LABEL and ICONS are those of `overblock-bar-draw'.  Every bar on
+GLYPH, LABEL and ICONS are those of `overblock--bar-draw'.  Every bar on
 a line of the buffer (the boundary line of a cell, the header of an R
 chunk) is drawn through here.
 
@@ -1813,12 +1813,12 @@ The overlay is moved to the line every time, because text typed at its
 end falls outside it."
   (let* ((end (min (point-max) (1+ eol)))
          (ov (or (overblock-bar-in bol end kind)
-                 (overblock-bar-over bol eol))))
+                 (overblock--bar-over bol eol))))
     (dolist (bar (overlays-in bol end))
       (when (and (overblock-bar-kind bar) (not (eq bar ov)))
         (overblock-bar-drop bar)))
     (move-overlay ov bol eol)
-    (overblock-bar-draw ov kind glyph label icons)
+    (overblock--bar-draw ov kind glyph label icons)
     ov))
 
 (defun overblock--bar-wear (ov text)
@@ -1838,9 +1838,9 @@ the split moves nothing."
     (overlay-put ov 'display (propertize (substring text -1) 'cursor t)))
   (overlay-put ov 'after-string nil))
 
-(defun overblock-bar-stale (ov)
+(defun overblock--bar-stale (ov)
   "Make OV forget what it was drawn from, so the next draw rebuilds it.
-`overblock-bar-draw' leaves a bar as it is where nothing it compares
+`overblock--bar-draw' leaves a bar as it is where nothing it compares
 changed.  A change it cannot see is declared here, such as a new
 width, from `overblock--width-changed', or a customized button list."
   (overlay-put ov 'overblock-bar-state nil))

@@ -43,7 +43,7 @@
 ;; URL is fetched once into a cache, and drawn from there.
 ;;
 ;; Rendering a whole buffer of cells calls the program once, with
-;; `overblock-md-html-batch-async'.
+;; `overblock-md--html-batch-async'.
 ;;
 ;; `overblock-md-regions' cuts a markdown buffer into the blocks that
 ;; go to the converter whole: the front matter, the fenced blocks, the
@@ -300,21 +300,21 @@ background, not one in the foreground for each text.  A PAGE of nil is
 a converter that failed, as pandoc does where a marker lands in a YAML
 block, and halves the same way."
   (if-let* ((pieces (or (overblock-md--batch-pieces page texts)
-                         (null (cdr texts)))))
+                        (null (cdr texts)))))
       (funcall callback (and (consp pieces) pieces))
     (let* ((head (seq-take texts (/ (length texts) 2)))
            (tail (nthcdr (length head) texts)))
-      (overblock-md-html-batch-async
+      (overblock-md--html-batch-async
        head
        (lambda (first)
-         (overblock-md-html-batch-async
+         (overblock-md--html-batch-async
           tail
           (lambda (second)
             (funcall callback
                      (append (or first (make-list (length head) nil))
                              (or second (make-list (length tail) nil)))))))))))
 
-(defun overblock-md-html-batch-async (texts callback)
+(defun overblock-md--html-batch-async (texts callback)
   "Convert TEXTS in one process and hand the HTML of each to CALLBACK.
 CALLBACK gets the list in the order of TEXTS.  A batch that loses its
 markers goes again in halves, and a text that still fails alone gets
@@ -369,7 +369,7 @@ bounds of one and returns its markdown.  SHOW is called with the
 bounds and the HTML of one and draws it; the HTML is nil where the
 converter failed for it, and SHOW then converts alone.
 Nothing waits: the renderings arrive later, through
-`overblock-md-html-batch-async'.
+`overblock-md--html-batch-async'.
 
 One batch of KIND at a time: a cycle that comes while one is with the
 converter would send the same regions again, so it waits, and the live
@@ -413,7 +413,7 @@ is installed."
 (defun overblock-md--send-batch (kind marked sources text show)
   "Send the SOURCES of the MARKED regions of KIND, and show what comes back.
 TEXT and SHOW are those of `overblock-md-render-regions'."
-  (overblock-md-html-batch-async
+  (overblock-md--html-batch-async
    sources
    (lambda (htmls)
      (overblock-md--show-batch
@@ -604,7 +604,7 @@ line ended, or nil."
                          (list (pos-bol) this
                                (overblock-md--limit from item)))))
     (cond ((overblock-md--too-deep-p (length (match-string 1))
-                                             item limit)
+                                     item limit)
            (list block))
           ;; A backtick after the marks makes inline code of it.
           ((and (eq (aref this 0) ?`) (looking-at-p "[^\n]*`")) (list block))
@@ -686,7 +686,7 @@ item.  Return nil elsewhere."
     (goto-char pos)
     (looking-at-p "[ \t]*\\(?:[-+*]\\|[0-9]+[.)]\\)[ \t]")))
 
-(defun overblock-md-paragraphs (fences &optional every)
+(defun overblock-md--paragraphs (fences &optional every)
   "Return the bounds of every paragraph of the buffer, FENCES aside.
 A paragraph is the run of lines between two blank ones, or between a
 blank line and a fence: a fence ends the paragraph that touches it,
@@ -704,7 +704,7 @@ blank line inside one ends no paragraph."
         ;; reached once, not tested on every line.
         (let ((fence (and fences (>= (point) (caar fences)))))
           (when (overblock-md--ends-p (and fence (caar fences))
-                                               from every)
+                                      from every)
             (when from (push (cons from last) regions))
             (setq from nil))
           ;; A line of text goes on with the paragraph or begins one, as
@@ -751,7 +751,7 @@ a table, a fenced block or a list wrongly by itself.  The whole block
 goes to the converter and `overblock-show' deals the rendering back
 over its lines."
   (let* ((all (overblock-md-fences (not prose-only)))
-         (paragraphs (overblock-md-paragraphs all prose-only))
+         (paragraphs (overblock-md--paragraphs all prose-only))
          (fences (overblock-md--outside all paragraphs)))
     (seq-filter (lambda (region) (< (car region) (cdr region)))
                 (if prose-only
@@ -1657,7 +1657,7 @@ A rendering is a display string, and `shr-browse-url' reads the URL
 from buffer text at point.  A click reads it from the clicked string.
 Point never enters a display string, so from a key this asks the
 block at point for its links: with one, it is followed; with several,
-the reader chooses.  `overblock-md-browse' opens it."
+the reader chooses.  `overblock-md--browse' opens it."
   (interactive (list last-input-event))
   (if (mouse-event-p event)
       (let* ((posn (event-start event))
@@ -1667,13 +1667,13 @@ the reader chooses.  `overblock-md-browse' opens it."
                          (get-char-property (posn-point posn) 'shr-url))))))
         (if url
             (progn (select-window (posn-window posn))
-                   (overblock-md-browse url))
+                   (overblock-md--browse url))
           (message "No link here")))
     (let ((links (overblock-md--links (overblock-at))))
       (cond
        ((null links) (user-error "No link here"))
-       ((null (cdr links)) (overblock-md-browse (cdar links)))
-       (t (overblock-md-browse
+       ((null (cdr links)) (overblock-md--browse (cdar links)))
+       (t (overblock-md--browse
            (cdr (assoc (completing-read "Follow link: " (mapcar #'car links)
                                         nil t)
                        links))))))))
@@ -1703,7 +1703,7 @@ string."
             (setq pos next)))))
     (nreverse links)))
 
-(defun overblock-md-browse (url)
+(defun overblock-md--browse (url)
   "Open URL, the target of a link in the markdown of this buffer.
 A URL with a scheme goes to `browse-url'.  A link of a README is often
 relative: #SLUG goes to the heading of this buffer whose id is SLUG,
@@ -1847,7 +1847,7 @@ window, so `text-scale-adjust' is respected."
   "Render the markdown MD to a propertized string.
 `overblock-md-command' produces HTML, shr renders it, and LaTeX
 fragments become preview images.  With HTML, that is rendered instead
-and MD is not converted again: `overblock-md-html-batch-async' converts
+and MD is not converted again: `overblock-md--html-batch-async' converts
 a whole buffer of cells at once.
 
 shr renders without fonts here: the text hangs on source lines at any

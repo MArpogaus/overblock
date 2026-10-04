@@ -86,7 +86,7 @@ The rendering comes from an asynchronous process, so a test waits."
   "Return the first line of the prose of every doc string found."
   (mapcar (lambda (bounds)
             (car (split-string (overblock-pydoc--prose (car bounds)
-                                                        (cdr bounds))
+                                                       (cdr bounds))
                                "\n")))
           (overblock-pydoc--regions)))
 
@@ -343,7 +343,7 @@ A rule under one row would box it in."
   "A summary longer than the room is cut with an ellipsis, not wrapped."
   (with-temp-buffer
     (set-window-buffer nil (current-buffer))
-    (cl-letf (((symbol-function 'overblock-window-width)
+    (cl-letf (((symbol-function 'overblock--window-width)
                (lambda () (* 40 (frame-char-width)))))
       (let ((bar (overblock-pydoc--bar (make-string 80 ?x) 4)))
         (should (string-search "…" bar))
@@ -567,7 +567,7 @@ own."
         (wide (overblock-bar "" "a" "b" 'default 0)))
     ;; Both are built for the same window, and the indented one is
     ;; shorter by its indentation.
-    (should (or (null (overblock-window-width))
+    (should (or (null (overblock--window-width))
                 (= (- (string-width wide) (string-width narrow)) 20)))))
 
 (ert-deftest overblock-pydoc-test-the-bars-follow-the-window-width ()

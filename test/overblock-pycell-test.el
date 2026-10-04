@@ -60,7 +60,7 @@ cycle without the hooks of the mode."
      (insert "# %%\nx = 1\n\n# %%\ny = 2\n")
      (python-mode)
      (code-cells-mode)
-     (setq-local overblock-run-backend (overblock-pycell--backend))
+     (setq-local overblock-run--backend (overblock-pycell--backend))
      ;; The backend, not the mode: these tests draw results without the
      ;; hooks of the mode.
      (overblock-run-attach (overblock-pycell--backend))
@@ -142,9 +142,9 @@ The runner takes the budgets as arguments, so the tests supply them."
 (defun overblock-run-header-of-pycell (folded total shown runtime state imagep)
   "Return the header bar of a result of the notebook.
 FOLDED, TOTAL, SHOWN, RUNTIME, STATE and IMAGEP are the arguments of
-`overblock-run-header'; the backend is that of the notebook."
-  (let ((overblock-run-backend (overblock-pycell--backend)))
-    (overblock-run-header folded total shown runtime state imagep)))
+`overblock-run--header'; the backend is that of the notebook."
+  (let ((overblock-run--backend (overblock-pycell--backend)))
+    (overblock-run--header folded total shown runtime state imagep)))
 
 (ert-deftest overblock-pycell-test-clean-prompts ()
   "Prompts at both ends and Out[n] markers go, and the trailing blanks.
@@ -242,7 +242,7 @@ The block stays, empty, and keeps the bar of the cell."
     (code-cells-mode)
     (overblock-pycell-test--with-mode
       (goto-char (point-min))
-      (overblock-md-browse "#a-comment")
+      (overblock-md--browse "#a-comment")
       (should (looking-at-p "# # A comment")))))
 
 (ert-deftest overblock-pycell-test-md-an-edit-takes-the-bar-with-it ()
@@ -256,7 +256,7 @@ two."
     (insert "# %% [markdown]\n# ## A\n#\n# Text.\n\n# %%\nx = 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (let ((bars (lambda ()
                   (seq-count (lambda (ov) (overlay-get ov 'overblock-block))
                              (overlays-in (point-min) (point-max))))))
@@ -283,7 +283,7 @@ display string cannot."
   (overblock-pycell-test--with-cells
     (let ((before (buffer-substring-no-properties (point-min) (point-max))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "42" 0.5)
+        (overblock-run--show beg end "42" 0.5)
         (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
                (nl (overblock-get block :newline)))
           (should block)
@@ -305,7 +305,7 @@ named instead and the body is the display property."
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t)))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end (concat "plot\n" overblock-test-common-image) 0.5)
+        (overblock-run--show beg end (concat "plot\n" overblock-test-common-image) 0.5)
         (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
                (nl (overblock-get block :newline)))
           (should (overblock-image-in (overlay-get block 'after-string)))
@@ -319,7 +319,7 @@ without images shows only the space, in the block and in
   (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) nil)))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end (concat "plot\n" overblock-test-common-image) 0.5)
+        (overblock-run--show beg end (concat "plot\n" overblock-test-common-image) 0.5)
         (let ((block (car (overblock-in (point-min) (point-max) 'result))))
           (should (string-match-p
                    "\\[figure\\]"
@@ -333,10 +333,10 @@ shr raises a superscript with a display property, and inline math is
 full of those; only a real image belongs in the after-string."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end
-                    (concat "E = mc"
-                            (propertize "2" 'display '(raise 0.2)))
-                    0.1)
+      (overblock-run--show beg end
+                           (concat "E = mc"
+                                   (propertize "2" 'display '(raise 0.2)))
+                           0.1)
       (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
              (nl (overblock-get block :newline)))
         ;; The rows are one display string on the newline.
@@ -356,7 +356,7 @@ A finished cell arrives without a count, and a fold must not scan the
 whole output again on every keypress."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "one\ntwo\nthree" 0.1)
+      (overblock-run--show beg end "one\ntwo\nthree" 0.1)
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         ;; The count is in the record, where the header reads it.
         (should (= (plist-get (overblock-get block :data) :total) 3))
@@ -372,11 +372,11 @@ whole output again on every keypress."
   "Replacing a result keeps whether it was folded."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "a\nb" 0.1)
+      (overblock-run--show beg end "a\nb" 0.1)
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
         (overblock-set ov :data (plist-put (overblock-get ov :data)
                                            :folded t)))
-      (overblock-run-show beg end "c\nd" 0.2)
+      (overblock-run--show beg end "c\nd" 0.2)
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
         (should (plist-get (overblock-get ov :data) :folded))
         ;; The result is the new one.
@@ -386,7 +386,7 @@ whole output again on every keypress."
   "Removing results takes the helper overlays with them."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "42" 0.1))
+      (overblock-run--show beg end "42" 0.1))
     (let ((bov (overblock-get
                 (car (overblock-in (point-min) (point-max) 'result))
                 :newline)))
@@ -401,7 +401,7 @@ separately."
   (overblock-pycell-test--with-cells
     (overblock-pycell-test--with-mode
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "a\nb" 0.1)
+        (overblock-run--show beg end "a\nb" 0.1)
         (let* ((ov (car (overblock-in (point-min) (point-max) 'result)))
                (bov (overblock-get ov :newline))
                (head (overlay-get ov 'after-string))
@@ -420,11 +420,11 @@ buffer it stops one character short by itself."
     (insert "# %%\nx = 1\ny = x + 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--with-mode
       (pcase-let ((`(,beg ,end) (progn (goto-char (point-min))
                                        (code-cells--bounds nil nil t))))
-        (overblock-run-show beg end "42" 0.1)
+        (overblock-run--show beg end "42" 0.1)
         (let ((bov (overblock-get
                     (car (overblock-in (point-min) (point-max) 'result))
                     :newline)))
@@ -443,14 +443,14 @@ middle goes under the fold with its code."
     (insert "# %%\nx = 1\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--with-mode
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "1" 0.1)
+        (overblock-run--show beg end "1" 0.1)
         (goto-char (point-max))
         (pcase-let ((`(,beg2 ,end2) (code-cells--bounds nil nil t)))
-          (overblock-run-show beg2 end2 "2" 0.1))
+          (overblock-run--show beg2 end2 "2" 0.1))
         (let ((first (car (overblock-in beg (1- end) 'result))))
           (outline-flag-region 5 (point-max) t)
           (should (invisible-p (overlay-start (overblock-get first :newline))))
@@ -466,11 +466,11 @@ the header is drawn on the heading row after the fold mark."
     (insert "# %% one\nx = 1\nprint(x)\n\n# %% two\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--with-mode
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "1" 0.1)
+        (overblock-run--show beg end "1" 0.1)
         (let ((block (car (overblock-in beg end 'result))))
           (outline-flag-region (pos-eol) (1- end) t)
           (should (invisible-p (+ beg 10)))
@@ -492,7 +492,7 @@ the header is drawn on the heading row after the fold mark."
     (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--with-mode
       (goto-char (point-min))
       (let* ((block (car (overblock-in (point-min) (point-max) 'pycell)))
@@ -516,7 +516,7 @@ whole on every scroll event."
     (insert "# %% [markdown]\n# ## A\n#\n# Text here.\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--render-all)
     (let* ((ov (car (overblock-in (point-min) (point-max) 'pycell)))
            (parts (overblock-get ov :parts)))
@@ -539,7 +539,7 @@ no height, with the same effect."
     (insert "# %% [markdown]\n# ## A\n#\n#\n#\n# Text here.\n#\n#\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--render-all)
     (let* ((ov (car (overblock-in (point-min) (point-max) 'pycell)))
            (parts (overblock-get ov :parts))
@@ -774,7 +774,7 @@ inside the output."
                         (cons (copy-marker (+ start 7)) (copy-marker (+ start 13))))
             (setq overblock-run--state (list :from start :tail "" :start (float-time)))
             ;; The filter reads the backend of the shell.
-            (setq-local overblock-run-backend (overblock-pycell--backend))
+            (setq-local overblock-run--backend (overblock-pycell--backend))
             (cl-letf (((symbol-function 'python-shell-comint-end-of-output-p)
                        (lambda (&rest _) t))
                       ((symbol-function 'overblock-run--end)
@@ -791,7 +791,7 @@ any event.  A `switch-frame' is a cons like a click, but its start is
 a frame, which has no position."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "42" 0.1))
+      (overblock-run--show beg end "42" 0.1))
     (goto-char (point-min))
     (forward-line 1)
     (let ((here (point)))
@@ -860,7 +860,7 @@ writes between cells belongs to it and has to be written back."
             (insert text)
             (python-mode)
             (code-cells-mode)
-            (setq-local overblock-run-backend (overblock-pycell--backend))
+            (setq-local overblock-run--backend (overblock-pycell--backend))
             (overblock-pycell-test--render-all)
             (goto-char (point-min))
             (forward-line 1)
@@ -920,7 +920,7 @@ caller gets the check."
       (insert text)
       (python-mode)
       (code-cells-mode)
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (overblock-pycell-eval-region beg end))
@@ -941,7 +941,7 @@ says so and leaves the cells as text."
       (insert "# %% [markdown]\n# ## Heading\n#\n# Prose.\n\n# %%\nx = 1\n")
       (python-mode)
       (code-cells-mode)
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (let ((before (buffer-string))
             said)
         (cl-letf (((symbol-function 'message)
@@ -967,7 +967,7 @@ final newline."
               "# %% [markdown]\n# ## A figure\n#\n# ![pic](pic.png)" trailing)
       (python-mode)
       (code-cells-mode)
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (overblock-pycell-test--with-mode
         ;; The blocks in order; the last one holds the figure. Not
         ;; `sort' with keywords, which is Emacs 30.
@@ -998,10 +998,10 @@ only where there is none, and only at the end of the buffer."
 x = 1")                ; no newline at the end
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (goto-char (point-min))
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "42" 0.1))
+      (overblock-run--show beg end "42" 0.1))
     (should (equal (buffer-string) "# %%
 x = 1
 "))
@@ -1013,10 +1013,10 @@ x = 1
 ")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (goto-char (point-min))
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "42" 0.1))
+      (overblock-run--show beg end "42" 0.1))
     (should (equal (buffer-string) "# %%
 x = 1
 "))))
@@ -1035,7 +1035,7 @@ would write a bare #."
             (insert text)
             (python-mode)
             (code-cells-mode)
-            (setq-local overblock-run-backend (overblock-pycell--backend))
+            (setq-local overblock-run--backend (overblock-pycell--backend))
             (overblock-pycell-test--render-all)
             (goto-char (point-min))
             (forward-line 1)
@@ -1068,7 +1068,7 @@ Each region has its own edit buffer, so unsaved text stays."
                   "# %% [markdown]\n# Second cell.\n")
           (python-mode)
           (code-cells-mode)
-          (setq-local overblock-run-backend (overblock-pycell--backend))
+          (setq-local overblock-run--backend (overblock-pycell--backend))
           (goto-char (point-min))
           (overblock-pycell-test--render-all)
           (forward-line 1)
@@ -1103,23 +1103,23 @@ Not where an escape sequence would be cut in two: comint-mime sends an
 image as one, and a cut inside it drops the figure."
   (with-temp-buffer
     (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (insert "In [1]: ")
     (let* ((from (copy-marker (point)))
            ;; What the body can show.
            (budget (* overblock-run-max-lines (1+ overblock-run-max-line-length))))
       (setq-local overblock-run--state (list :from from :beg (point-min-marker)
-                                    :end (point-max-marker) :tail ""
-                                    :start (float-time)))
+                                             :end (point-max-marker) :tail ""
+                                             :start (float-time)))
       ;; One line, longer than the budget: the head stops at it.
       (insert (make-string (* 3 budget) ?x))
-      (should (= (length (overblock-run-output-head from)) budget))
+      (should (= (length (overblock-run--output-head from)) budget))
       ;; The same output with an escape sequence inside the budget: all
       ;; of it is read, so the image of comint-mime arrives whole.
       (setq overblock-run--state (plist-put overblock-run--state :head nil))
       (goto-char (+ from 10))
       (insert "\e]5151;file=x\e\\")
-      (should (> (length (overblock-run-output-head from)) budget)))))
+      (should (> (length (overblock-run--output-head from)) budget)))))
 
 (ert-deftest overblock-pycell-test-mirror-reads-only-what-it-shows ()
   "The live mirror reads the head of the output, not all of it.
@@ -1128,25 +1128,25 @@ times a second, which grows with the cell."
   (let ((overblock-run-max-lines 4))
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (let ((from (point-max-marker)))
         (setq-local overblock-run--state (list :from from :tail "" :start 0.0))
         (insert (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 200) "\n")
                 "\n")
         ;; The head holds what shows and a little slack, not the rest.
-        (let ((head (overblock-run-output-head from)))
+        (let ((head (overblock-run--output-head from)))
           (should (string-prefix-p "line 1\nline 2" head))
           (should-not (string-match-p "line 100" head))
           (should (< (length head) 100)))
         ;; It is kept, so later ticks read nothing.
-        (should (equal (plist-get overblock-run--state :head) (overblock-run-output-head from)))
+        (should (equal (plist-get overblock-run--state :head) (overblock-run--output-head from)))
         ;; The count is of the whole output, counted as it arrives: the
         ;; position it reached is kept.
-        (should (= (overblock-run-total from) 200))
+        (should (= (overblock-run--total from) 200))
         (should (= (car (plist-get overblock-run--state :count)) (point-max)))
         (insert "line 201\nline 202")
-        (should (= (overblock-run-total from) 202))))))
+        (should (= (overblock-run--total from) 202))))))
 
 (ert-deftest overblock-pycell-test-leading-blank-lines-do-not-shorten-the-head ()
   "Output that begins with blank lines still shows the lines it may.
@@ -1155,14 +1155,14 @@ because `:clean' removes them."
   (let ((overblock-run-max-lines 4))
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (let ((from (point-max-marker)))
         (setq-local overblock-run--state (list :from from :tail "" :start 0.0))
         (insert (make-string 8 ?\n)
                 (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 20) "\n")
                 "\n")
-        (should (string-search "line 4" (overblock-run-output-head from)))))))
+        (should (string-search "line 4" (overblock-run--output-head from)))))))
 
 (ert-deftest overblock-pycell-test-mirror-keeps-nothing-while-it-has-nothing ()
   "An empty head is not kept, so the text can still arrive.
@@ -1171,14 +1171,14 @@ comint-mime renders it only when it is complete."
   (let ((overblock-run-max-lines 2))
     (with-temp-buffer
       (setq-local comint-prompt-regexp "^In \\[[0-9]+\\]: ")
-      (setq-local overblock-run-backend (overblock-pycell--backend))
+      (setq-local overblock-run--backend (overblock-pycell--backend))
       (let ((from (point-max-marker)))
         (setq-local overblock-run--state (list :from from :tail "" :start 0.0))
         (insert "\e]5151;{\"image/png\"\n")
         (insert (mapconcat (lambda (i) (format "line %d" i))
                            (number-sequence 1 20) "\n")
                 "\n")
-        (should (equal (overblock-run-output-head from) ""))
+        (should (equal (overblock-run--output-head from) ""))
         (should-not (plist-get overblock-run--state :head))))))
 
 (ert-deftest overblock-pycell-test-md-render-all-matches-one-by-one ()
@@ -1199,7 +1199,7 @@ comint-mime renders it only when it is complete."
             (insert (format "# %%%% [markdown]\n# ## Section %d\n#\n# Prose *here*.\n\n# %%%%\nx%d = %d\n\n" i i i)))
           (python-mode)
           (code-cells-mode)
-          (setq-local overblock-run-backend (overblock-pycell--backend))
+          (setq-local overblock-run--backend (overblock-pycell--backend))
           (overblock-pycell-test--render-all)
           (let ((batched (funcall displays)))
             (should (= (length batched) 3))
@@ -1245,15 +1245,15 @@ of one cell would end up under the other."
     (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n\n# %%\nthird = 3\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     ;; A result on the first two cells.
     (goto-char (point-min))
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "one" 0.1))
+      (overblock-run--show beg end "one" 0.1))
     (goto-char (point-min))
     (forward-line 3)
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "two" 0.2))
+      (overblock-run--show beg end "two" 0.2))
     ;; Move the first cell down, from inside it.
     (goto-char (point-min))
     (forward-line 1)
@@ -1285,7 +1285,7 @@ Its pieces hang on its source lines, and the lines move under them."
     (insert "# %%\nx = 1\n\n# %% [markdown]\n# ## Prose\n#\n# Words here.\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (goto-char (point-min))
     (overblock-pycell-test--render-all)
     ;; The markdown cell is the second one; move it up.
@@ -1313,7 +1313,7 @@ the move must start from the boundary line."
     (insert "# %%\ndef one():\n    return 1\n\n# %%\nprint(\"two\")\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     ;; Point in the body of the def.
     (goto-char (point-min))
     (forward-line 2)
@@ -1334,12 +1334,12 @@ The text a move inserts lands at the anchor of the cell below it, whose
     (insert "# %%\na = 1\n\n# %%\nb = 2\n\n# %%\nc = 3\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     ;; A result on each of the three cells.
     (goto-char (point-min))
     (dolist (text '("one" "two" "three"))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end text 0.1))
+        (overblock-run--show beg end text 0.1))
       (code-cells-forward-cell))
     (let ((texts (lambda ()
                    (mapcar (lambda (b)
@@ -1367,10 +1367,10 @@ way, and nothing is removed before that."
     (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (goto-char (point-min))
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "one" 0.1))
+      (overblock-run--show beg end "one" 0.1))
     (let ((before (buffer-substring-no-properties (point-min) (point-max))))
       (goto-char (point-min))
       (forward-line 1)
@@ -1393,7 +1393,7 @@ refuses to insert one vtable into a second buffer."
     (let* ((comint-prompt-regexp "^In \\[[0-9]+\\]: ")
            (text (overblock-pycell--clean (overblock-test-common-vtable-text))))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end text 0.4))
+        (overblock-run--show beg end text 0.4))
       (let ((ov (car (overblock-in (point-min) (point-max) 'result))))
         (goto-char (overlay-start ov))
         (save-window-excursion (overblock-run-pop-output))
@@ -1439,7 +1439,7 @@ Each shell has its own queue."
           ;; reached through it.
           (dolist (notebook (list one two))
             (with-current-buffer notebook
-              (setq-local overblock-run-backend (overblock-pycell--backend))))
+              (setq-local overblock-run--backend (overblock-pycell--backend))))
           ;; Each notebook has a shell of its own, as with
           ;; `python-shell-dedicated'.
           (cl-letf (((symbol-function 'python-shell-get-process)
@@ -1480,7 +1480,7 @@ first line of the cell at the bottom edge, with the code out of sight."
               ;; As a pass starts: the home starts the scrolling.
               (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list second))
-              (overblock-run-next)
+              (overblock-run--next)
               (should (>= sent second))
               (should (= (window-start window) second))
               (should (= (window-point window) second))))
@@ -1513,7 +1513,7 @@ z = 3
               (goto-char (point-max))
               (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list (cadr starts)))
-              (overblock-run-next)
+              (overblock-run--next)
               (should (= (window-start window) second))
               (should (= (point) second))
               ;; Redisplay moves the start the pass set, for a scroll
@@ -1537,17 +1537,17 @@ z = 3
                                 (default-value 'post-command-hook)))
               ;; The next cell moves neither the window nor point.
               (overblock-run--queue-set (list (copy-marker first)))
-              (overblock-run-next)
+              (overblock-run--next)
               (should (= (window-start window) third))
               (should (= (point) second))
-              (overblock-run-go-home)
+              (overblock-run--go-home)
               (should (= (point) second))
               ;; With the option off, nothing moves at all.
               (let ((overblock-run-scroll nil))
                 (goto-char (point-min))
                 (overblock-run--home-set (point-marker))
                 (overblock-run--queue-set (list (copy-marker second)))
-                (overblock-run-next)
+                (overblock-run--next)
                 (should (= (point) (point-min)))
                 (should-not (memq (current-buffer) overblock-run--scrolled)))))
         (kill-buffer shell)))))
@@ -1622,7 +1622,7 @@ does, and point comes back where the pass was asked for."
             (should-not (memq (current-buffer) overblock-run--scrolled))
             ;; Asked for further down: the pass takes the home over.
             (goto-char (point-max))
-            (overblock-run-cells (overblock-pycell--starts) "running")
+            (overblock-run--cells (overblock-pycell--starts) "running")
             (should (memq (current-buffer) overblock-run--scrolled))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
@@ -1634,7 +1634,7 @@ does, and point comes back where the pass was asked for."
                    (list 'down-mouse-1
                          (list (get-buffer-window) (point) '(0 . 0) 0))))
               (run-hooks 'pre-command-hook)
-              (overblock-run-cells (overblock-pycell--starts) "running")
+              (overblock-run--cells (overblock-pycell--starts) "running")
               (run-hooks 'post-command-hook))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
@@ -1645,7 +1645,7 @@ does, and point comes back where the pass was asked for."
                          (list (get-buffer-window) (point-min) '(0 . 0) 0))))
               (run-hooks 'pre-command-hook)
               (goto-char (point-min))
-              (overblock-run-cells (overblock-pycell--starts) "running")
+              (overblock-run--cells (overblock-pycell--starts) "running")
               (run-hooks 'post-command-hook))
             (should (= (point-min)
                        (buffer-local-value 'overblock-run--home shell)))
@@ -1655,9 +1655,9 @@ does, and point comes back where the pass was asked for."
             (let ((notebook (current-buffer)))
               (overblock-run--scroll-stop)
               (with-temp-buffer
-                (setq-local overblock-run-backend
-                            (buffer-local-value 'overblock-run-backend notebook))
-                (overblock-run-cells (list (point-marker)) "running"))
+                (setq-local overblock-run--backend
+                            (buffer-local-value 'overblock-run--backend notebook))
+                (overblock-run--cells (list (point-marker)) "running"))
               (should (eq (marker-buffer
                            (buffer-local-value 'overblock-run--home shell))
                           notebook))))
@@ -1716,7 +1716,7 @@ for at once starts where the first one did."
               (setq major-mode 'inferior-python-mode))
             (set-window-start window (point-min))
             (goto-char (+ (point-min) 2))
-            (dolist (stop (list #'overblock-run-go-home
+            (dolist (stop (list #'overblock-run--go-home
                                 #'overblock-run-restart))
               (overblock-run--home-set (point-marker))
               (overblock-run--scroll-to two)
@@ -1729,7 +1729,7 @@ for at once starts where the first one did."
             (overblock-run--home-set (point-marker))
             (overblock-run--scroll-to two)
             (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
-              (overblock-run-go-home)
+              (overblock-run--go-home)
               (should (= (window-start window) two))
               (run-hooks 'post-command-hook)
               (should (= (window-start window) two)))
@@ -1740,7 +1740,7 @@ for at once starts where the first one did."
             (overblock-run--home-set (point-marker))
             (overblock-run--scroll-to two)
             (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
-              (overblock-run-go-home))
+              (overblock-run--go-home))
             (set-window-start window (point-max))
             (run-hooks 'post-command-hook)
             (should (= (window-start window) (point-max)))
@@ -1750,7 +1750,7 @@ for at once starts where the first one did."
             (overblock-run--home-set (point-marker))
             (overblock-run--scroll-to two)
             (cl-letf (((symbol-function 'minibuffer-depth) (lambda () 1)))
-              (overblock-run-go-home)
+              (overblock-run--go-home)
               ;; The preview moves it from a timer, then a key is typed.
               (set-window-start window (point-max))
               (run-hooks 'pre-command-hook 'post-command-hook)
@@ -1767,7 +1767,7 @@ for at once starts where the first one did."
               (set-window-point other three)
               (overblock-run--home-set (point-marker))
               (overblock-run--scroll-to two)
-              (overblock-run-go-home)
+              (overblock-run--go-home)
               (should (= (window-start other) three))
               (should (= (window-point other) three))
               (delete-window other)))
@@ -1780,7 +1780,7 @@ A yank typed while the pass stood on a cell would land in that cell."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
     (let ((two (save-excursion (goto-char (point-max))
                                (code-cells-backward-cell) (point-marker))))
-      (cl-letf (((symbol-function 'overblock-run-shell)
+      (cl-letf (((symbol-function 'overblock-run--shell)
                  (lambda () (current-buffer))))
         (goto-char (point-min))
         (forward-line 1)
@@ -1863,21 +1863,21 @@ A yank typed while the pass stood on a cell would land in that cell."
                      (lambda (&rest _) 'proc))
                     ((symbol-function 'process-buffer)
                      (lambda (_proc) shell))
-                    ((symbol-function 'overblock-run-next)
+                    ((symbol-function 'overblock-run--next)
                      (lambda () (ert-fail "the pass must not start over the running one"))))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode)
               (setq-local overblock-run--state (list :from 1)))
             ;; Each request queues what it asks for, in order.
             (overblock-run--queue-set (list (copy-marker 13)))
-            (overblock-run-cells (list (copy-marker 1) (copy-marker 13)) "running")
+            (overblock-run--cells (list (copy-marker 1) (copy-marker 13)) "running")
             (should (equal (mapcar #'marker-position (overblock-run--queued))
                            '(13 1 13)))
             ;; One cell of a pass is not the one at point: it is counted.
             (let (said)
               (cl-letf (((symbol-function 'message)
                          (lambda (&rest args) (setq said (apply #'format args)))))
-                (overblock-run-cells (list (copy-marker 1)) "running"))
+                (overblock-run--cells (list (copy-marker 1)) "running"))
               (should (string-match-p "1 cell queued" said)))
             (should (buffer-local-value 'overblock-run--home shell)))
         (kill-buffer shell)))))
@@ -1894,7 +1894,7 @@ y = 2
 z = 3
 "
     (let (passed)
-      (cl-letf (((symbol-function 'overblock-run-cells)
+      (cl-letf (((symbol-function 'overblock-run--cells)
                  (lambda (cells _message) (setq passed cells))))
         (goto-char (cadr (overblock-pycell--starts)))
         (forward-line 1)
@@ -2011,7 +2011,7 @@ character of the cell."
   (dolist (where '(end start))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "old output" 0.1)
+        (overblock-run--show beg end "old output" 0.1)
         (should (overblock-in (point-min) (point-max) 'result))
         (goto-char (if (eq where 'end) (1- end) beg))
         (insert "print(1)")
@@ -2030,7 +2030,7 @@ visited buffer stays unmodified."
     (insert "# %% [markdown]\n# text")          ; no final newline
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (goto-char (point-min))
     (let ((size (buffer-size)))
       (overblock-pycell-test--render-all)
@@ -2056,7 +2056,7 @@ reader cannot write."
     (insert "# %% [markdown]\n# text")          ; no final newline
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (setq buffer-read-only t)
     (goto-char (point-min))
     (overblock-pycell-test--render-all)
@@ -2073,7 +2073,7 @@ binding of the reader must arrive."
             "# %%\nx = 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--render-all)
     (should (overblock-in (point-min) (point-max) 'pycell))
     ;; Point on the rendered cell.
@@ -2100,7 +2100,7 @@ links."
             "# %%\nx = 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-test--render-all)
     (goto-char (point-min))
     (forward-line 1)
@@ -2141,7 +2141,7 @@ one: `overblock-md--image-file' returns nil for every path there."
             "[plain](https://gnu.org/).\n\n# %%\nx = 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (cl-letf (((symbol-function 'display-images-p) (lambda (&rest _) t))
               ((symbol-function 'create-image)
                (lambda (f &rest _) (list 'image :type 'png :file f))))
@@ -2181,7 +2181,7 @@ all of it again without the prompts."
           (let ((gone (generate-new-buffer " *overblock-pycell-test-gone*")))
             (kill-buffer gone)
             (setq overblock-run--state (plist-put overblock-run--state :follow
-                                         (cons gone (copy-marker 1))))
+                                                  (cons gone (copy-marker 1))))
             (should-not (overblock-run--follow-tick)))
           ;; The end writes all of it, cleaned.
           (overblock-run--follow-done out "one\ntwo\nthree")
@@ -2212,7 +2212,7 @@ is in the string, so a narrower window (a split, a side window, a
 resized frame) needs a new one."
   (overblock-pycell-test--with-cells
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "one line of output" 1.6))
+      (overblock-run--show beg end "one line of output" 1.6))
     (let* ((block (car (overblock-in (point-min) (point-max) 'result)))
            (wide (overlay-get block 'after-string)))
       (should wide)
@@ -2230,7 +2230,7 @@ resized frame) needs a new one."
                  (lambda (&rest _) 20))
                 ((symbol-function 'get-buffer-window-list)
                  (lambda (&rest _) (list (selected-window))))
-                ((symbol-function 'overblock-run-update)
+                ((symbol-function 'overblock-run--update)
                  (lambda (&rest _) (error "Drawn again for nothing"))))
         (overblock--width-changed)))))
 
@@ -2297,7 +2297,7 @@ remembers its shell instead."
               (setq asked nil)
               (with-current-buffer shell
                 (setq overblock-run--state (list :beg (with-current-buffer notebook
-                                               (copy-marker (point-max))))))
+                                                        (copy-marker (point-max))))))
               (should-error (overblock-run-interrupt) :type 'user-error)
               (should-not asked)
               (with-current-buffer shell (setq overblock-run--state nil))
@@ -2333,7 +2333,7 @@ it plain."
             ((symbol-function 'overblock-pycell--dedicated) #'ignore))
     (overblock-pycell-test--with-cells
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "output" 0.1))
+        (overblock-run--show beg end "output" 0.1))
       (goto-char (point-max))
       (let ((beg (point)))
         (insert "# %% [markdown]\n# text\n")
@@ -2346,21 +2346,21 @@ it plain."
 
 (ert-deftest overblock-pycell-test-the-queue-walks-markdown-cells-in-one-frame ()
   "A run-all pass crosses markdown cells without building a frame each.
-`overblock-run-next' is a loop.  With recursion, each frame would run
+`overblock-run--next' is a loop.  With recursion, each frame would run
 its tail on the way out and send a code cell while another runs."
   (with-temp-buffer
     (insert "# %% [markdown]\n# one\n\n# %% [markdown]\n# two\n\n"
             "# %%\nx = 1\n\n# %%\ny = 2\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (let ((notebook (current-buffer))
           (shell (generate-new-buffer " *overblock-pycell-test-shell*"))
           (sent nil)
           (depth 0)
           (deepest 0))
       (unwind-protect
-          (cl-letf* (((symbol-function 'overblock-run-shell)
+          (cl-letf* (((symbol-function 'overblock-run--shell)
                       (lambda (&rest _) shell))
                      ((symbol-function 'overblock-md-rendered)
                       (lambda (md &rest _) md))
@@ -2386,7 +2386,7 @@ its tail on the way out and send a code cell while another runs."
                                (nreverse marks))))))
               (with-current-buffer shell
                 (setq-local overblock-run--queue cells)))
-            (overblock-run-next)
+            (overblock-run--next)
             ;; The two markdown cells render, the first code cell is
             ;; sent, and the walk stops: the second code cell waits for
             ;; the prompt of the first.
@@ -2408,12 +2408,12 @@ commands select it."
           (in-the-first-cell nil))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (setq in-the-first-cell beg)
-        (overblock-run-show beg end (concat "a line\n" overblock-test-common-image) 0.1))
+        (overblock-run--show beg end (concat "a line\n" overblock-test-common-image) 0.1))
       ;; Point in the other cell: the click decides which result.
       (goto-char (point-max))
       (overblock-run-copy-output (list 'mouse-1 (list (selected-window)
-                                               in-the-first-cell
-                                               (cons 0 0) 0)))
+                                                      in-the-first-cell
+                                                      (cons 0 0) 0)))
       (should (string-prefix-p "a line" (current-kill 0)))
       (should (overblock-image-in (current-kill 0))))))
 
@@ -2423,7 +2423,7 @@ commands select it."
     (dolist (which '(1 -1))
       (goto-char (if (> which 0) (point-min) (point-max)))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "out" 0.1)))
+        (overblock-run--show beg end "out" 0.1)))
     (should (= 2 (length (overblock-in (point-min) (point-max) 'result))))
     (goto-char (point-min))
     (overblock-run-discard-output)
@@ -2462,7 +2462,7 @@ A result with no image says so rather than writing an empty file."
       (unwind-protect
           (progn
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-              (overblock-run-show beg end (concat "a figure\n" png) 0.1))
+              (overblock-run--show beg end (concat "a figure\n" png) 0.1))
             (cl-letf (((symbol-function 'read-file-name)
                        (lambda (_prompt &rest _) file)))
               (overblock-run-save-image))
@@ -2484,7 +2484,7 @@ A result with no image says so rather than writing an empty file."
             ;; A result without an image gives no file.
             (goto-char (point-max))
             (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-              (overblock-run-show beg end "no figure here" 0.1))
+              (overblock-run--show beg end "no figure here" 0.1))
             (should-error (overblock-run-save-image) :type 'user-error))
         (when (file-exists-p file) (delete-file file))))))
 
@@ -2496,7 +2496,7 @@ A result with no image says so rather than writing an empty file."
     (insert "# %%\n# %% A title\n# %% [markdown]\n# %% [markdown] Notes\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (should (equal (mapcar (lambda (line)
                              (goto-char (point-min))
                              (forward-line (1- line))
@@ -2539,19 +2539,19 @@ And a line that becomes a markdown boundary loses the code bar it had."
   (overblock-pycell-test--with-notebook "# %%\nx = 1\n"
     (goto-char (point-max))
     (insert "\n# %% Later\nz = 3\n")
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("python" "Later")))
     ;; The title is read again when the line is edited.
     (goto-char (point-min))
     (end-of-line)
     (insert " Named")
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Named" "Later")))
     ;; And a line rewritten as a markdown boundary loses its code bar.
     (goto-char (point-min))
     (delete-region (pos-bol) (pos-eol))
     (insert "# %% [markdown]")
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Later")))))
 
 (ert-deftest overblock-pycell-test-a-narrowing-hides-no-cell-from-the-bars ()
@@ -2576,7 +2576,7 @@ A notebook can be narrowed when the mode goes on, for example by
     (insert "# %%\nx = 1\n")
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (overblock-pycell-mode)
     (should (overblock-bars))
     (overblock-pycell-mode -1)
@@ -2619,17 +2619,17 @@ deleted, the buttons of the bar would act on the wrong cell."
     (should (equal (overblock-pycell-test--bar-labels) '("One" "Two")))
     (goto-char (point-min))
     (insert " ")                        ; " # %% One" is no boundary
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Two")))
     (goto-char (point-min))
     (delete-char 1)
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("One" "Two")))
     ;; Half a marker is no marker.
     (goto-char (point-min))
     (re-search-forward "%%")
     (delete-char -1)
-    (overblock-run-bars)
+    (overblock-run--bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Two")))))
 
 (ert-deftest overblock-pycell-test-a-markdown-cell-showing-its-source-has-a-bar ()
@@ -2662,12 +2662,12 @@ code bar takes its place."
       (goto-char (point-min))
       (delete-region (pos-bol) (pos-eol))
       (insert "# %% [markdown] One")
-      (overblock-run-bars)
+      (overblock-run--bars)
       (should (equal (funcall line) '(source 1)))
       (goto-char (point-min))
       (delete-region (pos-bol) (pos-eol))
       (insert "# %% One")
-      (overblock-run-bars)
+      (overblock-run--bars)
       (should (equal (funcall line) '(code 1))))))
 
 (ert-deftest overblock-pycell-test-one-glyph-means-one-thing ()
@@ -2777,7 +2777,7 @@ later."
       (unwind-protect
           (cl-letf* (((symbol-function 'python-shell-get-process)
                       (lambda (&rest _) 'a-process))
-                     ((symbol-function 'overblock-run-shell)
+                     ((symbol-function 'overblock-run--shell)
                       (lambda () shell))
                      ;; The shell refuses the cell, as a busy one does.
                      ((symbol-function 'overblock-pycell-eval-region)
@@ -2821,7 +2821,7 @@ to the line before it reads the label."
       (should (eq (overblock-bar-kind bar) 'markdown))
       (goto-char (pos-eol))
       (insert " and more")
-      (overblock-run-bars)
+      (overblock-run--bars)
       ;; The bar covers the whole line again, and says so.
       (should (= (overlay-end bar) (pos-eol)))
       (should (string-match-p "first and more"
@@ -2833,7 +2833,7 @@ A refused pass clears the place, so it does not move point when
 another cell ends."
   (overblock-pycell-test--with-notebook "# %% One\nx = 1\n\n# %% Two\ny = 2\n"
     (let ((shell (get-buffer-create " *overblock-pycell-test-shell*")))
-      (cl-letf (((symbol-function 'overblock-run-shell) (lambda () shell)))
+      (cl-letf (((symbol-function 'overblock-run--shell) (lambda () shell)))
         (with-current-buffer shell (setq-local overblock-run--home nil))
         (goto-char (point-max))
         (overblock-run--home-set (point-marker))
@@ -2844,7 +2844,7 @@ another cell ends."
         (overblock-run--home-set nil)
         (should-not (buffer-local-value 'overblock-run--home shell))
         ;; And going home with none set is not an error.
-        (overblock-run-go-home))
+        (overblock-run--go-home))
       (kill-buffer shell))))
 
 (ert-deftest overblock-pycell-test-a-read-only-notebook-shows-a-result ()
@@ -2857,12 +2857,12 @@ leaves the shell busy.  The block then hangs on its anchor."
     (insert "# %%\nx = 1")                     ; no final newline
     (python-mode)
     (code-cells-mode)
-    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (setq-local overblock-run--backend (overblock-pycell--backend))
     (setq buffer-read-only t)
     (goto-char (point-min))
     (let ((size (buffer-size)))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-        (overblock-run-show beg end "out" 0.1))
+        (overblock-run--show beg end "out" 0.1))
       ;; The text is untouched, and the result is there all the same:
       ;; with no newline the block hangs on its anchor.
       (should (= (buffer-size) size))
@@ -2899,7 +2899,7 @@ newline of a result out of it.  Loading the files adds no advice."
                 (insert "# %%\nx = 1\n")
                 (python-mode)
                 (code-cells-mode)
-                (setq-local overblock-run-backend (overblock-pycell--backend))
+                (setq-local overblock-run--backend (overblock-pycell--backend))
                 (overblock-pycell-mode 1)))
             (should (funcall advised))
             ;; The second notebook still wants it.
@@ -2941,15 +2941,15 @@ process filter would leave the shell busy."
           (end (copy-marker (point-min))))
       (should (= beg end))
       ;; No signal, and nothing shown: there is no place to show it.
-      (should-not (overblock-run-show beg end "" 0.0)))
+      (should-not (overblock-run--show beg end "" 0.0)))
     ;; The filter path survives it, and the next cell of the run still
     ;; shows its result.
     (overblock-run--show-in-notebook (copy-marker (point-min))
-                              (copy-marker (point-min))
-                              "" 0.0 nil)
-    (should (overblock-run-show (copy-marker (+ 5 (point-min)))
-                          (copy-marker (point-max))
-                          "2" 0.0))))
+                                     (copy-marker (point-min))
+                                     "" 0.0 nil)
+    (should (overblock-run--show (copy-marker (+ 5 (point-min)))
+                                 (copy-marker (point-max))
+                                 "2" 0.0))))
 
 (provide 'overblock-pycell-test)
 ;;; overblock-pycell-test.el ends here

@@ -286,7 +286,7 @@ doc string carries: sections, math, a table and a code block."
 
 (defun ob-gif-pycell--idle ()
   "Return non-nil where the shell of this buffer has finished its cell."
-  (when-let* ((shell (overblock-run-shell)))
+  (when-let* ((shell (overblock-run--shell)))
     (not (buffer-local-value 'overblock-run--state shell))))
 
 (defun ob-gif-results (n)
@@ -323,11 +323,11 @@ still busy\"."
   (call-interactively #'overblock-run-this)
   (ob-gif-wait 60 (lambda () (overblock-in (point-min) (point-max) 'result)))
   (ob-gif-say "shell=%S ess=%S buffers=%S"
-              (ignore-errors (overblock-run-shell))
+              (ignore-errors (overblock-run--shell))
               (bound-and-true-p ess-local-process-name)
               (seq-filter (lambda (name) (string-match-p "R\\|ESS" name))
                           (mapcar #'buffer-name (buffer-list))))
-  (when-let* ((shell (ignore-errors (overblock-run-shell))))
+  (when-let* ((shell (ignore-errors (overblock-run--shell))))
     (ob-gif-say "R tail: %S"
                 (with-current-buffer shell
                   (buffer-substring-no-properties

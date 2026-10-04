@@ -132,7 +132,7 @@ cells of a shell script in a bash of its own.
 ** The backend
 
 The backend is a plist. =overblock-run-attach= sets it as the
-buffer-local =overblock-run-backend=, and =overblock-run-detach= removes
+buffer-local =overblock-run--backend=, and =overblock-run-detach= removes
 it. This table is the one list of the slots.
 
 | Slot         | Signature        | Required                           | What it answers                                                      |

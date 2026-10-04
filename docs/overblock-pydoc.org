@@ -66,7 +66,7 @@ option selects both, so that the rendering and the edit buffer agree.
 =rst-mode= answers for a markup that the option does not name, and
 =text-mode= answers for a mode that is not installed.
 
-The doc strings of the buffer go through =overblock-md-html-batch-async=
+The doc strings of the buffer go through =overblock-md--html-batch-async=
 with =overblock-md-command= bound to the command for the markup. This
 is one process for the buffer, and nothing waits for it. A doc string
 that the converter fails on stays source, and goes to the converter
