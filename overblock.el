@@ -328,10 +328,8 @@ plist, and every entry is optional:
              down with the block.
   :keymap and :help-echo go on every overlay the block draws; an
              overlay of the caller under `:attached' keeps its own.  A
-             click is answered by the string it lands on, with what
-             `overblock--fill-props' left there (such as the keymap of
-             shr on a link): the string answers the mouse, the
-             overlays answer point.
+             click is answered by the string it lands on: the string
+             answers the mouse, the overlays answer point.
 
 The caller renders the text; a block never calls a renderer.  Change a
 property with `overblock-set' and call `overblock-refresh' to show it.
@@ -1718,28 +1716,26 @@ layer writes on the block for `overblock--width-changed'."
   "Return a header line: GLYPH, LABEL, and ICONS at the right window edge.
 All of it in FACE.  `overblock--bar-left' joins GLYPH and LABEL;
 ICONS is what `overblock-buttons' returned.  INDENT makes it a row of
-a rendering instead, drawn by `overblock--bar-padded'.
+a rendering instead, drawn by `overblock--bar-padded'; else
+`overblock--bar-stretched' draws it.
 
-The alignment is in pixels: icon glyphs draw wider than `string-width'
-counts, and (N) in the display spec means N pixels.  The slack is one
-character cell in a graphic frame and three columns in a terminal (see
-`overblock--bar-stretched').
-
-The label is cut, in pixels, where the icons leave no room for it: the
-stretch shrinks to nothing after the label passes its target, and the
-icons would wrap.  The room is what `overblock--window-width' measures,
-less the icons, the slack and one more character cell.
-
-A buffer in no visible window is not cut at all, because the cut stays
-in the string.  A finished header is rebuilt only when what it shows
-or the width changes."
+A label that does not fit beside the icons is cut, in pixels.  A
+buffer in no visible window is not cut at all, because the cut stays
+in the string."
   (let ((left (overblock--bar-left glyph label)))
     (if indent
         (overblock--bar-padded left icons face indent)
       (overblock--bar-stretched left icons face))))
 
 (defun overblock--bar-stretched (left icons face)
-  "Return LEFT and ICONS in FACE, held apart by a stretch to the edge."
+  "Return LEFT and ICONS in FACE, held apart by a stretch to the edge.
+The alignment is in pixels: icon glyphs draw wider than `string-width'
+counts, and (N) in the display spec means N pixels.
+
+LEFT is cut where the icons leave no room for it: the stretch shrinks
+to nothing after LEFT passes its target, and the icons would wrap.
+The room is what `overblock--window-width' measures, less the icons,
+the slack and one more character cell."
   (let* (;; Slack, also in a graphic frame: a row that ends at the
          ;; right edge exactly can wrap or not, at the whim of
          ;; redisplay. A terminal keeps three columns, one of them for
