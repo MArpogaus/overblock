@@ -63,7 +63,10 @@ mode can then read each other mode.
 - The prefix is the name of the mode file: =overblock-sh-=.
 - The kind of the blocks of a live cycle is the short name of the mode:
   =quote=, =pydoc=, =rmd=.
-- The walk is =MODE--regions=. The region at point is
+- =MODE--regions= returns the regions, and =MODE--walk= finds them
+  behind =overblock-cached=. The cache is =MODE--THING-cache=, after
+  what it holds: =overblock-pydoc--regions-cache=,
+  =overblock-rmd--chunks-cache=. The region at point is
   =MODE--region-at=, and the starts of all regions are =MODE--starts=.
 - One region shows through =MODE--show=. The live cycle calls
   =MODE-render-buffer=.
@@ -303,8 +306,8 @@ Each row names what a mode uses, and links to the reference.
 - *The render function runs at each stop of the reader.* It must render
   only what =overblock-live-wanted-p= allows. A walk of a large buffer
   is slow, so keep it with =overblock-cached=:
-  =(overblock-cached 'MODE--cache #'MODE--walk)=. =MODE--cache= is a
-  =defvar-local=, and the walk takes no arguments. Cache positions, not
+  =(overblock-cached 'MODE--regions-cache #'MODE--walk)=.
+  =MODE--regions-cache= is a =defvar-local=, and the walk takes no arguments. Cache positions, not
   the markers of =:starts=.
 - *A mode sets no user option and binds no key.* Its keymap is empty,
   and the doc of the keymap shows a binding to copy. It adds no global
