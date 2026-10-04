@@ -52,8 +52,8 @@
 ;; `overblock' draws the blocks, and `overblock-md' turns markdown into
 ;; a string.  `overblock-repl' cuts the output of a shell loose from it.
 ;; `overblock-run' sends a region to a shell, shows the result and holds
-;; the commands on a result.  This file knows about Python: the cells,
-;; the process, and the commands of a cell.
+;; the commands of a notebook.  This file knows about Python: the cells,
+;; the process, the markdown cells and the move of a cell.
 ;;
 ;; A result block is a display string on a single buffer line, and
 ;; Emacs cannot place point inside one.  The mouse wheel scrolls through

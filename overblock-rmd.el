@@ -41,9 +41,10 @@
 ;; package composes.  The chunks come from the fence walk of
 ;; `overblock-md-preview', and the prose renders through the live cycle
 ;; of `overblock-md-preview-mode'.  The running and the result blocks
-;; belong to `overblock-run', which `overblock-pycell' uses too.  This
-;; file holds what knows about R and Rmd: the chunks, the bars, the
-;; commands, and the calls into ESS that start R and send a chunk.
+;; belong to `overblock-run', which `overblock-pycell' uses too, and so
+;; do the commands.  This file holds what knows about R and Rmd: the
+;; chunks, the bar of a chunk, and the calls into ESS that start R and
+;; send a chunk.
 ;;
 ;; A chunk reaches R as one statement, not as its own lines:
 ;;

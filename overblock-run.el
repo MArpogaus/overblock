@@ -75,9 +75,11 @@
 ;;
 ;; `overblock-pycell' sends Python cells to an inferior Python, and
 ;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
-;; Each keeps its own buttons and options.  The commands (run
-;; what is above or below, stop, interrupt, fold, copy and discard a
-;; result) are below, the same in both.
+;; Each keeps its own buttons and options.  The walk that draws the bars
+;; and the commands are below, the same in both: run the region at
+;; point, step to the next one, move between regions, run what is above
+;; or below, stop, interrupt, restart, and fold, copy and discard a
+;; result.
 
 ;;; Code:
 
