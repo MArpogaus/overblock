@@ -356,7 +356,7 @@ R indents the header of a table, and the numbers line up under it."
 `overblock-glyph' picks a candidate for each button alone, so one bar
 can mix nerd glyphs, symbols and words.  A glyph therefore means one
 command in every row."
-  (let ((bars (list overblock-rmd-result-buttons overblock-rmd-chunk-buttons))
+  (let ((bars (list overblock-rmd-result-buttons overblock-rmd-bar-buttons))
         seen)
     (dolist (buttons bars)
       (let ((glyphs (mapcan (lambda (button) (copy-sequence (nth 1 button)))
@@ -375,7 +375,7 @@ The private use characters of a nerd font are easy to lose in an
 editor that does not draw them, and an empty candidate draws an
 invisible button."
   (dolist (buttons (list overblock-rmd-result-buttons
-                         overblock-rmd-chunk-buttons))
+                         overblock-rmd-bar-buttons))
     (dolist (button buttons)
       (let ((glyphs (nth 1 button)))
         (should (= (length glyphs) 3))

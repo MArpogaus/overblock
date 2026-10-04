@@ -265,6 +265,20 @@ other bar, so it aligns with the glyph of the cell above."
         ;; Nothing printed.
         (t (overblock-glyph "" "✓" "."))))
 
+(defun overblock-run-bar-buttons (unit)
+  "Return the three buttons that run from the bar of a region.
+UNIT is the name of a region in a tooltip (a cell, a chunk).
+
+Both notebooks draw these three, in this order, so a `.py' file and an
+Rmd file show the same row.  A notebook adds its own buttons after
+them.  An entry has the shape `overblock-buttons' reads."
+  `((run-above ("" "⇈" "above") ,(format "Run every %s above this one" unit)
+               overblock-run-above t)
+    (run ("" "▷" "run") ,(format "Run this %s" unit) overblock-run-this t)
+    (run-below ("" "⇊" "below")
+               ,(format "Run this %s and every one below it" unit)
+               overblock-run-below t)))
+
 (defun overblock-run-result-buttons (unit picture)
   "Return the five buttons every result header carries.
 UNIT is the name of a region in a tooltip (a cell, a chunk), and

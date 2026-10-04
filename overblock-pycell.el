@@ -124,16 +124,14 @@ render button renders it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-pycell-cell-buttons
-  (append '((run-above ("" "⇈" "above") "Run every cell above this one"
-                       overblock-run-above t)
-            (run ("" "▷" "run") "Run this cell" overblock-run-this t)
-            (run-below ("" "⇊" "below") "Run this cell and every one below it"
-                       overblock-run-below t))
+(defcustom overblock-pycell-bar-buttons
+  (append (overblock-run-bar-buttons "cell")
           overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
 An entry has the shape `overblock-buttons' reads.  A cell bar is drawn
-before the cell runs, so `lines' and `image' mean nothing here.
+before the cell runs, so `lines' and `image' mean nothing here.  The
+three that run come from `overblock-run-bar-buttons', shared with the
+Rmd notebook.
 
 The two move buttons come last, as on every bar (see
 `overblock-pycell--move-buttons')."
@@ -692,7 +690,7 @@ a cell without one: a new one, or one taken back to its source."
   "Draw the bar of the code cell whose boundary line is BOL..EOL."
   (overblock-pycell--bar-line bol eol 'code
                               (overblock-glyph "" "◆" "py") "python"
-                              overblock-pycell-cell-buttons))
+                              overblock-pycell-bar-buttons))
 
 (defun overblock-pycell--md-bar (bol eol)
   "Draw the bar of the rendered markdown cell whose boundary line is BOL..EOL.

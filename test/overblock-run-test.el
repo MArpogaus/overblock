@@ -388,6 +388,15 @@ So a .py file and an Rmd file show the same row."
       (should (string-search "chunk" (nth 2 (assq 'stop chunk))))
       (should (string-search "figure" (nth 2 (assq 'save-image chunk)))))))
 
+(ert-deftest overblock-run-test-both-notebooks-run-from-the-same-three ()
+  "The three buttons of a region bar are one list, drawn for both."
+  (let ((buttons (overblock-run-bar-buttons "chunk")))
+    (should (equal (mapcar #'car buttons) '(run-above run run-below)))
+    (should (equal (mapcar (lambda (button) (nth 3 button)) buttons)
+                   '(overblock-run-above overblock-run-this overblock-run-below)))
+    (should (seq-every-p (lambda (button) (string-search "chunk" (nth 2 button)))
+                         buttons))))
+
 ;;;; The mark at the head of a result bar
 
 (ert-deftest overblock-run-test-the-end-of-a-pass-says-so ()

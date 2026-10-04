@@ -1857,15 +1857,15 @@ A bar stays as it is where nothing it compares changed, and the button
 list is a change it cannot see, so the `:set' marks the bars stale."
   (overblock-pycell-test--with-notebook "# %%\nx = 1\n\n# %%\ny = 2\n"
     (let ((before (overblock-pycell-test--bar-texts))
-          (was overblock-pycell-cell-buttons))
+          (was overblock-pycell-bar-buttons))
       (should before)
       (unwind-protect
           (progn
-            (setopt overblock-pycell-cell-buttons
+            (setopt overblock-pycell-bar-buttons
                     '((run ("" "▷" "run") "Run this cell"
                            overblock-run-this t)))
             (should-not (equal before (overblock-pycell-test--bar-texts))))
-        (setopt overblock-pycell-cell-buttons was))
+        (setopt overblock-pycell-bar-buttons was))
       ;; And back again: the bars follow the option.
       (should (equal before (overblock-pycell-test--bar-texts))))))
 
@@ -2640,7 +2640,7 @@ code bar takes its place."
 A frame draws whichever row it can: the nerd glyphs, the symbols of an
 ordinary font, or the plain characters of a terminal."
   (let ((bars (list overblock-pycell-result-buttons overblock-pycell-md-buttons
-                    overblock-pycell-cell-buttons overblock-pycell-source-buttons)))
+                    overblock-pycell-bar-buttons overblock-pycell-source-buttons)))
     (dotimes (row 3)
       ;; No glyph twice on one bar.
       (dolist (buttons bars)
@@ -2671,15 +2671,15 @@ ordinary font, or the plain characters of a terminal."
 (ert-deftest overblock-pycell-test-customizing-the-buttons-draws-the-bars-again ()
   "A button list set with `setopt' shows on a notebook already open.
 The `:set' of the option draws the bars again."
-  (let ((was overblock-pycell-cell-buttons))
+  (let ((was overblock-pycell-bar-buttons))
     (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
       (unwind-protect
           (progn
             (should-not (string-search "ZZ" (car (overblock-pycell-test--bar-texts))))
-            (setopt overblock-pycell-cell-buttons
+            (setopt overblock-pycell-bar-buttons
                     '((only ("ZZ") "The only button" overblock-run-this t)))
             (should (string-search "ZZ" (car (overblock-pycell-test--bar-texts)))))
-        (setopt overblock-pycell-cell-buttons was)))))
+        (setopt overblock-pycell-bar-buttons was)))))
 
 (ert-deftest overblock-pycell-test-a-cell-taken-back-to-its-source-keeps-a-bar ()
   "Taking a cell back to its source leaves it a bar to be rendered from.

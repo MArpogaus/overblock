@@ -502,7 +502,8 @@ face =overblock-bar= and the body =overblock-body= in each notebook. The
 result limits are the options =overblock-run-max-lines= and
 =overblock-run-max-line-length=, one pair for both notebooks.
 =overblock-run-result-buttons= gives the five buttons that each result
-carries, with the words of the unit.
+carries, with the words of the unit. =overblock-run-bar-buttons= gives
+the three that run from the bar of a region.
 
 A send copies the backend into the shell buffer. The filter and the
 ticker run there, and must get the same answers. Thus the head of a

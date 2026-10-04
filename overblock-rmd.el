@@ -116,19 +116,15 @@ list: they show the state of the result."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
-(defcustom overblock-rmd-chunk-buttons
-  '((run-above ("" "⇈" "above") "Run every chunk above this one"
-               overblock-run-above t)
-    (run ("" "▷" "run") "Run this chunk" overblock-run-this t)
-    (run-below ("" "⇊" "below") "Run this chunk and every one below it"
-               overblock-run-below t))
+(defcustom overblock-rmd-bar-buttons
+  (overblock-run-bar-buttons "chunk")
   "The buttons on the bar of an R chunk, left to right.
 An entry has the shape `overblock-buttons' reads.  A chunk bar is
 drawn before the chunk runs, so `lines' means nothing here.
 
-The glyphs are those of `overblock-pycell-cell-buttons' for the same
-commands.  A chunk has no move buttons, because it sits inside prose
-about it."
+The default is `overblock-run-bar-buttons' worded for a chunk: the row
+of the `.py' notebook without the two that move a cell, because a
+chunk sits inside prose about it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
 
@@ -328,7 +324,7 @@ none."
                               (overblock-glyph "" "◆" "R")
                               (or (overblock-rmd--chunk-name (pos-bol) (pos-eol))
                                   "R")
-                              (overblock-buttons overblock-rmd-chunk-buttons))
+                              (overblock-buttons overblock-rmd-bar-buttons))
           (overblock-rmd--hide-fence (nth 2 chunk)))))
 
 (defun overblock-rmd--hide-fence (close)

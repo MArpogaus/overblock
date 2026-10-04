@@ -361,7 +361,7 @@ uses =python-shell-send-region= again.
 
 A bar stands in place of each =# %%= line. The bar shows the name that
 you write after the marker. A cell without a name is /python/. These are
-the buttons of =overblock-pycell-cell-buttons=:
+the buttons of =overblock-pycell-bar-buttons=:
 
 | Button | Command                           | Action                       |
 |--------+-----------------------------------+------------------------------|
@@ -492,7 +492,7 @@ keys in the =:config= of the package.
 | Option                            | Default       | Meaning                                    |
 |-----------------------------------+---------------+--------------------------------------------|
 | =overblock-pycell-result-buttons= | seven buttons | the buttons on the bar of a result         |
-| =overblock-pycell-cell-buttons=   | five buttons  | the buttons on the bar of a code cell      |
+| =overblock-pycell-bar-buttons=    | five buttons  | the buttons on the bar of a code cell      |
 | =overblock-pycell-md-buttons=     | three buttons | the buttons on a rendered markdown cell    |
 | =overblock-pycell-source-buttons= | three buttons | the buttons on an unrendered markdown cell |
 
@@ -549,7 +549,7 @@ turns =overblock-md-preview-mode= off, because it renders the prose itself.
 
 A bar stands in place of the fence line of each =```{r}= chunk. The bar
 shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
-shows /plot-one/. The buttons of =overblock-rmd-chunk-buttons= are =⇈=,
+shows /plot-one/. The buttons of =overblock-rmd-bar-buttons= are =⇈=,
 which runs each chunk above this one, =▷=, which runs this chunk, and
 =⇊=, which runs this chunk and each one below it. Like knitr, a pass
 skips a chunk with =eval=FALSE= or =#| eval: false=. =▷= still runs it.
@@ -608,7 +608,7 @@ Put the keys in the =:config= of the package:
 | Option                         | Default   | Meaning                                     |
 |--------------------------------+-----------+---------------------------------------------|
 | =overblock-rmd-figure-size=    | =(7 . 5)= | the width and height of a figure, in inches |
-| =overblock-rmd-chunk-buttons=  | three     | the buttons on the bar of a chunk           |
+| =overblock-rmd-bar-buttons=    | three     | the buttons on the bar of a chunk           |
 | =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
 
 For the button format, see [[#buttons][Buttons]]. The details are in

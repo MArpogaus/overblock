@@ -175,10 +175,11 @@ to read, so the command asks for the stop.
 Each chunk header has a bar in place of its line. The overlay and its
 strings belong to the layer ([[file:overblock.org][its notes]]). The
 label is the name of the chunk, and the buttons are
-=overblock-rmd-chunk-buttons=. A result has the buttons of
+=overblock-rmd-bar-buttons=, the three of =overblock-run-bar-buttons=
+with the words for a chunk. A result has the buttons of
 =overblock-rmd-result-buttons=, which are the five of
 =overblock-run-result-buttons= with the words for a chunk. The Python
-notebook shows the same five, so the two rows agree.
+notebook shows the same buttons, so the two rows agree.
 
 =overblock-rmd-chunk-regexp= reads the whole engine name. After it can
 come a blank before the chunk name, a comma before the options, or the

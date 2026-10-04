@@ -59,7 +59,7 @@ character.
 The package has four button options:
 
 - =overblock-pycell-result-buttons=, on the bar of a result.
-- =overblock-pycell-cell-buttons=, on the bar of a code cell.
+- =overblock-pycell-bar-buttons=, on the bar of a code cell.
 - =overblock-pycell-md-buttons=, on the bar of a rendered markdown cell.
 - =overblock-pycell-source-buttons=, on the bar of a markdown cell that
   shows its source.
@@ -79,7 +79,7 @@ the result does, and the reader does not choose them.
 ** The bar over a boundary line
 
 A cell has a bar in place of its =# %%= line. The label is the name
-after the marker, and the buttons are =overblock-pycell-cell-buttons=.
+after the marker, and the buttons are =overblock-pycell-bar-buttons=.
 =overblock-pycell--bar= is the =:bar= of the backend, and draws the bar
 of one boundary line. A rendered markdown cell has the bar of its
 block.
