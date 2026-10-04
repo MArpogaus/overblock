@@ -123,13 +123,12 @@ of the buffer, so polymode and plain =markdown-mode= use one path.
 
 Under polymode, the mode sets the =keep-in-mode= slot of the polymode
 object of the buffer to =host=, and resets it when the mode goes off.
-polymode otherwise shows a chunk in an indirect buffer when point
-enters it, and moves each overlay into that buffer. The bars and the
-blocks are overlays, and their owners, the live cycle and the runner,
-stay in the base buffer. They would draw their work again, and get the
-old set back when point left the chunk. polymode still fontifies and
-indents the chunks. The keymap of ESS inside a chunk is not active, and
-the keys of =overblock-rmd-mode-map= work on each line.
+polymode otherwise shows a chunk in an indirect buffer when point enters
+it, and moves each overlay into that buffer. The bars and the blocks are
+overlays, and their owners, the live cycle and the runner, stay in the
+base buffer. They would draw their work again, and get the old set back
+when point left the chunk. polymode still fontifies and indents the
+chunks. The keymap of ESS is lost, as [[*Known limits]] says.
 
 The mode sets the slot when it goes on, and again from
 =polymode-init-host-hook=. polymode runs =markdown-mode-hook= before it
@@ -154,8 +153,8 @@ synchronous and would freeze Emacs while a chunk runs.
 =ess-async-command= is for background jobs, and its docstring says that
 long output goes into the process buffer.
 
-R parses the chunk from a string. Thus a syntax error names =<text>=
-and counts lines from the top of the chunk, not of the file.
+R parses the chunk from a string, which is why a syntax error names
+=<text>=, as [[*Results]] says.
 
 ** The chunk as an R string
 
@@ -238,12 +237,10 @@ buffer.
 
 ** An interrupt stops the pass
 
-R answers an interrupt with a new prompt and nothing more. Thus the
-result holds what the chunk printed before it.
-
-The pass stops too. In the Python notebook, an interrupted cell raises
-=KeyboardInterrupt=, and the traceback stops the pass. R leaves nothing
-to read, so the command asks for the stop.
+R answers an interrupt with a new prompt and nothing more. The pass
+stops too, as [[*Results]] says. In the Python notebook, an interrupted
+cell raises =KeyboardInterrupt=, and the traceback stops the pass. R
+leaves nothing to read, so the command asks for the stop.
 
 * The bars
 
@@ -279,11 +276,11 @@ reader turns a chunk into prose or changes its engine.
 
 ** The closing fence
 
-An overlay of the kind =chunk-end= hides the closing fence line, so the
-sweep of the bars also removes it. A fence under a result tells the
-reader nothing, because the chunk has a bar above it and its result has
-a bar too. The text does not change, and the fence comes back when the
-mode goes off.
+=overblock-bar-hide= hides the closing fence line as a bar of the kind
+=chunk-end=, so the sweep of the bars also removes it. A fence under a
+result tells the reader nothing, because the chunk has a bar above it
+and its result has a bar too. [[*Chunks]] says that the file does not
+change.
 
 A rule in place of the fence does not work. Font lock gives the fence
 line the background of =markdown-code-face=, and that face shows
@@ -311,11 +308,9 @@ gives the Python notebook: one space that carries the image. From there
 the two notebooks share the cap, the save button, the pop-out buffer
 and the label that a terminal shows.
 
-The device size comes from the chunk header. =overblock-rmd--figure-size=
-reads =fig.width=, =fig.height= and =dpi= where the header gives them
-as plain numbers. Where the header gives none, or an expression, it
-uses =overblock-rmd-figure-size= and 96 dots per inch. An expression is
-for R to evaluate, and not for this file.
+[[*Results]] tells where the device size comes from.
+=overblock-rmd--figure-size= reads the header. An expression in it is
+for R to evaluate, and not for this file, so it counts as no size.
 
 The files are temporary files of R and go with the session.
 
