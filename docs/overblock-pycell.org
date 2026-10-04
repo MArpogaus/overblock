@@ -234,9 +234,9 @@ to it belong to the layer: see [[file:overblock.org][its notes]].
 =overblock-run--bars= draws them when the mode starts, and again when
 the reader stops. Thus a bar arrives a moment after its line is
 written. [[file:overblock.org::*The backend][The backend]] in the
-notes of the layer tells why the bars do not come from =jit-lock=, and
+notes of the layer tells why the bars do not come from =jit-lock=.
 [[file:overblock.org::*A bar in place of a line][A bar in place of a line]]
-when a bar is drawn again.
+tells when a bar is drawn again.
 
 The source bar of a markdown cell comes at once when its rendering
 comes off, and does not wait for the reader to stop.
@@ -244,7 +244,7 @@ comes off, and does not wait for the reader to stop.
 *** One line, one bar
 
 Two things can want a bar on a boundary line. They are the walk over
-the cells and the rendering of a markdown cell. A line has one bar:
+the cells and the rendering of a markdown cell. A line has one bar.
 =overblock-bar-line= removes each other bar of the line, and the walk
 removes the bar of a line that is no boundary. Each kind of line has
 its bar:
@@ -264,9 +264,9 @@ typing before the marker is not typing inside the bar.
 
 =python-shell-restart= kills the process and waits for its last
 output. A shell that has not prompted yet sends its first prompt into
-that wait, and the setup of python.el then waits on the dead process
-until =C-g=. Thus =overblock-pycell--restart=, the =:restart= of the
-backend, deletes the process at once, and =python-shell-make-comint=
+that wait. The setup of python.el then waits on the dead process until
+=C-g=. Thus =overblock-pycell--restart=, the =:restart= of the
+backend, deletes the process at once. =python-shell-make-comint=
 starts a new one in the same buffer, under its name, so a shell
 dedicated by hand stays so. The command is the one of the notebook,
 also where the interpreter had died: an environment switched in the
@@ -276,7 +276,7 @@ which command was typed.
 
 The first-prompt filter of python.el needs point at the end of the
 shell buffer. =comint-exec= puts it there, and each window of the
-shell goes there too, also where the interpreter had died: a window
+shell goes there too, also where the interpreter had died. A window
 scrolled up would give its point back at the next redisplay.
 
 * Moving a cell

@@ -135,11 +135,10 @@ the option is a choice. Both commands carry =--no-highlight= and
 command also turns off =implicit_figures=, as =overblock-md-command=
 does, so an image alone in a paragraph shows its alt text once.
 
-In a Markdown doc string, each doctest that is not in a fence and is
-less than four spaces in goes into a =pycon= fence before the
-conversion. Thus its =>>>= prompts stay, and Markdown does not read
-them as quotes. A doctest four or more spaces in is an indented code
-block already, and gets no fence.
+In a Markdown doc string, a doctest outside a fence and less than four
+spaces in goes into a =pycon= fence. Thus its =>>>= prompts stay, and
+Markdown does not read them as quotes. A doctest four or more spaces
+in is an indented code block already, and gets no fence.
 
 The quotes and the shared indent come off before the text is rendered,
 because the prose reads from the left margin. The edit buffer of
@@ -188,10 +187,10 @@ With the summary on it, the rendering has as many rows as the doc
 string. Thus each piece has a line of its own, and two doc strings of
 the same shape render the same way.
 
-A doc string of one line is all bar, without a rule under it. The prose
-of each doc string is filled narrower by the room that the glyph and the
-buttons take, so the first line fits on the bar. A summary that is still
-too long is cut with an ellipsis.
+A doc string of one line is all bar, without a rule under it. The
+glyph and the buttons take room on the bar. The prose is filled
+narrower by that room, so the first line fits on the bar. A summary
+that is still too long is cut with an ellipsis.
 
 ** The width one is built for
 
@@ -199,9 +198,9 @@ A rendering is built for a width. The prose is filled to it, and the
 rule of the bar is spaces up to it.
 
 The prose has the columns of the narrowest window that shows the
-buffer, less the indent of the doc string, less the room of the bar
-(=overblock-pydoc--bar-room=), less one. =overblock-pydoc--show= binds
-=overblock-md-width= to that number; see
+buffer, less the indent of the doc string. It also loses the room of
+the bar (=overblock-pydoc--bar-room=), and one column.
+=overblock-pydoc--show= binds =overblock-md-width= to that number; see
 [[file:overblock-md.org][the notes of overblock-md]].
 
 Each block carries the width it was built for, for the width watch of

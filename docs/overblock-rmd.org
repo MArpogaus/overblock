@@ -227,7 +227,7 @@ which offers to kill the buffers of the session. Thus
 process, and =inferior-ess= starts a new one in the same buffer.
 
 =overblock-run-restart= runs it. First it puts point and the view back
-where a pass was asked for, then ends the running chunk as a death,
+where a pass was asked for. Then it ends the running chunk as a death,
 because the chunk can belong to another buffer on the same R. It
 empties the queue, so no pass continues into a dead process, and it
 removes the results.
