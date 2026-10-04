@@ -48,11 +48,32 @@
 (require 'overblock)
 (require 'overblock-md)
 
+;;;; Options
+
 (defgroup overblock-pydoc nil
   "Python doc strings rendered where they are written."
   :group 'languages
   :group 'overblock
   :prefix "overblock-pydoc-")
+
+(defface overblock-pydoc-footer '((t :inherit shadow :underline t))
+  "Face of the rule below a rendered doc string.
+The underline closes what the overline of `overblock-bar' opens above.
+A rule that a face draws runs from the start of the text of the bar,
+the indentation of the doc string, to the edge of the window, so
+nothing has to measure it.")
+
+(defcustom overblock-pydoc-buttons
+  '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
+          overblock-pydoc-edit t))
+  "The buttons on the bar of a rendered doc string, left to right.
+An entry has the shape `overblock-buttons' reads.  A click on the
+rendering already shows the source in place, so there is no button
+for that."
+  :type overblock-button-type
+  ;; Not at load: that would render every live buffer again.
+  :initialize #'custom-initialize-default
+  :set #'overblock-live-set-and-redraw)
 
 ;;;###autoload (put 'overblock-pydoc-markup 'safe-local-variable #'symbolp)
 (defcustom overblock-pydoc-markup 'markdown
@@ -109,42 +130,7 @@ doc string in it.
 `rst-mode' is built in.  Name another mode here to use it instead."
   :type '(alist :key-type symbol :value-type function))
 
-(defun overblock-pydoc--mode-for-markup ()
-  "Return the major mode that reads a doc string of this buffer.
-`overblock-pydoc-modes' says which.  A markup the option does not
-name gets `rst-mode', and `text-mode' replaces a mode that is not
-installed."
-  (let ((mode (or (alist-get overblock-pydoc-markup overblock-pydoc-modes)
-                  #'rst-mode)))
-    (if (fboundp mode) mode #'text-mode)))
-
-(defun overblock-pydoc--command-for-markup ()
-  "Return the command that renders a doc string of this buffer.
-`overblock-pydoc-command' says which.  A markup that it does not name
-uses `overblock-md-command'."
-  (or (alist-get overblock-pydoc-markup overblock-pydoc-command)
-      overblock-md-command))
-
-(defface overblock-pydoc-footer '((t :inherit shadow :underline t))
-  "Face of the rule below a rendered doc string.
-The underline closes what the overline of `overblock-bar' opens above.
-A rule that a face draws runs from the start of the text of the bar,
-the indentation of the doc string, to the edge of the window, so
-nothing has to measure it.")
-
-(defcustom overblock-pydoc-buttons
-  '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
-          overblock-pydoc-edit t))
-  "The buttons on the bar of a rendered doc string, left to right.
-An entry has the shape `overblock-buttons' reads.  A click on the
-rendering already shows the source in place, so there is no button
-for that."
-  :type overblock-button-type
-  ;; Not at load: that would render every live buffer again.
-  :initialize #'custom-initialize-default
-  :set #'overblock-live-set-and-redraw)
-
-;;;; Which regions
+;;;; Regions
 
 (defun overblock-pydoc--doc-face-p (pos)
   "Return non-nil where font lock painted POS as a doc string.
@@ -243,7 +229,7 @@ on the screen."
                         end))))
       (nreverse found))))
 
-;;;; What to render them with
+;;;; Rendering
 
 (defconst overblock-pydoc--opening
   "\\`\\([rRbBuUfF]*\\)\\(\"\"\"\\|'''\\|\"\\|'\\)"
@@ -259,14 +245,36 @@ something else."
   (when (string-match overblock-pydoc--opening text)
     (list (match-string 1 text) (match-string 2 text))))
 
-(defun overblock-pydoc--source (beg end)
-  "Return the prose of the doc string BEG..END as the converter reads it.
-That is `overblock-pydoc--prose', with every doctest of a Markdown doc
-string in a fence: Markdown reads `>>>' as three nested quotes."
-  (let ((prose (overblock-pydoc--prose beg end)))
-    (if (eq overblock-pydoc-markup 'markdown)
-        (overblock-pydoc--fence-doctests prose)
-      prose)))
+(defun overblock-pydoc--prose (beg end)
+  "Return the prose of the doc string BEG..END.
+The quotes go, and so does the indentation every line shares with the
+definition it belongs to: a doc string is written where the code stands
+and reads as prose one column from the left."
+  (let* ((text (buffer-substring-no-properties beg end))
+         (quotes (nth 1 (overblock-pydoc--opened-with text)))
+         (bare (if quotes
+                   (string-remove-suffix
+                    quotes
+                    (substring text (+ (string-match (regexp-quote quotes) text)
+                                       (length quotes))))
+                 text))
+         (lines (split-string bare "\n"))
+         ;; The first line follows the quotes, so the common
+         ;; indentation is measured on the lines after it. One test
+         ;; filters and measures: `string-blank-p' and `[:blank:]'
+         ;; disagree on a non-breaking space.
+         (indents (seq-keep (lambda (line)
+                              (string-match-p "[^[:blank:]]" line))
+                            (cdr lines)))
+         (indent (if indents (apply #'min indents) 0)))
+    (string-trim-right
+     (string-join (cons (string-trim (car lines))
+                        (mapcar (lambda (line)
+                                  (if (> (length line) indent)
+                                      (substring line indent)
+                                    (string-trim line)))
+                                (cdr lines)))
+                  "\n"))))
 
 (defun overblock-pydoc--fence-doctests (text)
   "Return TEXT with each doctest outside a fence put in a pycon fence.
@@ -305,36 +313,21 @@ long as its own."
     (when doctest (push (concat doctest "```") out))
     (string-join (nreverse out) "\n")))
 
-(defun overblock-pydoc--prose (beg end)
-  "Return the prose of the doc string BEG..END.
-The quotes go, and so does the indentation every line shares with the
-definition it belongs to: a doc string is written where the code stands
-and reads as prose one column from the left."
-  (let* ((text (buffer-substring-no-properties beg end))
-         (quotes (nth 1 (overblock-pydoc--opened-with text)))
-         (bare (if quotes
-                   (string-remove-suffix
-                    quotes
-                    (substring text (+ (string-match (regexp-quote quotes) text)
-                                       (length quotes))))
-                 text))
-         (lines (split-string bare "\n"))
-         ;; The first line follows the quotes, so the common
-         ;; indentation is measured on the lines after it. One test
-         ;; filters and measures: `string-blank-p' and `[:blank:]'
-         ;; disagree on a non-breaking space.
-         (indents (seq-keep (lambda (line)
-                              (string-match-p "[^[:blank:]]" line))
-                            (cdr lines)))
-         (indent (if indents (apply #'min indents) 0)))
-    (string-trim-right
-     (string-join (cons (string-trim (car lines))
-                        (mapcar (lambda (line)
-                                  (if (> (length line) indent)
-                                      (substring line indent)
-                                    (string-trim line)))
-                                (cdr lines)))
-                  "\n"))))
+(defun overblock-pydoc--source (beg end)
+  "Return the prose of the doc string BEG..END as the converter reads it.
+That is `overblock-pydoc--prose', with every doctest of a Markdown doc
+string in a fence: Markdown reads `>>>' as three nested quotes."
+  (let ((prose (overblock-pydoc--prose beg end)))
+    (if (eq overblock-pydoc-markup 'markdown)
+        (overblock-pydoc--fence-doctests prose)
+      prose)))
+
+(defun overblock-pydoc--command-for-markup ()
+  "Return the command that renders a doc string of this buffer.
+`overblock-pydoc-command' says which.  A markup that it does not name
+uses `overblock-md-command'."
+  (or (alist-get overblock-pydoc-markup overblock-pydoc-command)
+      overblock-md-command))
 
 (defun overblock-pydoc--glyph ()
   "Return the glyph that marks a doc string, as this frame draws it.
@@ -415,8 +408,6 @@ the column of BEG, which for a raw doc string includes its prefix."
        :keymap overblock-live-map
        :help-echo "mouse-1: edit this doc string"))))
 
-;;;; When
-
 ;;;###autoload
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.
@@ -431,7 +422,16 @@ stops."
                                  'pydoc #'overblock-pydoc--source
                                  #'overblock-pydoc--show)))
 
-;;;; The edit buffer
+;;;; Commands
+
+(defun overblock-pydoc--mode-for-markup ()
+  "Return the major mode that reads a doc string of this buffer.
+`overblock-pydoc-modes' says which.  A markup the option does not
+name gets `rst-mode', and `text-mode' replaces a mode that is not
+installed."
+  (let ((mode (or (alist-get overblock-pydoc-markup overblock-pydoc-modes)
+                  #'rst-mode)))
+    (if (fboundp mode) mode #'text-mode)))
 
 (defun overblock-pydoc--put (beg end prose)
   "Write the edited PROSE back into the doc string BEG..END and render it.
@@ -485,7 +485,7 @@ and `overblock-edit-abort' discards the edit."
              :put #'overblock-pydoc--put))
     (user-error "No rendered doc string here")))
 
-;;;; The mode
+;;;; Mode
 
 ;;;###autoload
 (define-minor-mode overblock-pydoc-mode
