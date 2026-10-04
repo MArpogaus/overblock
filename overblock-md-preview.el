@@ -26,26 +26,12 @@
 
 ;; `overblock-md-preview-mode' shows a markdown buffer as it will read,
 ;; and keeps it editable.  The text is rendered over its own source, and
-;; a click on a rendering shows the source it stands on.  After an edit,
-;; the block renders again when point has left it.
+;; a click on a rendering shows the source it stands on.
 ;;
 ;; Turn the mode on with M-x overblock-md-preview-mode, or add it to
 ;; `markdown-mode-hook'.
 ;;
-;; The unit is the markdown block: the front matter, the run of lines
-;; between two blank lines or fences, a whole fenced block of code, or
-;; an HTML comment.  `overblock-md-regions' finds them.  The block goes
-;; to the converter in one piece, and the rendering is dealt back over
-;; its lines, a piece to a line, so a tall rendering scrolls like text.
-;;
-;; `overblock-pydoc-mode' and `overblock-rmd-mode' use the same live
-;; cycle, each in a package of its own.  `overblock-rmd-mode' renders
-;; the prose of an Rmd file itself, and turns this mode off there.
-;;
-;; `overblock-md' knows what a block of markdown is.  The showing, the
-;; hiding of the source under the rendering, and the edit that makes a
-;; rendering stale belong to the layer.  docs/overblock-md.org has the
-;; details.
+;; docs/overblock-md.org has the details.
 
 ;;; Code:
 

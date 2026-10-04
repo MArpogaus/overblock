@@ -34,24 +34,8 @@
 ;;
 ;;     (overblock-show BEG END :kind 'result :body TEXT :header TEXT)
 ;;
-;; An anchor overlay covers the region and holds the state.  A second
-;; overlay covers the newline that ends the region and carries what
-;; shows after it.  That is the header and the body, each on a row of
-;; its own, in the slot that suits it.  A bar puts its icons at the
-;; window edge with `(space :align-to (- right ...))'.  A display string
-;; ignores such a space, and an overlay string does not.  An image in a
-;; display string is swallowed, and one in an overlay string draws.  So
-;; the header is an overlay string, and the body is the display property
-;; unless it holds an image.
-;;
-;; Text shown over the region hangs on its lines, a piece to a line.
-;; Emacs lays a display string out whole on every redisplay.  Thus one
-;; string for a tall region costs its full height on every scroll event,
-;; and a piece to a line costs only what the window shows.  Lines of
-;; text with no piece left for them go under a cloak; a blank line
-;; stays, as the gap it is.
-;;
-;; See `overblock-show' for what a caller may pass.  docs/overblock.org
+;; This is a library for modes; it has no mode of its own.  See
+;; `overblock-show' for what a caller may pass.  docs/overblock.org
 ;; has the details.
 
 ;;; Code:

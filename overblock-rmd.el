@@ -27,63 +27,14 @@
 ;;; Commentary:
 
 ;; Notebook style results for the R chunks of an Rmd file, built from
-;; ESS alone: no knitr run, no rendered document.
+;; ESS alone: no knitr run, no rendered document.  Every ```{r} chunk
+;; gets a bar with run buttons, its result grows below the code, and
+;; the prose between the chunks reads as it will look.
 ;;
 ;; Turn `overblock-rmd-mode' on in an Rmd buffer, or add
-;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.  Every ```{r}
-;; chunk then gets a bar with run buttons.  The prose between the
-;; chunks reads as it will look.  Running a chunk grows its result
-;; below the code: a header bar with a spinner, a stopwatch and
-;; buttons, and the output of R underneath.
+;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.
 ;;
-;; An Rmd file is the inverse of a Python notebook.  A `.py' notebook
-;; is code with `# %%' lines cutting it into cells; an Rmd file is
-;; markdown prose with fenced chunks of code inside it.  So this
-;; package composes.  The chunks are the fences that `overblock-md'
-;; finds, and the prose is its paragraphs, rendered by a live cycle as
-;; `overblock-md-preview-mode' renders a markdown file.  The two modes
-;; would render the same prose, so this one turns the preview off.  The
-;; running and the result blocks belong to `overblock-run', which
-;; `overblock-pycell' uses too, and so do the commands.  This file holds
-;; what knows about R and Rmd: the chunks, the bar of a chunk, and the
-;; calls into ESS that start R and send a chunk.
-;;
-;; A chunk reaches R as one statement, not as its own lines:
-;;
-;;     source(exprs = parse(text = "..."), print.eval = TRUE)
-;;
-;; That makes the result collectable.  Sent line by line, R prompts
-;; after every statement, and the prompts land in the middle of the
-;; output.  There nothing can tell them from output.  Wrapped, the chunk
-;; is one statement and one prompt comes back at the end.  `source'
-;; with `print.eval' prints the value of every top level expression, as
-;; a notebook cell does and a bare `eval' does not.
-;;
-;; ESS's own send-and-collect does not fit.  `ess-command' is
-;; synchronous and freezes Emacs for the length of a chunk.
-;; `ess-async-command' is for background jobs, and long output escapes
-;; into the process buffer.
-;;
-;; A figure comes back as knitr brings one in.  The wrapper opens a PNG
-;; device before the chunk, closes it after, and names each file on a
-;; line of its own.  The result reads those lines back as images.  A
-;; figure then behaves as in the Python notebook: capped to the window,
-;; saved with its button, popped out, and named in a terminal.
-;; `overblock-rmd-figure-size' is knitr's `fig.width' and `fig.height'.
-;;
-;; Under polymode (`poly-markdown+r-mode') the buffer stays in its host
-;; mode while this mode is on.  polymode shows an R chunk in an indirect
-;; buffer when point enters it, and moves every overlay to that buffer.
-;; The bars and blocks of this mode are overlays.  Their owners (the
-;; live cycle, the runner) stay in the base buffer, and would draw them
-;; all again.  The mode sets the polymode slot `keep-in-mode' to `host'.
-;; The chunks still get fontification and indentation from polymode.
-;; Only the ESS keymap inside a chunk is lost, and
-;; `overblock-rmd-mode-map' reaches every line of the file.
-;;
-;; `overblock' draws the blocks, `overblock-md' turns markdown into a
-;; string, and `overblock-run' sends a region to a shell and shows what
-;; comes back.  docs/overblock-rmd.org has the details.
+;; docs/overblock-rmd.org has the details.
 
 ;;; Code:
 
