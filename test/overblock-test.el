@@ -1266,6 +1266,26 @@ Point at the end of a region that ends inside a line is still in it."
           (should-not (overblock-live-wanted-p 1 4 'test-kind)))
       (overblock-live-stop 'test-kind))))
 
+(ert-deftest overblock-test-a-region-that-grew-renders-anew ()
+  "A rendering of a region that grew is stale, and goes.
+Text typed on the line after a region joins it.  The old rendering
+does not cover the new text, so the region wants a new one."
+  (with-temp-buffer
+    (insert "> a\n")
+    (overblock-live-start 'test-kind #'ignore)
+    (unwind-protect
+        (let ((old (overblock-show 1 5 :kind 'test-kind :over "a")))
+          (goto-char (point-max))
+          (insert "> b\n")
+          (should (overlay-buffer old))
+          (should (overblock-live-wanted-p 1 9 'test-kind))
+          (should-not (overlay-buffer old))
+          ;; A rendering of the region itself stays.
+          (overblock-show 1 9 :kind 'test-kind :over "ab")
+          (should-not (overblock-live-wanted-p 1 9 'test-kind))
+          (should (overblock-in 1 9 'test-kind)))
+      (overblock-live-stop 'test-kind))))
+
 (ert-deftest overblock-test-a-cycle-renders-again-on-request ()
   "The render function of a cycle runs again when asked, and only its own."
   (with-temp-buffer

@@ -291,6 +291,14 @@ this, because an orphan has no kind."
 Extended, because past the end of a line only a face with `:extend'
 paints, and the face of the source's newline showed there instead.")
 
+(defun overblock--anchor-end (beg end)
+  "Return where the anchor of a block over BEG..END ends."
+  (if (and (eq (without-restriction (char-before end)) ?\n)
+           ;; A region of only a newline keeps a non-empty anchor.
+           (> (1- end) beg))
+      (1- end)
+    end))
+
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
 Return nil where BEG..END holds nothing to hang a block on: an anchor
@@ -339,13 +347,7 @@ is readable: a caller needs it to keep an outline fold off the newline
 the block hangs on.  `:parts' belongs to the layer and is made again
 by every `overblock-refresh'."
   (overblock-clear beg end (plist-get props :kind))
-  (let* ((anchor-end (if (and (eq (without-restriction (char-before end))
-                                  ?\n)
-                              ;; A region of only a newline keeps a
-                              ;; non-empty anchor.
-                              (> (1- end) beg))
-                         (1- end)
-                       end))
+  (let* ((anchor-end (overblock--anchor-end beg end))
          ;; `evaporate' deletes a zero-length overlay at once, so return
          ;; nil instead of a dead anchor.
          (block (and (> anchor-end beg)
@@ -1110,7 +1112,14 @@ is on.
 
 A process caller asks twice: before the conversion, and when the
 answer comes back, because the reader can click, type, move or turn
-the mode off meanwhile."
+the mode off meanwhile.
+
+A block of KIND that overlaps the region but does not cover it is
+stale and comes down: text typed on the line after a region joins it."
+  (dolist (block (overblock-in beg end kind))
+    (unless (and (= (overlay-start block) beg)
+                 (= (overlay-end block) (overblock--anchor-end beg end)))
+      (overblock--take-down block)))
   (not (or (not (assq kind overblock-live--specs))
            (if (not (nth 2 (assq kind overblock-live--specs)))
                (overblock--point-in-p beg end)
