@@ -60,43 +60,6 @@
 (require 'ansi-color)
 (require 'vtable)
 
-;;;; Backend
-
-(defvar-local overblock-run--backend nil
-  "The backend of the shell of this buffer, a plist, or nil.
-docs/custom-mode.org lists the slots.  The mode of a notebook
-sets it and removes it when turned off, so the runner draws only in a
-buffer that has one.
-
-`overblock-run--send' copies it into the shell buffer, where the filter
-and the ticker read it.")
-
-(defun overblock-run--call (slot &rest args)
-  "Call SLOT of the backend of this buffer on ARGS, or return nil."
-  (when-let* ((fn (plist-get overblock-run--backend slot)))
-    (apply fn args)))
-
-(defun overblock-run--must ()
-  "Return the backend of this buffer, or signal that it is no notebook.
-A command of a notebook mode is autoloaded and can be called anywhere."
-  (or overblock-run--backend
-      (user-error "This buffer runs nothing: it has no notebook mode on")))
-
-(defun overblock-run--notebook-p (buffer)
-  "Return non-nil where BUFFER is a notebook.
-Its shell has a copy of the backend too, and a process."
-  (and (buffer-local-value 'overblock-run--backend buffer)
-       (not (get-buffer-process buffer))))
-
-(defun overblock-run--name ()
-  "Return the word that the messages of this backend carry."
-  (or (plist-get overblock-run--backend :name) "overblock"))
-
-(defun overblock-run--unit (&optional plural)
-  "Return what this backend calls a region, PLURAL where that is asked."
-  (concat (or (plist-get overblock-run--backend :unit) "region")
-          (if plural "s" "")))
-
 ;;;; Options
 
 (defun overblock-run-set-and-redraw (symbol value)
@@ -221,6 +184,43 @@ gives each window its view back.")
 A list of (WINDOW START VSCROLL POINT).  Only a command is the reader:
 redisplay moves a start for a scroll margin, and output arrives
 between commands, so neither stops the scrolling.")
+
+;;;; Backend
+
+(defvar-local overblock-run--backend nil
+  "The backend of the shell of this buffer, a plist, or nil.
+docs/custom-mode.org lists the slots.  The mode of a notebook
+sets it and removes it when turned off, so the runner draws only in a
+buffer that has one.
+
+`overblock-run--send' copies it into the shell buffer, where the filter
+and the ticker read it.")
+
+(defun overblock-run--call (slot &rest args)
+  "Call SLOT of the backend of this buffer on ARGS, or return nil."
+  (when-let* ((fn (plist-get overblock-run--backend slot)))
+    (apply fn args)))
+
+(defun overblock-run--must ()
+  "Return the backend of this buffer, or signal that it is no notebook.
+A command of a notebook mode is autoloaded and can be called anywhere."
+  (or overblock-run--backend
+      (user-error "This buffer runs nothing: it has no notebook mode on")))
+
+(defun overblock-run--notebook-p (buffer)
+  "Return non-nil where BUFFER is a notebook.
+Its shell has a copy of the backend too, and a process."
+  (and (buffer-local-value 'overblock-run--backend buffer)
+       (not (get-buffer-process buffer))))
+
+(defun overblock-run--name ()
+  "Return the word that the messages of this backend carry."
+  (or (plist-get overblock-run--backend :name) "overblock"))
+
+(defun overblock-run--unit (&optional plural)
+  "Return what this backend calls a region, PLURAL where that is asked."
+  (concat (or (plist-get overblock-run--backend :unit) "region")
+          (if plural "s" "")))
 
 ;;;; Results
 
