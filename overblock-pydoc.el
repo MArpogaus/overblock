@@ -506,8 +506,7 @@ code around a doc string is edited with the prose in view.
 A converter and shr render the prose.  `overblock-pydoc-command' names
 the converter for the markup in `overblock-pydoc-markup'."
   :lighter " PyDoc"
-  (when overblock-pydoc-mode
-    (overblock-only-in 'overblock-pydoc-mode 'python-base-mode))
+  (overblock-only-in 'overblock-pydoc-mode 'python-base-mode)
   (if overblock-pydoc-mode
       (overblock-live-start 'pydoc #'overblock-pydoc-render-buffer t)
     (overblock-live-stop 'pydoc)))

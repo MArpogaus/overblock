@@ -765,8 +765,7 @@ run."
   ;; The :lighter also keeps the body out of the deprecated
   ;; positional INIT-VALUE argument.
   :lighter " PyCell"
-  (when overblock-pycell-mode
-    (overblock-only-in 'overblock-pycell-mode 'python-base-mode))
+  (overblock-only-in 'overblock-pycell-mode 'python-base-mode)
   (if overblock-pycell-mode
       (progn
         (overblock-run-attach (overblock-pycell--backend))

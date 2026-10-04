@@ -204,8 +204,7 @@ Every cell gets a bar with run buttons.  The commands of
 `overblock-run-restart-and-run-all'.  Turn the mode off to remove the
 bars and the results."
   :lighter " ShNb"
-  (when overblock-sh-mode
-    (overblock-only-in 'overblock-sh-mode 'sh-mode))
+  (overblock-only-in 'overblock-sh-mode 'sh-mode)
   (if overblock-sh-mode
       (overblock-run-attach (overblock-sh--backend))
     (overblock-run-detach)))

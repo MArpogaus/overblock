@@ -97,8 +97,7 @@ rendering shows its source to edit it.
 `overblock-md-command' converts the markdown.  The mode does nothing
 when none of its candidates is installed."
   :lighter " MdPrev"
-  (when overblock-md-preview-mode
-    (overblock-only-in 'overblock-md-preview-mode 'markdown-mode))
+  (overblock-only-in 'overblock-md-preview-mode 'markdown-mode)
   (if overblock-md-preview-mode
       (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer)
     (overblock-live-stop 'md-preview)))

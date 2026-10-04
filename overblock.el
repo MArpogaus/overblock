@@ -1933,9 +1933,10 @@ A command bound to the mouse calls this before `overblock-at'."
 (defun overblock-only-in (mode &rest parents)
   "Leave the minor mode MODE off unless the major mode derives from PARENTS.
 MODE is the variable of the mode, which `define-minor-mode' has just
-set; this resets it and signals.  Each mode reads one kind of buffer,
-such as markdown or Python."
-  (unless (seq-some #'derived-mode-p parents)
+set; this resets it and signals.  A mode going off is left alone.
+Each mode reads one kind of buffer, such as markdown or Python."
+  (unless (or (not (symbol-value mode))
+              (seq-some #'derived-mode-p parents))
     (set mode nil)
     (user-error "%s is for %s buffers" mode
                 (mapconcat #'symbol-name parents " or "))))

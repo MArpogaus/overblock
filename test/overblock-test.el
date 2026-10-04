@@ -1443,5 +1443,17 @@ writes, and the source can change meanwhile."
         (when (get-buffer " *overblock-test-edit*")
           (kill-buffer " *overblock-test-edit*"))))))
 
+(defvar overblock-test--mode nil "A stand-in for the variable of a minor mode.")
+
+(ert-deftest overblock-test-only-in-leaves-a-mode-that-goes-off ()
+  "A mode going off passes in any buffer; one going on is refused."
+  (with-temp-buffer
+    (let ((overblock-test--mode nil))
+      (overblock-only-in 'overblock-test--mode 'python-mode)
+      (setq overblock-test--mode t)
+      (should-error (overblock-only-in 'overblock-test--mode 'python-mode)
+                    :type 'user-error)
+      (should-not overblock-test--mode))))
+
 (provide 'overblock-test)
 ;;; overblock-test.el ends here

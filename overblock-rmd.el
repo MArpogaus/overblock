@@ -557,8 +557,7 @@ Under polymode the buffer stays in its host mode while this mode is on,
 because polymode moves the overlays to an indirect buffer for each
 chunk.  The chunks are still fontified and indented as R."
   :lighter " Rmd"
-  (when overblock-rmd-mode
-    (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
+  (overblock-only-in 'overblock-rmd-mode 'markdown-mode)
   (if overblock-rmd-mode
       (progn
         (overblock-rmd--no-preview)

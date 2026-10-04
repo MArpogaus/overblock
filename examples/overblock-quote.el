@@ -94,8 +94,7 @@ line after it, so the region holds whole lines."
 A click on a quote shows its source.  The quote renders again when
 point leaves it."
   :lighter " Quote"
-  (when overblock-quote-mode
-    (overblock-only-in 'overblock-quote-mode 'text-mode))
+  (overblock-only-in 'overblock-quote-mode 'text-mode)
   (if overblock-quote-mode
       (overblock-live-start 'quote #'overblock-quote-render-buffer)
     (overblock-live-stop 'quote)))
