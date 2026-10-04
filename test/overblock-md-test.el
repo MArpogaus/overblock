@@ -1333,6 +1333,31 @@ from buffer text at point."
     (should (equal opened "https://example.com/x"))))
 
 
+;;;; A rendering shown over its source
+
+(ert-deftest overblock-md-test-show-fills-to-the-room-and-dresses ()
+  "A rendering fills the window less its room, and wears its dress.
+A conversion that fails gives a block that shows nothing."
+  (with-temp-buffer
+    (insert "text\n")
+    (let (width)
+      (cl-letf (((symbol-function 'overblock-md-columns)
+                 (lambda (room) (- 80 (or room 0))))
+                ((symbol-function 'overblock-md-rendered)
+                 (lambda (md _html) (setq width overblock-md-width) (upcase md))))
+        (let ((block (overblock-md-show 1 5 "text" nil 'default
+                                        :room 10
+                                        :dress (lambda (text) (concat "> " text))
+                                        :kind 'test)))
+          (should (= width 70))
+          (should (equal (substring-no-properties (overblock-get block :over))
+                         "> TEXT"))
+          (should-not (overblock-get block :dress))))
+      (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
+        (let ((block (overblock-md-show 1 5 "text" nil 'default :kind 'test)))
+          (should block)
+          (should-not (overblock-get block :over)))))))
+
 ;;;; The blocks of a markdown buffer
 
 (defun overblock-md-test--texts ()

@@ -796,7 +796,7 @@ the region again.  Any edit of the region takes the block down (see
 `overblock-stale-when-edited'): typing, a replacement over the buffer,
 a macro, an undo.  Point moving into the region reveals nothing.
 
-overblock-pydoc and the Markdown preview use this."
+`overblock-md-show' uses this."
   (when-let* ((block
                (if (string-empty-p (string-trim rendered))
                    (overblock-show beg end :kind (plist-get props :kind))

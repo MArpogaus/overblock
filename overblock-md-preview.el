@@ -75,17 +75,10 @@ HTML is the answer of `overblock-md-html-batch-async' for this block,
 when a caller sent the whole buffer through one process.
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
-  (when-let* ((source (overblock-md-source beg end))
-              ;; A conversion that fails gives an empty block, which
-              ;; keeps the source in view and the region from going to
-              ;; the converter again on every idle pass.
-              (rendered (or (let ((overblock-md-width (overblock-md-columns)))
-                              (overblock-md-rendered source html))
-                            "")))
-    (overblock-show-rendering beg end rendered 'default
-                              :kind 'md-preview
-                              :keymap overblock-live-map
-                              :help-echo "mouse-1: edit this text")))
+  (overblock-md-show beg end (overblock-md-source beg end) html 'default
+                     :kind 'md-preview
+                     :keymap overblock-live-map
+                     :help-echo "mouse-1: edit this text"))
 
 ;;;; When to render them
 

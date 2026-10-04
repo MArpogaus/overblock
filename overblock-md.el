@@ -33,8 +33,9 @@
 ;;
 ;; An external program turns the markdown into HTML, shr renders the
 ;; HTML, and latex-to-svg-backend turns LaTeX fragments into preview
-;; images.  The result is a string that a block can show; nothing here
-;; shows anything itself.
+;; images.  The result is a string that a block can show.
+;; `overblock-md-show' shows one over its own source, as the preview,
+;; the doc strings and the prose of an Rmd file do.
 ;;
 ;; A rendered table is laid out in characters rather than pixels, so its
 ;; columns line up over the fixed-pitch lines of a buffer.  A local
@@ -1440,6 +1441,28 @@ caller then leaves the markdown as it is."
          (overblock-md--squared
           (overblock-md--unstow-math
            (string-trim (buffer-string) "\\(?:[ \t]*\n\\)+"))))))))
+
+;;;; A rendering shown over its source
+
+(defun overblock-md-show (beg end source html face &rest props)
+  "Show the markdown SOURCE rendered over BEG..END in FACE, and return the block.
+HTML is the answer of the converter for SOURCE where a batch converted
+it, else nil.  PROPS go to `overblock-show-rendering', less two:
+
+  :room   the columns of the window that the rendering leaves free.
+  :dress  a function that takes the rendering and returns what shows.
+
+The rendering is filled to the window, less the room.  A conversion
+that fails gives an empty block, which keeps the source in view and
+the region from going to the converter on every pass."
+  (let* ((dress (or (plist-get props :dress) #'identity))
+         (rendered (let ((overblock-md-width
+                          (overblock-md-columns (plist-get props :room))))
+                     (overblock-md-rendered source html))))
+    (cl-remf props :room)
+    (cl-remf props :dress)
+    (apply #'overblock-show-rendering beg end
+           (if rendered (funcall dress rendered) "") face props)))
 
 ;;;; The blocks of a markdown buffer
 
