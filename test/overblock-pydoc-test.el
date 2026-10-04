@@ -136,6 +136,21 @@ start reads the first two as an empty string."
       (should (equal (buffer-substring-no-properties (car first) (cdr first))
                      "\"\"\"The module.\"\"\"")))))
 
+(ert-deftest overblock-pydoc-test-an-empty-doc-string-gets-an-empty-block ()
+  "An empty doc string gets the empty block of a failed conversion.
+It keeps its source in view, and does not go to the converter again."
+  (with-temp-buffer
+    (python-mode)
+    (insert "def f():\n    \"\"\"\"\"\"\n")
+    (let ((converted nil)
+          (region (car (overblock-pydoc--regions))))
+      (cl-letf (((symbol-function 'overblock-md-rendered)
+                 (lambda (&rest _) (setq converted t) "x")))
+        (let ((block (overblock-pydoc--show (car region) (cdr region))))
+          (should block)
+          (should-not (overblock-get block :over))
+          (should-not converted))))))
+
 (ert-deftest overblock-pydoc-test-an-unterminated-doc-string-is-left-alone ()
   "A doc string whose closing quotes are missing is not rendered.
 Else its bounds reach the end of the buffer, and the code under a

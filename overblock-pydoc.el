@@ -395,17 +395,17 @@ line.  The block leaves that many columns of every source line in
 view, so the indentation stays buffer text (with any indentation guide
 on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
-  (when-let* ((source (overblock-pydoc--source beg end))
-              ((not (string-empty-p source))))
+  (when-let* ((source (overblock-pydoc--source beg end)))
     (let* ((indent (save-excursion (goto-char beg) (current-column)))
            (overblock-md-command (overblock-pydoc--command-for-markup))
            (overblock-md-math-face 'font-lock-doc-face)
-           (rendered (let ((overblock-md-width
-                            (overblock-md-columns
-                             (+ indent (overblock-pydoc--bar-room)))))
-                       (overblock-md-rendered source html))))
-      ;; A conversion that fails gives an empty block, as in
-      ;; `overblock-md-show'.
+           (rendered (unless (string-empty-p source)
+                       (let ((overblock-md-width
+                              (overblock-md-columns
+                               (+ indent (overblock-pydoc--bar-room)))))
+                         (overblock-md-rendered source html)))))
+      ;; An empty doc string, and a conversion that fails, give an
+      ;; empty block, as in `overblock-md-show'.
       (overblock-show-rendering
        beg end
        (if rendered
