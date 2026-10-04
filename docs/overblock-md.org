@@ -7,9 +7,10 @@ block layer under it is another package of this repository:
 [[file:overblock.org][its notes]].
 
 The package has two files. =overblock-md.el= turns markup into one
-propertized string and shows nothing. =overblock-md-preview.el= is a
-minor mode that shows a Markdown buffer over its own source. It gives
-the three answers that the live cycle asks for.
+propertized string, and cuts a Markdown buffer into the blocks that go
+to the converter. =overblock-md-preview.el= is a minor mode that shows
+a Markdown buffer over its own source. It gives the three answers that
+the live cycle asks for.
 
 * Markup rendered
 
@@ -25,6 +26,10 @@ the three answers that the live cycle asks for.
 | =overblock-md-follow-link=      | open the URL of a rendered link that was clicked |
 | =overblock-md-browse=           | open a link: a URL, a =#slug= heading, or a file |
 | =overblock-md-eglot-renderer=   | render the documentation of a language server    |
+| =overblock-md-regions=          | the Markdown blocks of a buffer                  |
+| =overblock-md-fences=           | the front matter and the fenced blocks           |
+| =overblock-md-paragraphs=       | the paragraphs between the fences                |
+| =overblock-md-source=           | the text of a block, as the converter reads it   |
 
 ** The converter
 
@@ -266,16 +271,7 @@ eldoc asks again after each move. A rendering that waits for a formula
 is not kept. A theme change and a change of =overblock-md-eldoc-width=
 empty the table.
 
-* The preview mode
-
-=overblock-md-preview-mode= is =overblock-live-start= with three
-answers: which regions, what to render them with, and when. The layer
-shows the rendering, hides the source under it, and removes it on an
-edit. The mode works only where the major mode derives from
-=markdown-mode=. It stays off while =overblock-rmd-mode= is on, because
-that mode renders the prose through the same cycle.
-
-** Which regions
+* The blocks of a Markdown buffer
 
 The unit is the Markdown block and not the line, because a line of
 Markdown is often not Markdown alone. The lines of a table, of a fence
@@ -292,8 +288,8 @@ blank line is a block wherever it stands. Another comment is a block
 after a blank line, a heading, a fence or the end of front matter, and
 part of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
 lines stand in it, and a fence in it opens nothing. In an Rmd file a chunk inside a comment still runs, so there
-a comment is no block. =overblock-md-preview-fences= finds the fences first.
-=overblock-md-preview-paragraphs= then walks the buffer with those
+a comment is no block. =overblock-md-fences= finds the fences first.
+=overblock-md-paragraphs= then walks the buffer with those
 bounds. It jumps over a fence, so a blank line inside a fence ends no
 paragraph. A fence also ends the paragraph that touches it, as in
 CommonMark. Thus prose with no blank line before a fence is a block of
@@ -326,15 +322,27 @@ deeper than the line before it, and does not become inline code. Only
 spaces go, and a tab stays for the converter to read. Elsewhere the
 indentation stays, because it makes a code block.
 
-The walk starts at the top of the buffer, because only that tells
-whether a region starts inside a fence. A fence that is not closed runs
-to the end of the buffer.
+The walk reads the whole buffer, because only that tells whether a
+line is inside a fence. A fence that is not closed runs to the end of
+the buffer.
+
+=overblock-md-regions= with PROSE-ONLY gives the paragraphs alone, and
+reads no comments. =overblock-rmd= renders its prose so, because its
+chunks are run and not rendered. It takes its chunks from
+=overblock-md-fences=.
 
 =overblock-md-preview-regions-function= is buffer-local. It is called
-with the bounds to look at, and gives the regions in order.
-=overblock-rmd= sets it to the prose only, because the chunks are run
-and not rendered. The two walks are public for the same reason.
-=overblock-rmd= takes its chunks from =overblock-md-preview-fences=.
+with no arguments, and gives the regions in order. =overblock-rmd= sets
+it to the prose only.
+
+* The preview mode
+
+=overblock-md-preview-mode= is =overblock-live-start= with three
+answers: which regions, what to render them with, and when. The layer
+shows the rendering, hides the source under it, and removes it on an
+edit. The mode works only where the major mode derives from
+=markdown-mode=. It stays off while =overblock-rmd-mode= is on, because
+that mode renders the prose through the same cycle.
 
 ** When, and at what cost
 
@@ -364,11 +372,12 @@ goes to the converter as nothing, so a YAML error in it fails no batch.
   math previews, the tables in characters, and the images. The image
   tests check which paths name a file, and that the file shows. They
   also check that a link on an image keeps the click, and how a remote
-  image is fetched.
-- =test/overblock-md-preview-test.el=: what one Markdown block is, a
-  fence inside a paragraph, and the source of the region at point. It
-  also tests the edit that removes a rendering, an answer that arrives
-  far from point, and the mode that leaves nothing behind.
+  image is fetched. The block tests check what one Markdown block is,
+  and the text of a block that goes to the converter.
+- =test/overblock-md-preview-test.el=: a fence inside a paragraph, and
+  the source of the region at point. It also tests the edit that
+  removes a rendering, an answer that arrives far from point, and the
+  mode that leaves nothing behind.
 
 A fifth of all tests render markup, and skip where no converter is
 installed. =make test STRICT=1= makes such a skip a failure, and the CI

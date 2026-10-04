@@ -181,7 +181,7 @@ closing fence line begins, so the region holds whole code lines,
 including the last newline, on which a result block hangs.
 
 A chunk with no code is left out.  The fences come from
-`overblock-md-preview-fences'.  The walk is kept until the text or the
+`overblock-md-fences'.  The walk is kept until the text or the
 narrowing changes."
   (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
     (unless (equal key (car overblock-rmd--chunks))
@@ -191,7 +191,7 @@ narrowing changes."
 (defun overblock-rmd--walk ()
   "Return the R chunks of the buffer, as `overblock-rmd-chunks' says."
   (let (chunks)
-    (dolist (fence (overblock-md-preview-fences (point-max)))
+    (dolist (fence (overblock-md-fences))
       (save-excursion
         (goto-char (car fence))
         (when (looking-at-p overblock-rmd-chunk-regexp)
@@ -206,7 +206,7 @@ narrowing changes."
                    (if (save-excursion
                          (goto-char (pos-bol))
                          (looking-at-p
-                          overblock-md-preview-closing-fence-regexp))
+                          overblock-md-closing-fence-regexp))
                        (pos-bol)
                      (point)))))
             (when (< code-beg code-end)
@@ -263,12 +263,12 @@ default applies."
                     (cons "fig.height" (cdr overblock-rmd-figure-size))
                     (cons "dpi" 96))))))
 
-(defun overblock-rmd--prose (beg end)
-  "Return the prose blocks of the buffer between BEG and END, in order.
+(defun overblock-rmd--prose ()
+  "Return the prose blocks of the buffer, in order.
 The paragraphs, not the fences: a chunk is code that runs.  This is
 the value of `overblock-md-preview-regions-function', so the live
 cycle renders the prose and leaves the chunks alone."
-  (overblock-md-preview-regions beg end 'prose-only))
+  (overblock-md-regions 'prose-only))
 
 ;;;; The bar over a chunk header
 
@@ -305,7 +305,7 @@ when its chunk is gone."
     (goto-char close)
     ;; Only a fence line: an unclosed chunk ends at the end of the
     ;; buffer, on a line of code.
-    (when (looking-at-p overblock-md-preview-closing-fence-regexp)
+    (when (looking-at-p overblock-md-closing-fence-regexp)
       (let* ((bol (pos-bol))
              (end (min (point-max) (1+ (pos-eol))))
              (there (overblock-bar-in bol end))

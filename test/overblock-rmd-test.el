@@ -242,7 +242,7 @@ finds the chunk from there."
 (ert-deftest overblock-rmd-test-the-prose-is-what-the-chunks-are-not ()
   "The regions to render are the paragraphs; no chunk line is among them."
   (overblock-rmd-test--with-document overblock-rmd-test--document
-    (let ((prose (overblock-rmd--prose (point-min) (point-max)))
+    (let ((prose (overblock-rmd--prose))
           (chunks (overblock-rmd-chunks)))
       (should (= (length prose) 2))
       (should (equal (buffer-substring-no-properties (car (car prose))

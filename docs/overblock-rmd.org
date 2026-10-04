@@ -29,7 +29,7 @@ each already has an owner:
 
 | What                     | Whose                                    |
 |--------------------------+------------------------------------------|
-| the chunks               | =overblock-md-preview-fences=            |
+| the chunks               | =overblock-md-fences=                    |
 | the prose, rendered live | the live cycle of =overblock-md-preview= |
 | the run, and the result  | =overblock-run=                          |
 
