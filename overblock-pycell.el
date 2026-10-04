@@ -291,7 +291,7 @@ reader stops."
   "Render the markdown cell BEG..END over its own source, and return the block.
 HTML is the answer of the converter for it, when a batch converted the
 whole buffer.  `overblock-md-show' renders it: a conversion that fails
-leaves the source in view.
+leaves the source in view, under the source bar.
 
 The bar of the cell goes over the boundary line, which stays in the
 buffer, so `outline-minor-mode' still finds its heading."
@@ -303,12 +303,9 @@ buffer, so `outline-minor-mode' still finds its heading."
               ((< beg end))
               ;; Without a converter the cell stays plain text.
               ((overblock-md-program)))
-    ;; The bar covers the boundary line up to its newline. The old
-    ;; rendering goes first, with its bar, so this bar is new.
-    (let* ((bar (progn (overblock-clear beg end 'pycell)
-                       (save-excursion (goto-char from)
-                                       (overblock-pycell--bar t))))
-           (block (overblock-md-show
+    ;; The old rendering goes first, with its bar.
+    (overblock-clear beg end 'pycell)
+    (let* ((block (overblock-md-show
                    beg end (overblock-pycell--source beg end) html 'default
                    :kind 'pycell
                    ;; The source for the editor, as markers that follow
@@ -317,9 +314,17 @@ buffer, so `outline-minor-mode' still finds its heading."
                    ;; first.
                    :data (cons (copy-marker beg) (copy-marker end t))
                    :keymap overblock-pycell-md-map
-                   :help-echo "mouse-2: edit this markdown cell, mouse-1: show source"
-                   :attached (list bar))))
-      (overlay-put bar 'keymap overblock-pycell-md-map)
+                   :help-echo "mouse-2: edit this markdown cell, mouse-1: show source"))
+           (rendered (and block (overblock-get block :over)))
+           ;; The bar covers the boundary line up to its newline.
+           (bar (save-excursion (goto-char from)
+                                (overblock-pycell--bar rendered))))
+      ;; Only a rendering owns its bar: an empty block, from a failed
+      ;; conversion, leaves the cell as one that shows its source.
+      (when rendered
+        (overlay-put bar 'keymap overblock-pycell-md-map)
+        (overlay-put bar 'overblock-block block)
+        (overblock-set block :attached (list bar)))
       ;; An edit of the source removes the rendering and the bar, which no
       ;; edit of the cell reaches.
       (when block

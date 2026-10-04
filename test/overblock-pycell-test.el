@@ -223,16 +223,19 @@ bar left on the line could not be swept."
 
 (ert-deftest overblock-pycell-test-md-a-failed-cell-keeps-its-source ()
   "A cell the converter fails on keeps its source in view, and goes no more.
-The block stays, empty, and keeps the bar of the cell."
+The block stays, empty.  The cell has the source bar, and no edit
+keymap: a click on the bar lands in the source."
   (with-temp-buffer
     (insert "# %% [markdown]\n# Some *text*.\n# %%\nprint(1)\n")
     (python-mode)
     (code-cells-mode)
     (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
-      (let ((block (overblock-pycell--show 17 31)))
+      (let ((block (overblock-pycell--show 17 31))
+            (bar (overblock-bar-in 1 17)))
         (should block)
         (should-not (overblock-get block :over))
-        (should (overblock-get block :attached))))))
+        (should (eq (overblock-bar-kind bar) 'source))
+        (should-not (overlay-get bar 'keymap))))))
 
 (ert-deftest overblock-pycell-test-md-an-anchor-link-finds-a-cell-heading ()
   "A #slug link finds the heading of a markdown cell, not a comment."
