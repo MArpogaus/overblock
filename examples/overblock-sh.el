@@ -150,12 +150,6 @@ second prompt keeps a cell of several lines silent."
           (accept-process-output proc 0.1))))
     proc))
 
-(defun overblock-sh--restart (proc)
-  "Kill PROC, where there is one, and start a new bash in its place.
-This is the `:restart' of the backend."
-  (when proc (delete-process proc))
-  (overblock-sh--start))
-
 (defun overblock-sh--send (proc beg end)
   "Send the cell BEG..END to PROC.
 This is the `:send' of the backend.  The cell goes as one group, so
@@ -191,7 +185,6 @@ docs/custom-mode.org lists the slots."
         :unit "cell"
         :process #'overblock-sh--process
         :start #'overblock-sh--start
-        :restart #'overblock-sh--restart
         :send #'overblock-sh--send
         :prompt-p #'overblock-sh--prompt-p
         :clean #'overblock-sh--clean

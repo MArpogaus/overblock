@@ -1322,9 +1322,10 @@ cells of a notebook.
 
 A region still running gets a note: it can be in another buffer on the
 same shell, whose block would otherwise keep a frozen running header.
-The `:restart' of the backend starts the new interpreter.  A region
-asked for before its first prompt waits for it, where the backend has
-an `:arm'."
+The `:restart' of the backend starts the new interpreter.  Without
+one, the old process is deleted and `:start' starts a new one.  A
+region asked for before its first prompt waits for it, where the
+backend has an `:arm'."
   (interactive)
   (overblock-run--must)
   (let ((proc (overblock-run--call :process)))
@@ -1337,7 +1338,10 @@ an `:arm'."
         (overblock-run-abort "The interpreter was restarted")))
     (overblock-run--queue-set nil)
     (overblock-run-clear-results)
-    (overblock-run--call :restart proc)
+    (if (plist-get overblock-run-backend :restart)
+        (overblock-run--call :restart proc)
+      (when proc (delete-process proc))
+      (overblock-run--call :start))
     (overblock-run--arm)))
 
 ;;;###autoload

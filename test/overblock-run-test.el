@@ -140,6 +140,19 @@ The shell has a copy of the backend, but no bars to draw."
     (should-not (advice-member-p #'overblock-run--keep-result-newline
                                  'outline-flag-region))))
 
+(ert-deftest overblock-run-test-a-restart-without-restart-starts-anew ()
+  "A backend without `:restart' restarts through `:start'.
+The old process goes first."
+  (overblock-run-test--with-run
+    (let ((started 0))
+      (with-current-buffer notebook
+        (setq-local overblock-run-backend
+                    (plist-put (overblock-run-test--backend)
+                               :start (lambda () (cl-incf started) nil)))
+        (overblock-run-restart))
+      (should (= started 1))
+      (should-not (process-live-p proc)))))
+
 (ert-deftest overblock-run-test-an-error-stops-the-pass ()
   "A result the backend calls an error empties the queue.
 The rest of a pass is dropped where one region failed."

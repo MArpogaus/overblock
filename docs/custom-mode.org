@@ -143,7 +143,7 @@ it. This table is the one list of the slots.
 | =:process=   | () → process     | yes                                | the live shell process of the notebook, or nil                       |
 | =:start=     | () → process     | yes                                | start a shell, and give it where it takes a region at once, else nil |
 | =:arm=       | (THUNK)          | where =:start= gives nil           | call THUNK on the first prompt of a new or restarted shell           |
-| =:restart=   | (PROC) → process | yes                                | start a shell in place of PROC, the old process or nil               |
+| =:restart=   | (PROC) → process | no, delete PROC and call =:start=  | start a shell in place of PROC, the old process or nil               |
 | =:send=      | (PROC BEG END)   | yes                                | send the region to the process                                       |
 | =:prompt-p=  | (TAIL) → boolean | yes                                | whether the output ends at a prompt                                  |
 | =:clean=     | (TEXT) → string  | yes                                | the output as a block can show it                                    |
