@@ -786,5 +786,5 @@ mode. It checks that such a caller needs nothing more from the layer.
 It uses the renderer of overblock-md.
 
 The notes of the other four packages list their suites. About one test
-in seven renders markup, and skips where no converter is installed.
+in six renders markup, and skips where no converter is installed.
 =make test STRICT=1= makes such a skip a failure, and the CI sets it.
