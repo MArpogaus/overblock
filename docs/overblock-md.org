@@ -28,17 +28,17 @@ The unit of the preview is a Markdown block. A block is one of these:
 In a Markdown file a comment that holds a blank line is a block of its
 own. A fence indented under a list item is part of that item.
 
-A click on a rendered block shows its source, and a click on a link
-opens the link. A URL with a scheme opens in the browser. A relative
-path opens its file, and =#slug= moves to its heading, as on GitHub.
-Edit the source, and the block renders again when point leaves it. A
-marked region also shows its source, so you copy or cut the source.
+A click on a rendered block shows its source, and a click (=mouse-1= or
+=mouse-2=) on a link opens the link. A URL with a scheme opens in the
+browser. A relative path opens its file, and =#slug= moves to its
+heading, as on GitHub. Edit the source, and the block renders again when
+point leaves it. A marked region also shows its source, so you copy or
+cut the source.
 
 A fenced block that names its language, such as =```python=, gets the
 font lock of that language. A local image shows in the buffer. An image
 with a URL is fetched once and kept in the folder =overblock-images/=
-of the XDG cache folder, =~/.cache= by default. =mouse-1= and =mouse-2=
-both open a rendered link.
+of the XDG cache folder, =~/.cache= by default.
 
 A formula renders in the buffer that shows it. Thus a LaTeX preamble
 that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
@@ -78,7 +78,7 @@ strings and the prose of an Rmd file use the same map.
 | =overblock-md-eldoc-width=   | 72                             | the columns of a language server's text |
 
 =overblock-md-command= is one shell command, or a list of candidates.
-[[file:../README.org::*Prerequisites][Prerequisites]] gives the default list.
+[[*The converter]] gives the default list.
 
 =overblock-md-code-modes= maps the language names that do not spell
 their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
@@ -173,16 +173,15 @@ rendering is done. A rendering in a temporary buffer then keeps the
 grey placeholder of shr.
 
 Thus =overblock-md--tag-img= draws a file itself, through
-=shr-external-rendering-functions=. The alt text carries the image, so
-a terminal still tells what is there. An image named by URL is fetched
-once into the folder =overblock-images/= of the XDG cache folder
-(=~/.cache= by default), and drawn from there. A URL that failed is
-not asked for again in the session, until
+=shr-external-rendering-functions=. The alt text carries the image, so a
+terminal still tells what is there. An image named by URL is fetched
+once into the cache folder of [[*The preview]], and drawn from there. A
+URL that failed is not asked for again in the session, until
 =overblock-md-forget-failed-images=. An answer that is not an image,
 such as the error page of a 404, is a failure too, and the file is not
-kept. With =overblock-md-remote-images=
-nil, the package fetches nothing and shows such an image as its alt
-text. shr does not get it, because shr would fetch it.
+kept. With =overblock-md-remote-images= nil, the package fetches nothing
+and shows such an image as its alt text. shr does not get it, because
+shr would fetch it.
 
 A terminal draws no image, and the placeholder of shr is itself an
 image that hides the text under it. Thus where images cannot show, the
@@ -209,10 +208,10 @@ point, which is buffer text, and point cannot be on a display string.
 Thus each link of a rendering gets =overblock-md-link-map= in place of
 =shr-map=. =<mouse-2>= runs =overblock-md-follow-link=, which reads the
 URL from the clicked string. The parent is =shr-map=, whose
-=follow-link= makes =mouse-1= on a link do the same. Thus a click
-(=mouse-1= or =mouse-2=) on a rendered link opens it. A click on other
-text of a block shows its source. From a key, =overblock-md-follow-link=
-reads the links of the block at point, and offers them.
+=follow-link= makes =mouse-1= on a link do the same. Thus both buttons
+open a link, as [[*The preview]] says. From a key,
+=overblock-md-follow-link= reads the links of the block at point, and
+offers them.
 
 =overblock-md--browse= opens the link. A URL with a scheme goes to
 =browse-url=. A link of a README is often relative: =#slug= moves to
@@ -302,14 +301,12 @@ The renderer draws a box, ticked where it is checked, or =[ ]= and
 
 ** Code blocks
 
-A fenced block that names its language gets the font lock of that
-language. =overblock-md-code-modes= maps the names that do not spell
-their mode. Each other name is tried as =LANGUAGE-mode=, through
-=major-mode-remap-alist=. With the option nil, each block wears
-=overblock-md-code=, and so does a block that names no language or one
-whose mode this Emacs does not have. A =<pre>= of raw HTML that holds
-markup other than =<code>= is no fenced block: shr draws it with its
-tags and line breaks.
+[[*Commands and options]] tells how a fenced block finds the mode of its
+language. The name =LANGUAGE-mode= goes through
+=major-mode-remap-alist=. A block that names no language, or one whose
+mode this Emacs does not have, wears =overblock-md-code=. A =<pre>= of
+raw HTML that holds markup other than =<code>= is no fenced block: shr
+draws it with its tags and line breaks.
 
 ** The width of a rendering
 
@@ -357,22 +354,20 @@ and of a list render wrong one at a time. The whole block goes to the
 converter, and the rendering is put back over its lines, one piece for
 each line.
 
-A block is the front matter at the top of the buffer, a fenced code
-block, an HTML comment at the left margin, or else the run of lines
-between two blank lines. Front matter runs from a first line of three
-dashes, with text right under it, to the next line of three dashes or
-three dots, whatever blank lines stand in it. A comment that holds a
-blank line is a block wherever it stands. Another comment is a block
-after a blank line, a heading, a fence or the end of front matter, and
-part of the paragraph elsewhere. A comment runs to its =-->=, whatever blank
-lines stand in it, and a fence in it opens nothing. In an Rmd file a chunk inside a comment still runs, so there
-a comment is no block. =overblock-md-fences= finds the fences first.
-=overblock-md--paragraphs= then walks the buffer with those
+[[*The preview]] tells what a block is. Front matter runs from a first
+line of three dashes, with text right under it, to the next line of
+three dashes or three dots, whatever blank lines stand in it. A comment
+without a blank line is a block after a blank line, a heading, a fence
+or the end of front matter, and part of the paragraph elsewhere. A
+comment runs to its =-->=, whatever blank lines stand in it, and a fence
+in it opens nothing. In an Rmd file a chunk inside a comment still runs,
+so there a comment is no block. =overblock-md-fences= finds the fences
+first. =overblock-md--paragraphs= then walks the buffer with those
 bounds. It jumps over a fence, so a blank line inside a fence ends no
 paragraph. A fence also ends the paragraph that touches it, as in
 CommonMark. Thus prose with no blank line before a fence is a block of
-its own. A fence indented under a list item belongs to that item, and
-the item goes on after it.
+its own. A fence under a list item does not end the item, which goes on
+after it.
 
 A backtick fence with another backtick on its line is inline code and
 opens no block. Outside a list item, a fence four or more spaces in is the text of an
