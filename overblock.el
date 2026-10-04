@@ -60,6 +60,8 @@
 ;; For `prop-match-value', which is not autoloaded.
 (require 'text-property-search)
 
+;;;; Options
+
 (defgroup overblock nil
   "Blocks of text shown over a buffer."
   :group 'convenience
@@ -81,6 +83,32 @@ the size the figure had."
   :type 'number
   :group 'overblock)
 
+(defcustom overblock-terminal-glyphs nil
+  "Whether this terminal draws the glyphs a graphic frame draws.
+In a terminal, `char-displayable-p' tests the coding system, not the
+font, so a missing character shows as an empty box.  A terminal
+therefore gets the plain last candidate of every list, unless this is
+non-nil because the terminal font has the icons.
+
+The coding system is still tested."
+  :type 'boolean
+  ;; The default initializer calls `:set' before the functions it
+  ;; calls are defined.
+  :initialize #'custom-initialize-default
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock--forget-glyphs))
+  :group 'overblock)
+
+(defcustom overblock-live-idle 0.2
+  "Seconds of quiet before a live cycle renders again.
+Rendering happens when the reader stops, not on every command, such as
+each repeat of a held `C-n'.  One value for every live cycle."
+  :type 'number
+  :group 'overblock)
+
+;;;; Faces
+
 (defface overblock-bar '((t :inherit (shadow default) :overline t :extend t))
   "Face of a bar over a block: the rule above it and the text on it.
 One face for every bar (over a cell, a chunk, a result and a doc
@@ -93,6 +121,81 @@ the face of the text under it, such as the background of
 
 (defface overblock-body '((t :inherit shadow :extend t))
   "Face of the body of a result, under its bar.")
+
+;;;; State
+
+(defvar-local overblock--columns nil
+  "The columns this buffer was last drawn at, or nil before the first look.
+`overblock--width-changed' compares with it, so its hooks, which run
+for every kind of change, redraw only when the width changed.")
+
+(defvar overblock--keys nil
+  "The keys `overblock--align' has made, by line.")
+
+(defvar-local overblock-edit--source nil
+  "What this edit buffer feeds, as (BUFFER BEG END PUT).
+PUT is the function that writes the edited text back; see
+`overblock-edit-in-buffer'.")
+
+(defvar-local overblock-live--specs nil
+  "How this buffer renders itself: one (KIND RENDER KEEP) a live cycle.
+A buffer can have several, such as the markdown cells and the doc
+strings of a notebook, each from a mode of its own.
+`overblock-live-start' adds one and `overblock-live-stop' removes it.")
+
+(defvar-local overblock-live--timer nil
+  "The timer that renders what the reader has finished with.")
+
+(defvar-local overblock-live--open nil
+  "The region a rendering last came off, as (BEG . END) markers, or nil.
+While point stays in it the region is not rendered again, also in a
+cycle that keeps the rendering at point (see `overblock-live-start');
+`overblock-live--settle' lets it go once point has left.")
+
+(defvar-local overblock-width-functions nil
+  "Functions called with no arguments when this buffer changes width.
+Buffer-local, and run from `overblock--width-changed' when a window
+that shows the buffer changes width or text scale.  A mode that builds
+bars for a width adds what draws them again; the live cycle handles
+its own blocks.
+
+`overblock-live-start' adds the hooks that lead here, so this runs only
+while a live cycle is on.")
+
+(defvar overblock--glyphs (make-hash-table :test #'equal)
+  "What `overblock-glyph' answered, by display, font and candidates.
+The answer does not change while a frame keeps its font, and
+`char-displayable-p' asks the font backend for each character, five
+times a second on a running header.")
+
+(defvar overblock--button-rows (make-hash-table :test #'equal)
+  "The icon row each set of descriptors and states draws.
+The header of a running result is built five times a second, and its
+buttons change only with the option, the image, the output or the
+running flag.  The descriptors are part of the key, so a changed
+option builds new rows.
+
+The key also holds what `overblock-glyph' keys on (the kind of
+display, the frame font and `overblock-terminal-glyphs'), so a graphic
+frame and a terminal frame of one daemon get their own rows, and a
+plain `setq' of the option takes effect.")
+
+;; The press runs the command, not the release: in the text area a
+;; press reaches `mouse-drag-region', which keeps the release, and a
+;; bar redrawn between press and release would lose it. A command that
+;; moves the text under the pointer, such as a move button, turns the
+;; release into a drag, so the drag is bound too. Reading the release
+;; clears the echo area, so the release says the newest message again,
+;; such as the one of the press.
+(defvar overblock--button-keymaps (make-hash-table :test #'eq)
+  "The keymap each button command is pressed through.
+A keymap depends only on the command, and the header of a running
+result is built five times a second.")
+
+(defvar overblock--pressed nil
+  "What the press of a button said, or nil where it said nothing.")
+
+;;;; Blocks
 
 (defun overblock-get (block prop)
   "Return the PROP of BLOCK."
@@ -186,11 +289,6 @@ this, because an orphan has no kind."
   "The face that paints the source under a rendering plain.
 Extended, because past the end of a line only a face with `:extend'
 paints, and the face of the source's newline showed there instead.")
-
-(defvar-local overblock--columns nil
-  "The columns this buffer was last drawn at, or nil before the first look.
-`overblock--width-changed' compares with it, so its hooks, which run
-for every kind of change, redraw only when the width changed.")
 
 (defun overblock-show (beg end &rest props)
   "Show a block over the region BEG..END and return it.
@@ -286,6 +384,27 @@ by every `overblock-refresh'."
       (overblock-refresh block)
       block)))
 
+(defun overblock-refresh (block)
+  "Show BLOCK again from its properties.
+Call it after `overblock-set'.  Everything the block shows is made
+again, so nothing has to be saved.
+
+A deleted block draws nothing: it has no start.  The drawing happens in
+the buffer of the block, because `make-overlay' uses the current
+buffer."
+  (when-let* ((buffer (overlay-buffer block)))
+    (with-current-buffer buffer
+      (mapc #'delete-overlay (overblock-get block :parts))
+      (overblock-set block :parts nil)
+      ;; A hidden block shows nothing.
+      (let ((shown (unless (overblock-get block :hidden)
+                     (overlay-get block 'overblock))))
+        (overblock--dress block block)
+        (when-let* ((over (plist-get shown :over)))
+          (overblock-set block :parts (overblock--pieces block over)))
+        (overblock--attach block shown)
+        block))))
+
 (defun overblock--dress (block ov)
   "Give OV the keymap and the help echo of BLOCK, and return OV.
 Every overlay of a block answers the same click and shows the same
@@ -336,6 +455,8 @@ below the body of a result on the same newline, so a body wins."
       ;; Part of the cloak.
       (overlay-put ov 'overblock-cloak t)
       (overblock--dress block ov))))
+
+;;;; Rows and pieces
 
 (defun overblock--lines (text)
   "Split TEXT into the lines that can stand on a row of their own.
@@ -497,9 +618,6 @@ lines, and the blank lines of the source stay in view instead."
                                 slots)))
     (mapcar (lambda (row) (and (overblock--carries-p row) (pop dealt)))
             rows)))
-
-(defvar overblock--keys nil
-  "The keys `overblock--align' has made, by line.")
 
 (defun overblock--key (text)
   "Return what TEXT and its rendering have in common: its first letters.
@@ -757,6 +875,8 @@ Under ROWS on the anchor the newline ends the last of them, and
   (overlay-put newline 'priority (if rows -40 -60))
   (overblock--dress block newline))
 
+;;;; Stale blocks
+
 (defun overblock--stale-hook (block after beg end &optional _length)
   "Take BLOCK down where the text it covers, BEG..END, really changed.
 AFTER marks the call that follows the change; see
@@ -790,6 +910,22 @@ it as source while point stays in it; see `overblock-live--open'."
                                      (copy-marker (overlay-end block) t))))
   (funcall (or (overblock-get block :stale) #'overblock-delete) block))
 
+(defun overblock-stale-when-edited (block &optional function)
+  "Take BLOCK down on the next edit of the text it covers.
+FUNCTION is called with the block instead, where the caller has more to
+do than delete it, such as a bar to remove or a move to ignore.
+
+Three hooks: `modification-hooks' runs for a change inside an overlay,
+`insert-in-front-hooks' for one at its first character and
+`insert-behind-hooks' for one at its end.  An anchor stops one
+character short of the newline that ends its region, so typing at the
+end of the last line is an insertion at the end."
+  (when function (overblock-set block :stale function))
+  (let ((hooks (list #'overblock--stale-hook)))
+    (overlay-put block 'modification-hooks hooks)
+    (overlay-put block 'insert-in-front-hooks hooks)
+    (overlay-put block 'insert-behind-hooks hooks)))
+
 (defun overblock-show-rendering (beg end rendered face &rest props)
   "Show RENDERED over BEG..END in FACE, and return the block.
 PROPS are those of `overblock-show'.  Its `:keymap' and `:help-echo'
@@ -816,26 +952,7 @@ a macro, an undo.  Point moving into the region reveals nothing.
     (overblock-stale-when-edited block)
     block))
 
-(defun overblock-stale-when-edited (block &optional function)
-  "Take BLOCK down on the next edit of the text it covers.
-FUNCTION is called with the block instead, where the caller has more to
-do than delete it, such as a bar to remove or a move to ignore.
-
-Three hooks: `modification-hooks' runs for a change inside an overlay,
-`insert-in-front-hooks' for one at its first character and
-`insert-behind-hooks' for one at its end.  An anchor stops one
-character short of the newline that ends its region, so typing at the
-end of the last line is an insertion at the end."
-  (when function (overblock-set block :stale function))
-  (let ((hooks (list #'overblock--stale-hook)))
-    (overlay-put block 'modification-hooks hooks)
-    (overlay-put block 'insert-in-front-hooks hooks)
-    (overlay-put block 'insert-behind-hooks hooks)))
-
-(defvar-local overblock-edit--source nil
-  "What this edit buffer feeds, as (BUFFER BEG END PUT).
-PUT is the function that writes the edited text back; see
-`overblock-edit-in-buffer'.")
+;;;; Edit buffer
 
 (defvar-keymap overblock-edit-mode-map
   :doc "Keymap of `overblock-edit-mode'.
@@ -922,66 +1039,7 @@ another region is discarded only after the reader confirms."
   (interactive)
   (quit-window t))
 
-(defun overblock-cached (var function)
-  "Return what FUNCTION returns in this buffer, kept in VAR.
-VAR names a buffer-local variable, which holds (KEY . VALUE).
-FUNCTION is called with no arguments, and again only when the text
-or the narrowing changed since.  A walk of the whole buffer is slow,
-and the live cycle asks on every command."
-  (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
-    (unless (equal key (car (symbol-value var)))
-      (set var (cons key (funcall function))))
-    (cdr (symbol-value var))))
-
-(defun overblock-goto-event (event)
-  "Select the window of EVENT and move point to the click.
-Any other event leaves point where it is: a command reads EVENT from
-`last-input-event', so it can be any event, such as a `switch-frame'
-or a click on a mode line.
-
-A command bound to the mouse calls this before `overblock-at'."
-  (when-let* (((consp event))
-              ;; `event-start' signals on some events.
-              (posn (ignore-errors (event-start event)))
-              ((consp posn))
-              ;; An event from a keyboard macro can name no window.
-              (window (posn-window posn))
-              ((window-live-p window))
-              (pos (posn-point posn)))
-    (select-window window)
-    (goto-char pos)))
-
-(defun overblock-only-in (mode &rest parents)
-  "Leave the minor mode MODE off unless the major mode derives from PARENTS.
-MODE is the variable of the mode, which `define-minor-mode' has just
-set; this resets it and signals.  Each mode reads one kind of buffer,
-such as markdown or Python."
-  (unless (seq-some #'derived-mode-p parents)
-    (set mode nil)
-    (user-error "%s is for %s buffers" mode
-                (mapconcat #'symbol-name parents " or "))))
-
-(defcustom overblock-live-idle 0.2
-  "Seconds of quiet before a live cycle renders again.
-Rendering happens when the reader stops, not on every command, such as
-each repeat of a held `C-n'.  One value for every live cycle."
-  :type 'number
-  :group 'overblock)
-
-(defvar-local overblock-live--specs nil
-  "How this buffer renders itself: one (KIND RENDER KEEP) a live cycle.
-A buffer can have several, such as the markdown cells and the doc
-strings of a notebook, each from a mode of its own.
-`overblock-live-start' adds one and `overblock-live-stop' removes it.")
-
-(defvar-local overblock-live--timer nil
-  "The timer that renders what the reader has finished with.")
-
-(defvar-local overblock-live--open nil
-  "The region a rendering last came off, as (BEG . END) markers, or nil.
-While point stays in it the region is not rendered again, also in a
-cycle that keeps the rendering at point (see `overblock-live-start');
-`overblock-live--settle' lets it go once point has left.")
+;;;; Live cycle
 
 (defun overblock-live-drop-if (pred)
   "Take down every live block of this buffer that PRED answers to.
@@ -1174,26 +1232,85 @@ The hooks and the timer go with the last cycle of the buffer."
                       (buffer-list))
       (advice-remove 'outline-flag-region #'overblock--fold))))
 
-(defun overblock-refresh (block)
-  "Show BLOCK again from its properties.
-Call it after `overblock-set'.  Everything the block shows is made
-again, so nothing has to be saved.
+;;;; Width
 
-A deleted block draws nothing: it has no start.  The drawing happens in
-the buffer of the block, because `make-overlay' uses the current
-buffer."
-  (when-let* ((buffer (overlay-buffer block)))
-    (with-current-buffer buffer
-      (mapc #'delete-overlay (overblock-get block :parts))
-      (overblock-set block :parts nil)
-      ;; A hidden block shows nothing.
-      (let ((shown (unless (overblock-get block :hidden)
-                     (overlay-get block 'overblock))))
-        (overblock--dress block block)
-        (when-let* ((over (plist-get shown :over)))
-          (overblock-set block :parts (overblock--pieces block over)))
-        (overblock--attach block shown)
-        block))))
+(defconst overblock--pixel-width-takes-a-buffer
+  (> (cdr (func-arity #'string-pixel-width)) 1)
+  "Whether `string-pixel-width' takes the buffer to measure in.
+Emacs 31 does; an older one measures without any face remapping.")
+
+(defun overblock--pixel-width (string)
+  "Return the width of STRING in pixels, as this buffer would draw it.
+Emacs 31 takes the buffer whose face remapping to measure with.  An
+older one measures without remapping, so under `text-scale-mode' or
+`buffer-face-mode' the width is wrong there."
+  ;; Through `apply', so the compiler of an older Emacs does not reject
+  ;; two arguments. The arity is read once, at load.
+  (apply #'string-pixel-width string
+         (when overblock--pixel-width-takes-a-buffer
+           (list (current-buffer)))))
+
+(defun overblock--window-min (measure)
+  "Return the smallest MEASURE of the windows that show this buffer.
+The smallest, because one string is drawn in all of them.  Only
+`visible' frames count, not invisible or iconified ones.
+
+Return nil where no visible window shows the buffer.  A bar is then
+not cut at all.
+
+Never below zero: `window-max-chars-per-line' is negative where the
+font is much larger than the window."
+  (when-let* ((windows (get-buffer-window-list nil nil 'visible)))
+    ;; The measures select their window, which sets point of this
+    ;; buffer to the point of that window. A caller that walks with
+    ;; point, such as the walk that draws the bars, would loop.
+    (save-excursion
+      (max 0 (apply #'min (mapcar measure windows))))))
+
+(defun overblock-window-width ()
+  "Return the pixel width of the narrowest window that shows this buffer.
+`window-max-chars-per-line' leaves out the line-number area and the
+margins, unlike `window-body-width', and uses the font of the window.
+Return nil where no window shows the buffer; see
+`overblock--window-min'."
+  (overblock--window-min (lambda (window)
+                           (* (window-max-chars-per-line window)
+                              (window-font-width window)))))
+
+(defun overblock-window-columns ()
+  "Return the columns of the narrowest window that shows this buffer.
+Columns, not pixels: `window-max-chars-per-line' uses the font of the
+window, which `text-scale-adjust' makes differ from that of the frame.
+
+Return nil where no window shows the buffer; see
+`overblock--window-min'."
+  (overblock--window-min #'window-max-chars-per-line))
+
+(defun overblock--width-changed ()
+  "Follow a change of the width this buffer is drawn at.
+For the buffer-local `window-configuration-change-hook' (a split, a
+resize, a frame size change, a window that shows this buffer again)
+and for `text-scale-mode-hook'.  In columns, not pixels: the text scale
+changes the columns, and a rendering is filled to columns.
+
+A rendering is filled to its width, and its rules reach the window
+edge.  The blocks of the live cycle carry the width they were built
+for (see `overblock-show'); those built for another are dropped, and
+the cycle renders them again when the reader stops.  Dropping, not
+rendering, so a drag of the window edge does not start a converter at
+every column.
+
+Every bar is marked stale: a bar is cut in pixels for the current
+font, and `overblock-bar-draw' does not redraw a label it has seen."
+  (when-let* ((columns (overblock-window-columns))
+              ((not (eql columns overblock--columns))))
+    (setq overblock--columns columns)
+    (overblock-live-drop-if
+     (lambda (block) (not (eql columns (overlay-get block 'overblock-columns)))))
+    (overblock-bars-stale)
+    (run-hooks 'overblock-width-functions)))
+
+;;;; Images
 
 (defun overblock--image-spec (display)
   "Return the image in the DISPLAY spec, or nil.
@@ -1315,7 +1432,7 @@ smaller figure."
               ((> limit 0)))
     limit))
 
-;;;; Alignment made literal
+;;;; Alignment
 
 (defun overblock--space-columns (spec column)
   "Return the columns that the space SPEC covers at COLUMN, or nil.
@@ -1394,49 +1511,6 @@ See `overblock-flatten-alignment' for why a copy needs them literal."
                   (const :tag "Once it is written" done))))
   "The customize type of a list of header buttons.")
 
-(defun overblock-faced (string face)
-  "Add FACE below the faces STRING already carries.  Return STRING.
-STRING is modified in place.
-An overlay string without a face inherits one from the buffer text
-next to it, so every block needs at least a base face."
-  (add-face-text-property 0 (length string) face t string)
-  string)
-
-(defun overblock-fill-props (string &rest properties)
-  "Set the PROPERTIES that STRING does not carry yet.
-PROPERTIES is a plist, and STRING is modified in place and returned.
-shr gives a link its own keymap and help echo; a plain `propertize'
-would replace both."
-  (let ((len (length string)))
-    (while properties
-      (let ((prop (pop properties))
-            (value (pop properties))
-            (pos 0))
-        (while (< pos len)
-          (let ((next (or (next-single-property-change pos prop string) len)))
-            (unless (get-text-property pos prop string)
-              (put-text-property pos next prop value string))
-            (setq pos next))))))
-  string)
-
-(defvar overblock--glyphs (make-hash-table :test #'equal)
-  "What `overblock-glyph' answered, by display, font and candidates.
-The answer does not change while a frame keeps its font, and
-`char-displayable-p' asks the font backend for each character, five
-times a second on a running header.")
-
-(defvar overblock--button-rows (make-hash-table :test #'equal)
-  "The icon row each set of descriptors and states draws.
-The header of a running result is built five times a second, and its
-buttons change only with the option, the image, the output or the
-running flag.  The descriptors are part of the key, so a changed
-option builds new rows.
-
-The key also holds what `overblock-glyph' keys on (the kind of
-display, the frame font and `overblock-terminal-glyphs'), so a graphic
-frame and a terminal frame of one daemon get their own rows, and a
-plain `setq' of the option takes effect.")
-
 (defun overblock-bars-stale ()
   "Mark every bar of this buffer stale, so the next draw rebuilds it.
 For a change that no bar can see: another glyph, another list of
@@ -1451,23 +1525,6 @@ first."
   (clrhash overblock--glyphs)
   (clrhash overblock--button-rows)
   (overblock-bars-stale))
-
-(defcustom overblock-terminal-glyphs nil
-  "Whether this terminal draws the glyphs a graphic frame draws.
-In a terminal, `char-displayable-p' tests the coding system, not the
-font, so a missing character shows as an empty box.  A terminal
-therefore gets the plain last candidate of every list, unless this is
-non-nil because the terminal font has the icons.
-
-The coding system is still tested."
-  :type 'boolean
-  ;; The default initializer calls `:set' before the functions it
-  ;; calls are defined.
-  :initialize #'custom-initialize-default
-  :set (lambda (symbol value)
-         (set-default symbol value)
-         (overblock--forget-glyphs))
-  :group 'overblock)
 
 (defun overblock--glyph-drawn-p (candidate)
   "Return non-nil where this frame draws every character of CANDIDATE.
@@ -1491,21 +1548,6 @@ some start with a space."
     (or (and (or (display-graphic-p) overblock-terminal-glyphs)
              (seq-find #'overblock--glyph-drawn-p candidates))
         (car (last candidates)))))
-
-;; The press runs the command, not the release: in the text area a
-;; press reaches `mouse-drag-region', which keeps the release, and a
-;; bar redrawn between press and release would lose it. A command that
-;; moves the text under the pointer, such as a move button, turns the
-;; release into a drag, so the drag is bound too. Reading the release
-;; clears the echo area, so the release says the newest message again,
-;; such as the one of the press.
-(defvar overblock--button-keymaps (make-hash-table :test #'eq)
-  "The keymap each button command is pressed through.
-A keymap depends only on the command, and the header of a running
-result is built five times a second.")
-
-(defvar overblock--pressed nil
-  "What the press of a button said, or nil where it said nothing.")
 
 (defun overblock--button-release ()
   "Say again the last message, where the press of a button said one.
@@ -1605,92 +1647,6 @@ this function behind a table."
                              help command))))
      descriptors)
     " ")))
-
-(defconst overblock--pixel-width-takes-a-buffer
-  (> (cdr (func-arity #'string-pixel-width)) 1)
-  "Whether `string-pixel-width' takes the buffer to measure in.
-Emacs 31 does; an older one measures without any face remapping.")
-
-(defun overblock--pixel-width (string)
-  "Return the width of STRING in pixels, as this buffer would draw it.
-Emacs 31 takes the buffer whose face remapping to measure with.  An
-older one measures without remapping, so under `text-scale-mode' or
-`buffer-face-mode' the width is wrong there."
-  ;; Through `apply', so the compiler of an older Emacs does not reject
-  ;; two arguments. The arity is read once, at load.
-  (apply #'string-pixel-width string
-         (when overblock--pixel-width-takes-a-buffer
-           (list (current-buffer)))))
-
-(defun overblock--window-min (measure)
-  "Return the smallest MEASURE of the windows that show this buffer.
-The smallest, because one string is drawn in all of them.  Only
-`visible' frames count, not invisible or iconified ones.
-
-Return nil where no visible window shows the buffer.  A bar is then
-not cut at all.
-
-Never below zero: `window-max-chars-per-line' is negative where the
-font is much larger than the window."
-  (when-let* ((windows (get-buffer-window-list nil nil 'visible)))
-    ;; The measures select their window, which sets point of this
-    ;; buffer to the point of that window. A caller that walks with
-    ;; point, such as the walk that draws the bars, would loop.
-    (save-excursion
-      (max 0 (apply #'min (mapcar measure windows))))))
-
-(defun overblock-window-width ()
-  "Return the pixel width of the narrowest window that shows this buffer.
-`window-max-chars-per-line' leaves out the line-number area and the
-margins, unlike `window-body-width', and uses the font of the window.
-Return nil where no window shows the buffer; see
-`overblock--window-min'."
-  (overblock--window-min (lambda (window)
-                           (* (window-max-chars-per-line window)
-                              (window-font-width window)))))
-
-(defun overblock-window-columns ()
-  "Return the columns of the narrowest window that shows this buffer.
-Columns, not pixels: `window-max-chars-per-line' uses the font of the
-window, which `text-scale-adjust' makes differ from that of the frame.
-
-Return nil where no window shows the buffer; see
-`overblock--window-min'."
-  (overblock--window-min #'window-max-chars-per-line))
-
-(defvar-local overblock-width-functions nil
-  "Functions called with no arguments when this buffer changes width.
-Buffer-local, and run from `overblock--width-changed' when a window
-that shows the buffer changes width or text scale.  A mode that builds
-bars for a width adds what draws them again; the live cycle handles
-its own blocks.
-
-`overblock-live-start' adds the hooks that lead here, so this runs only
-while a live cycle is on.")
-
-(defun overblock--width-changed ()
-  "Follow a change of the width this buffer is drawn at.
-For the buffer-local `window-configuration-change-hook' (a split, a
-resize, a frame size change, a window that shows this buffer again)
-and for `text-scale-mode-hook'.  In columns, not pixels: the text scale
-changes the columns, and a rendering is filled to columns.
-
-A rendering is filled to its width, and its rules reach the window
-edge.  The blocks of the live cycle carry the width they were built
-for (see `overblock-show'); those built for another are dropped, and
-the cycle renders them again when the reader stops.  Dropping, not
-rendering, so a drag of the window edge does not start a converter at
-every column.
-
-Every bar is marked stale: a bar is cut in pixels for the current
-font, and `overblock-bar-draw' does not redraw a label it has seen."
-  (when-let* ((columns (overblock-window-columns))
-              ((not (eql columns overblock--columns))))
-    (setq overblock--columns columns)
-    (overblock-live-drop-if
-     (lambda (block) (not (eql columns (overlay-get block 'overblock-columns)))))
-    (overblock-bars-stale)
-    (run-hooks 'overblock-width-functions)))
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.
@@ -1911,6 +1867,72 @@ Without the narrowing, so a caller that redraws every bar reaches
 all of them."
   (without-restriction
     (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max)))))
+
+;;;; Helpers for modes
+
+(defun overblock-faced (string face)
+  "Add FACE below the faces STRING already carries.  Return STRING.
+STRING is modified in place.
+An overlay string without a face inherits one from the buffer text
+next to it, so every block needs at least a base face."
+  (add-face-text-property 0 (length string) face t string)
+  string)
+
+(defun overblock-fill-props (string &rest properties)
+  "Set the PROPERTIES that STRING does not carry yet.
+PROPERTIES is a plist, and STRING is modified in place and returned.
+shr gives a link its own keymap and help echo; a plain `propertize'
+would replace both."
+  (let ((len (length string)))
+    (while properties
+      (let ((prop (pop properties))
+            (value (pop properties))
+            (pos 0))
+        (while (< pos len)
+          (let ((next (or (next-single-property-change pos prop string) len)))
+            (unless (get-text-property pos prop string)
+              (put-text-property pos next prop value string))
+            (setq pos next))))))
+  string)
+
+(defun overblock-cached (var function)
+  "Return what FUNCTION returns in this buffer, kept in VAR.
+VAR names a buffer-local variable, which holds (KEY . VALUE).
+FUNCTION is called with no arguments, and again only when the text
+or the narrowing changed since.  A walk of the whole buffer is slow,
+and the live cycle asks on every command."
+  (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
+    (unless (equal key (car (symbol-value var)))
+      (set var (cons key (funcall function))))
+    (cdr (symbol-value var))))
+
+(defun overblock-goto-event (event)
+  "Select the window of EVENT and move point to the click.
+Any other event leaves point where it is: a command reads EVENT from
+`last-input-event', so it can be any event, such as a `switch-frame'
+or a click on a mode line.
+
+A command bound to the mouse calls this before `overblock-at'."
+  (when-let* (((consp event))
+              ;; `event-start' signals on some events.
+              (posn (ignore-errors (event-start event)))
+              ((consp posn))
+              ;; An event from a keyboard macro can name no window.
+              (window (posn-window posn))
+              ((window-live-p window))
+              (pos (posn-point posn)))
+    (select-window window)
+    (goto-char pos)))
+
+(defun overblock-only-in (mode &rest parents)
+  "Leave the minor mode MODE off unless the major mode derives from PARENTS.
+MODE is the variable of the mode, which `define-minor-mode' has just
+set; this resets it and signals.  Each mode reads one kind of buffer,
+such as markdown or Python."
+  (unless (seq-some #'derived-mode-p parents)
+    (set mode nil)
+    (user-error "%s is for %s buffers" mode
+                (mapconcat #'symbol-name parents " or "))))
 
 (provide 'overblock)
 ;;; overblock.el ends here
