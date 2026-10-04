@@ -89,7 +89,7 @@ without removing the hooks."
             (list (line-number-at-pos (nth 0 chunk))
                   (save-excursion
                     (goto-char (nth 0 chunk))
-                    (overblock-rmd--chunk-name (pos-bol) (pos-eol)))))
+                    (overblock-rmd--title (pos-bol) (pos-eol)))))
           (overblock-rmd-chunks)))
 
 (defun overblock-rmd-test--bar-labels ()
@@ -227,7 +227,7 @@ An option where a name would be names nothing: knitr reads
                   ("```{r, echo=FALSE}" . nil)
                   ("```{r echo=FALSE}" . nil)))
     (overblock-rmd-test--with-document (concat (car case) "\n1\n```\n")
-      (should (equal (overblock-rmd--chunk-name (point-min) (pos-eol))
+      (should (equal (overblock-rmd--title (point-min) (pos-eol))
                      (cdr case))))))
 
 (ert-deftest overblock-rmd-test-the-chunk-at-point-covers-both-fences ()

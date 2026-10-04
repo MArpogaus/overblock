@@ -2449,7 +2449,7 @@ A result with no image says so rather than writing an empty file."
     (should (equal (mapcar (lambda (line)
                              (goto-char (point-min))
                              (forward-line (1- line))
-                             (overblock-pycell--cell-title (pos-bol) (pos-eol)))
+                             (overblock-pycell--title (pos-bol) (pos-eol)))
                            '(1 2 3 4))
                    '(nil "A title" nil "Notes")))))
 

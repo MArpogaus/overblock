@@ -226,12 +226,12 @@ This is the `:code-at' of the backend: the code between the fences."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (cons (nth 1 chunk) (nth 2 chunk))))
 
-(defun overblock-rmd--chunk-name (bol eol)
-  "Return the name written in the chunk header BOL..EOL, or nil.
-The name is the word after the engine and before the first comma or
-brace, as knitr reads it: ```{r plot-one, echo=FALSE} is plot-one.  The
-word must end at a comma or a brace, so ```{r echo=FALSE} names no
-chunk."
+(defun overblock-rmd--title (bol eol)
+  "Return the title written on the chunk header BOL..EOL, or nil.
+The title is the chunk name: the word after the engine and before the
+first comma or brace, as knitr reads it: ```{r plot-one, echo=FALSE}
+is plot-one.  The word must end at a comma or a brace, so
+```{r echo=FALSE} names no chunk."
   (save-excursion
     (goto-char bol)
     (when (re-search-forward
@@ -288,7 +288,7 @@ none."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (list (overblock-bar-line (pos-bol) (pos-eol) 'chunk
                               (overblock-glyph "" "◆" "R")
-                              (or (overblock-rmd--chunk-name (pos-bol) (pos-eol))
+                              (or (overblock-rmd--title (pos-bol) (pos-eol))
                                   "R")
                               (overblock-buttons overblock-rmd-bar-buttons))
           (overblock-rmd--hide-fence (nth 2 chunk)))))

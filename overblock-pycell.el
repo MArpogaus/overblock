@@ -188,7 +188,7 @@ on the same block.  A markdown cell has no code."
     (unless (overblock-pycell--md-cell-start beg)
       (cons beg end))))
 
-(defun overblock-pycell--cell-title (bol eol)
+(defun overblock-pycell--title (bol eol)
   "Return the title written on the boundary line BOL..EOL, or nil.
 What follows the =%%= marker is the title, as jupytext writes it,
 without the tag list of a =# %% [markdown]= line."
@@ -229,7 +229,7 @@ GLYPH comes before the label, PLAIN is the label of a cell without a
 title, and BUTTONS are the buttons of the bar.  `overblock-bar-line'
 draws it."
   (overblock-bar-line bol eol kind glyph
-                      (or (overblock-pycell--cell-title bol eol) plain)
+                      (or (overblock-pycell--title bol eol) plain)
                       (overblock-buttons buttons)))
 
 (defun overblock-pycell--source-bar (bol eol)
