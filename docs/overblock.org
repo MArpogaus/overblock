@@ -259,6 +259,7 @@ for what the bar stands on, and the buttons at the right edge.
 |--------------------------+--------------------------------------------------------|
 | =overblock-bar=          | the row: glyph, label, and the icons at the right edge |
 | =overblock-bar-line=     | find or make the bar of a line, and draw it            |
+| =overblock-bar-hide=     | hide a line as a bar that shows nothing                |
 | =overblock-bar-in=       | the bar, or the bar of a kind, over part of a region   |
 | =overblock-bar-drop=     | remove a bar, with the block it belongs to             |
 | =overblock-bars=         | the bars of the buffer                                 |

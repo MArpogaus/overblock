@@ -271,16 +271,8 @@ chunk is gone."
     ;; Only a fence line: an unclosed chunk ends at the end of the
     ;; buffer, on a line of code.
     (when (looking-at-p overblock-md-closing-fence-regexp)
-      (let* ((bol (pos-bol))
-             (end (min (point-max) (1+ (pos-eol))))
-             (there (overblock-bar-in bol end))
-             (ov (if (eq (overblock-bar-kind there) 'chunk-end)
-                     there
-                   (make-overlay bol end nil t))))
-        (overlay-put ov 'evaporate t)
-        (overlay-put ov 'overblock-bar 'chunk-end)
-        (overlay-put ov 'invisible t)
-        (move-overlay ov bol end)))))
+      (overblock-bar-hide (pos-bol) (min (point-max) (1+ (pos-eol)))
+                          'chunk-end))))
 
 (defun overblock-rmd--bar ()
   "Draw the bar over the chunk header point is on, and hide its closing fence.

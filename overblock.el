@@ -1816,6 +1816,18 @@ end falls outside it."
     (overblock--bar-draw ov kind glyph label icons)
     ov))
 
+(defun overblock-bar-hide (bol end kind)
+  "Hide the line BOL..END as a bar of KIND, and return its overlay.
+END is past the newline, so no empty row stays.  The bar shows
+nothing, and goes with the other bars of KIND.  A bar of KIND there is
+moved to the line, not made again."
+  (let ((ov (or (overblock-bar-in bol end kind)
+                (make-overlay bol end nil t))))
+    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'overblock-bar kind)
+    (overlay-put ov 'invisible t)
+    (move-overlay ov bol end)))
+
 (defun overblock--bar-wear (ov text)
   "Put TEXT on OV in place of the line, with room for the caret.
 All of TEXT but its last character is the `before-string', where
