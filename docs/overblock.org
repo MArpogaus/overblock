@@ -564,10 +564,16 @@ result limits are the options =overblock-run-max-lines= and
 =overblock-run-max-line-length=, one pair for every notebook.
 =overblock-run-result-buttons= gives the five buttons that each result
 carries, with the words of the unit. The header reads the WHEN of each
-button. It shows a =t= button always, an =image= button with an image,
-a =lines= button with output, a =running= button while the region runs,
-and a =done= button when the run has ended. =overblock-run-bar-buttons= gives
-the three that run from the bar of a region.
+button. It shows a button with a WHEN of:
+
+- =t= always.
+- =image= with an image.
+- =lines= with output.
+- =running= while the region runs.
+- =done= when the run has ended.
+
+=overblock-run-bar-buttons= gives the three that run from the bar of a
+region.
 
 A send copies the backend into the shell buffer. The filter and the
 ticker run there, and must get the same answers. Thus the head of a
@@ -729,9 +735,9 @@ the speed back.
 - =overblock-run--first-lines= reads an output only to its limit.
 - =overblock-cached= keeps the answer of a walk of the whole buffer
   until the text or the narrowing changes. The live cycle asks on each
-  command. It keeps the doc strings of a Python buffer, the cells of a
-  notebook, the chunks of an Rmd file, and the blocks and link
-  definitions of a Markdown buffer.
+  command. It keeps the doc strings of a Python buffer and the cells of a
+  notebook. It also keeps the chunks of an Rmd file, and the blocks and
+  link definitions of a Markdown buffer.
 
 * Known limits
 
