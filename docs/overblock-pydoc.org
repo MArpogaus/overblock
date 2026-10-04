@@ -232,4 +232,5 @@ pixels past the edge of the window.
 
 =test/overblock-pydoc-scroll-test.el= scrolls up over a file of
 rendered doc strings, and checks that the window moves one way only.
-=make scroll= runs it, because it needs a graphic display.
+=make scroll= runs it, because it needs a graphic frame. See
+[[file:../README.org::*Development][Development]] in the README.

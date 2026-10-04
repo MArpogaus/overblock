@@ -282,7 +282,9 @@ package-lint, relint and the batch tests. =make test STRICT=1= fails
 when a test would skip for a missing tool: a Markdown converter,
 markdown-mode, vtable, libxml2 or =sh=. =make test-live= runs the
 tests against a real IPython, R and bash, and skips each one that is
-not installed. =make scroll= needs a display and tests the scrolling.
+not installed. =make scroll= tests the scrolling in a graphic frame. It
+runs under =xvfb-run= where that is installed, and else needs a
+display.
 
 Install the hooks of =.pre-commit-config.yaml=:
 

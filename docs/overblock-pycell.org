@@ -396,7 +396,8 @@ package.
 the blocks show. No batch test of this package starts a Python
 process. Where no ipython is installed, the target says so and passes.
 
-=make scroll= needs a graphic display. It builds a buffer with markdown
+=make scroll= needs a graphic frame, see
+[[file:../README.org::*Development][Development]] in the README. It builds a buffer with markdown
 cells and scrolls through it with =pixel-scroll-precision-scroll-up= and
 =pixel-scroll-precision-scroll-down=. It uses the default values of the
 scroll options. The test fails when:

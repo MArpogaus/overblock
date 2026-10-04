@@ -169,7 +169,7 @@ test-live: $(STAMP)
 
 # A block is one buffer line and can be taller than the window, and only
 # a graphical frame gives a line a pixel height. These tests therefore
-# run in a real frame, under `xvfb-run' where there is no display.
+# run in a real frame, under `xvfb-run' where it is installed.
 # With -a: xvfb-run picks a free display instead of exiting 1 over a
 # stale lock file, which reads like a test failure.
 XVFB := $(shell command -v xvfb-run >/dev/null 2>&1 && echo xvfb-run -a)
