@@ -550,7 +550,8 @@ A bar stands in place of the fence line of each =```{r}= chunk. The bar
 shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
 shows /plot-one/. The buttons of =overblock-rmd-chunk-buttons= are =⇈=,
 which runs each chunk above this one, =▷=, which runs this chunk, and
-=⇊=, which runs this chunk and each one below it.
+=⇊=, which runs this chunk and each one below it. Like knitr, a pass
+skips a chunk with =eval=FALSE= or =#| eval: false=. =▷= still runs it.
 
 The closing fence is hidden, and the file does not change. A chunk of
 another engine, such as =```{python}=, stays as it is. The bars show

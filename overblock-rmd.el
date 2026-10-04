@@ -485,15 +485,27 @@ A line of the output that matches `overblock-rmd--error-regexp' marks
 it: R writes its errors to the same stream as all other output."
   (string-match-p overblock-rmd--error-regexp text))
 
+(defconst overblock-rmd--no-eval-regexp
+  (concat "\\`.*[{,[:blank:]]eval[[:blank:]]*=[[:blank:]]*F\\(?:ALSE\\)?\\_>"
+          "\\|^#|[[:blank:]]*eval:[[:blank:]]*false\\_>")
+  "The chunk option that knitr reads as \"do not evaluate\".
+On the opening fence line, as eval=FALSE, or on a #| line of the
+code, as eval: false.")
+
 (defun overblock-rmd--step ()
   "Run the chunk at point, and say whether to wait for its prompt.
 This is the `:step' of the backend, with which `overblock-run-next'
-walks a pass down the buffer.  Every region a pass queues is a chunk
-for R, so the walk always waits.  The prose is never queued.
+walks a pass down the buffer.  The prose is never queued.
 
-A marker whose chunk is deleted finds nothing, and the walk goes on to
-the next one."
-  (when-let* ((chunk (overblock-rmd--chunk-at)))
+A pass skips a chunk that knitr does not evaluate, as knitr does; a
+run of that one chunk still sends it.  A marker whose chunk is deleted
+finds nothing, and the walk goes on to the next one."
+  (when-let* ((chunk (overblock-rmd--chunk-at))
+              ((not (let ((case-fold-search nil))
+                      (string-match-p
+                       overblock-rmd--no-eval-regexp
+                       (buffer-substring-no-properties
+                        (nth 0 chunk) (nth 2 chunk)))))))
     (overblock-run-region (nth 1 chunk) (nth 2 chunk))
     t))
 

@@ -541,6 +541,24 @@ so a step that ran nothing returns nil."
     (goto-char (point-min))
     (should-not (overblock-rmd--step))))
 
+(ert-deftest overblock-rmd-test-a-pass-skips-a-chunk-knitr-does-not-evaluate ()
+  "The step of a pass sends no chunk whose options say eval=FALSE.
+Both forms count: on the fence line and on a #| line.  A chunk with
+another option, or eval=TRUE, is sent."
+  (overblock-rmd-test--with-mode
+      (concat "```{r a, eval=FALSE}\ninstall.packages(\"x\")\n```\n\n"
+              "```{r b}\n#| eval: false\n2\n```\n\n"
+              "```{r c, eval = F}\n3\n```\n\n"
+              "```{r d, echo=FALSE, eval=TRUE}\n4\n```\n")
+    (let (sent)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end)
+                   (push (string-trim (buffer-substring beg end)) sent))))
+        (dolist (start (overblock-rmd--starts))
+          (goto-char start)
+          (overblock-rmd--step)))
+      (should (equal sent '("4"))))))
+
 (ert-deftest overblock-rmd-test-the-mode-tells-the-runner-what-r-is ()
   "The mode gives the buffer a backend, and takes it away again.
 The runner runs and draws only in a buffer with a backend, and a
