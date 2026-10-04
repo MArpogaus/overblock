@@ -209,17 +209,18 @@ the closing quote.
 Font lock says which strings are documentation (see
 `overblock-pydoc--doc-face-p'), and the syntax scan says where each of
 them ends."
-  (overblock-cached 'overblock-pydoc--regions-cache
-                    (lambda () (overblock-pydoc--walk (point-min) (point-max)))))
+  (overblock-cached 'overblock-pydoc--regions-cache #'overblock-pydoc--walk))
 
-(defun overblock-pydoc--walk (beg end)
-  "Return the bounds of every doc string between BEG and END.
+(defun overblock-pydoc--walk ()
+  "Return the bounds of every doc string of the accessible buffer.
 `overblock-pydoc--regions' is this behind a cache.  It calls
 `font-lock-ensure' first, because jit lock paints only what has been
 on the screen."
-  (font-lock-ensure beg end)
+  (font-lock-ensure)
   (save-excursion
-    (let ((pos beg) found)
+    (let ((pos (point-min))
+          (end (point-max))
+          found)
       (while (< pos end)
         (if (and (overblock-pydoc--doc-face-p pos)
                  (overblock-pydoc--opens-a-line-p pos))
