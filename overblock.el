@@ -104,7 +104,7 @@ the face of the text under it, such as the background of a code
 face.")
 
 (defface overblock-body '((t :inherit shadow :extend t))
-  "Face of the body of a result, under its bar.")
+  "Face of the body of a block, under its bar.")
 
 ;;;; State
 
@@ -462,10 +462,10 @@ PROPS are those of `overblock-show'.  Its `:keymap' and `:help-echo'
 also go on the rendering where it has none of its own: shr writes a
 keymap on a link, and that one stays.
 
-Where RENDERED holds nothing to show, such as YAML front matter or a
-lone HTML comment, the block shows nothing and the region stays as it
-is.  The block is there all the same, so a live cycle does not convert
-the region again.  Any edit of the region takes the block down (see
+Where RENDERED holds nothing to show, such as text that renders to
+nothing, the block shows nothing and the region stays as it is.  The
+block is there all the same, so a live cycle does not convert the
+region again.  Any edit of the region takes the block down (see
 `overblock-stale-when-edited'): typing, a replacement over the buffer,
 a macro, an undo.  Point moving into the region reveals nothing."
   (when-let* ((block
@@ -1480,10 +1480,9 @@ number; a terminal pixel is a column, a graphic one is
   "Turn the space stretches of this buffer into real spaces.
 `overblock-flattened' is the string form of this.
 shr aligns table columns with `(space :align-to (N))' display specs,
-and vtable, with which comint-mime shows a DataFrame, with
-`(space :width (N))'.  Both count from the window they were measured
-in, and a block is shown with another indentation (line numbers,
-margins).  Literal padding aligns anywhere.  The walk is left to
+and vtable with `(space :width (N))'.  Both count from the window they
+were measured in, and a block is shown with another indentation (line
+numbers, margins).  Literal padding aligns anywhere.  The walk is left to
 right, so `current-column' sees the padding inserted before it."
   (goto-char (point-min))
   (let (match)
