@@ -1252,6 +1252,16 @@ not leave it, and no region rendered again."
           (should (overblock-live-wanted-p 6 9 'test-kind)))
       (overblock-live-stop 'test-kind))))
 
+(ert-deftest overblock-test-a-cycle-renders-again-on-request ()
+  "The render function of a cycle runs again when asked, and only its own."
+  (with-temp-buffer
+    (let ((calls 0))
+      (setq-local overblock-live--specs
+                  (list (list 'mine (lambda () (setq calls (1+ calls))) nil)))
+      (overblock-live-render-again 'mine)
+      (overblock-live-render-again 'other)
+      (should (= calls 1)))))
+
 (ert-deftest overblock-test-each-live-cycle-says-what-point-reveals ()
   "A cycle that keeps the rendering at point does so for its own kind.
 A notebook keeps its markdown cells, and a mode of the same buffer that

@@ -330,15 +330,16 @@ start, and again when the reader stops for =overblock-live-idle=
 seconds. A mode that sends a whole buffer through one converter does
 so from this one function.
 
-| Function or variable        | What it does                                    |
-|-----------------------------+-------------------------------------------------|
-| =overblock-live-start=      | start the cycle in this buffer                  |
-| =overblock-live-stop=       | stop the cycle of a kind, and remove its blocks |
-| =overblock-live-wanted-p=   | whether a region still wants a rendering        |
-| =overblock-live-edit=       | show the source of the region at point or click |
-| =overblock-live-map=        | the click on a rendering, which calls the above |
-| =overblock-live-drop-if=    | remove the live blocks that a predicate selects |
-| =overblock-width-functions= | what to call when the buffer changes width      |
+| Function or variable          | What it does                                    |
+|-------------------------------+-------------------------------------------------|
+| =overblock-live-start=        | start the cycle in this buffer                  |
+| =overblock-live-stop=         | stop the cycle of a kind, and remove its blocks |
+| =overblock-live-wanted-p=     | whether a region still wants a rendering        |
+| =overblock-live-edit=         | show the source of the region at point or click |
+| =overblock-live-map=          | the click on a rendering, which calls the above |
+| =overblock-live-drop-if=      | remove the live blocks that a predicate selects |
+| =overblock-live-render-again= | call the render function of a cycle now         |
+| =overblock-width-functions=   | what to call when the buffer changes width      |
 
 The render function must leave alone each region for which
 =overblock-live-wanted-p= is nil:

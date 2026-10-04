@@ -887,9 +887,8 @@ the live cycle of KIND again where one asked meanwhile."
           (run-with-timer 0 nil #'overblock-md--show-batch
                           buffer kind text show items)
         (let ((flight (overblock-md--land kind)))
-          (when-let* (((cdr flight))
-                      (spec (assq kind overblock-live--specs)))
-            (funcall (nth 1 spec))))))))
+          (when (cdr flight)
+            (overblock-live-render-again kind)))))))
 
 (defun overblock-md--verbatim-math (md)
   "Return MD with its display-math blocks wrapped in <pre>.

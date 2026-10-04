@@ -1097,6 +1097,13 @@ nothing, so scrolling does not make the text grow and shrink."
   (add-hook 'text-scale-mode-hook #'overblock--width-changed nil t)
   (funcall render))
 
+(defun overblock-live-render-again (kind)
+  "Call the render function of the live cycle of KIND in this buffer now.
+Nothing happens where no cycle of KIND is on.  For a renderer that held
+a cycle back while its process ran."
+  (when-let* ((spec (assq kind overblock-live--specs)))
+    (funcall (nth 1 spec))))
+
 (defun overblock-live-stop (kind)
   "Stop rendering the blocks of KIND in this buffer, and take them off.
 The hooks and the timer go with the last cycle of the buffer."
