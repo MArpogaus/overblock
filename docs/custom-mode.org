@@ -152,7 +152,7 @@ runner. This table is the one list of the slots.
 | =:arm=       | (THUNK)              | where =:start= gives nil                                      | call THUNK on the first prompt of a new or restarted shell                                                                                                           |
 | =:restart=   | (PROC)               | no, delete PROC and call =:start=                             | start a shell in place of PROC, the old process or nil                                                                                                               |
 | =:send=      | (PROC BEG END)       | yes                                                           | send the region to the process                                                                                                                                       |
-| =:prompt-p=  | (TAIL) → boolean     | yes                                                           | whether the raw tail of the output ends at a prompt                                                                                                                  |
+| =:prompt-p=  | (TAIL) → boolean     | yes                                                           | whether the tail of the output ends at a prompt                                                                                                                      |
 | =:clean=     | (TEXT) → string      | yes                                                           | the output as a block can show it                                                                                                                                    |
 | =:error-p=   | (TEXT) → boolean     | no, never                                                     | whether the region failed, which stops a pass. TEXT is the output after =:clean=                                                                                     |
 | =:step=      | () → boolean         | no, run the code at point and wait; go on where there is none | run what is at point, and say whether the pass waits for a prompt                                                                                                    |
@@ -281,8 +281,8 @@ Each row names what a mode uses, and links to the reference.
   line prompts after each line. The first prompt then ends the run.
   Send the region as one unit: a =source= call in R, a group in bash.
   A continuation prompt, such as =PS2= in bash, must print nothing.
-- *The prompt must be unique.* =:prompt-p= reads the last 256
-  characters of the output, without ANSI escapes. Output that ends like
+- *The prompt must be unique.* =:prompt-p= gets the newest output
+  and up to 256 characters before it, without ANSI escapes. Output that ends like
   the prompt ends the run too early.
 - *A tool without a prompt.* Let =:send= print a marker of its own
   after each region, and let =:prompt-p= take that marker for the
