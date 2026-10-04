@@ -542,6 +542,27 @@ binds none either.  For example:
               #\\='overblock-run-and-step)
   (keymap-set overblock-rmd-mode-map \"C-c C-k\" #\\='overblock-run-interrupt)")
 
+(defun overblock-rmd--stay-in-host (&optional off)
+  "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
+The commentary of this file says why.  Nothing happens where polymode
+is off.
+
+Called when the mode goes on and from `polymode-init-host-hook':
+polymode runs `markdown-mode-hook', which turns the mode on, before it
+sets `pm/polymode'."
+  (when (bound-and-true-p pm/polymode)
+    (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
+
+(defun overblock-rmd--no-preview ()
+  "Turn `overblock-md-preview-mode' off, because this mode renders the prose.
+Both would render the same paragraphs over each other.  Called when
+this mode goes on, and from the preview's own hook after that, so the
+order in which a configuration turns the two on does not matter."
+  (when (bound-and-true-p overblock-md-preview-mode)
+    (overblock-md-preview-mode -1)
+    (message "overblock-rmd: overblock-md-preview-mode off, %s"
+             "this mode renders the prose itself")))
+
 ;;;###autoload
 (define-minor-mode overblock-rmd-mode
   "Run the R chunks of this buffer and show their results inline.
@@ -590,29 +611,6 @@ The package installs no hook itself."
   (when (and buffer-file-name
              (string-match-p "\\.[rR]md\\'" buffer-file-name))
     (overblock-rmd-mode)))
-
-;;;; Hooks
-
-(defun overblock-rmd--stay-in-host (&optional off)
-  "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
-The commentary of this file says why.  Nothing happens where polymode
-is off.
-
-Called when the mode goes on and from `polymode-init-host-hook':
-polymode runs `markdown-mode-hook', which turns the mode on, before it
-sets `pm/polymode'."
-  (when (bound-and-true-p pm/polymode)
-    (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
-
-(defun overblock-rmd--no-preview ()
-  "Turn `overblock-md-preview-mode' off, because this mode renders the prose.
-Both would render the same paragraphs over each other.  Called when
-this mode goes on, and from the preview's own hook after that, so the
-order in which a configuration turns the two on does not matter."
-  (when (bound-and-true-p overblock-md-preview-mode)
-    (overblock-md-preview-mode -1)
-    (message "overblock-rmd: overblock-md-preview-mode off, %s"
-             "this mode renders the prose itself")))
 
 (provide 'overblock-rmd)
 ;;; overblock-rmd.el ends here
