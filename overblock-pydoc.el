@@ -58,13 +58,6 @@
   :group 'overblock
   :prefix "overblock-pydoc-")
 
-(defface overblock-pydoc-footer '((t :inherit shadow :underline t))
-  "Face of the rule below a rendered doc string.
-The underline closes what the overline of `overblock-bar' opens above.
-A rule that a face draws runs from the start of the text of the bar,
-the indentation of the doc string, to the edge of the window, so
-nothing has to measure it.")
-
 (defcustom overblock-pydoc-bar-buttons
   '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
@@ -131,6 +124,22 @@ doc string in it.
 `rst-mode' is built in.  Name another mode here to use it instead."
   :type '(alist :key-type symbol :value-type function))
 
+;;;; Faces
+
+(defface overblock-pydoc-footer '((t :inherit shadow :underline t))
+  "Face of the rule below a rendered doc string.
+The underline closes what the overline of `overblock-bar' opens above.
+A rule that a face draws runs from the start of the text of the bar,
+the indentation of the doc string, to the edge of the window, so
+nothing has to measure it.")
+
+;;;; State
+
+(defvar-local overblock-pydoc--regions-cache nil
+  "The doc strings of this buffer, for `overblock-cached'.
+The live cycle re-arms from `post-command-hook', and without the cache
+each motion of point walks the whole buffer again for the same answer.")
+
 ;;;; Regions
 
 (defun overblock-pydoc--doc-face-p (pos)
@@ -194,11 +203,6 @@ because it reads the first two of three quotes as an empty string."
             ;; Two quotes more for a fence of three: the scan ends the
             ;; string at the first of the three closing quotes.
             (min limit (+ (point) (1- fence)))))))))
-
-(defvar-local overblock-pydoc--regions-cache nil
-  "The doc strings of this buffer, for `overblock-cached'.
-The live cycle re-arms from `post-command-hook', and without the cache
-each motion of point walks the whole buffer again for the same answer.")
 
 (defun overblock-pydoc--regions ()
   "Return every doc string of the accessible buffer, in order.

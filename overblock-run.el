@@ -185,8 +185,6 @@ A list of (WINDOW START VSCROLL POINT).  Only a command is the reader:
 redisplay moves a start for a scroll margin, and output arrives
 between commands, so neither stops the scrolling.")
 
-;;;; Backend
-
 (defvar-local overblock-run--backend nil
   "The backend of the shell of this buffer, a plist, or nil.
 docs/custom-mode.org lists the slots.  The mode of a notebook
@@ -195,6 +193,8 @@ buffer that has one.
 
 `overblock-run--send' copies it into the shell buffer, where the filter
 and the ticker read it.")
+
+;;;; Backend
 
 (defun overblock-run--call (slot &rest args)
   "Call SLOT of the backend of this buffer on ARGS, or return nil."

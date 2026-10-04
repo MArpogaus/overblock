@@ -52,6 +52,8 @@
   :group 'overblock
   :prefix "overblock-quote-")
 
+;;;; Faces
+
 (defface overblock-quote '((t :inherit (italic font-lock-comment-face)))
   "Face of a rendered quote.")
 

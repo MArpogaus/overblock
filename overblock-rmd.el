@@ -147,6 +147,13 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 `overblock-run-save-image' writes the original."
   :type '(cons (number :tag "Width") (number :tag "Height")))
 
+;;;; State
+
+(defvar-local overblock-rmd--chunks-cache nil
+  "The chunks of the last walk, for `overblock-cached'.
+The bars and a pass ask for the chunk of each start, and the walk reads
+the whole buffer.")
+
 ;;;; Regions
 
 (defconst overblock-rmd--chunk-regexp
@@ -155,11 +162,6 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 The whole engine name, then a blank before the chunk name, a comma
 before the options, or the closing brace.  So a ```{rmarkdown} chunk is
 not taken for R.")
-
-(defvar-local overblock-rmd--chunks-cache nil
-  "The chunks of the last walk, for `overblock-cached'.
-The bars and a pass ask for the chunk of each start, and the walk reads
-the whole buffer.")
 
 (defun overblock-rmd--chunks ()
   "Return the R chunks of the buffer, in order.

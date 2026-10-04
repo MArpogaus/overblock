@@ -42,7 +42,9 @@ mode does not need is not there.
 
 | Section   | What it holds                                                     |
 |-----------+-------------------------------------------------------------------|
-| Options   | the =defgroup=, the faces and the user options                    |
+| Options   | the =defgroup= and the user options                               |
+| Faces     | the faces                                                         |
+| State     | the buffer-local variables, such as a cache of the regions        |
 | Regions   | the walk that finds the regions, and the region at point          |
 | Bars      | the bar of a region, in a notebook                                |
 | Rendering | the function that shows one region, and the render function       |
