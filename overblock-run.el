@@ -684,22 +684,14 @@ a pass here."
             (setq-local overblock-run--backend backend))))
       shell))))
 
-(defun overblock-run--running-region ()
-  "Return the region the shell of this buffer runs, as (BEG . END).
-Markers in the buffer of the region, which can be another one: two
-notebooks can share a shell.  Return nil where nothing runs.  Public
-because a caller that moves text must know what must not move."
-  (when-let* ((shell (overblock-run--shell))
-              (state (buffer-local-value 'overblock-run--state shell))
-              (beg (plist-get state :beg)))
-    (cons beg (plist-get state :end))))
-
 (defun overblock-run-running-in-p (beg end)
   "Return non-nil where the region the shell runs starts in BEG..END.
+A caller that moves text asks this: the run holds markers into it.
 Only in this buffer: another notebook on the same shell can be the one
 running."
-  (when-let* ((running (overblock-run--running-region))
-              (mark (car running))
+  (when-let* ((shell (overblock-run--shell))
+              (mark (plist-get (buffer-local-value 'overblock-run--state shell)
+                               :beg))
               ((eq (marker-buffer mark) (current-buffer))))
     (<= beg mark end)))
 

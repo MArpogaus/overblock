@@ -39,7 +39,7 @@
 (defun overblock-sh-live-test--idle-p ()
   "Return non-nil while bash is there, runs no cell and has none queued."
   (and (overblock-sh--process)
-       (not (overblock-run--running-region))
+       (not (overblock-run-running-in-p (point-min) (point-max)))
        (not (overblock-run--queued))))
 
 (defun overblock-sh-live-test--texts ()

@@ -359,22 +359,18 @@ this test runs them."
       ;; The result of the running region goes too.
       (should-not (overblock-run-test--result notebook)))))
 
-(ert-deftest overblock-run-test-the-running-region-is-public ()
-  "`overblock-run--running-region' returns the markers of what runs.
-Called in the notebook, it reads the state in the shell, and the
-markers are in the notebook."
+(ert-deftest overblock-run-test-the-notebook-finds-the-running-region ()
+  "`overblock-run-running-in-p' reads the state in the shell.
+Called in the notebook, it finds the region that runs there."
   (overblock-run-test--with-run
     (with-current-buffer notebook
-      (pcase-let ((`(,beg . ,end) (overblock-run--running-region)))
-        (should (eq (marker-buffer beg) notebook))
-        (should (= beg (point-min)))
-        (should (= end (save-excursion (goto-char (point-min)) (pos-eol))))))
+      (should (overblock-run-running-in-p (point-min) (point-min))))
     ;; Nothing once the run is over.
     (goto-char (point-max))
     (insert ">>> ")
     (overblock-run--filter ">>> ")
     (with-current-buffer notebook
-      (should-not (overblock-run--running-region)))))
+      (should-not (overblock-run-running-in-p (point-min) (point-max))))))
 
 (ert-deftest overblock-run-test-a-follower-gets-the-output-as-it-comes ()
   "A buffer that follows the run is written what the region prints.
