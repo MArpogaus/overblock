@@ -136,25 +136,25 @@ The backend is a plist. =overblock-run-attach= sets it as the
 buffer-local =overblock-run-backend=, and =overblock-run-detach= removes
 it. This table is the one list of the slots.
 
-| Slot         | Signature        | Required                          | What it answers                                                      |
-|--------------+------------------+-----------------------------------+----------------------------------------------------------------------|
-| =:name=      | string           | no, "overblock"                   | the word that messages carry, as in "NAME: stopped at error"         |
-| =:unit=      | string           | no, "region"                      | what a region is called in a message or a tooltip: "cell", "chunk"   |
-| =:process=   | () → process     | yes                               | the live shell process of the notebook, or nil                       |
-| =:start=     | () → process     | yes                               | start a shell, and give it where it takes a region at once, else nil |
-| =:arm=       | (THUNK)          | where =:start= gives nil          | call THUNK on the first prompt of a new or restarted shell           |
-| =:restart=   | (PROC) → process | yes                               | start a shell in place of PROC, the old process or nil               |
-| =:send=      | (PROC BEG END)   | yes                               | send the region to the process                                       |
-| =:prompt-p=  | (TAIL) → boolean | yes                               | whether the output ends at a prompt                                  |
-| =:clean=     | (TEXT) → string  | yes                               | the output as a block can show it                                    |
-| =:error-p=   | (TEXT) → boolean | no, never                         | whether the region failed, which stops a pass                        |
-| =:step=      | () → boolean     | yes                               | run what is at point, and say whether the pass waits for a prompt    |
-| =:region-at= | () → cons        | yes                               | the region point is in, as =(BEG . END)=, or nil                     |
-| =:code-at=   | () → cons        | no, the region                    | what of that region goes to the shell, or nil for none               |
-| =:starts=    | () → markers     | yes                               | a marker on the start of each region, in order                       |
-| =:bar=       | () → overlays    | no, no bars                       | draw the bars of the region that starts at point, and return them    |
-| =:buttons=   | symbol           | no, no buttons                    | the option that holds the buttons of a result header                 |
-| =:stale=     | (BLOCK)          | no, =overblock-stale-when-edited= | make a new result block go on an edit                                |
+| Slot         | Signature        | Required                           | What it answers                                                      |
+|--------------+------------------+------------------------------------+----------------------------------------------------------------------|
+| =:name=      | string           | no, "overblock"                    | the word that messages carry, as in "NAME: stopped at error"         |
+| =:unit=      | string           | no, "region"                       | what a region is called in a message or a tooltip: "cell", "chunk"   |
+| =:process=   | () → process     | yes                                | the live shell process of the notebook, or nil                       |
+| =:start=     | () → process     | yes                                | start a shell, and give it where it takes a region at once, else nil |
+| =:arm=       | (THUNK)          | where =:start= gives nil           | call THUNK on the first prompt of a new or restarted shell           |
+| =:restart=   | (PROC) → process | yes                                | start a shell in place of PROC, the old process or nil               |
+| =:send=      | (PROC BEG END)   | yes                                | send the region to the process                                       |
+| =:prompt-p=  | (TAIL) → boolean | yes                                | whether the output ends at a prompt                                  |
+| =:clean=     | (TEXT) → string  | yes                                | the output as a block can show it                                    |
+| =:error-p=   | (TEXT) → boolean | no, never                          | whether the region failed, which stops a pass                        |
+| =:step=      | () → boolean     | no, run the code at point and wait | run what is at point, and say whether the pass waits for a prompt    |
+| =:region-at= | () → cons        | yes                                | the region point is in, as =(BEG . END)=, or nil                     |
+| =:code-at=   | () → cons        | no, the region                     | what of that region goes to the shell, or nil for none               |
+| =:starts=    | () → markers     | yes                                | a marker on the start of each region, in order                       |
+| =:bar=       | () → overlays    | no, no bars                        | draw the bars of the region that starts at point, and return them    |
+| =:buttons=   | symbol           | no, no buttons                     | the option that holds the buttons of a result header                 |
+| =:stale=     | (BLOCK)          | no, =overblock-stale-when-edited=  | make a new result block go on an edit                                |
 
 =:process=, =:start=, =:arm=, =:restart=, =:send=, =:step=,
 =:region-at=, =:code-at=, =:starts= and =:bar= run in the notebook.

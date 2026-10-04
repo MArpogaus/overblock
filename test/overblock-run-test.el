@@ -494,6 +494,23 @@ Its start message must not cover the done it says at once."
           (overblock-run-interrupt)
           (should (equal said "runtest: interrupted")))))))
 
+(ert-deftest overblock-run-test-a-backend-without-step-sends-the-code ()
+  "With no `:step', a pass sends the code at point and waits for it."
+  (with-temp-buffer
+    (insert "# head\ncode\n")
+    (setq-local overblock-run-backend
+                (list :region-at (lambda () (cons 1 (point-max)))
+                      :code-at (lambda () (cons 8 (point-max)))))
+    (let (sent)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (setq sent (cons beg end)))))
+        (should (overblock-run--step-at (point-min-marker)))
+        (should (equal sent (cons 8 (point-max))))
+        (setq overblock-run-backend
+              (list :region-at (lambda () (cons 1 (point-max)))))
+        (should (overblock-run--step-at (point-min-marker)))
+        (should (equal sent (cons 1 (point-max))))))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty

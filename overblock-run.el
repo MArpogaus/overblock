@@ -773,7 +773,19 @@ up."
       (progn (overblock-run--send (overblock-run--call :process)
                                   (car entry) (cdr entry))
              t)
-    (overblock-run--call :step)))
+    (if (plist-get overblock-run-backend :step)
+        (overblock-run--call :step)
+      ;; No `:step': every region is code to send, and the walk waits.
+      (when-let* ((code (overblock-run--code-at)))
+        (overblock-run-region (car code) (cdr code))
+        t))))
+
+(defun overblock-run--code-at ()
+  "Return what of the region at point goes to the shell, as (BEG . END).
+The `:code-at' of the backend where it has one, else the `:region-at'."
+  (overblock-run--call (if (plist-get overblock-run-backend :code-at)
+                           :code-at
+                         :region-at)))
 
 (defun overblock-run-on-prompt (cells message)
   "Arm CELLS to run on the first prompt of the shell, and say MESSAGE.
@@ -1494,9 +1506,7 @@ region sent while another one runs is queued behind it."
   (overblock-goto-event event)
   (overblock-run--must)
   (pcase-let ((`(,beg . ,end)
-               (or (overblock-run--call (if (plist-get overblock-run-backend :code-at)
-                                            :code-at
-                                          :region-at))
+               (or (overblock-run--code-at)
                    (user-error "No %s to run here" (overblock-run--unit)))))
     (overblock-run-region beg end)))
 

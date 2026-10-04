@@ -185,13 +185,6 @@ This is the `:error-p' of the backend: the exit status that
 `overblock-sh--send' adds, or a syntax error, which runs nothing."
   (string-match-p "^\\[exit [0-9]+\\]\\'\\|^bash: syntax error" text))
 
-(defun overblock-sh--step ()
-  "Run the cell at point, and say that the walk waits for its prompt.
-This is the `:step' of the backend."
-  (when-let* ((code (overblock-sh--code-at)))
-    (overblock-run-region (car code) (cdr code))
-    t))
-
 (defun overblock-sh--backend ()
   "Return what `overblock-run' needs to drive a bash.
 docs/custom-mode.org lists the slots."
@@ -204,7 +197,6 @@ docs/custom-mode.org lists the slots."
         :prompt-p #'overblock-sh--prompt-p
         :clean #'overblock-sh--clean
         :error-p #'overblock-sh--error-p
-        :step #'overblock-sh--step
         :region-at #'overblock-sh--region-at
         :code-at #'overblock-sh--code-at
         :starts #'overblock-sh--starts
