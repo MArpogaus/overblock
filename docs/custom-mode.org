@@ -181,6 +181,7 @@ notebook then shows the same row:
   (defcustom overblock-sh-bar-buttons (overblock-run-bar-buttons "cell")
     ...
     :type overblock-button-type
+    :initialize #'custom-initialize-default
     :set #'overblock-run-set-and-redraw)
 #+end_src
 
@@ -286,7 +287,9 @@ Each row names what a mode uses, and links to the reference.
 - *An option that the blocks show.* Give it a =:set= of
   =overblock-run-set-and-redraw= in a notebook, or of
   =overblock-live-set-and-redraw= in a render mode. Then a change shows
-  at once.
+  at once. Give it an =:initialize= of =custom-initialize-default= too.
+  Then the load of the mode does not draw the buffers of other modes
+  again.
 - *The render function runs at each stop of the reader.* It must render
   only what =overblock-live-wanted-p= allows. A walk of a large buffer
   is slow, so keep it with =overblock-cached=.

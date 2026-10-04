@@ -105,6 +105,7 @@ Rmd notebook.
 The two move buttons come last, as on every bar (see
 `overblock-pycell--move-buttons')."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-result-buttons
@@ -118,6 +119,7 @@ notebook; the pair that moves a cell belongs to this notebook.
 Drop, reorder or change entries as you like.  The fold arrow and the
 spinner are not in this list: they show the state of the result."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-md-buttons
@@ -129,6 +131,7 @@ An entry has the shape `overblock-buttons' reads.  A markdown cell has
 no output, so `lines' and `image' mean nothing here.  There is no
 button for the source: a click on the rendering shows it."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-pycell-source-buttons
@@ -140,6 +143,7 @@ An entry has the shape `overblock-buttons' reads.  Such a cell is new,
 or was taken back to its source with `overblock-live-edit'; the
 render button renders it."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 ;;;; Regions

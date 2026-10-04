@@ -73,7 +73,6 @@ An entry has the shape `overblock-buttons' reads.  A click on the
 rendering already shows the source in place, so there is no button
 for that."
   :type overblock-button-type
-  ;; Not at load: that would render every live buffer again.
   :initialize #'custom-initialize-default
   :set #'overblock-live-set-and-redraw)
 

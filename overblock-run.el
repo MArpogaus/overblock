@@ -121,6 +121,7 @@ For width, see `overblock-run-max-line-length'.  A change applies to
 the results on the screen."
   :type 'natnum
   :group 'overblock
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-run-max-line-length 2000
@@ -135,6 +136,7 @@ holds on every redisplay.  A change applies to the results on the
 screen."
   :type 'natnum
   :group 'overblock
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-run-scroll t

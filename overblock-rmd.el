@@ -123,6 +123,7 @@ The default is `overblock-run-bar-buttons' worded for a chunk: the row
 of the `.py' notebook without the two that move a cell, because a
 chunk sits inside prose about it."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-result-buttons
@@ -134,6 +135,7 @@ An entry has the shape `overblock-buttons' reads.  The default is
 inside prose about it.  The fold arrow and the spinner are not in this
 list: they show the state of the result."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-rmd-figure-size '(7 . 5)

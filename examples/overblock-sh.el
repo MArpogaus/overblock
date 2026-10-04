@@ -58,6 +58,7 @@
   "The buttons on the bar of a cell, left to right.
 An entry has the shape `overblock-buttons' reads."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 (defcustom overblock-sh-result-buttons
@@ -65,6 +66,7 @@ An entry has the shape `overblock-buttons' reads."
   "The buttons on the header of a result, left to right.
 An entry has the shape `overblock-buttons' reads."
   :type overblock-button-type
+  :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
 ;;;; Regions
