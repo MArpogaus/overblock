@@ -339,7 +339,7 @@ the overlay, and the cloak of a rendering can cover that place.
 =overblock--bar-draw= rebuilds a bar only when the text of its line,
 its glyph, its label or its icons change. Thus a caller can draw from a
 change hook. A change of width marks each bar stale through
-=overblock--bar-stale=.
+=overblock-bars-stale=.
 
 ** A column of slack
 

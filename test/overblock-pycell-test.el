@@ -579,7 +579,9 @@ no height, with the same effect."
 (ert-deftest overblock-pycell-test-md-comment-round-trip ()
   "Commenting and uncommenting a markdown cell is lossless."
   (let ((md "# Title\n\nSome *text*.\n\nMore."))
-    (should (equal (overblock-pycell--md-uncomment (overblock-pycell--md-comment md)) md))
+    (with-temp-buffer
+      (insert (overblock-pycell--md-comment md))
+      (should (equal (overblock-pycell--source (point-min) (point-max)) md)))
     (should (equal (overblock-pycell--md-comment "a\n\nb") "# a\n#\n# b"))))
 
 (ert-deftest overblock-pycell-test-md-cell-start-needs-the-boundary-line ()

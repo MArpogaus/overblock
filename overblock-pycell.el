@@ -258,13 +258,11 @@ its kind."
 
 ;;;; Rendering
 
-(defun overblock-pycell--md-uncomment (text)
-  "Strip the comment prefixes from the markdown cell TEXT."
-  (replace-regexp-in-string "^# ?" "" text))
-
 (defun overblock-pycell--source (beg end)
-  "Return the markdown cell BEG..END as the converter reads it."
-  (overblock-pycell--md-uncomment (buffer-substring-no-properties beg end)))
+  "Return the markdown cell BEG..END as the converter reads it.
+The comment prefixes go."
+  (replace-regexp-in-string "^# ?" ""
+                            (buffer-substring-no-properties beg end)))
 
 (defvar-keymap overblock-pycell-md-map
   :doc "Keymap on rendered markdown cells.

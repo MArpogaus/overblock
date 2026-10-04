@@ -1541,9 +1541,10 @@ See `overblock-flatten-alignment' for why a copy needs them literal."
 
 (defun overblock-bars-stale ()
   "Mark every bar of this buffer stale, so the next draw rebuilds it.
-For a change that no bar can see: another glyph, another list of
-buttons, another window width."
-  (mapc #'overblock--bar-stale (overblock-bars)))
+For a change that `overblock--bar-draw' cannot see: another glyph,
+another list of buttons, another window width."
+  (dolist (ov (overblock-bars))
+    (overlay-put ov 'overblock-bar-state nil)))
 
 (defun overblock--forget-glyphs ()
   "Forget the glyphs answered so far, and mark the bars to be drawn again.
@@ -1554,27 +1555,23 @@ first."
   (clrhash overblock--button-rows)
   (overblock-bars-stale))
 
-(defun overblock--glyph-drawn-p (candidate)
-  "Return non-nil where this frame draws every character of CANDIDATE.
-`char-displayable-p' tests the font on a graphic frame and the coding
-system on a terminal.  `overblock-glyph' decides whether a terminal is
-tested at all."
-  (seq-every-p #'char-displayable-p candidate))
-
 (defun overblock-glyph (&rest candidates)
   "Return the first of CANDIDATES this frame can draw.
 The last candidate is the answer when none can be drawn, and in a
 terminal unless `overblock-terminal-glyphs' is non-nil.
 
 Every character of a candidate must be drawable, not only the first:
-some start with a space."
+some start with a space.  `char-displayable-p' tests the font on a
+graphic frame and the coding system on a terminal."
   (with-memoization (gethash (list (display-graphic-p)
                                    (frame-parameter nil 'font)
                                    overblock-terminal-glyphs
                                    candidates)
                              overblock--glyphs)
     (or (and (or (display-graphic-p) overblock-terminal-glyphs)
-             (seq-find #'overblock--glyph-drawn-p candidates))
+             (seq-find (lambda (candidate)
+                         (seq-every-p #'char-displayable-p candidate))
+                       candidates))
         (car (last candidates)))))
 
 (defun overblock--button-release ()
@@ -1835,13 +1832,6 @@ the split moves nothing."
     (overlay-put ov 'before-string (substring text 0 -1))
     (overlay-put ov 'display (propertize (substring text -1) 'cursor t)))
   (overlay-put ov 'after-string nil))
-
-(defun overblock--bar-stale (ov)
-  "Make OV forget what it was drawn from, so the next draw rebuilds it.
-`overblock--bar-draw' leaves a bar as it is where nothing it compares
-changed.  A change it cannot see is declared here, such as a new
-width, from `overblock--width-changed', or a customized button list."
-  (overlay-put ov 'overblock-bar-state nil))
 
 (defun overblock-bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
