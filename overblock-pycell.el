@@ -169,8 +169,8 @@ This is the `:region-at' of the backend."
 
 (defun overblock-pycell--starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
-The text above the first boundary line is a cell too, where there is
-any."
+This is the `:starts' of the backend.  The text above the first
+boundary line is a cell too, where there is any."
   (save-excursion
     (goto-char (point-min))
     (let ((cells (unless (looking-at-p code-cells-boundary-regexp)
@@ -205,7 +205,7 @@ without the tag list of a =# %% [markdown]= line."
         (unless (string-empty-p title) title)))))
 
 (defun overblock-pycell--regions ()
-  "Return the body of every markdown cell of the buffer, in order.
+  "Return every markdown cell of the buffer, in order.
 Each is a cons of the start and the end of the body, which is the next
 boundary line or the end of the buffer.  An empty cell is left out."
   (save-excursion
@@ -276,7 +276,7 @@ the first boundary line has none."
   (replace-regexp-in-string "^# ?" "" text))
 
 (defun overblock-pycell--source (beg end)
-  "Return the markdown of the cell body BEG..END, as the converter reads it."
+  "Return the markdown cell BEG..END as the converter reads it."
   (overblock-pycell--md-uncomment (buffer-substring-no-properties beg end)))
 
 (defvar-keymap overblock-pycell-md-map
@@ -300,9 +300,9 @@ reader stops."
       (save-excursion (goto-char from) (overblock-pycell--bar)))))
 
 (defun overblock-pycell--show (beg end &optional html)
-  "Show the markdown cell body BEG..END rendered, in place.
-With HTML, the cell is not converted again: it was converted with the
-rest of the buffer.
+  "Render the markdown cell BEG..END over its own source, and return the block.
+HTML is the answer of the converter for it, when a batch converted the
+whole buffer.
 
 The rendering hangs on the source lines, a piece to a line (see
 `overblock--pieces'), so the cell scrolls like text and is as tall as
@@ -363,15 +363,15 @@ See `overblock-pycell--show', which renders and calls this."
 
 ;;;###autoload
 (defun overblock-pycell-render-buffer ()
-  "Render the markdown cells of the buffer that want it.
-A markdown cell is one whose boundary line reads \"# %% [markdown]\",
-and `overblock-live-wanted-p' says which want rendering: not those
-rendered already, and not the one whose rendering came off while point
-is still in it.  The live cycle of the
-mode calls this whenever the reader stops.
-
+  "Render every markdown cell of the buffer that wants it.
 One asynchronous converter process does all of them, so the reader
-does not wait.  Nothing happens without a converter;
+does not wait.  `overblock-live-start' calls this again whenever the
+reader stops.
+
+A markdown cell is one whose boundary line reads \"# %% [markdown]\".
+`overblock-live-wanted-p' says which want rendering: not those
+rendered already, and not the one whose rendering came off while point
+is still in it.  Nothing happens without a converter;
 `overblock-pycell-mode' says so once when it goes on."
   (interactive)
   (overblock-md-render-regions
@@ -485,10 +485,11 @@ Tracebacks then count lines from the top of the cell, not the file."
    proc))
 
 (defun overblock-pycell--send (proc beg end)
-  "Send BEG..END to PROC, as the `:send' of the backend.
-A cell of IPython syntax goes to the reader of IPython; every other
-one goes through `python-shell-send-region', which pads it so the line
-numbers of a traceback match the buffer."
+  "Send the cell BEG..END to PROC.
+This is the `:send' of the backend.  A cell of IPython syntax goes
+to the reader of IPython; every other one goes through
+`python-shell-send-region', which pads it so the line numbers of a
+traceback match the buffer."
   (if (overblock-pycell--ipython-syntax-p beg end)
       (overblock-pycell--send-to-ipython
        proc (buffer-substring-no-properties beg end))
@@ -526,10 +527,11 @@ buffer, where that variable has its value."
 
 (defun overblock-pycell--clean (text)
   "Return TEXT as a result block can show it.
-The prompts, the Out[N] labels and the prompt face go, and the copy is
-cut loose from the shell: see `overblock-pycell--strip-prompts',
-`overblock-repl-drop-prompt-face' and `overblock-repl-detach'.  Call
-this in the shell buffer, where `comint-prompt-regexp' has its value."
+This is the `:clean' of the backend.  The prompts, the Out[N] labels
+and the prompt face go, and the copy is cut loose from the shell: see
+`overblock-pycell--strip-prompts', `overblock-repl-drop-prompt-face'
+and `overblock-repl-detach'.  Call this in the shell buffer, where
+`comint-prompt-regexp' has its value."
   (overblock-repl-detach
    (overblock-repl-drop-prompt-face (overblock-pycell--strip-prompts text))))
 
@@ -555,10 +557,10 @@ colon and a message.")
 
 (defun overblock-pycell--error-p (text)
   "Return non-nil when TEXT is the output of a cell that failed.
-A traceback says so in its first line, but `SyntaxError' prints no
-traceback line, and an interrupt or `sys.exit()' prints only the bare
-name.  So the last line, where the name of the exception is, counts
-too."
+This is the `:error-p' of the backend.  A traceback says so in its
+first line, but `SyntaxError' prints no traceback line, and an
+interrupt or `sys.exit()' prints only the bare name.  So the last
+line, where the name of the exception is, counts too."
   (or (string-match-p "Traceback (most recent call last)" text)
       (when-let* ((lines (split-string (string-trim-right text) "\n" t "[ \t\r]+"))
                   (last (car (last lines))))
@@ -586,9 +588,9 @@ cell below, whose `insert-in-front-hooks' would remove its result.")
 
 (defun overblock-pycell--stale-when-edited (block)
   "Take BLOCK down on the next edit of the text it covers.
-Not during a move (see `overblock-pycell--moving').  The rendering and
-the bar above a rendered cell come down, through
-`overblock-pycell--drop-rendering'."
+This is the `:stale' of the backend.  Not during a move (see
+`overblock-pycell--moving').  The rendering and the bar above a
+rendered cell come down, through `overblock-pycell--drop-rendering'."
   (overblock-stale-when-edited
    block (lambda (block)
            (unless overblock-pycell--moving (overblock-pycell--drop-rendering block)))))

@@ -210,13 +210,15 @@ a point at the end of the code find the same one."
 
 (defun overblock-rmd--region-at ()
   "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
-From its opening fence, where `overblock-rmd--starts' marks it, to the
-end of its code, where its result hangs."
+This is the `:region-at' of the backend.  The region runs from the
+opening fence, where `overblock-rmd--starts' marks it, to the end of
+the code, where the result hangs."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (cons (nth 0 chunk) (nth 2 chunk))))
 
 (defun overblock-rmd--starts ()
-  "Return a marker on the opening fence of every chunk, in order."
+  "Return a marker on the opening fence of every chunk, in order.
+This is the `:starts' of the backend."
   (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
           (overblock-rmd-chunks)))
 
@@ -241,7 +243,7 @@ is plot-one.  The word must end at a comma or a brace, so
       (match-string-no-properties 1))))
 
 (defun overblock-rmd--regions ()
-  "Return the prose blocks of the buffer, in order.
+  "Return every prose block of the buffer, in order.
 The paragraphs, not the fences: a chunk is code that runs, so the live
 cycle renders the prose and leaves the chunks alone."
   (overblock-md-regions 'prose-only))
@@ -297,8 +299,8 @@ none."
 
 (defun overblock-rmd--show (beg end &optional html)
   "Render the prose BEG..END over its own source, and return the block.
-HTML is the answer of the converter for it, where a batch converted
-the buffer."
+HTML is the answer of the converter for it, when a batch converted the
+whole buffer."
   (overblock-md-show beg end (overblock-md-source beg end) html 'default
                      :kind 'rmd
                      :keymap overblock-live-map
@@ -306,10 +308,10 @@ the buffer."
 
 ;;;###autoload
 (defun overblock-rmd-render-buffer ()
-  "Render the prose of the buffer that is not rendered yet.
-One asynchronous converter process does all of it, so the reader does
-not wait.  `overblock-live-start' calls this again whenever the reader
-stops."
+  "Render every prose block of the buffer that wants it.
+One asynchronous converter process does all of them, so the reader
+does not wait.  `overblock-live-start' calls this again whenever the
+reader stops."
   (interactive)
   (overblock-md-render-regions (overblock-rmd--regions) 'rmd
                                #'overblock-md-source #'overblock-rmd--show))
@@ -329,8 +331,8 @@ session, Julia and Stata too."
 
 (defun overblock-rmd--process ()
   "Return the live R process of this buffer, or nil for none.
-ESS keeps the name in `ess-local-process-name', and
-`overblock-rmd--start' sets it.
+This is the `:process' of the backend.  ESS keeps the name in
+`ess-local-process-name', and `overblock-rmd--start' sets it.
 
 When this buffer has no name yet and exactly one R runs, this adopts
 that R and sets the name, as `ess-request-a-process' does.  The side
@@ -407,11 +409,12 @@ default applies."
                     (cons "dpi" 96))))))
 
 (defun overblock-rmd--send (proc beg end)
-  "Send the chunk BEG..END to PROC, as the backend's `:send'.
-The chunk is wrapped in a `source' of its own parse, so it is one
-statement and one prompt comes back at its end.  `print.eval' makes R
-print the value of every top level expression.  The commentary of this
-file says why the lines are not sent one by one.
+  "Send the chunk BEG..END to PROC.
+This is the `:send' of the backend.  The chunk is wrapped in a
+`source' of its own parse, so it is one statement and one prompt
+comes back at its end.  `print.eval' makes R print the value of every
+top level expression.  The commentary of this file says why the lines
+are not sent one by one.
 
 Around the `source', a PNG device opens before the chunk at the size
 of `overblock-rmd--figure-size' and closes after it, whatever the
@@ -444,15 +447,16 @@ source(exprs = parse(text = %s), print.eval = TRUE)})"
 
 (defun overblock-rmd--prompt-p (tail)
   "Return non-nil where TAIL ends at R's prompt.
-`inferior-ess-primary-prompt' says what a prompt looks like, as in
-`inferior-ess--set-status'.  Call this in the shell buffer, where the
-variable has its value."
+This is the `:prompt-p' of the backend.  `inferior-ess-primary-prompt'
+says what a prompt looks like, as in `inferior-ess--set-status'.  Call
+this in the shell buffer, where the variable has its value."
   (string-match-p (concat inferior-ess-primary-prompt "\\'") tail))
 
 (defun overblock-rmd--clean (text)
   "Return TEXT as a result block can show it.
-The prompt goes, the figures come in, and the copy is cut loose from
-the shell.  Call this in the shell buffer.
+This is the `:clean' of the backend.  The prompt goes, the figures
+come in, and the copy is cut loose from the shell.  Call this in the
+shell buffer.
 
 A chunk goes to R as one statement, so one prompt comes back, last.
 The prompt is `inferior-ess-primary-prompt', not `comint-prompt-regexp':
@@ -475,7 +479,8 @@ call on the next line, `Error: ' where there is none, and a bare
 
 (defun overblock-rmd--error-p (text)
   "Return non-nil where TEXT is the output of a chunk that failed.
-A pass over the buffer stops at the first such chunk.
+This is the `:error-p' of the backend.  A pass over the buffer stops
+at the first such chunk.
 
 A line of the output that matches `overblock-rmd--error-regexp' marks
 it: R writes its errors to the same stream as all other output."

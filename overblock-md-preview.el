@@ -61,8 +61,8 @@
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
-HTML is the answer of `overblock-md-html-batch-async' for this block,
-when a caller sent the whole buffer through one process.
+HTML is the answer of the converter for it, when a batch converted the
+whole buffer.
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
   (overblock-md-show beg end (overblock-md-source beg end) html 'default
@@ -72,12 +72,10 @@ piece to a line, so a tall block scrolls like text."
 
 ;;;###autoload
 (defun overblock-md-preview-render-buffer ()
-  "Render every block of the buffer that is not rendered yet.
-One asynchronous converter process does the whole buffer, so the
-reader does not wait for it.
-
-`overblock-live-start' calls this again whenever the reader stops.
-`overblock-md-render-regions' is the batch."
+  "Render every block of the buffer that wants it.
+One asynchronous converter process does all of them, so the reader
+does not wait.  `overblock-live-start' calls this again whenever the
+reader stops.  `overblock-md-render-regions' is the batch."
   (interactive)
   (overblock-md-render-regions
    (overblock-md-regions)

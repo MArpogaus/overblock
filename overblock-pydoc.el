@@ -200,7 +200,7 @@ The live cycle re-arms from `post-command-hook', and without the cache
 each motion of point walks the whole buffer again for the same answer.")
 
 (defun overblock-pydoc--regions ()
-  "Return the bounds of every doc string of the accessible buffer.
+  "Return every doc string of the accessible buffer, in order.
 Each is a cons of the position of the opening quote and the one after
 the closing quote.
 
@@ -384,9 +384,9 @@ leaves the indentation of the source in view (the `:indent' of
       (overblock-pydoc--bar summary indent))))
 
 (defun overblock-pydoc--show (beg end &optional html)
-  "Render the doc string BEG..END over its own source, and return it.
-HTML is the answer of the converter for this doc string, when a caller
-sent the whole buffer through one process.
+  "Render the doc string BEG..END over its own source, and return the block.
+HTML is the answer of the converter for it, when a batch converted the
+whole buffer.
 
 Every row starts at the column of BEG, not at the indentation of its
 line.  The block leaves that many columns of every source line in
@@ -412,10 +412,10 @@ the column of BEG, which for a raw doc string includes its prefix."
 (defun overblock-pydoc-render-buffer ()
   "Render every doc string of the buffer that wants it.
 One asynchronous converter process does all of them, so the reader
-does not wait.  `overblock-md-render-regions' is the batch, and says
+does not wait.  `overblock-live-start' calls this again whenever the
+reader stops.  `overblock-md-render-regions' is the batch, and says
 what happens to a doc string the reader reaches while the process
-runs.  `overblock-live-start' calls this again whenever the reader
-stops."
+runs."
   (interactive)
   (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
     (overblock-md-render-regions (overblock-pydoc--regions)
