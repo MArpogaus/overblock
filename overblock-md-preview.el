@@ -52,14 +52,6 @@
 (require 'overblock)
 (require 'overblock-md)
 
-;;;; Options
-
-(defgroup overblock-md-preview nil
-  "Markdown rendered over the lines it is written on."
-  :group 'text
-  :group 'overblock
-  :prefix "overblock-md-preview-")
-
 ;;;; Rendering
 
 (defun overblock-md-preview--show (beg end &optional html)
