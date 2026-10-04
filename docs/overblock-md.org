@@ -356,15 +356,15 @@ each line.
 
 [[*The preview]] tells what a block is. Front matter runs from a first
 line of three dashes, with text right under it, to the next line of
-three dashes or three dots, whatever blank lines stand in it. A comment
-without a blank line is a block after a blank line, a heading, a fence
-or the end of front matter, and part of the paragraph elsewhere. A
-comment runs to its =-->=, whatever blank lines stand in it, and a fence
-in it opens nothing. In an Rmd file a chunk inside a comment still runs,
-so there a comment is no block. =overblock-md-fences= finds the fences
-first. =overblock-md--paragraphs= then walks the buffer with those
-bounds. It jumps over a fence, so a blank line inside a fence ends no
-paragraph. A fence also ends the paragraph that touches it, as in
+three dashes or three dots. A blank line in it does not end it. A
+comment without a blank line is a block after a blank line, a heading, a
+fence or the end of front matter. Elsewhere it is part of the paragraph.
+A comment runs to its =-->=, whatever blank lines stand in it, and a
+fence in it opens nothing. In an Rmd file a chunk inside a comment still
+runs, so there a comment is no block. =overblock-md-fences= finds the
+fences first. =overblock-md--paragraphs= then walks the buffer with
+those bounds. It jumps over a fence, so a blank line inside a fence ends
+no paragraph. A fence also ends the paragraph that touches it, as in
 CommonMark. Thus prose with no blank line before a fence is a block of
 its own. A fence under a list item does not end the item, which goes on
 after it.
