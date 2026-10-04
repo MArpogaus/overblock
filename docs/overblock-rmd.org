@@ -96,8 +96,8 @@ ess-tracebug where that is on.
 
 ** The prompt comes off the end
 
-=overblock-rmd--strip-prompt= removes the prompt at the end of the
-output, and nothing in the middle. A chunk is one statement, so one
+=overblock-repl-strip-trailing-prompt= removes the prompt at the end of
+the output, and nothing in the middle. A chunk is one statement, so one
 prompt comes back, and it comes back last.
 
 =inferior-ess-primary-prompt= tells what a prompt looks like, and not
@@ -230,7 +230,7 @@ R draws to a graphics device and not to its terminal. Thus
 =overblock-rmd--send= opens a PNG device before the =source=, and
 closes it on exit, whatever the chunk did. The exit writes the name of
 each file that the device wrote, on a line of its own after
-=overblock-figure:=. =overblock-rmd--figures= reads those lines back in
+=overblock-figure:=. =overblock-repl-file-images= reads those lines back in
 the shell buffer, as part of the clean. Each becomes what comint-mime
 gives the Python notebook: one space that carries the image. From there
 the two notebooks share the cap, the save button, the pop-out buffer

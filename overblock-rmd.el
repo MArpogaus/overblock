@@ -140,62 +140,23 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 
 ;;;; The result of a chunk
 
-(defun overblock-rmd--strip-prompt (text)
-  "Return TEXT without the prompt R wrote when the chunk was done.
-Call this in the shell buffer, where `inferior-ess-primary-prompt' has
-its value.
-
-Only the prompt at the end goes: a chunk goes to R as one statement, so
-one prompt comes back, last.  The newlines before the first line of
-output go too, but not the spaces: the columns of a `summary' line up
-on them.
-
-This reads `inferior-ess-primary-prompt', not `comint-prompt-regexp'.
-ess-tracebug (on by default) calls `comint-output-filter' with
-`comint-prompt-regexp' bound to \"^$\", and this runs from that
-filter."
-  (let ((rx (concat "\\(?:" inferior-ess-primary-prompt "\\)")))
-    (setq text (overblock-repl-strip-trailing-prompt
-                text inferior-ess-primary-prompt))
-    ;; Only a prompt: the chunk printed nothing, as an assignment does.
-    (when (string-match-p (concat "\\`[ \t\n]*" rx "[ \t\n]*\\'") text)
-      (setq text ""))
-    text))
-
-(defun overblock-rmd--figures (text)
-  "Return TEXT with each figure line replaced by the image it names.
-The wrapper of `overblock-rmd--send' writes one line for every PNG the
-chunk drew: `overblock-figure:' and the path.  Each becomes what
-comint-mime gives the Python notebook, one space that carries the
-image with the bytes of the file, so the block, the save button and
-the pop-out treat both alike.  Where this Emacs draws no PNG, the line
-names the file instead.
-
-The newline before the line goes too, so no blank row comes before a
-figure."
-  (if (not (string-search "overblock-figure:" text))
-      text
-    (replace-regexp-in-string
-     "\n?overblock-figure:.+"
-     (lambda (line)
-       (let ((file (substring line (1+ (string-search ":" line)))))
-         (if (and (image-type-available-p 'png) (file-readable-p file))
-             (propertize " " 'display
-                         (create-image (with-temp-buffer
-                                         (set-buffer-multibyte nil)
-                                         (insert-file-contents-literally file)
-                                         (buffer-string))
-                                       'png t))
-           (format "[figure %s]" file))))
-     text t t)))
-
 (defun overblock-rmd--clean (text)
   "Return TEXT as a result block can show it.
 The prompt goes, the figures come in, and the copy is cut loose from
-the shell: see `overblock-rmd--strip-prompt', `overblock-rmd--figures'
-and `overblock-repl-detach'.  Call this in the shell buffer."
+the shell.  Call this in the shell buffer.
+
+A chunk goes to R as one statement, so one prompt comes back, last.
+The prompt is `inferior-ess-primary-prompt', not `comint-prompt-regexp':
+ess-tracebug (on by default) calls `comint-output-filter' with
+`comint-prompt-regexp' bound to \"^$\", and this runs from that filter.
+
+The wrapper of `overblock-rmd--send' names each figure on a line of its
+own, which `overblock-repl-file-images' reads back."
   (overblock-repl-detach
-   (overblock-rmd--figures (overblock-rmd--strip-prompt text))))
+   (overblock-repl-file-images
+    (overblock-repl-drop-prompt-face
+     (overblock-repl-strip-trailing-prompt text inferior-ess-primary-prompt))
+    "overblock-figure:")))
 
 ;;;; The chunks
 
@@ -433,7 +394,7 @@ file says why the lines are not sent one by one.
 Around the `source', a PNG device opens before the chunk at the size
 of `overblock-rmd--figure-size' and closes after it, whatever the
 chunk did.  The exit names each page file on a line of its own, which
-`overblock-rmd--figures' reads back.  This happens only where R can
+`overblock-repl-file-images' reads back.  This happens only where R can
 draw a PNG.  The files are temporary files of the R session.
 
 `ess-send-string', not `ess-send-region': the text sent is not the

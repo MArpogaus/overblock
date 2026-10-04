@@ -39,8 +39,11 @@
 ;; long output without reading the rest of it.  Capping the images of a
 ;; line belongs to the layer: `overblock-image-cap'.
 ;;
-;; The prompts are the caller's business: what one looks like belongs
-;; to the shell it came from, and this file needs no comint at all.
+;; What a prompt looks like is the caller's business: it belongs to the
+;; shell it came from.  `overblock-repl-strip-trailing-prompt' takes it
+;; off the end of an output, and `overblock-repl-drop-prompt-face'
+;; takes the face comint paints it with.  `overblock-repl-file-images'
+;; reads back the image files a program named, one to a line.
 
 ;;; Code:
 
@@ -148,11 +151,74 @@ PROMPT is the prompt pattern of the shell, for example
 `comint-prompt-regexp' in an inferior Python or
 `inferior-ess-primary-prompt' in R.  Every copy of it at the end of
 TEXT goes, on a line of its own or after the whitespace of the last
-line."
+line.
+
+So does one on the same line as output without a final newline, such
+as a `sys.stdout.write' or a `cat' leaves, which a PROMPT anchored to
+a line start cannot see.  TEXT that is only a prompt, as after an
+assignment, is then empty."
   (let ((rx (concat "\n[ \t]*\\(?:" prompt "\\)[ \t\n]*\\'")))
     (while (string-match rx text)
       (setq text (substring text 0 (match-beginning 0))))
-    text))
+    (if (string-match (concat "\\(?:" (string-remove-prefix "^" prompt)
+                              "\\)[ \t]*\\'")
+                      text)
+        (substring text 0 (match-beginning 0))
+      text)))
+
+(defun overblock-repl-drop-prompt-face (text)
+  "Return TEXT without the face comint paints a prompt with.
+comint calls a chunk of output that ends without a newline a prompt,
+and paints it `comint-highlight-prompt'.  A cell that prints one line
+arrives as one such chunk.
+
+Only that face goes: ansi-color and comint-mime put other faces in the
+same property.  A run left without a face loses the property instead
+of a nil value, because each face run costs redisplay time.
+
+TEXT changes in place: pass a copy, such as one from
+`buffer-substring'."
+  (let ((pos 0)
+        (len (length text)))
+    (while (< pos len)
+      (let* ((next (or (next-single-property-change pos 'font-lock-face text)
+                       len))
+             (face (ensure-list (get-text-property pos 'font-lock-face text)))
+             (kept (remq 'comint-highlight-prompt face)))
+        (unless (= (length kept) (length face))
+          (if kept
+              (put-text-property pos next 'font-lock-face
+                                 (if (cdr kept) kept (car kept))
+                                 text)
+            (remove-text-properties pos next '(font-lock-face nil) text)))
+        (setq pos next))))
+  text)
+
+(defun overblock-repl-file-images (text tag)
+  "Return TEXT with each line of TAG and a file replaced by its PNG image.
+A program that draws to files names each on a line of its own, after
+TAG.  Each becomes what comint-mime inserts for an image: one space
+that carries it, with the bytes of the file, so a block, a save button
+and a pop-out treat both alike.  Where this Emacs draws no PNG, or the
+file is gone, the line names the file instead.
+
+The newline before the line goes too, so no blank row comes before an
+image."
+  (if (not (string-search tag text))
+      text
+    (replace-regexp-in-string
+     (concat "\n?" (regexp-quote tag) ".+")
+     (lambda (line)
+       (let ((file (substring line (+ (string-search tag line) (length tag)))))
+         (if (and (image-type-available-p 'png) (file-readable-p file))
+             (propertize " " 'display
+                         (create-image (with-temp-buffer
+                                         (set-buffer-multibyte nil)
+                                         (insert-file-contents-literally file)
+                                         (buffer-string))
+                                       'png t))
+           (format "[figure %s]" file))))
+     text t t)))
 
 (defun overblock-repl-detach (text)
   "Return the part of TEXT a block shows, cut loose from the shell.

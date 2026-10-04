@@ -156,5 +156,67 @@ The face stays."
     ;; The face stays.
     (should (eq (get-text-property 0 'face copy) 'bold))))
 
+(ert-deftest overblock-repl-test-a-result-of-one-line-is-not-a-prompt ()
+  "The colour comint paints a prompt with does not reach a result.
+comint calls a chunk of output that ends without a newline a prompt,
+and a cell that prints one line arrives as one such chunk.  Only that
+face goes: ansi-color and comint-mime put the colours of the output in
+the same property."
+  (progn
+    (let ((text (overblock-repl-drop-prompt-face
+                 (propertize "one" 'font-lock-face
+                             'comint-highlight-prompt))))
+      (should (equal (substring-no-properties text) "one"))
+      ;; No property, not a nil: a nil is a face run of its own, and
+      ;; face runs cost redisplay time.
+      (should-not (memq 'font-lock-face (text-properties-at 0 text))))
+    ;; A run that carries the prompt face beside a colour of its own
+    ;; keeps the colour, and a run without the prompt face is untouched.
+    (let ((text (overblock-repl-drop-prompt-face
+                 (concat (propertize "red" 'font-lock-face
+                                     '(bold comint-highlight-prompt))
+                         "\n"
+                         (propertize "plain" 'font-lock-face 'shadow)))))
+      (should (equal (substring-no-properties text) "red\nplain"))
+      (should (eq (get-text-property 0 'font-lock-face text) 'bold))
+      (should (eq (get-text-property 4 'font-lock-face text) 'shadow)))))
+
+(ert-deftest overblock-repl-test-a-file-line-becomes-an-image ()
+  "A line naming a PNG comes in as the image, bytes and all.
+The R wrapper of overblock-rmd writes one such line for every page.
+Each becomes what comint-mime gives the Python notebook: one space
+with the image and the bytes of the file, for the save button and the
+pop-out.  The
+newline before the line goes too, so no blank row comes before the
+figure."
+  (skip-unless (image-type-available-p 'png))
+  (let ((file (make-temp-file "overblock-repl-test" nil ".png")))
+    (unwind-protect
+        (progn
+          (with-temp-file file (set-buffer-multibyte nil) (insert "\x89PNG-bytes"))
+          (let* ((clean (overblock-repl-file-images
+                         (format "[1] 1\n\nfig:%s" file) "fig:"))
+                 (image (overblock-image-in clean)))
+            (should image)
+            (should (equal (plist-get (cdr image) :data) "\x89PNG-bytes"))
+            (should (equal (substring-no-properties clean) "[1] 1\n "))
+            ;; Two pages, two images, no blank rows between them.
+            (should (= 2 (cl-count ?\s (substring-no-properties
+                                        (overblock-repl-file-images
+                                         (format "\nfig:%s\n\nfig:%s" file file)
+                                         "fig:")))))))
+      (delete-file file))
+    ;; A missing file is named, not drawn.
+    (should (string-match-p "\\[figure /no/such\\.png\\]"
+                            (overblock-repl-file-images "fig:/no/such.png" "fig:")))))
+
+(ert-deftest overblock-repl-test-a-prompt-on-the-last-line-goes ()
+  "A prompt at the end goes, on a line of its own or after the output.
+Only a prompt is no output at all."
+  (should (equal (overblock-repl-strip-trailing-prompt "[1] 32\n> " "> ") "[1] 32"))
+  (should (equal (overblock-repl-strip-trailing-prompt "abc>>> " "^>>> ") "abc"))
+  (should (equal (overblock-repl-strip-trailing-prompt "> " "> ") ""))
+  (should (equal (overblock-repl-strip-trailing-prompt "a\n> b" "> ") "a\n> b")))
+
 (provide 'overblock-repl-test)
 ;;; overblock-repl-test.el ends here

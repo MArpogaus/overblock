@@ -301,35 +301,6 @@ applies."
       (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 3 96))))))
 
-(ert-deftest overblock-rmd-test-a-figure-line-becomes-an-image ()
-  "A line naming a PNG the chunk drew comes in as the image, bytes and all.
-The wrapper writes one such line for every page.  Each becomes what
-comint-mime gives the Python notebook: one space with the image and
-the bytes of the file, for the save button and the pop-out.  The
-newline before the line goes too, so no blank row comes before the
-figure."
-  (skip-unless (image-type-available-p 'png))
-  (let ((file (make-temp-file "overblock-rmd-test" nil ".png"))
-        (inferior-ess-primary-prompt "> "))
-    (unwind-protect
-        (progn
-          (with-temp-file file (set-buffer-multibyte nil) (insert "\x89PNG-bytes"))
-          (let* ((clean (overblock-rmd--clean
-                         (format "[1] 1\n\noverblock-figure:%s\n> " file)))
-                 (image (overblock-image-in clean)))
-            (should image)
-            (should (equal (plist-get (cdr image) :data) "\x89PNG-bytes"))
-            (should (equal (substring-no-properties clean) "[1] 1\n "))
-            ;; Two pages, two images, no blank rows between them.
-            (should (= 2 (cl-count ?\s (substring-no-properties
-                                        (overblock-rmd--clean
-                                         (format "\noverblock-figure:%s\n\noverblock-figure:%s\n> "
-                                                 file file))))))))
-      (delete-file file))
-    ;; A missing file is named, not drawn.
-    (should (string-match-p "\\[figure /no/such\\.png\\]"
-                            (overblock-rmd--clean "overblock-figure:/no/such.png\n> ")))))
-
 (ert-deftest overblock-rmd-test-a-table-keeps-the-indent-of-its-header ()
   "The leading spaces of the first line of output are content.
 R indents the header of a table, and the numbers line up under it."

@@ -171,10 +171,9 @@ the bar above a rendered cell come down, through
 
 (defun overblock-pycell--strip-prompts (text)
   "Return TEXT without the prompts and the Out[N] labels of the shell.
-The prompt before the output goes, the prompt after it goes, and so
-does one on the same line as output without a final newline, which
-`comint-prompt-regexp' cannot see because it anchors to a line start.
-An `Out[N]:' label goes where it starts a line.  Call this in the shell
+The prompt before the output goes, and the prompt after it goes (see
+`overblock-repl-strip-trailing-prompt').  An `Out[N]:' label goes where
+it starts a line.  Call this in the shell
 buffer, where that variable has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop on an empty match. The
@@ -183,14 +182,7 @@ buffer, where that variable has its value."
                 (> (match-end 0) 0)
                 (not (text-property-not-all 0 (match-end 0) 'display nil text)))
       (setq text (substring text (match-end 0))))
-    (setq text (overblock-repl-strip-trailing-prompt text comint-prompt-regexp))
-    ;; A plain python3 shell leaves a prompt on the same line after a
-    ;; `sys.stdout.write' without a newline. Take that one off.
-    (when (string-match (concat "\\(?:" (string-remove-prefix
-                                         "^" comint-prompt-regexp)
-                                "\\)[ \t]*\\'")
-                        text)
-      (setq text (substring text 0 (match-beginning 0)))))
+    (setq text (overblock-repl-strip-trailing-prompt text comint-prompt-regexp)))
   ;; The search first: `replace-regexp-in-string' copies the text even
   ;; without a match, and a plain python3 shell writes no label.
   ;;
@@ -201,42 +193,14 @@ buffer, where that variable has its value."
       (replace-regexp-in-string "^Out\\[[0-9]+\\]: " "" text)
     text))
 
-(defun overblock-pycell--drop-prompt-face (text)
-  "Return TEXT without the face comint paints a prompt with.
-comint calls a chunk of output that ends without a newline a prompt,
-and paints it `comint-highlight-prompt'.  A cell that prints one line
-arrives as one such chunk.
-
-Only that face goes: ansi-color and comint-mime put other faces in the
-same property.  A run left without a face loses the property instead
-of a nil value, because each face run costs redisplay time.
-
-TEXT changes in place.  It is the copy from `buffer-substring' that
-`overblock-pycell--clean' got."
-  (let ((pos 0)
-        (len (length text)))
-    (while (< pos len)
-      (let* ((next (or (next-single-property-change pos 'font-lock-face text)
-                       len))
-             (face (ensure-list (get-text-property pos 'font-lock-face text)))
-             (kept (remq 'comint-highlight-prompt face)))
-        (unless (= (length kept) (length face))
-          (if kept
-              (put-text-property pos next 'font-lock-face
-                                 (if (cdr kept) kept (car kept))
-                                 text)
-            (remove-text-properties pos next '(font-lock-face nil) text)))
-        (setq pos next))))
-  text)
-
 (defun overblock-pycell--clean (text)
   "Return TEXT as a result block can show it.
 The prompts, the Out[N] labels and the prompt face go, and the copy is
 cut loose from the shell: see `overblock-pycell--strip-prompts',
-`overblock-pycell--drop-prompt-face' and `overblock-repl-detach'.  Call
+`overblock-repl-drop-prompt-face' and `overblock-repl-detach'.  Call
 this in the shell buffer, where `comint-prompt-regexp' has its value."
   (overblock-repl-detach
-   (overblock-pycell--drop-prompt-face (overblock-pycell--strip-prompts text))))
+   (overblock-repl-drop-prompt-face (overblock-pycell--strip-prompts text))))
 
 ;;;; Moving a cell
 

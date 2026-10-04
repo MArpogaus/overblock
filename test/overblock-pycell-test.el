@@ -2896,30 +2896,5 @@ process filter would leave the shell busy."
                           (copy-marker (point-max))
                           "2" 0.0))))
 
-(ert-deftest overblock-pycell-test-a-result-of-one-line-is-not-a-prompt ()
-  "The colour comint paints a prompt with does not reach a result.
-comint calls a chunk of output that ends without a newline a prompt,
-and a cell that prints one line arrives as one such chunk.  Only that
-face goes: ansi-color and comint-mime put the colours of the output in
-the same property."
-  (let ((comint-prompt-regexp "^In \\[[0-9]+\\]: "))
-    (let ((text (overblock-pycell--clean
-                 (propertize "one" 'font-lock-face
-                             'comint-highlight-prompt))))
-      (should (equal (substring-no-properties text) "one"))
-      ;; No property, not a nil: a nil is a face run of its own, and
-      ;; face runs cost redisplay time.
-      (should-not (memq 'font-lock-face (text-properties-at 0 text))))
-    ;; A run that carries the prompt face beside a colour of its own
-    ;; keeps the colour, and a run without the prompt face is untouched.
-    (let ((text (overblock-pycell--clean
-                 (concat (propertize "red" 'font-lock-face
-                                     '(bold comint-highlight-prompt))
-                         "\n"
-                         (propertize "plain" 'font-lock-face 'shadow)))))
-      (should (equal (substring-no-properties text) "red\nplain"))
-      (should (eq (get-text-property 0 'font-lock-face text) 'bold))
-      (should (eq (get-text-property 4 'font-lock-face text) 'shadow)))))
-
 (provide 'overblock-pycell-test)
 ;;; overblock-pycell-test.el ends here
