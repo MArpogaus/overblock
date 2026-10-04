@@ -197,6 +197,14 @@ renders again once the batch has landed.")
 They are a hash table from a label, as `overblock-md--label' makes it,
 to its line.")
 
+(defvar-local overblock-md--regions-cache nil
+  "The blocks of this buffer, for `overblock-cached'.
+The live cycle asks for them each time the reader stops.")
+
+(defvar-local overblock-md--prose-cache nil
+  "The prose blocks of this buffer, for `overblock-cached'.
+As `overblock-md--regions-cache', for a PROSE-ONLY walk.")
+
 (defvar overblock-md--remote-failed (make-hash-table :test #'equal)
   "The image URLs that could not be fetched in this session.
 A URL that failed is not fetched again, because a caller renders the
@@ -764,7 +772,16 @@ whose fences hold code.
 The unit is the block, not the line: a converter renders each line of
 a table, a fenced block or a list wrongly by itself.  The whole block
 goes to the converter and `overblock-show' deals the rendering back
-over its lines."
+over its lines.  The walk is kept until the text or the narrowing
+changes."
+  (if prose-only
+      (overblock-cached 'overblock-md--prose-cache
+                        (lambda () (overblock-md--walk t)))
+    (overblock-cached 'overblock-md--regions-cache #'overblock-md--walk)))
+
+(defun overblock-md--walk (&optional prose-only)
+  "Return the blocks of the buffer, as `overblock-md-regions' says.
+PROSE-ONLY is that of `overblock-md-regions'."
   (let* ((all (overblock-md-fences (not prose-only)))
          (paragraphs (overblock-md--paragraphs all prose-only))
          (fences (overblock-md--outside all paragraphs)))

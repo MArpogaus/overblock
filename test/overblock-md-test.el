@@ -1639,5 +1639,24 @@ The item is one block, and the fence is not a second one over it."
                    (cons 1 (save-excursion (goto-char (point-min))
                                            (forward-line 3) (pos-eol)))))))
 
+(ert-deftest overblock-md-test-the-blocks-are-found-once ()
+  "The walk runs once while the text does not change.
+The prose-only walk keeps a cache of its own."
+  (with-temp-buffer
+    (insert "Text.\n\n```r\nx\n```\n")
+    (let ((walked 0))
+      (cl-letf* ((real (symbol-function 'overblock-md--walk))
+                 ((symbol-function 'overblock-md--walk)
+                  (lambda (&rest args) (setq walked (1+ walked)) (apply real args))))
+        (dotimes (_ 3) (overblock-md-regions))
+        (should (= walked 1))
+        (should (= (length (overblock-md-regions)) 2))
+        (should (= (length (overblock-md-regions t)) 1))
+        (should (= walked 2))
+        (goto-char (point-max))
+        (insert "More.\n")
+        (overblock-md-regions)
+        (should (= walked 3))))))
+
 (provide 'overblock-md-test)
 ;;; overblock-md-test.el ends here

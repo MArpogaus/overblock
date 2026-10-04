@@ -116,6 +116,12 @@ render button renders it."
   :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
 
+;;;; State
+
+(defvar-local overblock-pycell--regions-cache nil
+  "The markdown cells of the last walk, for `overblock-cached'.
+The live cycle asks for them each time the reader stops.")
+
 ;;;; Regions
 
 (defconst overblock-pycell--md-boundary
@@ -183,7 +189,12 @@ without the tag list of a # %% [markdown] line."
 (defun overblock-pycell--regions ()
   "Return every markdown cell of the buffer, in order.
 Each is a cons of the start and the end of the body, which is the next
-boundary line or the end of the buffer.  An empty cell is left out."
+boundary line or the end of the buffer.  An empty cell is left out.
+The walk is kept until the text or the narrowing changes."
+  (overblock-cached 'overblock-pycell--regions-cache #'overblock-pycell--walk))
+
+(defun overblock-pycell--walk ()
+  "Return the markdown cells, as `overblock-pycell--regions' says."
   (save-excursion
     (goto-char (point-min))
     (let (cells)

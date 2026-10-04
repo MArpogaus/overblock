@@ -732,8 +732,9 @@ the speed back.
 - =overblock-run--first-lines= reads an output only to its limit.
 - =overblock-cached= keeps the answer of a walk of the whole buffer
   until the text or the narrowing changes. The live cycle asks on each
-  command. Thus the doc strings of a Python buffer, the chunks of an
-  Rmd file and the link definitions of a Markdown buffer are kept so.
+  command. It keeps the doc strings of a Python buffer, the cells of a
+  notebook, the chunks of an Rmd file, and the blocks and link
+  definitions of a Markdown buffer.
 
 * Known limits
 

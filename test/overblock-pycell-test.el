@@ -2982,5 +2982,22 @@ process filter would leave the shell busy."
                                  (copy-marker (point-max))
                                  "2" 0.0))))
 
+(ert-deftest overblock-pycell-test-the-markdown-cells-are-found-once ()
+  "The walk runs once while the text does not change."
+  (with-temp-buffer
+    (insert "# %% [markdown]\n# Text.\n# %%\nx = 1\n")
+    (python-mode)
+    (code-cells-mode)
+    (let ((walked 0))
+      (cl-letf* ((real (symbol-function 'overblock-pycell--walk))
+                 ((symbol-function 'overblock-pycell--walk)
+                  (lambda () (setq walked (1+ walked)) (funcall real))))
+        (dotimes (_ 3) (should (= (length (overblock-pycell--regions)) 1)))
+        (should (= walked 1))
+        (goto-char (point-max))
+        (insert "# %% [markdown]\n# More.\n")
+        (should (= (length (overblock-pycell--regions)) 2))
+        (should (= walked 2))))))
+
 (provide 'overblock-pycell-test)
 ;;; overblock-pycell-test.el ends here
