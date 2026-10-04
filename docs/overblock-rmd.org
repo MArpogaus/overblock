@@ -41,8 +41,8 @@ when you stop typing.
 
 A result works as in [[file:overblock-pycell.org::*Results][overblock-pycell]]: the same bar, the
 same pop-out buffer and the same commands. =overblock-rmd-result-buttons=
-holds the first five buttons of a Python result: stop, save, copy, pop
-and discard.
+holds its buttons; see
+[[file:overblock-pycell.org::*The header bars][The header bars]].
 
 A chunk that plots shows its figure under the output. The size comes
 from =fig.width=, =fig.height= and =dpi= in the chunk header, as with
@@ -113,9 +113,9 @@ paragraphs that =overblock-md-regions= gives with PROSE-ONLY, through
 calls of ESS, the shape of a chunk header, and the statement that a
 chunk goes to R in.
 
-A major mode hook calls =overblock-rmd-mode-maybe=, which reads the
-file name. It turns the mode on where the file ends in =.Rmd= or
-=.rmd=. The mode itself refuses a major mode that does not derive from
+=overblock-rmd-mode-maybe= reads the file name, as the
+[[file:../README.org::*overblock-rmd: R chunks in an Rmd file][README]]
+tells. The mode itself refuses a major mode that does not derive from
 =markdown-mode=. The chunks are found in the text
 of the buffer, so polymode and plain =markdown-mode= use one path.
 
@@ -153,8 +153,8 @@ synchronous and would freeze Emacs while a chunk runs.
 =ess-async-command= is for background jobs, and its docstring says that
 long output goes into the process buffer.
 
-R parses the chunk from a string, which is why a syntax error names
-=<text>=, as [[*Results]] says.
+R parses the chunk from a string. [[*Results]] tells what a syntax
+error then names.
 
 ** The chunk as an R string
 
@@ -248,10 +248,9 @@ Each chunk header has a bar in place of its line. The overlay and its
 strings belong to the layer ([[file:overblock.org][its notes]]). The
 label is the name of the chunk, and the buttons are
 =overblock-rmd-bar-buttons=, the three of =overblock-run-bar-buttons=
-with the words for a chunk. A result has the buttons of
-=overblock-rmd-result-buttons=, which are the five of
-=overblock-run-result-buttons= with the words for a chunk. The Python
-notebook shows the same buttons, so the two rows agree.
+with the words for a chunk.
+[[file:overblock-pycell.org::*The header bars][The header bars]] of
+overblock-pycell tells the buttons of a result.
 
 =overblock-rmd--chunk-regexp= reads the whole engine name. After it can
 come a blank before the chunk name, a comma before the options, or the
@@ -260,12 +259,12 @@ and a ```{rmarkdown} chunk is not taken for R. The name is the word
 that knitr reads, after the engine and before the first comma or
 brace. A header of =r echo=FALSE= names no chunk.
 
-=overblock-run--bars= draws the bars when the reader stops, as in the
-Python notebook. =overblock-rmd--bar= is the =:bar= of the backend: it
-draws the bar of one header and hides the closing fence of its chunk.
-The walk over the chunks reads the whole buffer, so it waits until the
-reader stops, and =overblock-rmd--chunks= keeps it until the text
-changes. Thus a bar arrives a moment after its header is written.
+=overblock-rmd--bar= is the =:bar= of the backend: it draws the bar of
+one header and hides the closing fence of its chunk. The runner draws
+the bars when the reader stops; see
+[[file:overblock.org::*The backend][The backend]] in the notes of the
+layer. The walk over the chunks reads the whole buffer, and
+=overblock-rmd--chunks= keeps it until the text changes.
 
 =overblock-bar-line= moves the overlay to the end of the header line
 at each draw. Text typed at the end of that line falls outside the
@@ -289,12 +288,12 @@ through a display string.
 ** The width a bar was cut for
 
 =overblock-bar= cuts the label to the room that the icons leave, and
-the cut is part of the string. The layer watches the width with
-=overblock--width-changed=, on =window-configuration-change-hook= and
-=text-scale-mode-hook=. When the columns change, it marks each bar
-stale and runs =overblock-width-functions=.
-=overblock-run-attach= puts the redraw of the runner there, and that
-redraw calls =overblock-run--bars=.
+the cut is part of the string.
+[[file:overblock.org::*The live cycle][The live cycle]] tells how the
+layer watches the width.
+=overblock-run-attach= puts the redraw of the runner on
+=overblock-width-functions=, and that redraw calls
+=overblock-run--bars=.
 
 * Figures
 
