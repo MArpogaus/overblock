@@ -28,8 +28,8 @@
 
 ;; Notebook style results for the R chunks of an Rmd file, built from
 ;; ESS alone: no knitr run, no rendered document.  Every ```{r} chunk
-;; gets a bar with run buttons, its result grows below the code, and
-;; the prose between the chunks reads as it will look.
+;; gets a bar with run buttons, and its result grows below the code.
+;; The prose between the chunks reads as it will look.
 ;;
 ;; Turn `overblock-rmd-mode' on in an Rmd buffer, or add
 ;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.
