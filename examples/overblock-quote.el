@@ -33,8 +33,8 @@
 ;; To try it, evaluate this file with M-x load-file, open a text file
 ;; or a mail with quoted lines, and turn on M-x overblock-quote-mode.
 ;;
-;; It has the sections of a render mode: Options, Regions, Rendering,
-;; Mode.  A mode whose regions come from overblock-md, such as
+;; It has the sections of a render mode: Options, Faces, Regions,
+;; Rendering, Mode.  A mode whose regions come from overblock-md, such as
 ;; overblock-md-preview, has no Regions.  The live cycle of the layer
 ;; does the rest: `overblock-live-start' calls
 ;; `overblock-quote-render-buffer' when the reader stops, and
