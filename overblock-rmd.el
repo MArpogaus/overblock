@@ -553,9 +553,7 @@ Both would render the same paragraphs over each other.  Called when
 this mode goes on, and from the preview's own hook after that, so the
 order in which a configuration turns the two on does not matter."
   (when (bound-and-true-p overblock-md-preview-mode)
-    (overblock-md-preview-mode -1)
-    (message "overblock-rmd: overblock-md-preview-mode off, %s"
-             "this mode renders the prose itself")))
+    (overblock-md-preview-mode -1)))
 
 ;;;###autoload
 (define-minor-mode overblock-rmd-mode
