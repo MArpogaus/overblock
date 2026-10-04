@@ -267,7 +267,6 @@ for what the bar stands on, and the buttons at the right edge.
 | =overblock-bar-in=       | the bar, or the bar of a kind, over part of a region   |
 | =overblock-bar-drop=     | remove a bar, with the block it belongs to             |
 | =overblock-bars=         | the bars of the buffer                                 |
-| =overblock-bar-kind=     | what a bar was drawn as, or nil for no bar             |
 | =overblock-bars-stale=   | make each bar forget what it was drawn from            |
 | =overblock-buttons=      | the icon group from a list of descriptors              |
 | =overblock-button=       | one button                                             |

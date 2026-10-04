@@ -81,7 +81,7 @@
     (sh-mode)
     (overblock-sh-mode 1)
     (should (equal (mapcar #'marker-position (overblock-sh--starts)) '(13 30)))
-    (should (equal (mapcar #'overblock-bar-kind (overblock-bars)) '(sh sh)))
+    (should (equal (mapcar #'overblock--bar-kind (overblock-bars)) '(sh sh)))
     (goto-char 33)
     (should (equal (overblock-sh--region-at) '(30 . 44)))
     (should (equal (overblock-sh--code-at) '(35 . 44)))

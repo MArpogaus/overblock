@@ -218,7 +218,7 @@ bar left on the line could not be swept."
     (python-mode)
     (code-cells-mode)
     (should-not (overblock-pycell--show 17 17))
-    (should-not (seq-filter #'overblock-bar-kind
+    (should-not (seq-filter #'overblock--bar-kind
                             (overlays-in (point-min) (point-max))))))
 
 (ert-deftest overblock-pycell-test-md-a-failed-cell-keeps-its-source ()
@@ -234,7 +234,7 @@ keymap: a click on the bar lands in the source."
             (bar (overblock-bar-in 1 17)))
         (should block)
         (should-not (overblock-get block :over))
-        (should (eq (overblock-bar-kind bar) 'source))
+        (should (eq (overblock--bar-kind bar) 'source))
         (should-not (overlay-get bar 'keymap))))))
 
 (ert-deftest overblock-pycell-test-md-an-anchor-link-finds-a-cell-heading ()
@@ -2672,7 +2672,7 @@ takes its place."
       ;; Rendered or not (a converter can be missing), the line has a
       ;; bar, and it is no code bar.
       (should bar)
-      (should (memq (overblock-bar-kind bar) '(source markdown)))
+      (should (memq (overblock--bar-kind bar) '(source markdown)))
       (should (commandp 'overblock-pycell-md-render-cell)))))
 
 (ert-deftest overblock-pycell-test-a-boundary-line-keeps-one-bar-through-its-kinds ()
@@ -2683,9 +2683,9 @@ code bar takes its place."
     (let ((line (lambda ()
                   (save-excursion
                     (goto-char (point-min))
-                    (list (overblock-bar-kind (overblock-bar-on-line))
+                    (list (overblock--bar-kind (overblock-bar-on-line))
                           (length (seq-filter
-                                   #'overblock-bar-kind
+                                   #'overblock--bar-kind
                                    (overlays-in (point-min) (pos-eol)))))))))
       (should (equal (funcall line) '(code 1)))
       ;; The tag follows the marker, as jupytext writes it: a
@@ -2757,7 +2757,7 @@ so nothing else would draw one."
     (let ((kind (lambda ()
                   (save-excursion
                     (goto-char (point-min))
-                    (overblock-bar-kind (overblock-bar-on-line))))))
+                    (overblock--bar-kind (overblock-bar-on-line))))))
       ;; `should', not `skip-unless': the kind of the bar is what this
       ;; tests. The converter is checked above.
       (should (eq (funcall kind) 'markdown))
@@ -2767,7 +2767,7 @@ so nothing else would draw one."
       (should (eq (funcall kind) 'source))
       ;; One bar, not two.
       (should (= 1 (length (seq-filter
-                            #'overblock-bar-kind
+                            #'overblock--bar-kind
                             (overlays-in (point-min)
                                          (save-excursion
                                            (goto-char (point-min))
@@ -2849,7 +2849,7 @@ to the line before it reads the label."
                                (overblock-bar-on-line))))
       ;; The product under test, so `should': see the same question in
       ;; `overblock-pycell-test-md-an-edit-takes-the-bar-with-it'.
-      (should (eq (overblock-bar-kind bar) 'markdown))
+      (should (eq (overblock--bar-kind bar) 'markdown))
       (goto-char (pos-eol))
       (insert " and more")
       (overblock-run--bars)

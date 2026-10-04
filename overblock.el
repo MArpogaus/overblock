@@ -1767,7 +1767,7 @@ display string ignores (space :align-to (- right ...))."
 (defun overblock--bar-draw (ov kind glyph label icons)
   "Draw the bar of KIND on OV: GLYPH, LABEL, and ICONS at the edge.
 OV comes from `overblock--bar-over'.  KIND is the word of the caller
-for what the bar stands on, which `overblock-bar-kind' returns.
+for what the bar stands on, which `overblock--bar-kind' returns.
 `overblock--bar-left' joins GLYPH and LABEL, and the bar has the face
 `overblock-bar'.
 
@@ -1800,7 +1800,7 @@ end falls outside it."
          (ov (or (overblock-bar-in bol end kind)
                  (overblock--bar-over bol eol))))
     (dolist (bar (overlays-in bol end))
-      (when (and (overblock-bar-kind bar) (not (eq bar ov)))
+      (when (and (overblock--bar-kind bar) (not (eq bar ov)))
         (overblock-bar-drop bar)))
     (move-overlay ov bol eol)
     (overblock--bar-draw ov kind glyph label icons)
@@ -1835,7 +1835,7 @@ the split moves nothing."
     (overlay-put ov 'display (propertize (substring text -1) 'cursor t)))
   (overlay-put ov 'after-string nil))
 
-(defun overblock-bar-kind (ov)
+(defun overblock--bar-kind (ov)
   "Return what OV was drawn as, or nil where OV is no bar of this layer.
 Also nil for nil, which `overblock-bar-in' often returns."
   (and ov (overlay-get ov 'overblock-bar)))
@@ -1845,8 +1845,8 @@ Also nil for nil, which `overblock-bar-in' often returns."
 Only a bar of KIND, where KIND is given.  A region, not a position:
 text inserted at the start of a line moves the start of its bar."
   (seq-find (lambda (ov)
-              (and (overblock-bar-kind ov)
-                   (or (not kind) (eq kind (overblock-bar-kind ov)))))
+              (and (overblock--bar-kind ov)
+                   (or (not kind) (eq kind (overblock--bar-kind ov)))))
             (overlays-in beg end)))
 
 (defun overblock-bar-drop (bar)
@@ -1862,7 +1862,7 @@ The bar of a rendering is one of the `:attached' of its block (see
 Without the narrowing, so a caller that redraws every bar reaches
 all of them."
   (without-restriction
-    (seq-filter #'overblock-bar-kind (overlays-in (point-min) (point-max)))))
+    (seq-filter #'overblock--bar-kind (overlays-in (point-min) (point-max)))))
 
 ;;;; Helpers for modes
 
