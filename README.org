@@ -71,18 +71,31 @@ and =use-package=. Each recipe gives its package a clone of its own with
 can make elpaca hang. Install the other dependencies, such as
 latex-to-svg-backend or code-cells, as usual.
 
-For plain Emacs or package.el, put a clone on the load path and load
-the packages that you use. Then add the hooks that the snippets below
-show:
+For plain Emacs or package.el, put a clone on the load path. Install
+the dependencies with package.el, so that their autoloads load. Leave
+out the lines of each package that you do not use.
 
 #+begin_src emacs-lisp
   (add-to-list 'load-path "/path/to/overblock")
+
   (require 'overblock-md-preview)
-  (require 'overblock-pydoc)
-  (require 'overblock-pycell)             ; needs code-cells
-  (require 'overblock-rmd)                ; needs ESS
   (add-hook 'markdown-mode-hook #'overblock-md-preview-mode)
+
+  (require 'overblock-pydoc)
+  (add-hook 'python-base-mode-hook #'overblock-pydoc-mode)
+
+  (require 'overblock-pycell)                                    ; only with code-cells
+  (add-hook 'python-base-mode-hook #'code-cells-mode-maybe)      ; only with code-cells
+  (add-hook 'code-cells-mode-hook #'overblock-pycell-mode-maybe) ; only with code-cells
+  (add-hook 'inferior-python-mode-hook #'comint-mime-setup)      ; only with comint-mime
+
+  (require 'overblock-rmd)                                       ; only with ESS
+  (add-to-list 'auto-mode-alist '("\\.[rR]md\\'" . markdown-mode)) ; only with ESS
+  (add-hook 'markdown-mode-hook #'overblock-rmd-mode-maybe)      ; only with ESS
 #+end_src
+
+[[*overblock-pycell: Python notebook cells][overblock-pycell]] gives the
+IPython settings.
 
 No package installs a hook or binds a key in your buffers. Installing a
 package does not change how Emacs behaves.
@@ -217,8 +230,7 @@ the R interpreter of ESS, so the R buffer keeps the full log.
 
 Add =:mode ("\\.[rR]md\\'" . markdown-mode)= to the markdown-mode form
 of overblock-md. That line opens an =.Rmd= file in =markdown-mode=.
-Without use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
-=auto-mode-alist=. =poly-markdown+r-mode= of polymode also works.
+=poly-markdown+r-mode= of polymode also works.
 
 #+begin_src emacs-lisp
   (use-package overblock-rmd
