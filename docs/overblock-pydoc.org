@@ -10,8 +10,8 @@ into a string that a block can show
 ([[file:overblock-md.org][its notes]]).
 
 =overblock-pydoc-mode= is =overblock-live-start= with three answers:
-which regions, what to render them with, and when. This file holds the
-first two, and the rows that a rendering is drawn on.
+which regions, what to render them with, and when. =overblock-pydoc.el=
+holds the first two, and the rows that a rendering is drawn on.
 
 * Use
 
