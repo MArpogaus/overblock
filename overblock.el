@@ -112,13 +112,12 @@ each repeat of a held `C-n'.  One value for every live cycle."
 
 (defface overblock-bar '((t :inherit (shadow default) :overline t :extend t))
   "Face of a bar over a block: the rule above it and the text on it.
-One face for every bar (over a cell, a chunk, a result and a doc
-string), so all notebooks look the same.  The overline is the rule:
-a face draws it over the whole row, with no measuring.
+One face for every bar, so every mode looks the same.  The overline
+is the rule: a face draws it over the whole row, with no measuring.
 
 `default' after `shadow' gives a background: a display string also has
-the face of the text under it, such as the background of
-`markdown-code-face' on the fence line of an Rmd chunk.")
+the face of the text under it, such as the background of a code
+face.")
 
 (defface overblock-body '((t :inherit shadow :extend t))
   "Face of the body of a result, under its bar.")
@@ -140,8 +139,7 @@ PUT is the function that writes the edited text back; see
 
 (defvar-local overblock-live--specs nil
   "How this buffer renders itself: one (KIND RENDER KEEP) a live cycle.
-A buffer can have several, such as the markdown cells and the doc
-strings of a notebook, each from a mode of its own.
+A buffer can have several, each from a mode of its own.
 `overblock-live-start' adds one and `overblock-live-stop' removes it.")
 
 (defvar-local overblock-live--timer nil
@@ -1164,9 +1162,8 @@ before RENDER is called again.
 
 Without KEEP, the region point is in shows its source, and renders
 when point leaves it.  With KEEP, a mode where the reader works with
-the rendering (a markdown cell of a notebook, a doc string among code)
-keeps the rendering at point: only the region a rendering came off
-stays source until point leaves it.
+the rendering keeps the rendering at point: only the region a
+rendering came off stays source until point leaves it.
 
 RENDER is called once here and then whenever the reader stops.  It
 must leave alone what `overblock-live-wanted-p' says wants no
@@ -1218,8 +1215,8 @@ a cycle back while its process ran."
 
 (defun overblock-live-set-and-redraw (symbol value)
   "Set SYMBOL to VALUE, and render every live buffer again.
-This is the `:set' of an option that renderings follow, such as the
-buttons on the bar of a doc string, so a change shows at once.  Each
+This is the `:set' of an option that renderings follow, such as
+those of a render mode, so a change shows at once.  Each
 cycle takes its renderings down and renders again."
   (set-default symbol value)
   (dolist (buffer (buffer-list))
@@ -1675,8 +1672,8 @@ This is a row of a rendering, so the gap is made of spaces: a row is
 a display property, and display properties do not nest, so a stretch
 in it draws nothing.
 
-INDENT is the column the row starts at, as every row of a doc string
-rendering does.  Those columns are not part of the padding.
+INDENT is the column the row starts at.  Those columns are not part
+of the padding.
 
 The padding is counted in columns and measured in pixels, because a
 nerd glyph draws wider than it counts.  A column of slack keeps the row
@@ -1792,8 +1789,7 @@ stale."
 (defun overblock-bar-line (bol eol kind glyph label icons)
   "Draw the bar of KIND over the line BOL..EOL, and return its overlay.
 GLYPH, LABEL and ICONS are those of `overblock--bar-draw'.  Every bar on
-a line of the buffer (the boundary line of a cell, the header of an R
-chunk) is drawn through here.
+a line of the buffer is drawn through here.
 
 A line has one bar.  A bar of KIND there is drawn again, and every
 other bar of the line goes, through `overblock-bar-drop'.

@@ -233,8 +233,8 @@ the runtime by this to pick its glyph.")
 
 (defvar-keymap overblock-run-result-map
   :doc "Keymap inside a region that shows a result, empty on purpose.
-The runner binds no keys; put your own here, for the cells of a
-Python notebook and the chunks of an Rmd file alike.  For example:
+The runner binds no keys; put your own here, and every notebook
+shares them.  For example:
 
   (keymap-set overblock-run-result-map \"C-c C-o\"
               #\\='overblock-run-toggle-output)
@@ -1282,8 +1282,7 @@ bars when the reader stops."
 
 (defun overblock-run-detach ()
   "Stop this buffer being a notebook, and take its results and bars down.
-The blocks of other modes stay, such as the doc strings of a Python
-buffer."
+The blocks of other modes stay."
   (overblock-live-stop 'bar)
   (kill-local-variable 'overblock-run--backend)
   (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
@@ -1322,8 +1321,7 @@ lock signals.  The whole buffer, also when narrowed."
 (defun overblock-run-restart ()
   "Restart the interpreter of this notebook, and remove every result.
 Point goes home, the region that runs ends and the queue goes.  The
-renderings stay, such as the prose of an Rmd file and the markdown
-cells of a notebook.
+renderings of other modes stay.
 
 A region still running gets a note: it can be in another buffer on the
 same shell, whose block would otherwise keep a frozen running header.
@@ -1366,10 +1364,9 @@ interpreter that prompts later runs them on its first prompt."
 ;;;###autoload
 (defun overblock-run-clear-results ()
   "Take the results of this buffer down, and sweep what lost its anchor.
-Other renderings stay (the prose of an Rmd file, the markdown cells of
-a notebook).  A clear that names a kind cannot sweep an orphan,
-because an orphan has no kind, so the sweep is explicit: else the
-cloak of a lost block keeps lines invisible."
+Other renderings stay.  A clear that names a kind cannot sweep an
+orphan, because an orphan has no kind, so the sweep is explicit: else
+the cloak of a lost block keeps lines invisible."
   (interactive)
   (overblock-clear nil nil 'result)
   (overblock-sweep-orphans))
@@ -1633,8 +1630,8 @@ an ended result, or of a shell that is gone, says so.  EVENT is the
 click on the interrupt button of a running result, and names the
 notebook to act on.
 
-The pass stops too, in R and in Python alike: R answers an interrupt
-with only a new prompt, so no output can stop the pass."
+The pass stops too, also where a shell answers an interrupt with only
+a new prompt, so no output can stop the pass."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (let ((shell (or (overblock-run--shell)
