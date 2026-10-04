@@ -425,7 +425,9 @@ only the part that shows; without it the lines of TEXT are counted."
         ;; returns nil. No error: this runs in the process filter.
         (when block
           (overblock-stale-when-edited block)
-          (overblock-run--update block))
+          (overblock-run--update block)
+          ;; A fold made before the result covers its newline.
+          (overblock-run--keep-result-newline beg end nil))
         block))))
 
 (defun overblock-run-result-record (beg end)
@@ -1249,7 +1251,8 @@ its region where the region ends in a blank line.  So such a fold is
 cut back to the line break before the header, and the folded region
 shows its result, with the bar that folds it, on rows of its own.  A
 result in the middle of a fold goes under it.  An advice of
-`outline-flag-region' while a notebook is on."
+`outline-flag-region' while a notebook is on, and called for each new
+result."
   (dolist (block (overblock-in (max (point-min) (1- from))
                                (min (point-max) (1+ to))
                                'result))

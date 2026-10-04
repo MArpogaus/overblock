@@ -94,7 +94,8 @@ block with =:over= in the region is =:hidden=, and shows again when
 the fold opens. A block after its region, such as a result, is not
 touched. While a notebook is on, the runner cuts a fold that ends at
 the newline of a result back to the line before the result
-(=overblock-run--keep-result-newline=). Thus a folded cell shows its
+(=overblock-run--keep-result-newline=). It does the same when a new
+result comes under a fold. Thus a folded cell shows its
 whole result under its heading, with the fold button of the result. A
 result in the middle of a fold, such as a chunk under a folded
 section, goes under the fold.

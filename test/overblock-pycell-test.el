@@ -488,6 +488,23 @@ the header is drawn on the heading row after the fold mark."
           (should (invisible-p (+ beg 10)))
           (should-not (invisible-p (1- (overlay-end block)))))))))
 
+(ert-deftest overblock-pycell-test-a-result-under-a-fold-shows-below ()
+  "A result made under a fold shows as one made before the fold.
+The fold is cut back to the line break before the header."
+  (with-temp-buffer
+    (insert "# %% one\nx = 1\nprint(x)\n\n# %% two\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (setq-local overblock-run--backend (overblock-pycell--backend))
+    (overblock-pycell-test--with-mode
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (outline-flag-region (pos-eol) (1- end) t)
+        (let ((block (overblock-run--show beg end "1" 0.1)))
+          (should (invisible-p (+ beg 10)))
+          (should-not (invisible-p (1- (overlay-end block))))
+          (should-not (invisible-p (overlay-end block))))))))
+
 (ert-deftest overblock-pycell-test-fold-md-round-trip ()
   "An outline fold takes a markdown block along, and gives it back."
   (skip-unless (overblock-md-program))
