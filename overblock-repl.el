@@ -55,6 +55,8 @@
 (require 'seq)
 (require 'subr-x)
 
+;;;; Tables
+
 (defun overblock-repl--table-regions (text)
   "Return every (TABLE BEG END) of TEXT, front to back.
 comint-mime renders an HTML table, a DataFrame among them, with
@@ -145,6 +147,8 @@ nothing that a face can move."
     (setcar lines (propertize (car lines) 'face 'bold))
     (string-join lines "\n")))
 
+;;;; Prompts
+
 (defun overblock-repl-strip-trailing-prompt (text prompt)
   "Return TEXT without the PROMPT the shell left at the end of it.
 PROMPT is the prompt pattern of the shell, for example
@@ -193,6 +197,8 @@ TEXT changes in place: pass a copy, such as one from
             (remove-text-properties pos next '(font-lock-face nil) text)))
         (setq pos next))))
   text)
+
+;;;; Output
 
 (defun overblock-repl-file-images (text tag)
   "Return TEXT with each line of TAG and a file replaced by its PNG image.
