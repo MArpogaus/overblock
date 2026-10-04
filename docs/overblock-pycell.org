@@ -93,6 +93,21 @@ A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 lines from the top of the cell. An interpreter without IPython cannot
 run it.
 
+** Markdown cells
+
+A cell with the marker =# %% [markdown]= renders in place. Its bar
+shows /markdown/ and the buttons of =overblock-pycell-md-buttons=. =✎=
+edits the cell in its own buffer. The move buttons =⌃= and =⌄= come
+after it. A click (=mouse-1= or =mouse-2=) on a rendered link opens it.
+On other text, =mouse-1= shows the source, and =mouse-2= opens the edit
+buffer. =overblock-md-follow-link= opens a link from the keyboard.
+
+A markdown cell that shows its source has a bar with the buttons of
+=overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
+
+The Markdown features are those of
+[[file:overblock-md.org][overblock-md]].
+
 ** Commands
 
 | Command                             | Action                                                                         |
@@ -189,40 +204,24 @@ object in the copy. Thus =overblock-run-pop-output= calls
 where sorting, narrowing and moving a column work. The block stays a
 plain rendering in characters.
 
-The result is on the newline that ends the cell. overblock-pycell writes
-nothing into the buffer, with one exception. The last cell of a buffer
-gets a final newline if it has none, because the block needs that
-character.
+The result is on the newline that ends the cell. Thus the last cell
+needs a final newline, as [[*Known limits]] says.
 
 ** The header bars
 
-The package has four button options:
-
-- =overblock-pycell-result-buttons=, on the bar of a result.
-- =overblock-pycell-bar-buttons=, on the bar of a code cell.
-- =overblock-pycell-md-buttons=, on the bar of a rendered markdown cell.
-- =overblock-pycell-source-buttons=, on the bar of a markdown cell that
-  shows its source.
-
-Each is a list in the shape that =overblock-button-type= gives to
-customize, and =overblock-buttons= reads it.
-
-The first five buttons of a result come from
+[[*Options]] lists the four button options, and [[*Results]] the
+buttons of a result. The first five buttons of a result come from
 =overblock-run-result-buttons=, with the words for a cell. A chunk of an
 Rmd file shows the same five. The pair that moves a cell belongs to
 this notebook, and each of the four lists ends with it. The pair is at
-the end, so it is at the same place on each bar.
-
-The fold arrow and the spinner are not in those lists. They tell what
-the result does, and the reader does not choose them.
+the end, so it is at the same place on each bar. The fold arrow and
+the spinner are in no option, because they tell what the result does.
 
 ** The bar over a boundary line
 
-A cell has a bar in place of its =# %%= line. The label is the name
-after the marker, and the buttons are =overblock-pycell-bar-buttons=.
-=overblock-pycell--bar= is the =:bar= of the backend, and draws the bar
-of one boundary line. A rendered markdown cell has the bar of its
-block.
+[[*Cells]] tells what the bar of a cell shows. =overblock-pycell--bar=
+is the =:bar= of the backend, and draws the bar of one boundary line. A
+rendered markdown cell has the bar of its block.
 
 The overlay, its strings, the width it is cut to and what point does
 to it belong to the layer: see [[file:overblock.org][its notes]].
@@ -336,9 +335,8 @@ that moved, and no other markdown cell.
 
 * Cells with IPython syntax
 
-A cell can hold syntax that only IPython reads. Examples are a magic
-such as =%matplotlib inline=, a shell escape such as =!ls=, and a help
-request such as =print?=. jupytext files hold such cells.
+[[*Results]] tells which syntax only IPython reads. jupytext files hold
+such cells.
 
 =overblock-pycell--ipython-syntax-p= reads the buffer with
 =syntax-ppss=. Only a line at the top level counts. A continuation line
@@ -347,25 +345,10 @@ with a question mark. A cell of plain Python must not go to IPython
 this way, because a shell without IPython answers with a =NameError=.
 
 Such a cell goes to =get_ipython().run_cell=, base64 encoded, which
-keeps quotes and newlines safe. Thus the tracebacks count lines from
-the top of the cell, and a shell without IPython reports that it does
-not know =get_ipython=.
+keeps quotes and newlines safe. A shell without IPython reports that
+it does not know =get_ipython=.
 
-* Markdown cells
-
-A cell with the marker =# %% [markdown]= renders in place. Its bar
-shows /markdown/ and the buttons of =overblock-pycell-md-buttons=. =✎=
-edits the cell in its own buffer. The move buttons =⌃= and =⌄= come
-after it.
-A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
-other text, =mouse-1= shows the source, and =mouse-2= opens the edit
-buffer. =overblock-md-follow-link= opens a link from the keyboard.
-
-A markdown cell that shows its source has a bar with the buttons of
-=overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
-
-The Markdown features are those of
-[[file:overblock-md.org][overblock-md]].
+* How markdown cells render
 
 The rendering is on the source lines, one piece for each line. Thus a
 cell has a height in lines and moves as normal text.
@@ -406,8 +389,9 @@ off to get the plain source and the speed back.
 
 * Known limits
 
-The last cell of a notebook gets a final newline if it has none. This
-is the only change =overblock-pycell= makes to the text.
+The last cell of a notebook gets a final newline if it has none,
+because its result hangs on that newline. This is the only change
+=overblock-pycell= makes to the text.
 
 * The tests
 
