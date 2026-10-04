@@ -10,8 +10,7 @@ under it is another package of this repository:
 The package has two files. =overblock-md.el= turns markup into one
 propertized string, and cuts a Markdown buffer into the blocks that go
 to the converter. =overblock-md-preview.el= is a minor mode that shows
-a Markdown buffer over its own source. It gives the three answers that
-the live cycle asks for.
+a Markdown buffer over its own source.
 
 * Use
 

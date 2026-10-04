@@ -212,11 +212,8 @@ needs a final newline, as [[*Known limits]] says.
 ** The header bars
 
 [[*Options]] lists the four button options, and [[*Results]] the
-buttons of a result. The first five buttons of a result come from
-=overblock-run-result-buttons=, with the words for a cell. A chunk of an
-Rmd file shows the same five. The pair that moves a cell belongs to
-this notebook, and each of the four lists ends with it. The pair is at
-the end, so it is at the same place on each bar. The fold arrow and
+buttons of a result. Each of the four lists ends with the pair that
+moves a cell, so the pair is at the same place on each bar. The fold arrow and
 the spinner are in no option, because they tell what the result does.
 
 ** The bar over a boundary line
@@ -403,9 +400,6 @@ scroll options. The test fails when:
 - The scroll command signals in the middle of a cell.
 - The end of the buffer stays out of reach.
 
-The first check runs on Emacs 30 and later only. On Emacs 29,
-=pixel-scroll-precision-scroll-up-page= can leave point outside the
-window. Redisplay then recenters, and the window moves back a little.
-Emacs 30 puts point back inside the window before redisplay, and the
-emacs-29 branch does not have that change. The other two checks run on
-each version.
+The first check runs on Emacs 30 and later only, as
+[[file:overblock.org::*Scrolling][Scrolling]] in the notes of the layer
+tells. The other two checks run on each version.

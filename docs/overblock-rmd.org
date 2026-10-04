@@ -226,11 +226,9 @@ which offers to kill the buffers of the session. Thus
 =overblock-rmd--restart=, the =:restart= of the backend, kills the
 process, and =inferior-ess= starts a new one in the same buffer.
 
-=overblock-run-restart= runs it. First it puts point and the view back
-where a pass was asked for. Then it ends the running chunk as a death,
-because the chunk can belong to another buffer on the same R. It
-empties the queue, so no pass continues into a dead process, and it
-removes the results.
+=overblock-run-restart= runs it, after the steps that
+[[file:overblock.org::*The functions][The functions]] of the run loop
+list.
 
 After the kill, =update-ess-process-name-list= runs. ESS keeps the
 names of its processes in a list, and reads it to find a free name.
