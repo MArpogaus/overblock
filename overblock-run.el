@@ -209,9 +209,11 @@ A command of a notebook mode is autoloaded and can be called anywhere."
 
 (defun overblock-run--notebook-p (buffer)
   "Return non-nil where BUFFER is a notebook.
-Its shell has a copy of the backend too, and a process."
+Its shell has a copy of the backend too, and is a `comint-mode' buffer,
+also when its process has ended."
   (and (buffer-local-value 'overblock-run--backend buffer)
-       (not (get-buffer-process buffer))))
+       (not (provided-mode-derived-p (buffer-local-value 'major-mode buffer)
+                                     'comint-mode))))
 
 (defun overblock-run--name ()
   "Return the word that the messages of this backend carry."

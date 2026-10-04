@@ -34,6 +34,7 @@
 
 (require 'ert)
 (require 'overblock-run)
+(require 'comint)
 
 ;;;; A backend over `cat'
 
@@ -73,6 +74,7 @@ run in BODY did not end."
            (insert "one\ntwo\nthree\n")
            (setq-local overblock-run--backend (overblock-run-test--backend))
            (with-current-buffer shell
+             (comint-mode)
              (setq-local overblock-run--backend
                          (buffer-local-value 'overblock-run--backend notebook)))
            ;; The first line is the region that runs.
@@ -139,6 +141,13 @@ The shell has a copy of the backend, but no bars to draw."
       (overblock-run-detach))
     (should-not (advice-member-p #'overblock-run--keep-result-newline
                                  'outline-flag-region))))
+
+(ert-deftest overblock-run-test-a-dead-shell-is-no-notebook ()
+  "A shell whose process ended is no notebook, though it keeps the backend."
+  (with-temp-buffer
+    (comint-mode)
+    (setq-local overblock-run--backend (overblock-run-test--backend))
+    (should-not (overblock-run--notebook-p (current-buffer)))))
 
 (ert-deftest overblock-run-test-a-restart-without-restart-starts-anew ()
   "A backend without `:restart' restarts through `:start'.
