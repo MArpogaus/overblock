@@ -82,7 +82,7 @@ show:
   (add-hook 'markdown-mode-hook #'overblock-md-preview-mode)
 #+end_src
 
-No package installs a hook or binds a key on the keyboard. Installing a
+No package installs a hook or binds a key in your buffers. Installing a
 package does not change how Emacs behaves.
 
 ** overblock: the block layer
