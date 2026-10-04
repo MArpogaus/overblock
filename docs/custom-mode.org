@@ -12,10 +12,10 @@ Install overblock first. Then load an example from a clone of the
 repository with =M-x load-file=. Open a file of the right kind and turn
 the mode on:
 
-| Example            | Open                             | Turn on                    |
-|--------------------+----------------------------------+----------------------------|
-| [[file:../examples/overblock-quote.el][overblock-quote.el]] | a text file with =>= quote lines | =M-x overblock-quote-mode= |
-| [[file:../examples/overblock-sh.el][overblock-sh.el]]    | a shell script with =# %%= lines | =M-x overblock-sh-mode=    |
+| Example            | Open                             | Turn on                                        |
+|--------------------+----------------------------------+------------------------------------------------|
+| [[file:../examples/overblock-quote.el][overblock-quote.el]] | a text file with =>= quote lines | =M-x overblock-quote-mode=                     |
+| [[file:../examples/overblock-sh.el][overblock-sh.el]]    | a shell script with =# %%= lines | =M-x overblock-sh-mode=, then click ▷ on a bar |
 
 * Two kinds of mode
 
@@ -49,7 +49,6 @@ mode does not need is not there.
 | Backend   | the functions of the backend, and =MODE--backend= that lists them |
 | Commands  | the commands that only this mode has                              |
 | Mode      | the keymap, =MODE-mode=, and =MODE-mode-maybe= for a hook         |
-| Hooks     | the hooks of other packages that the mode joins                   |
 
 * Naming
 
@@ -110,8 +109,7 @@ point, a region with a rendering, and the active region:
       (overblock-quote--show beg end)))
 #+end_src
 
-The mode starts and stops one live cycle. =overblock-only-in= refuses a
-buffer of the wrong major mode:
+The mode starts and stops one live cycle:
 
 #+begin_src emacs-lisp
   (overblock-only-in 'overblock-quote-mode 'text-mode)
@@ -122,9 +120,10 @@ buffer of the wrong major mode:
 
 A mode that renders Markdown uses =overblock-md-show= in place of
 =overblock-show-rendering=. It takes the markdown and the HTML of the
-batch. The render function calls =overblock-md-render-regions=. One
-converter process then renders all regions. =overblock-md-preview.el=
-is the shortest example of this.
+batch. The render function calls =overblock-md-render-regions=, which
+asks =overblock-live-wanted-p= itself. One converter process then
+renders all regions. =overblock-md-preview.el= is the shortest example
+of this.
 
 * A notebook mode: overblock-sh
 
@@ -136,24 +135,24 @@ cells of a shell script in a bash of its own.
 The backend is a plist, and =overblock-run-attach= gives it to the
 runner. This table is the one list of the slots.
 
-| Slot         | Signature        | Required                                                      | What it answers                                                                                          |
-|--------------+------------------+---------------------------------------------------------------+----------------------------------------------------------------------------------------------------------|
-| =:name=      | string           | no, "overblock"                                               | the word that messages carry, as in "NAME: stopped at error"                                             |
-| =:unit=      | string           | no, "region"                                                  | what a region is called in a message or a tooltip: "cell", "chunk"                                       |
-| =:process=   | () → process     | yes                                                           | the live shell process of the notebook, or nil                                                           |
-| =:start=     | () → process     | yes                                                           | start a shell. Return the process once it has prompted, or nil where =:arm= waits for the prompt         |
-| =:arm=       | (THUNK)          | where =:start= gives nil                                      | call THUNK on the first prompt of a new or restarted shell                                               |
-| =:restart=   | (PROC) → process | no, delete PROC and call =:start=                             | start a shell in place of PROC, the old process or nil. Return as =:start= does                          |
-| =:send=      | (PROC BEG END)   | yes                                                           | send the region to the process                                                                           |
-| =:prompt-p=  | (TAIL) → boolean | yes                                                           | whether the output ends at a prompt                                                                      |
-| =:clean=     | (TEXT) → string  | yes                                                           | the output as a block can show it                                                                        |
-| =:error-p=   | (TEXT) → boolean | no, never                                                     | whether the region failed, which stops a pass                                                            |
-| =:step=      | () → boolean     | no, run the code at point and wait; go on where there is none | run what is at point, and say whether the pass waits for a prompt                                        |
-| =:region-at= | () → cons        | yes                                                           | the region point is in, as =(BEG . END)=, or nil                                                         |
-| =:code-at=   | () → cons        | no, the region                                                | what of that region goes to the shell, or nil for none                                                   |
-| =:starts=    | () → markers     | yes                                                           | a new marker on the start of each region, in order. The runner frees them, so make new ones on each call |
-| =:bar=       | () → overlays    | no, no bars                                                   | draw the bars of the region that starts at point, and return them                                        |
-| =:buttons=   | symbol           | no, no buttons                                                | the option that holds the buttons of a result header                                                     |
+| Slot         | Signature        | Required                                                      | What it answers                                                                                                                                                      |
+|--------------+------------------+---------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| =:name=      | string           | no, "overblock"                                               | the word that messages carry, as in "NAME: stopped at error"                                                                                                         |
+| =:unit=      | string           | no, "region"                                                  | what a region is called in a message or a tooltip: "cell", "chunk"                                                                                                   |
+| =:process=   | () → process     | yes                                                           | the live shell process of the notebook, or nil                                                                                                                       |
+| =:start=     | () → process     | yes                                                           | start a shell. Return the process once it has prompted, or nil where =:arm= waits for the prompt. Where it gives nil, =:process= must already return the new process |
+| =:arm=       | (THUNK)          | where =:start= gives nil                                      | call THUNK on the first prompt of a new or restarted shell                                                                                                           |
+| =:restart=   | (PROC)           | no, delete PROC and call =:start=                             | start a shell in place of PROC, the old process or nil                                                                                                               |
+| =:send=      | (PROC BEG END)   | yes                                                           | send the region to the process                                                                                                                                       |
+| =:prompt-p=  | (TAIL) → boolean | yes                                                           | whether the raw tail of the output ends at a prompt                                                                                                                  |
+| =:clean=     | (TEXT) → string  | yes                                                           | the output as a block can show it                                                                                                                                    |
+| =:error-p=   | (TEXT) → boolean | no, never                                                     | whether the region failed, which stops a pass. TEXT is the output after =:clean=                                                                                     |
+| =:step=      | () → boolean     | no, run the code at point and wait; go on where there is none | run what is at point, and say whether the pass waits for a prompt                                                                                                    |
+| =:region-at= | () → cons        | yes                                                           | the region point is in, as =(BEG . END)=, or nil                                                                                                                     |
+| =:code-at=   | () → cons        | no, the region                                                | what of that region goes to the shell, or nil for none                                                                                                               |
+| =:starts=    | () → markers     | yes                                                           | a new marker on the start of each region, in order. The runner frees them, so make new ones on each call                                                             |
+| =:bar=       | () → overlays    | no, no bars                                                   | draw the bars of the region that starts at point, and return them                                                                                                    |
+| =:buttons=   | symbol           | no, no buttons                                                | the option that holds the buttons of a result header                                                                                                                 |
 
 =:process=, =:start=, =:arm=, =:restart=, =:send=, =:step=,
 =:region-at=, =:code-at=, =:starts= and =:bar= run in the notebook.
@@ -230,9 +229,7 @@ shell, with the helpers of
 
 ** The mode
 
-A notebook requires =overblock-run=, =overblock-repl= and =comint=. Its
-keymap is empty, and the doc of the keymap shows a binding to copy. A
-=MODE-mode-maybe= turns the mode on where the buffer has a cell. The
+A notebook requires =overblock-run=, =overblock-repl= and =comint=. The
 mode only attaches the backend. The runner draws the bars through a
 live cycle of the kind =bar=, and it follows the width of the window:
 
@@ -260,7 +257,7 @@ Each row names what a mode uses, and links to the reference.
 | shell output as text                    | =overblock-repl-detach=, =overblock-repl-strip-trailing-prompt=     | [[file:overblock.org::*The output of a shell][The output of a shell]]   |
 | a notebook                              | =overblock-run-attach=, =overblock-run-region=, the commands        | [[file:overblock.org::*The run loop][The run loop]]            |
 | a slow walk kept                        | =overblock-cached=                                                  | [[file:overblock.org::*What the hot paths do][What the hot paths do]]   |
-| the major mode it reads                 | =overblock-only-in=                                                 | the docstring           |
+| the major mode it reads                 | =overblock-only-in=                                                 | [[file:overblock.org::*The block layer][The block layer]]         |
 
 * Traps
 
@@ -300,11 +297,13 @@ Each row names what a mode uses, and links to the reference.
   again.
 - *The render function runs at each stop of the reader.* It must render
   only what =overblock-live-wanted-p= allows. A walk of a large buffer
-  is slow, so keep it with =overblock-cached=. Cache positions, not the
-  markers of =:starts=.
+  is slow, so keep it with =overblock-cached=:
+  =(overblock-cached 'MODE--cache #'MODE--walk)=. =MODE--cache= is a
+  =defvar-local=, and the walk takes no arguments. Cache positions, not
+  the markers of =:starts=.
 - *A mode sets no user option and binds no key.* Its keymap is empty,
-  and the doc of the keymap shows a binding to copy. It adds no global hook. A
-  =MODE-mode-maybe= function is for the user to add to a hook.
+  and the doc of the keymap shows a binding to copy. It adds no global
+  hook. A =MODE-mode-maybe= function is for the user to add to a hook.
 - *The wrong buffer.* Call =overblock-only-in= first in the body of the
   mode. It turns the mode off again and signals a =user-error=.
 - *Turn off cleanly.* =overblock-live-stop= and =overblock-run-detach=
