@@ -56,7 +56,7 @@ again.
 | =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend; markdown-mode for the preview |
 | =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=                                      |
 | =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells                          |
-| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ess, markdown-mode                  |
+| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ESS, markdown-mode                  |
 
 No package is on MELPA yet. Thus a package manager cannot find the
 packages of this repository by name. Each package that you use needs a
@@ -239,27 +239,22 @@ tells the buttons, the commands and the options.
 
 ** Prerequisites
 
-- Emacs 29.1 or later. =overblock= needs nothing more.
-- For each package that renders markup:
-  - A converter from Markdown to HTML, see
-    [[file:docs/overblock-md.org::*The converter][=overblock-md-command=]].
-    The package uses the first one on =exec-path=.
-  - An Emacs with libxml2, because shr reads the HTML with it.
-  - Without a converter or without libxml2, the text stays as it is.
-  - =latex= and =dvisvgm= for the formulas, which latex-to-svg-backend
-    runs.
-- =overblock-pydoc= needs =pandoc=, because both commands of
+[[*Which One Do You Want]] lists the Emacs packages. The packages also
+need:
+
+- Emacs 29.1 or later, with libxml2 for each package that renders
+  markup. shr reads the HTML with it.
+- A converter from Markdown to HTML, see
+  [[file:docs/overblock-md.org::*The converter][=overblock-md-command=]].
+  The package uses the first one on =exec-path=. Without a converter or
+  without libxml2, the text stays as it is.
+- =latex= and =dvisvgm= for the formulas, which latex-to-svg-backend
+  runs.
+- =pandoc= for =overblock-pydoc=, because both commands of
   =overblock-pydoc-command= are pandoc commands.
-- [[https://github.com/jrblevin/markdown-mode][markdown-mode]] is
-  necessary for =overblock-md-preview-mode= and =overblock-rmd-mode=.
-  =overblock-pydoc= opens a Markdown doc string in =markdown-mode=, or
-  in =text-mode= without it.
-- =overblock-pycell= needs
-  [[https://github.com/astoff/code-cells.el][code-cells]]. Text output
-  needs nothing more. Images and tables need
-  [[https://github.com/astoff/comint-mime][comint-mime]] and IPython.
-  A plain =python3= interpreter gives text only.
-- =overblock-rmd= needs [[https://ess.r-project.org/][ESS]] and an R.
+- A Python for =overblock-pycell=. Images and tables need IPython and
+  comint-mime. A plain =python3= gives text only.
+- An R for =overblock-rmd=.
 - A nerd font for the icons on the bars. Without one, each button shows
   a plain character or a word.
 
