@@ -225,51 +225,32 @@ boundary line or the end of the buffer.  An empty cell is left out."
 
 ;;;; Bars
 
-(defun overblock-pycell--bar-line (bol eol kind glyph plain buttons)
-  "Draw the bar of KIND over the boundary line BOL..EOL.
-GLYPH comes before the label, PLAIN is the label of a cell without a
-title, and BUTTONS are the buttons of the bar.  `overblock-bar-line'
-draws it."
-  (overblock-bar-line bol eol kind glyph
-                      (or (overblock-pycell--title bol eol) plain)
-                      (overblock-buttons buttons)))
-
-(defun overblock-pycell--source-bar (bol eol)
-  "Draw the bar of the markdown cell BOL..EOL that is showing its source.
-A rendered markdown cell has the bar of its rendering.  This bar is for
-a cell without one: a new one, or one taken back to its source."
-  ;; The label is "source": the glyph says markdown already, and the
-  ;; label tells it from a rendered cell.
-  (overblock-pycell--bar-line bol eol 'source
-                              (overblock-glyph "" "◇" "md") "source"
-                              overblock-pycell-source-buttons))
-
-(defun overblock-pycell--code-bar (bol eol)
-  "Draw the bar of the code cell whose boundary line is BOL..EOL."
-  (overblock-pycell--bar-line bol eol 'code
-                              (overblock-glyph "" "◆" "py") "python"
-                              overblock-pycell-bar-buttons))
-
-(defun overblock-pycell--md-bar (bol eol)
-  "Draw the bar of the rendered markdown cell whose boundary line is BOL..EOL.
-The bar is one of the `:attached' of the block of the rendering."
-  (overblock-pycell--bar-line bol eol 'markdown
-                              (overblock-glyph "" "◇" "md") "markdown"
-                              overblock-pycell-md-buttons))
-
-(defun overblock-pycell--bar ()
+(defun overblock-pycell--bar (&optional rendered)
   "Draw the bar of the boundary line point is on, and return it.
 This is the `:bar' of the backend.  A markdown cell has the bar of its
-rendering, or a source bar where it shows its source.  The text above
-the first boundary line has none."
-  (let ((bol (pos-bol))
-        (eol (pos-eol)))
-    (cond ((not (looking-at-p code-cells-boundary-regexp)) nil)
-          ((not (looking-at-p overblock-pycell--md-boundary))
-           (overblock-pycell--code-bar bol eol))
-          ((overblock-bar-in bol (min (point-max) (1+ eol)) 'markdown)
-           (overblock-pycell--md-bar bol eol))
-          (t (overblock-pycell--source-bar bol eol)))))
+rendering, or a source bar where it shows its source; RENDERED draws
+the bar of a rendering about to be shown.  The text above the first
+boundary line has none.  The label is the title of the cell, or names
+its kind."
+  (when (looking-at-p code-cells-boundary-regexp)
+    (pcase-let* ((bol (pos-bol))
+                 (eol (pos-eol))
+                 (`(,kind ,glyph ,plain ,buttons)
+                  (cond ((not (looking-at-p overblock-pycell--md-boundary))
+                         (list 'code (overblock-glyph "" "◆" "py") "python"
+                               overblock-pycell-bar-buttons))
+                        ((or rendered
+                             (overblock-bar-in bol (min (point-max) (1+ eol))
+                                               'markdown))
+                         (list 'markdown (overblock-glyph "" "◇" "md")
+                               "markdown" overblock-pycell-md-buttons))
+                        ;; The glyph says markdown already, and the label
+                        ;; tells the cell from a rendered one.
+                        (t (list 'source (overblock-glyph "" "◇" "md") "source"
+                                 overblock-pycell-source-buttons)))))
+      (overblock-bar-line bol eol kind glyph
+                          (or (overblock-pycell--title bol eol) plain)
+                          (overblock-buttons buttons)))))
 
 ;;;; Rendering
 
@@ -322,7 +303,8 @@ still finds its heading."
     ;; The bar covers the boundary line up to its newline. The old
     ;; rendering goes first, with its bar, so this bar is new.
     (let* ((bar (progn (overblock-clear beg end 'pycell)
-                       (overblock-pycell--md-bar from (1- beg))))
+                       (save-excursion (goto-char from)
+                                       (overblock-pycell--bar t))))
            (block (overblock-md-show
                    beg end (overblock-pycell--source beg end) html 'default
                    :kind 'pycell
