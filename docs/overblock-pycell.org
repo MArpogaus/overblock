@@ -83,10 +83,9 @@ where it is. A key that you press in the notebook during a pass gives
 point and the view back. The key then acts there, not at the cell that
 runs, and a stop key does the same. A scroll or a click in the
 notebook moves on from the view you see, and stops the scrolling. A
-cell you ask for while another runs, or while the interpreter starts,
-waits its turn. The echo area then says
-=overblock-pycell: this cell queued=, or =N cells queued= for a pass,
-which counts its markdown cells too.
+cell that waits its turn ([[file:overblock.org::*Known limits][Known
+limits]]) makes the echo area say =overblock-pycell: this cell queued=.
+A pass says =N cells queued=, which counts its markdown cells too.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
@@ -128,7 +127,8 @@ The Markdown features are those of
 
 The package binds only the mouse on its bars and blocks. These keymaps
 bind no key, so you can bind your own. The edit buffer of a markdown
-cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
+cell has the keys of [[file:overblock.org::*The edit buffer][the edit
+buffer]].
 
 | Map                         | Where it answers                   |
 |-----------------------------+------------------------------------|
@@ -197,12 +197,10 @@ to send a cell and what a prompt looks like. It also tells how to clean
 the output, and which button option a result reads. The slots are in
 [[file:custom-mode.org::*The backend][docs/custom-mode.org]].
 
-The copy must change before a block can show it. =overblock-repl-detach=
-makes those changes; see the layer notes. A vtable keeps its table
-object in the copy. Thus =overblock-run-pop-output= calls
-=vtable-insert= with that object, and the buffer holds a live table
-where sorting, narrowing and moving a column work. The block stays a
-plain rendering in characters.
+The copy must change before a block can show it.
+=overblock-repl-detach= makes those changes, and keeps the table
+object for the live table of [[*Results]]; see
+[[file:overblock.org::*The output of a shell][the layer notes]].
 
 The result is on the newline that ends the cell. Thus the last cell
 needs a final newline, as [[*Known limits]] says.
@@ -229,16 +227,11 @@ to it belong to the layer: see [[file:overblock.org][its notes]].
 *** What draws them, and when
 
 =overblock-run--bars= draws them when the mode starts, and again when
-the reader stops, as in the Rmd notebook. Thus a bar arrives a moment
-after its line is written. The bar cycle does not depend on =jit-lock=.
-One error in a jit-lock function stops the rest, and a =python-ts-mode=
-buffer whose grammar does not match the mode signals from redisplay. See
-[[file:overblock.org][the notes of the layer]].
-
-=overblock--bar-draw= rebuilds a bar only when its line, its label or
-its icons change. Thus a walk over the cells costs a comparison for
-each bar that did not change. A change of width marks each bar stale,
-and the runner draws them again.
+the reader stops. Thus a bar arrives a moment after its line is
+written. [[file:overblock.org::*The backend][The backend]] in the notes
+of the layer tells why the bars do not come from =jit-lock=, and
+[[file:overblock.org::*A bar in place of a line][A bar in place of a
+line]] when a bar is drawn again.
 
 The source bar of a markdown cell comes at once when its rendering
 comes off, and does not wait for the reader to stop.
@@ -312,10 +305,9 @@ the buffer as it was.
 
 * The live mirror
 
-A ticker runs each 0.2 seconds while a cell runs. It shows the output
-so far, a spinner and a stopwatch. The ticker and its bounds belong to
-the runner: =overblock-run--output-head= reads the head of the output,
-and =overblock-run--total= counts the lines as they arrive.
+While a cell runs, the ticker of the runner shows the output so far, a
+spinner and a stopwatch; see
+[[file:overblock.org::*What the ticker reads][What the ticker reads]].
 
 This package tells what an IPython prompt looks like and how to clean
 it away. =overblock-pycell--clean= removes the prompts and the =Out[N]=
@@ -365,9 +357,7 @@ not rendered yet. The whole buffer goes to the converter in one
 process, through =overblock-md-render-regions=, and nothing waits for
 it. A cell that the converter fails on shows its source and the source
 bar, as a cell that point is in. It goes to the converter again only
-after an edit or a click on its render button. The mode starts
-its cycle with KEEP, so a rendered cell stays rendered when point
-moves into it. A click with =mouse-1=
+after an edit or a click on its render button. A click with =mouse-1=
 shows the source until point leaves the cell. A moved cell renders at
 once.
 
@@ -378,14 +368,10 @@ overblock-md.
 
 * Scrolling
 
-A result block is one buffer line, because it is one display string. A
-block with an image is harder to scroll through. The reasons are in
-[[file:overblock.org][the notes of the layer]].
-=overblock-run-pop-output= shows the figure in a buffer of its own.
-
-A rendered markdown cell makes each scroll event more expensive. The
-cost comes from the face runs and not from the height. Turn the mode
-off to get the plain source and the speed back.
+[[file:overblock.org::*Scrolling][Scrolling]] in the notes of the
+layer tells how a result scrolls, and what a rendered markdown cell
+costs. =overblock-run-pop-output= shows a figure in a buffer of its
+own.
 
 * Known limits
 
