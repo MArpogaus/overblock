@@ -132,16 +132,6 @@ A rule that a face draws runs from the start of the text of the bar,
 the indentation of the doc string, to the edge of the window, so
 nothing has to measure it.")
 
-(defun overblock-pydoc--redraw ()
-  "Draw the bars of every rendered doc string again, in every buffer.
-A change to the buttons or a label shows on the bars at once."
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer
-      (when (bound-and-true-p overblock-pydoc-mode)
-        (dolist (block (overblock-in (point-min) (point-max) 'pydoc))
-          (overblock-delete block))
-        (overblock-pydoc-render-buffer)))))
-
 (defcustom overblock-pydoc-buttons
   '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
@@ -150,9 +140,9 @@ An entry has the shape `overblock-buttons' reads.  A click on the
 rendering already shows the source in place, so there is no button
 for that."
   :type overblock-button-type
-  :set (lambda (symbol value)
-         (set-default symbol value)
-         (overblock-pydoc--redraw)))
+  ;; Not at load: that would render every live buffer again.
+  :initialize #'custom-initialize-default
+  :set #'overblock-live-set-and-redraw)
 
 ;;;; Which regions
 

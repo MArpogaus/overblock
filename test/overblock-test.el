@@ -1262,6 +1262,22 @@ not leave it, and no region rendered again."
       (overblock-live-render-again 'other)
       (should (= calls 1)))))
 
+(defvar overblock-test--option nil
+  "An option for `overblock-test-a-set-option-takes-the-renderings-down'.")
+
+(ert-deftest overblock-test-a-set-option-takes-the-renderings-down ()
+  "Setting an option the renderings follow takes them down, to draw again."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (setq-local overblock-live--specs (list (list 'mine #'ignore nil)))
+    (overblock-show 1 4 :kind 'mine :over "ONE")
+    (unwind-protect
+        (progn
+          (overblock-live-set-and-redraw 'overblock-test--option 'new)
+          (should (eq overblock-test--option 'new))
+          (should-not (overblock-in (point-min) (point-max) 'mine)))
+      (overblock-live-stop 'mine))))
+
 (ert-deftest overblock-test-each-live-cycle-says-what-point-reveals ()
   "A cycle that keeps the rendering at point does so for its own kind.
 A notebook keeps its markdown cells, and a mode of the same buffer that

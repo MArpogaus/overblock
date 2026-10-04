@@ -1104,6 +1104,18 @@ a cycle back while its process ran."
   (when-let* ((spec (assq kind overblock-live--specs)))
     (funcall (nth 1 spec))))
 
+(defun overblock-live-set-and-redraw (symbol value)
+  "Set SYMBOL to VALUE, and render every live buffer again.
+This is the `:set' of an option that renderings follow, such as the
+buttons on the bar of a doc string, so a change shows at once.  Each
+cycle takes its renderings down and renders again."
+  (set-default symbol value)
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (dolist (spec overblock-live--specs)
+        (overblock-clear nil nil (car spec))
+        (funcall (nth 1 spec))))))
+
 (defun overblock-live-stop (kind)
   "Stop rendering the blocks of KIND in this buffer, and take them off.
 The hooks and the timer go with the last cycle of the buffer."
