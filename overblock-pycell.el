@@ -281,8 +281,7 @@ its parent, so a click shows the source."
 The bar of a rendered markdown cell is an overlay of the block, so it
 goes with the block.  The source bar comes at once, not when the
 reader stops."
-  (let ((from (and (eq (overblock-get block :kind) 'pycell)
-                   (overblock-pycell--md-cell-start (overlay-start block)))))
+  (let ((from (overblock-pycell--md-cell-start (overlay-start block))))
     (overblock-delete block)
     (when from
       (save-excursion (goto-char from) (overblock-pycell--bar)))))
