@@ -119,7 +119,7 @@ list: they show the state of the result."
 (defcustom overblock-rmd-chunk-buttons
   '((run-above ("" "⇈" "above") "Run every chunk above this one"
                overblock-run-above t)
-    (run ("" "▷" "run") "Run this chunk" overblock-rmd-run-chunk t)
+    (run ("" "▷" "run") "Run this chunk" overblock-run-this t)
     (run-below ("" "⇊" "below") "Run this chunk and every one below it"
                overblock-run-below t))
   "The buttons on the bar of an R chunk, left to right.
@@ -515,6 +515,12 @@ end of its code, where its result hangs."
   (when-let* ((chunk (overblock-rmd--chunk-at)))
     (cons (nth 0 chunk) (nth 2 chunk))))
 
+(defun overblock-rmd--code-at ()
+  "Return the code of the chunk point is in as (BEG . END), or nil.
+This is the `:code-at' of the backend: the code between the fences."
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (cons (nth 1 chunk) (nth 2 chunk))))
+
 (defun overblock-rmd--starts ()
   "Return a marker on the opening fence of every chunk, in order."
   (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
@@ -535,60 +541,10 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
         :error-p #'overblock-rmd--error-p
         :step #'overblock-rmd--step
         :region-at #'overblock-rmd--region-at
+        :code-at #'overblock-rmd--code-at
         :starts #'overblock-rmd--starts
         :bar #'overblock-rmd--bar
         :buttons 'overblock-rmd-result-buttons))
-
-;;;; The commands
-
-(defun overblock-rmd--chunk-here (event)
-  "Return the chunk at point, or the one whose bar EVENT clicked.
-Signal a `user-error' when there is none."
-  (overblock-goto-event event)
-  (or (overblock-rmd--chunk-at)
-      (user-error "No R chunk here")))
-
-;;;###autoload
-(defun overblock-rmd-run-chunk (&optional event)
-  "Run the chunk at point, or the one whose button EVENT clicked.
-The result grows below the code while it runs.  A chunk sent while
-another one runs is queued behind it."
-  (interactive (list last-input-event))
-  (let ((chunk (overblock-rmd--chunk-here event)))
-    (overblock-run-region (nth 1 chunk) (nth 2 chunk))))
-
-;;;###autoload
-(defun overblock-rmd-run-chunk-and-step ()
-  "Run the chunk at point and move to the next one.
-The chunk version of `code-cells-eval-and-step'.  After the last
-chunk, point stays."
-  (interactive)
-  (overblock-rmd-run-chunk)
-  (condition-case nil (overblock-rmd-forward-chunk) (user-error nil)))
-
-;;;###autoload
-(defun overblock-rmd-forward-chunk (&optional arg)
-  "Move point to the code of the next chunk, ARG chunks on.
-A negative ARG moves back.  Backwards, the code of the current chunk
-comes first, as with `code-cells-backward-cell'."
-  (interactive "p")
-  ;; One walk for all repeats.
-  (let* ((arg (or arg 1))
-         (chunks (overblock-rmd-chunks)))
-    (dotimes (_ (abs arg))
-      (let ((chunk (if (> arg 0)
-                       (seq-find (lambda (c) (> (nth 1 c) (point))) chunks)
-                     (car (last (seq-filter (lambda (c) (< (nth 1 c) (point)))
-                                            chunks))))))
-        (unless chunk
-          (user-error "No chunk %s this one" (if (> arg 0) "below" "above")))
-        (goto-char (nth 1 chunk))))))
-
-;;;###autoload
-(defun overblock-rmd-backward-chunk (&optional arg)
-  "Move point to the code of the previous chunk, ARG chunks back."
-  (interactive "p")
-  (overblock-rmd-forward-chunk (- (or arg 1))))
 
 ;;;; The mode
 
@@ -608,10 +564,9 @@ sets `pm/polymode'."
 overblock-rmd binds no keys; put your own here.  The Python notebook
 binds none either.  For example:
 
-  (keymap-set overblock-rmd-mode-map \"C-<return>\"
-              #\\='overblock-rmd-run-chunk)
+  (keymap-set overblock-rmd-mode-map \"C-<return>\" #\\='overblock-run-this)
   (keymap-set overblock-rmd-mode-map \"S-<return>\"
-              #\\='overblock-rmd-run-chunk-and-step)
+              #\\='overblock-run-and-step)
   (keymap-set overblock-rmd-mode-map \"C-c C-k\" #\\='overblock-run-interrupt)")
 
 ;;;###autoload

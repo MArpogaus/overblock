@@ -127,7 +127,7 @@ render button renders it."
 (defcustom overblock-pycell-cell-buttons
   (append '((run-above ("" "⇈" "above") "Run every cell above this one"
                        overblock-run-above t)
-            (run ("" "▷" "run") "Run this cell" overblock-pycell-run-cell t)
+            (run ("" "▷" "run") "Run this cell" overblock-run-this t)
             (run-below ("" "⇊" "below") "Run this cell and every one below it"
                        overblock-run-below t))
           overblock-pycell--move-buttons)
@@ -865,6 +865,15 @@ saves a converter process per cell."
   (pcase-let ((`(,beg ,end) (code-cells--bounds)))
     (cons beg end)))
 
+(defun overblock-pycell--code-at ()
+  "Return the code of the cell point is in as (BEG . END), or nil.
+This is the `:code-at' of the backend: the boundary line stays out, as
+`code-cells-eval' leaves it out, so a run and a pass hang the result
+on the same block.  A markdown cell has no code."
+  (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+    (unless (overblock-pycell--md-cell-start beg)
+      (cons beg end))))
+
 (defun overblock-pycell--backend ()
   "Return what `overblock-run' needs to drive an inferior Python.
 The commentary of `overblock-run' lists the slots."
@@ -880,6 +889,7 @@ The commentary of `overblock-run' lists the slots."
         :error-p #'overblock-pycell--error-p
         :step #'overblock-pycell--step
         :region-at #'overblock-pycell--cell-at
+        :code-at #'overblock-pycell--code-at
         :starts #'overblock-pycell--cell-starts
         :bar #'overblock-pycell--bar
         :buttons 'overblock-pycell-result-buttons
@@ -921,14 +931,6 @@ any."
       (while (re-search-forward code-cells-boundary-regexp nil t)
         (push (copy-marker (pos-bol)) cells))
       (nreverse cells))))
-
-;;;###autoload
-(defun overblock-pycell-run-cell (&optional event)
-  "Run the cell at point, or the one whose button EVENT clicked.
-The same as `code-cells-eval' (\\[code-cells-eval]) on that cell."
-  (interactive (list last-input-event))
-  (overblock-goto-event event)
-  (apply #'code-cells-eval (code-cells--bounds nil nil t)))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.

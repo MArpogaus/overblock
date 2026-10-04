@@ -366,7 +366,7 @@ the buttons of =overblock-pycell-cell-buttons=:
 | Button | Command                           | Action                       |
 |--------+-----------------------------------+------------------------------|
 | =⇈=    | =overblock-run-above=             | run each cell above this one |
-| =▷=    | =overblock-pycell-run-cell=       | run this cell                |
+| =▷=    | =overblock-run-this=              | run this cell                |
 | =⇊=    | =overblock-run-below=             | run this cell and each below |
 | =⌃=    | =overblock-pycell-move-cell-up=   | move this cell up            |
 | =⌄=    | =overblock-pycell-move-cell-down= | move this cell down          |
@@ -582,10 +582,10 @@ before it.
 |-------------------------------------+-----------------------------------------------------------|
 | =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
 | =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
-| =overblock-rmd-run-chunk=           | run the chunk at point                                    |
-| =overblock-rmd-run-chunk-and-step=  | run the chunk at point, and move to the next              |
-| =overblock-rmd-forward-chunk=       | move to the next chunk                                    |
-| =overblock-rmd-backward-chunk=      | move to the previous chunk                                |
+| =overblock-run-this=                | run the chunk at point                                    |
+| =overblock-run-and-step=            | run the chunk at point, and move to the next              |
+| =overblock-run-forward=             | move to the next chunk                                    |
+| =overblock-run-backward=            | move to the previous chunk                                |
 | =overblock-run-restart=             | restart R, and remove the results                         |
 | =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
 | =overblock-live-edit=               | show the source of the prose at point                     |
@@ -599,8 +599,8 @@ The package binds only the mouse on its bars and blocks.
 Put the keys in the =:config= of the package:
 
 #+begin_src emacs-lisp
-  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-rmd-run-chunk)
-  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-rmd-run-chunk-and-step)
+  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-run-this)
+  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-run-and-step)
   (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
   (keymap-set overblock-rmd-mode-map "C-c C-q" #'overblock-run-stop)
 #+end_src

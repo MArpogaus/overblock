@@ -301,47 +301,6 @@ applies."
       (forward-line 3)
       (should (equal (overblock-rmd--figure-size (point)) '(7 3 96))))))
 
-(ert-deftest overblock-rmd-test-a-chunk-runs-and-point-steps-on ()
-  "Running a chunk with the step leaves point in the chunk below it.
-The last chunk of the buffer runs and point stays: the walk signals a
-`user-error' there, which must not reach the reader."
-  (overblock-rmd-test--with-document "```{r a}\n1\n```\n\n```{r b}\n2\n```\n"
-    (let (ran)
-      (cl-letf (((symbol-function 'overblock-rmd-run-chunk)
-                 (lambda (&rest _) (push (line-number-at-pos) ran))))
-        (goto-char (point-min))
-        (overblock-rmd-run-chunk-and-step)
-        ;; The chunk at point ran, and point is in its code.
-        (should (equal ran '(1)))
-        (should (= (line-number-at-pos) 2))
-        ;; The next step runs that chunk and goes to the one below.
-        (overblock-rmd-run-chunk-and-step)
-        (should (equal ran '(2 1)))
-        (should (= (line-number-at-pos) 6))
-        ;; The last chunk runs and point stays.
-        (overblock-rmd-run-chunk-and-step)
-        (should (equal ran '(6 2 1)))
-        (should (= (line-number-at-pos) 6))))))
-
-(ert-deftest overblock-rmd-test-the-chunks-are-walked-as-cells-are ()
-  "Forward goes to the code of the next chunk, backward to the previous.
-Backwards from inside a chunk goes to its own code first, as
-`code-cells-backward-cell' does.  At the ends of the buffer it signals."
-  (with-temp-buffer
-    (insert "prose\n\n```{r a}\n1\n```\n\n```{r b}\n2\n```\n")
-    (goto-char (point-min))
-    (overblock-rmd-forward-chunk)
-    (should (looking-at-p "1"))
-    (overblock-rmd-forward-chunk)
-    (should (looking-at-p "2"))
-    (should-error (overblock-rmd-forward-chunk) :type 'user-error)
-    (forward-char 1)
-    (overblock-rmd-backward-chunk)
-    (should (looking-at-p "2"))
-    (overblock-rmd-backward-chunk)
-    (should (looking-at-p "1"))
-    (should-error (overblock-rmd-backward-chunk) :type 'user-error)))
-
 (ert-deftest overblock-rmd-test-a-figure-line-becomes-an-image ()
   "A line naming a PNG the chunk drew comes in as the image, bytes and all.
 The wrapper writes one such line for every page.  Each becomes what
@@ -520,11 +479,24 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 
 ;;;; The commands and the mode
 
+(ert-deftest overblock-rmd-test-a-chunk-sends-its-code ()
+  "The run of a chunk sends the code between its fences, from either fence."
+  (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
+    (let (sent)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (push (buffer-substring beg end) sent))))
+        (goto-char (point-min))
+        (overblock-run-this)
+        (goto-char (point-max))
+        (forward-line -1)
+        (overblock-run-this))
+      (should (equal sent '("1\n" "1\n"))))))
+
 (ert-deftest overblock-rmd-test-a-command-wants-a-chunk ()
   "The commands that act on a chunk say so where point is in prose."
   (overblock-rmd-test--with-mode "prose\n\n```{r a}\n1\n```\n"
     (goto-char (point-min))
-    (should-error (overblock-rmd-run-chunk) :type 'user-error)
+    (should-error (overblock-run-this) :type 'user-error)
     (should-error (overblock-run-above) :type 'user-error)))
 
 (ert-deftest overblock-rmd-test-the-first-chunk-has-none-above-it ()
@@ -565,7 +537,7 @@ The runner runs and draws only in a buffer with a backend, and a
 command called with the mode off signals."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
     (should-not overblock-run-backend)
-    (should-error (overblock-rmd-run-chunk) :type 'user-error)
+    (should-error (overblock-run-this) :type 'user-error)
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
       (should (equal (plist-get overblock-run-backend :name) "overblock-rmd"))

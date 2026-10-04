@@ -1863,30 +1863,33 @@ list is a change it cannot see, so the `:set' marks the bars stale."
           (progn
             (setopt overblock-pycell-cell-buttons
                     '((run ("" "▷" "run") "Run this cell"
-                           overblock-pycell-run-cell t)))
+                           overblock-run-this t)))
             (should-not (equal before (overblock-pycell-test--bar-texts))))
         (setopt overblock-pycell-cell-buttons was))
       ;; And back again: the bars follow the option.
       (should (equal before (overblock-pycell-test--bar-texts))))))
 
 (ert-deftest overblock-pycell-test-the-run-button-runs-the-cell-it-sits-on ()
-  "The command hands the bounds of the cell at point to code-cells.
-A press on the bar of another cell moves point there first: the click
-carries the position."
+  "A run sends the cell at point without its boundary line.
+A pass sends the same region, so both hang the result on one block.
+A markdown cell has nothing to run."
   (overblock-pycell-test--with-cells
     (let (asked)
-      (cl-letf (((symbol-function 'code-cells-eval)
-                 (lambda (beg end &rest _) (setq asked (cons beg end)))))
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (setq asked (cons beg end)))))
         (goto-char (point-min))
-        (overblock-pycell-run-cell)
+        (overblock-run-this)
         (should (equal asked (pcase-let ((`(,beg ,end)
                                           (code-cells--bounds nil nil t)))
                                (cons beg end))))
         ;; The second cell is another pair.
         (let ((first asked))
           (goto-char (point-max))
-          (overblock-pycell-run-cell)
-          (should-not (equal asked first)))))))
+          (overblock-run-this)
+          (should-not (equal asked first)))
+        (goto-char (point-max))
+        (insert "# %% [markdown]\n# text\n")
+        (should-error (overblock-run-this) :type 'user-error)))))
 
 (ert-deftest overblock-pycell-test-the-mode-goes-on-in-python-alone ()
   "The hook a reader installs turns the mode on in a Python buffer only.
@@ -2674,7 +2677,7 @@ The `:set' of the option draws the bars again."
           (progn
             (should-not (string-search "ZZ" (car (overblock-pycell-test--bar-texts))))
             (setopt overblock-pycell-cell-buttons
-                    '((only ("ZZ") "The only button" overblock-pycell-run-cell t)))
+                    '((only ("ZZ") "The only button" overblock-run-this t)))
             (should (string-search "ZZ" (car (overblock-pycell-test--bar-texts)))))
         (setopt overblock-pycell-cell-buttons was)))))
 

@@ -56,6 +56,8 @@
 ;;   :step      () -> run whatever is at point, and answer non-nil where
 ;;              the walk must wait for a prompt before the next one
 ;;   :region-at () -> (BEG . END) of the region point is in, or nil
+;;   :code-at   () -> (BEG . END) of what of that region goes to the
+;;              shell, or nil for none.  Optional: the region itself
 ;;   :starts    () -> a marker on the start of every region, in order
 ;;   :bar       () -> draw the bars of the region that starts at point,
 ;;              and return them, an overlay or a list.  Optional
@@ -1411,6 +1413,54 @@ The copy keeps its text properties, so images survive a yank."
   (interactive (list last-input-event))
   (kill-new (overblock-run--result-text (overblock-run--result-at event)))
   (message "%s: result copied" (overblock-run--name)))
+
+;;;###autoload
+(defun overblock-run-this (&optional event)
+  "Run the region at point, or the one whose button EVENT clicked.
+The `:code-at' of the backend says what of it goes to the shell, where
+it has one.  The result grows below the region while it runs.  A
+region sent while another one runs is queued behind it."
+  (interactive (list last-input-event))
+  (overblock-goto-event event)
+  (overblock-run--must)
+  (pcase-let ((`(,beg . ,end)
+               (or (overblock-run--call (if (plist-get overblock-run-backend :code-at)
+                                            :code-at
+                                          :region-at))
+                   (user-error "No %s to run here" (overblock-run--unit)))))
+    (overblock-run-region beg end)))
+
+;;;###autoload
+(defun overblock-run-and-step ()
+  "Run the region at point and move to the start of the next one.
+After the last region, point stays."
+  (interactive)
+  (overblock-run-this)
+  (ignore-error user-error (overblock-run-forward)))
+
+;;;###autoload
+(defun overblock-run-forward (&optional arg)
+  "Move point to the start of the next region, ARG regions on.
+A negative ARG moves back, and the start of the region point is in
+comes first."
+  (interactive "p")
+  (overblock-run--must)
+  (let ((arg (or arg 1))
+        (starts (mapcar (lambda (m) (prog1 (marker-position m) (set-marker m nil)))
+                        (overblock-run--call :starts))))
+    (dotimes (_ (abs arg))
+      (goto-char (or (if (> arg 0)
+                         (seq-find (lambda (start) (> start (point))) starts)
+                       (car (last (seq-filter (lambda (start) (< start (point)))
+                                              starts))))
+                     (user-error "No %s %s this one" (overblock-run--unit)
+                                 (if (> arg 0) "below" "above")))))))
+
+;;;###autoload
+(defun overblock-run-backward (&optional arg)
+  "Move point to the start of the previous region, ARG regions back."
+  (interactive "p")
+  (overblock-run-forward (- (or arg 1))))
 
 ;;;###autoload
 (defun overblock-run-above (&optional event)

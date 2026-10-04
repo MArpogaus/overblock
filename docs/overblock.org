@@ -469,11 +469,15 @@ The shell and the regions:
 | =:error-p=   | (TEXT) → boolean | whether the region failed, which stops a pass  |
 | =:step=      | () → boolean     | run what is at point, and say whether to wait  |
 | =:region-at= | () → cons        | the region point is in, as =(BEG . END)=       |
+| =:code-at=   | () → cons        | what of it goes to the shell; optional         |
 | =:starts=    | () → markers     | a marker at the start of each region, in order |
 | =:bar=       | () → overlays    | draw the bars of the region at point; optional |
 
 Where =:error-p= says that the region failed, the bar of its result
-says =error=.
+says =error=. =:code-at= is the part of the region that
+=overblock-run-this= sends, where it is not the whole region: the code
+between the fences of a chunk, or a cell without its =# %%= line. A
+region without code, such as a markdown cell, answers nil.
 
 =overblock-run-bars= goes to each start and calls =:bar=, which draws
 the bars of the region that starts there and returns them, an overlay
@@ -532,11 +536,14 @@ running output is read in the shell buffer, cut to the result limits.
 The commands of a result are the same in each notebook:
 =overblock-run-toggle-output=, =overblock-run-copy-output=,
 =overblock-run-pop-output=, =overblock-run-save-image=,
-=overblock-run-discard-output=, =overblock-run-clear-results=,
+=overblock-run-discard-output= and =overblock-run-clear-results=. The
+commands of a region and of a pass are the same too:
+=overblock-run-this=, =overblock-run-and-step=,
+=overblock-run-forward=, =overblock-run-backward=,
 =overblock-run-above=, =overblock-run-below=, =overblock-run-stop=,
 =overblock-run-interrupt=, =overblock-run-restart= and
-=overblock-run-restart-and-run-all=. Each package keeps its own buttons and the
-commands that know its regions.
+=overblock-run-restart-and-run-all=. Each package keeps its own
+buttons and the commands that know its regions.
 
 ** The queue is in the shell buffer
 

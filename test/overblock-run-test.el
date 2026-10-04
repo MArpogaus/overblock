@@ -602,5 +602,46 @@ runs it on that prompt."
       (should (equal ran '((prompt 2 "runtest: running every cell")
                            (now 2 "runtest: running every cell")))))))
 
+(ert-deftest overblock-run-test-the-region-commands-walk-the-starts ()
+  "A run sends the `:code-at' of the region at point, else the region.
+Forward and backward go from start to start, and the step runs and
+moves on, and stays after the last region."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n")
+    (let ((backend (append (list :starts (lambda () (list (copy-marker 1)
+                                                          (copy-marker 9)))
+                                 :region-at (lambda ()
+                                              (if (< (point) 9)
+                                                  (cons 1 9)
+                                                (cons 9 (point-max)))))
+                           (overblock-run-test--backend)))
+          sent)
+      (setq-local overblock-run-backend backend)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (push (cons beg end) sent))))
+        (goto-char 2)
+        (overblock-run-this)
+        (should (equal (car sent) '(1 . 9)))
+        (setq-local overblock-run-backend
+                    (append (list :code-at (lambda () (cons 5 9))) backend))
+        (overblock-run-this)
+        (should (equal (car sent) '(5 . 9)))
+        (setq-local overblock-run-backend backend)
+        (goto-char 2)
+        (overblock-run-forward)
+        (should (= (point) 9))
+        (should-error (overblock-run-forward) :type 'user-error)
+        (goto-char 12)
+        (overblock-run-backward)
+        (should (= (point) 9))
+        (overblock-run-backward)
+        (should (= (point) 1))
+        (should-error (overblock-run-backward) :type 'user-error)
+        (overblock-run-and-step)
+        (should (= (point) 9))
+        (overblock-run-and-step)
+        (should (= (point) 9))
+        (should (= (length sent) 4))))))
+
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here
