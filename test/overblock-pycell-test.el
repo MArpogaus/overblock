@@ -434,6 +434,28 @@ buffer it stops one character short by itself."
                      (overlays-in (overlay-start bov)
                                   (overlay-end bov)))))))))
 
+(ert-deftest overblock-pycell-test-fold-over-results-stays-whole ()
+  "A fold over two results stays one fold to its end.
+Only a newline at the end of the fold leaves it, so the result in the
+middle goes under the fold with its code."
+  (with-temp-buffer
+    (insert "# %%\nx = 1\n\n# %%\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (overblock-pycell-test--with-mode
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (overblock-run-show beg end "1" 0.1)
+        (goto-char (point-max))
+        (pcase-let ((`(,beg2 ,end2) (code-cells--bounds nil nil t)))
+          (overblock-run-show beg2 end2 "2" 0.1))
+        (let ((first (car (overblock-in beg (1- end) 'result))))
+          (outline-flag-region 5 (point-max) t)
+          (should (invisible-p (overlay-start (overblock-get first :newline))))
+          (should (invisible-p (- (point-max) 2)))
+          (should-not (invisible-p (1- (point-max)))))))))
+
 (ert-deftest overblock-pycell-test-fold-md-round-trip ()
   "An outline fold takes a markdown block along, and gives it back."
   (skip-unless (overblock-md-program))

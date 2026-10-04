@@ -1239,13 +1239,14 @@ shell buffer, where the filter and the ticker read it."
 FLAG is non-nil where `outline-flag-region' hid the region.  A fold
 that reaches the end of the buffer covers that newline, unlike a fold
 in the middle.  The block, with the bar that folds the result, would
-go with it, so the invisible run is shrunk back off the newline.  An
-advice of `outline-flag-region' while a notebook is on."
+go with it, so the invisible run is shrunk back off the newline.  A
+result in the middle of the fold goes under it.  An advice of
+`outline-flag-region' while a notebook is on."
   (dolist (block (and flag (overblock-in from to 'result)))
     ;; A deleted overlay has no end, and this runs on every fold.
     (when-let* ((nl (overblock-get block :newline))
                 ((overlay-buffer nl))
-                ((<= (overlay-end nl) to)))
+                ((= (overlay-end nl) to)))
       (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
         (when (and (eq (overlay-get ov 'invisible) 'outline)
                    (> (overlay-end ov) (overlay-start nl)))
