@@ -82,6 +82,11 @@ A command of a notebook mode is autoloaded and can be called anywhere."
   (or overblock-run-backend
       (user-error "This buffer runs nothing: it has no notebook mode on")))
 
+(defun overblock-run--notebook-p (buffer)
+  "Return non-nil where BUFFER is a notebook.
+Its shell has a copy of the backend too, but draws no bars."
+  (assq 'bar (buffer-local-value 'overblock-live--specs buffer)))
+
 (defun overblock-run--name ()
   "Return the word that the messages of this backend carry."
   (or (plist-get overblock-run-backend :name) "overblock"))
@@ -99,11 +104,10 @@ This is the `:set' of the options that blocks on the screen follow,
 such as the buttons of a bar and how much of a result shows, so a
 change shows at once."
   (set-default symbol value)
-  (dolist (buffer (buffer-list))
+  (dolist (buffer (seq-filter #'overblock-run--notebook-p (buffer-list)))
     (with-current-buffer buffer
-      (when overblock-run-backend
-        (overblock-bars-stale)
-        (overblock-run--redraw)))))
+      (overblock-bars-stale)
+      (overblock-run--redraw))))
 
 (defcustom overblock-run-max-lines 12
   "Number of result lines that show inline, in every notebook.
@@ -1282,9 +1286,7 @@ buffer."
   (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
   (mapc #'delete-overlay (overblock-bars))
   (overblock-run-clear-results)
-  (unless (seq-some (lambda (buffer)
-                      (buffer-local-value 'overblock-run-backend buffer))
-                    (buffer-list))
+  (unless (seq-some #'overblock-run--notebook-p (buffer-list))
     (advice-remove 'outline-flag-region #'overblock-run--keep-result-newline)))
 
 (defun overblock-run--redraw ()

@@ -130,6 +130,16 @@ region of a pass."
     (let ((overblock-run-test--shell nil))
       (should (eq (overblock-run-shell) shell)))))
 
+(ert-deftest overblock-run-test-the-shell-is-no-notebook ()
+  "The fold advice goes with the last notebook, though its shell stays.
+The shell has a copy of the backend, but no bars to draw."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (overblock-run-attach (overblock-run-test--backend))
+      (overblock-run-detach))
+    (should-not (advice-member-p #'overblock-run--keep-result-newline
+                                 'outline-flag-region))))
+
 (ert-deftest overblock-run-test-an-error-stops-the-pass ()
   "A result the backend calls an error empties the queue.
 The rest of a pass is dropped where one region failed."
