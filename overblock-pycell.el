@@ -507,11 +507,11 @@ This is the `:step' of the backend, with which the runner walks a
 pass down the notebook.  A markdown cell renders here, with no
 prompt to wait for.  One that is rendered already is left alone, which
 saves a converter process per cell."
-  (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-    (unless (and (overblock-pycell--md-cell-start beg)
-                 (overblock-in beg end 'pycell))
+  (pcase-let* ((`(,beg ,end) (code-cells--bounds nil nil t))
+               (md (overblock-pycell--md-cell-start beg)))
+    (unless (and md (overblock-in beg end 'pycell))
       (overblock-pycell-eval-region beg end))
-    (not (overblock-pycell--md-cell-start beg))))
+    (not md)))
 
 (defun overblock-pycell--backend ()
   "Return what `overblock-run' needs to drive an inferior Python.
