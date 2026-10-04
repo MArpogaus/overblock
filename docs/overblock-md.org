@@ -137,8 +137,8 @@ pipes. =cmark= can do a fence but no table. Perl =markdown= can do neither.
 =overblock-pydoc-command= asks pandoc for the same; see
 [[file:overblock-pydoc.org][its notes]].
 
-shr reads the HTML with libxml2. Without libxml2 the markup stays
-plain text. =overblock-md-missing= tells which part is missing.
+The [[file:../README.org::*Prerequisites][README]] tells what a
+rendering needs. =overblock-md-missing= tells which part is missing.
 =overblock-pycell-mode= says it once, and the other modes give no
 message.
 
@@ -214,11 +214,10 @@ open a link, as [[*The preview]] says. From a key,
 =overblock-md-follow-link= reads the links of the block at point, and
 offers them.
 
-=overblock-md--browse= opens the link. A URL with a scheme goes to
-=browse-url=. A link of a README is often relative: =#slug= moves to
-the heading of the buffer whose id pandoc or GitHub makes =slug=, and a
-path opens its file, relative to the file of the buffer, at its
-=#slug= if it names one. A heading is a line of =#= or a line of text
+=overblock-md--browse= opens the link as [[*The preview]] tells. The id
+of a heading is the one that pandoc or GitHub makes. A path is
+relative to the file of the buffer, and can end in a =#slug= too. A
+heading is a line of =#= or a line of text
 over a line of ~===~ or ~---~. In a Markdown buffer a =#= line in a
 fenced block is code, and no heading; in a notebook the fences of a
 markdown cell are comments, and are not seen. An HTML anchor,
@@ -246,8 +245,8 @@ when the image arrives.
 
 The engine is asked from the buffer that shows the rendering, and not
 from the temporary buffer of shr. The engine reads its options in that
-buffer. Thus a preamble that a project sets in =.dir-locals.el= applies,
-and a failed equation warns once for that buffer. The font height also
+buffer, as [[*The preview]] tells. A failed equation warns once for
+that buffer. The font height also
 comes from that buffer, so the formulas follow =text-scale-adjust=
 without a new compile. The colour is the foreground of the face in the
 variable =overblock-md-math-face=, =default= by default.
@@ -263,8 +262,7 @@ image. pandoc renders simple math as text. Such text loses its
 A formula inside a table is an image with a stretch after it. The
 stretch makes up the width of the marks, so the row keeps its columns.
 
-A formula that fails stays text. The engine reports the failure once,
-with the log of LaTeX. =latex-to-svg-backend-invalidate= forgets one
+The engine reports a failed formula once, with the log of LaTeX. =latex-to-svg-backend-invalidate= forgets one
 equation, so that it compiles again.
 
 ** Tables
@@ -359,8 +357,8 @@ each line.
 line of three dashes, with text right under it, to the next line of
 three dashes or three dots. A blank line in it does not end it. A
 comment runs to its =-->=, whatever blank lines stand in it, and a
-fence in it opens nothing. In an Rmd file a chunk inside a comment still
-runs, so there a comment is no block. =overblock-md-fences= finds the
+fence in it opens nothing. In an Rmd file a comment is no block; see
+[[file:overblock-rmd.org::*Known limits][its limits]]. =overblock-md-fences= finds the
 fences first. =overblock-md--paragraphs= then walks the buffer with
 those bounds. It jumps over a fence, so a blank line inside a fence ends
 no paragraph. A fence also ends the paragraph that touches it, as in
@@ -409,8 +407,9 @@ chunks are run and not rendered. It takes its chunks from
 answers: which regions, what to render them with, and when. The layer
 shows the rendering, hides the source under it, and removes it on an
 edit. The mode works only where the major mode derives from
-=markdown-mode=. =overblock-rmd-mode= renders the prose of an Rmd file
-itself, and turns this mode off there.
+=markdown-mode=. In an Rmd file
+[[file:../README.org::*overblock-rmd: R chunks in an Rmd file][overblock-rmd]]
+turns it off.
 
 ** When, and at what cost
 
@@ -422,11 +421,9 @@ and again when the answer arrives. The reader can click, type and move
 while the process runs.
 
 A rendering comes off on each edit under it, through
-=overblock-stale-when-edited=. This includes the typing of the reader,
-a replacement over the buffer, a macro and an undo. Point that moves
-onto a rendering does not remove it. The region point is in stays
-source until point leaves it, because the mode starts its cycle
-without KEEP.
+=overblock-stale-when-edited=: typing, a replacement over the buffer, a
+macro and an undo. [[file:overblock.org::*The live cycle][The live
+cycle]] tells what point does to a rendering.
 
 A block that renders to nothing, such as YAML front matter or a lone
 HTML comment, stays as it is and is not blanked. It gets an empty
