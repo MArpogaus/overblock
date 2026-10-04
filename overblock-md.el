@@ -41,14 +41,13 @@
 ;; image is drawn on the spot rather than fetched.  An image named by
 ;; URL is fetched once into a cache, and drawn from there.
 ;;
-;; Rendering a whole buffer of cells calls the program once, with
+;; Rendering a whole buffer of blocks calls the program once, with
 ;; `overblock-md--html-batch-async'.
 ;;
 ;; `overblock-md-regions' cuts a markdown buffer into the blocks that
 ;; go to the converter whole: the front matter, the fenced blocks, the
 ;; HTML comments and the paragraphs.  `overblock-md-source' is the text
-;; of one block as the converter reads it.  The preview and the prose of
-;; an Rmd file are cut this way.
+;; of one block as the converter reads it.
 ;;
 ;; docs/overblock-md.org has the details.
 
@@ -158,7 +157,7 @@ and an eldoc-box child frame alike."
 ;;;; Faces
 
 (defface overblock-md-code '((t :inherit font-lock-constant-face))
-  "Face for inline code in a rendered markdown cell.
+  "Face for inline code in a rendered markdown block.
 shr draws code in a fixed pitch, which shows nothing in a fixed pitch
 buffer, so this face uses a colour.")
 
@@ -252,7 +251,7 @@ HTML with")))
 (defun overblock-md--html (md)
   "Return the HTML `overblock-md-command' makes of MD, or nil.
 Return nil where no converter is installed or it exits non-zero, so
-the cell stays plain text.  This never signals: a caller renders from
+the block stays plain text.  This never signals: a caller renders from
 the body of a minor mode, where an error would stop the hook that
 turns the mode on."
   (when-let* ((program (overblock-md-program)))
@@ -284,7 +283,7 @@ turns the mode on."
 ;;;; Batch
 
 (defconst overblock-md--marker "overblockcellbreak8f2b1c"
-  "What stands between cells when they go to the converter together.
+  "What stands between blocks when they go to the converter together.
 A plain word in a paragraph of its own, which every converter passes
 through as a paragraph.")
 
@@ -526,9 +525,9 @@ block, or inside a longer run of backquotes, stay one block.
 
 A fence that names a language opens a block and closes none.  When it
 comes while a block of the same kind is open, it ends that block where
-it is, so an unclosed Rmd chunk does not take the header of the next
-chunk as its closing fence.  A fence that is never closed runs to the
-end of the buffer.
+it is, so an unclosed block that names a language does not take the
+next opening fence as its closing fence.  A fence that is never closed
+runs to the end of the buffer.
 
 With COMMENTS, an HTML comment at the left margin is one region up to
 its end, and a fence in it opens nothing; see
@@ -708,10 +707,10 @@ A paragraph is the run of lines between two blank ones, or between a
 blank line and a fence: a fence ends the paragraph that touches it,
 unless it is indented under a list item, to which it belongs.  A list
 item also ends a later paragraph of the item before it, which is
-indented and no item itself.  With EVERY, each fence ends one: the
-fences of an Rmd file are chunks.  The lines a fence holds are not
-read here: `overblock-md-fences' has them already, and a
-blank line inside one ends no paragraph."
+indented and no item itself.  With EVERY, each fence ends one, for a
+caller whose fences are code.  The lines a fence holds are not read
+here: `overblock-md-fences' has them already, and a blank line inside
+one ends no paragraph."
   (save-excursion
     (goto-char (point-min))
     (let (regions from last)
@@ -760,7 +759,7 @@ comment at the left margin (see `overblock-md--comment'), or else the
 run of lines between two blank lines or fences.  A fence indented
 under a list item is part of that item.  PROSE-ONLY leaves the fenced
 blocks and the front matter out, and reads no comments, for a caller
-whose fences hold code, such as the chunks of an Rmd file.
+whose fences hold code.
 
 The unit is the block, not the line: a converter renders each line of
 a table, a fenced block or a list wrongly by itself.  The whole block
@@ -877,10 +876,10 @@ with a fence of the next block.  Other TEXT goes to
 
 (defun overblock-md--comment-closed (text)
   "Return TEXT with the half of an HTML comment it lacks.
-A comment cut at a blank line, as in an Rmd file where a comment is no
-block, sends a half that opens it and one that closes it.  Each gets
-the other mark, so the converter shows neither as text, and the half
-that opens it does not take the markers of a batch."
+A comment cut at a blank line, where a comment is no block, sends a
+half that opens it and one that closes it.  Each gets the other mark,
+so the converter shows neither as text, and the half that opens it
+does not take the markers of a batch."
   (cond ((and (string-prefix-p "<!--" text)
               (not (string-search "-->" text)))
          (concat text "\n-->"))
@@ -949,7 +948,7 @@ See `overblock-md--fetchable-p' for what is fetched."
         (condition-case error
             (progn
               (make-directory dir t)
-              ;; The reader waits for the fetch while the cell renders.
+              ;; The reader waits for the fetch while the block renders.
               (with-timeout (3 (error "Timed out"))
                 (let ((inhibit-message t))
                   (url-copy-file url file t)))
@@ -1029,7 +1028,7 @@ the image."
 (defun overblock-md--tag-img (dom)
   "Draw the image DOM names when it is a file, or else its label.
 shr would fetch an image with `url-queue-retrieve', which answers after
-the cell is rendered, so the rendering keeps the placeholder.  Only a
+the block is rendered, so the rendering keeps the placeholder.  Only a
 data URI goes to shr, which draws it with no fetch.
 
 The alt text carries the image; `overblock-md-rendered' caps it.  See
@@ -1492,11 +1491,11 @@ lines."
 (defun overblock-md--tag-dd (dom)
   "Render the definition DOM under its term, with no blank line between.
 Pandoc wraps a description in a paragraph, and shr opens a paragraph
-with a blank line, so a numpydoc entry would be taller than its source.
+with a blank line, so a definition list would be taller than its source.
 Only the first paragraph is unwrapped, so two paragraphs stay two.
 
 Otherwise this is `shr-tag-dd': the description is four columns in
-from its term, as numpydoc writes it."
+from its term."
   (shr-ensure-newline)
   (let ((shr-indentation (+ shr-indentation
                             (* 4 shr-table-separator-pixel-width)))
@@ -1848,7 +1847,7 @@ window, so `text-scale-adjust' is respected."
 `overblock-md-command' produces HTML, shr renders it, and LaTeX
 fragments become preview images.  With HTML, that is rendered instead
 and MD is not converted again: `overblock-md--html-batch-async' converts
-a whole buffer of cells at once.
+a whole buffer of blocks at once.
 
 shr renders without fonts here: the text hangs on source lines at any
 indentation, and only literal columns survive a move.  The `:align-to'
@@ -1856,7 +1855,7 @@ specs of shr become real spaces for the same reason.
 
 Return nil where no converter is installed and no HTML is given; the
 caller then leaves the markdown as it is."
-  ;; An empty cell renders as the empty string, not nil.
+  ;; An empty block renders as the empty string, not nil.
   (overblock-md--watch-themes)
   (when-let* ((page (or html (overblock-md--html
                               (overblock-md--verbatim-math md)))))
