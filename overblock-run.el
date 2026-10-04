@@ -1191,13 +1191,17 @@ pass scrolled to its end and did not fail (see `overblock-run-go-home')."
 The mode of a notebook calls this as it goes on, and
 `overblock-run-detach' as it goes off.  The results and the bars are
 drawn again when the width changes, through
-`overblock-width-functions'."
+`overblock-width-functions'.  Only a live cycle watches the width, so
+the notebook starts one of its own, of the kind `bar': it draws the
+bars when the reader stops."
   (setq-local overblock-run-backend backend)
-  (add-hook 'overblock-width-functions #'overblock-run--redraw nil t))
+  (add-hook 'overblock-width-functions #'overblock-run--redraw nil t)
+  (overblock-live-start 'bar (lambda () (overblock-run--call :redraw))))
 
 (defun overblock-run-detach ()
   "Stop this buffer being a notebook, and take its results and bars down.
 Every block goes, whatever made it."
+  (overblock-live-stop 'bar)
   (kill-local-variable 'overblock-run-backend)
   (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
   (mapc #'delete-overlay (overblock-bars))

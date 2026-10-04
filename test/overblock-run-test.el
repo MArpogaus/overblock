@@ -523,5 +523,23 @@ The four marks differ on every display."
         (should (get-text-property 0 'keymap fold))
         (should-not (get-text-property 0 'keymap died))))))
 
+(ert-deftest overblock-run-test-a-new-width-redraws-the-results ()
+  "A notebook draws its results again for a new width by itself.
+Only a live cycle watches the width, and a notebook can have no live
+cycle of its mode."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (set-window-buffer nil (current-buffer))
+    (overblock-run-attach (overblock-run-test--backend))
+    (overblock-run-show 1 4 "out" 0.1)
+    (let (drawn)
+      (cl-letf (((symbol-function 'window-max-chars-per-line)
+                 (lambda (&rest _) 20))
+                ((symbol-function 'overblock-run-update)
+                 (lambda (&rest _) (setq drawn t))))
+        (run-hooks 'window-configuration-change-hook))
+      (should drawn))
+    (overblock-run-detach)))
+
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here

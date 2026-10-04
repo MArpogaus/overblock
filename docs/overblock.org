@@ -356,6 +356,10 @@ each bar stale and runs =overblock-width-functions=. The cycle then
 renders the blocks again. It does not render at once, so a drag of the
 window edge starts no converter at each column.
 
+Only a live cycle watches the width. Thus =overblock-run-attach= starts
+a cycle of the kind =bar= in each notebook, also in a notebook whose
+mode renders nothing. That cycle draws the bars of the notebook.
+
 * The edit buffer
 
 =overblock-edit-in-buffer= opens the text under a block in a buffer of
