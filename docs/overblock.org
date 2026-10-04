@@ -247,9 +247,18 @@ Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=:
   when the run has ended.
 
 Use three candidates: a codicon of a nerd font, a character of an
-ordinary monospace font, and a short word. Keep the plain candidates
-of different buttons different. Two buttons with the same character
-are one button to a reader.
+ordinary monospace font, and a short word. Use a word and not a letter,
+because a letter such as =u= means nothing. Make sure that common fonts
+have the middle candidate.
+
+Each nerd glyph here is a codicon (=nf-cod-=, the set of VS Code),
+because those shapes share one hairline weight and one size.
+=overblock-glyph= skips a glyph that an old nerd font does not have.
+
+No candidate of a button is a candidate of another button of the same
+bar. No candidate is a candidate of a button with another meaning on
+another bar. Two buttons with the same character are one button to a
+reader.
 
 Emacs can ask a font what it holds, but not a terminal. Thus a terminal
 gets the last candidate. A reader whose terminal has the icon font sets

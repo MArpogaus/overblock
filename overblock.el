@@ -1597,35 +1597,14 @@ is kept per command in `overblock--button-keymaps'."
 
 (defun overblock-buttons (descriptors &optional imagep lines runningp)
   "Return the icon group that DESCRIPTORS ask for.
-Each descriptor is (KEY GLYPHS HELP COMMAND WHEN), the shape of
-`overblock-button-type' and of every button option here:
-
-- KEY names the button for you; nothing else reads it.
-- GLYPHS are the candidates for its label.  The first one the frame
-  can draw wins, and the last one is the fallback, so put something
-  every display has at the end.  The packages here use three: a nerd
-  glyph, a character of an ordinary monospace font, and a short word
-  (a word, because a letter such as `u' means nothing).  Make sure
-  common fonts have the middle one.
-
-  Every nerd glyph here is a codicon (names nf-cod-, the set of VS
-  Code), because those shapes share one hairline weight and one size.
-  `overblock-glyph' skips a glyph that an old nerd font lacks.  No
-  candidate of a button is a candidate of another button of the same
-  bar, or of a button with another meaning on another bar, so two
-  buttons never look the same.
-
-  A terminal also takes the last candidate, unless
-  `overblock-terminal-glyphs' says its font has the icons.
-- HELP is the tooltip.
-- COMMAND runs on a click.
-- WHEN says when the button shows: t always, `image' only with a
-  picture in the result, `lines' only with output, `running' only
-  while the region runs, and `done' only once it has ended.
+DESCRIPTORS has the shape of `overblock-button-type', as every button
+option here.  \"Buttons\" in docs/overblock.org tells what each part of
+a descriptor does.
 
 IMAGEP says the block holds an image, LINES how many lines it has and
-RUNNINGP that it is still being written, for a WHEN of `image',
-`lines', `running' or `done'."
+RUNNINGP that it is still being written.  Each decides the buttons that
+show only with an image, with output, while the region runs, or once
+it has ended."
   (with-memoization (gethash (list descriptors imagep (> (or lines 0) 0)
                                    runningp (display-graphic-p)
                                    (frame-parameter nil 'font)
