@@ -302,8 +302,6 @@ buffer, so `outline-minor-mode' still finds its heading."
               ((< beg end))
               ;; Without a converter the cell stays plain text.
               ((overblock-md-program)))
-    ;; The old rendering goes first, with its bar.
-    (overblock-clear beg end 'pycell)
     (let* ((block (overblock-md-show
                    beg end (overblock-pycell--source beg end) html 'default
                    :kind 'pycell
