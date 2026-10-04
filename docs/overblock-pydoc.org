@@ -58,12 +58,11 @@ For the button format, see
 
 * Which strings are documentation
 
-Font lock has decided it already, as the
-[[file:../README.org::*overblock-pydoc: Python doc strings][README]]
-tells. python.el paints the doc string of a module, a definition or an
-assignment with =font-lock-doc-face=, and each other string with
-=font-lock-string-face=. Its tree-sitter fontifier paints the same
-face, so no grammar is necessary.
+Font lock decides it. python.el paints the doc string of a module, a
+definition or an assignment with =font-lock-doc-face=, and each other
+string with =font-lock-string-face=. Its tree-sitter fontifier paints
+the same face. Thus the mode needs no parser and no grammar, and a
+string that is data stays as it is.
 
 The face is read as a list, because a theme can add its own face to
 that of font lock.

@@ -144,9 +144,7 @@ documentation. The quotes and the indentation go, the markup renders,
 and the code stays as it is. A click on a doc string shows its source.
 Point that moves into a doc string changes nothing.
 
-The mode uses the faces of font lock to find the doc strings. Thus it
-works in =python-mode= and in =python-ts-mode=, and a string that is
-data stays as it is.
+It works in =python-mode= and in =python-ts-mode=.
 
 #+begin_src emacs-lisp
   (use-package overblock-pydoc

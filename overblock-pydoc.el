@@ -36,14 +36,9 @@
 ;; Turn the mode on with M-x overblock-pydoc-mode, or add it to
 ;; `python-base-mode-hook'.
 ;;
-;; Font lock decides which strings are documentation.  python.el paints
-;; the doc string of a module, a definition or an assignment with
-;; `font-lock-doc-face', and every other string with
-;; `font-lock-string-face'.  So the mode needs no parser and no grammar
-;; of its own, and works in `python-mode' and `python-ts-mode' alike.
-;;
 ;; It runs the same live cycle as `overblock-md-preview-mode', through
-;; `overblock-live-start'.  docs/overblock-pydoc.org has the details.
+;; `overblock-live-start'.  docs/overblock-pydoc.org has the details,
+;; and tells how font lock finds the doc strings.
 
 ;;; Code:
 
