@@ -40,13 +40,10 @@
 ;; docs/custom-mode.org lists its slots, and walks through a notebook
 ;; of bash cells, examples/overblock-sh.el.
 ;;
-;; `overblock-pycell' sends Python cells to an inferior Python, and
-;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
-;; Each keeps its own buttons and options.  The walk that draws the bars
-;; and the commands are below, the same in each: run the region at
-;; point, step to the next one, move between regions, run what is above
-;; or below, stop, interrupt, restart, and fold, copy and discard a
-;; result.
+;; The walk that draws the bars and the commands are below, the same
+;; in each notebook.  The commands run the region at point, step to the
+;; next one, move between regions, and run what is above or below.  They
+;; also stop, interrupt, restart, and fold, copy and discard a result.
 ;;
 ;; docs/overblock.org has the details, under "The run loop".
 
@@ -756,9 +753,9 @@ reached through `overblock-run--shell'.
 
 The `:step' of the backend runs what is at point, and says whether the
 walk must wait: a region sent to the shell waits, and one the notebook
-handles itself (a markdown cell) does not.
+handles itself (a region the mode renders itself) does not.
 
-A loop, not recursion: a recursive call per markdown cell can reach
+A loop, not recursion: a recursive call per such region can reach
 `max-lisp-eval-depth', and each frame would run its tail on the way
 out."
   (when-let* ((shell (overblock-run--shell)))
