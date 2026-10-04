@@ -447,14 +447,6 @@ A one-quote string cannot hold a newline."
     (should (equal (buffer-substring-no-properties (point-min) (point-max))
                    "def f():\n    \"\"\"One line.\n\n    And more.\n    \"\"\"\n"))))
 
-(ert-deftest overblock-pydoc-test-a-missing-edit-mode-falls-back-to-text ()
-  "The edit buffer opens in `text-mode' where the markup mode is missing.
-The default markup is Markdown, and markdown-mode is no dependency."
-  (with-temp-buffer
-    (setq-local overblock-pydoc-markup 'markdown)
-    (let ((overblock-pydoc-modes '((markdown . overblock-pydoc-test-no-mode))))
-      (should (eq (overblock-pydoc--mode-for-markup) #'text-mode)))))
-
 (ert-deftest overblock-pydoc-test-a-doctest-keeps-its-prompts ()
   "A doctest of a Markdown doc string renders as code, prompts and all.
 Markdown reads `>>>' as three nested quotes, which drops the prompts

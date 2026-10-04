@@ -1434,6 +1434,20 @@ A bar of a block takes its block with it, and the source comes back."
                              (overlays-at (point)))
                    "Head"))))
 
+(ert-deftest overblock-test-a-missing-edit-mode-falls-back-to-text ()
+  "The edit buffer opens in `text-mode' where its mode is not installed."
+  (with-temp-buffer
+    (insert "one\n")
+    (overblock-edit-in-buffer
+     1 4 (list :name " *overblock-test-edit*" :label "region"
+               :mode 'overblock-test-no-mode
+               :text #'buffer-substring-no-properties
+               :put #'ignore))
+    (unwind-protect
+        (with-current-buffer " *overblock-test-edit*"
+          (should (eq major-mode 'text-mode)))
+      (kill-buffer " *overblock-test-edit*"))))
+
 (ert-deftest overblock-test-text-typed-after-an-edited-region-stays ()
   "Text typed right after a region while its edit is open is not overwritten."
   (with-temp-buffer

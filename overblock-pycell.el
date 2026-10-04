@@ -604,7 +604,7 @@ it back and renders it; `overblock-edit-abort' discards the edit."
      (list :name (format "*overblock-pycell md: %s:%d*" (buffer-name)
                          (line-number-at-pos beg))
            :label "markdown cell"
-           :mode (if (fboundp 'markdown-mode) #'markdown-mode #'text-mode)
+           :mode #'markdown-mode
            ;; Trimmed on the right: the blank line between cells stays
            ;; out of the edit buffer, and `--md-put' restores it.
            :text (lambda (from to)

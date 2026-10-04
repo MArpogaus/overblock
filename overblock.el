@@ -974,7 +974,8 @@ PROPS is a plist:
           first.  Put a line number in the name.
   :label  what the buffer calls the thing, for the hint on its header
           line.
-  :mode   the major mode of the edit buffer.
+  :mode   the major mode of the edit buffer; `text-mode' where it
+          is not installed.
   :text   called with BEG and END in this buffer; returns the plain
           text to edit.
   :put    called with BEG, END and the edited string, in this buffer,
@@ -1006,7 +1007,8 @@ another region is discarded only after the reader confirms."
         (unless (and pending mine)
           (erase-buffer)
           (insert text)
-          (funcall (plist-get props :mode))
+          (let ((mode (plist-get props :mode)))
+            (funcall (if (fboundp mode) mode #'text-mode)))
           (overblock-edit-mode)
           ;; The keys come from the keymap, so the hint stays true when
           ;; the bindings or the prefix change.
