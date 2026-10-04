@@ -154,15 +154,12 @@ text, and puts each block back on its cell. After the outline move,
 point is where the moved cell now begins. Thus the two new ranges are read from the buffer, and
 are not counted from the old positions.
 
-The move must know three things:
+The move must know two things:
 
 - The move starts at the boundary line of the cell. =code-cells-mode=
   also puts the headings of the major mode into =outline-regexp=. Thus
   a =def= inside a cell is a heading too, and a move from inside it
   would stop with "Cannot move past superior level".
-- =overblock-pycell--stale-when-edited= does nothing while the move
-  runs. The text lands at the first character of the cell that the
-  moved cell passes. Without this, that cell would lose its result.
 - The rest of the blocks of the moved cell is swept, because its text
   was cut out.
 

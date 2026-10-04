@@ -360,7 +360,7 @@ See `overblock-pycell--show', which renders and calls this."
     (overlay-put hov 'keymap overblock-pycell-md-map)
     ;; An edit of the source removes the rendering and the bar, which no
     ;; edit of the cell reaches.
-    (overblock-pycell--stale-when-edited block)
+    (overblock-stale-when-edited block #'overblock-pycell--drop-rendering)
     block))
 
 ;;;###autoload
@@ -579,22 +579,6 @@ saves a converter process per cell."
       (overblock-pycell-eval-region beg end))
     (not (overblock-pycell--md-cell-start beg))))
 
-(defvar overblock-pycell--moving nil
-  "Non-nil while `overblock-pycell-move-cell-down' is moving a cell.
-`overblock-pycell--stale-when-edited' does nothing meanwhile: a move
-relocates whole cells, and the command removes and restores the blocks
-of both cells itself.  The moved text is inserted at the anchor of the
-cell below, whose `insert-in-front-hooks' would remove its result.")
-
-(defun overblock-pycell--stale-when-edited (block)
-  "Take BLOCK down on the next edit of the text it covers.
-This is the `:stale' of the backend.  Not during a move (see
-`overblock-pycell--moving').  The rendering and the bar above a
-rendered cell come down, through `overblock-pycell--drop-rendering'."
-  (overblock-stale-when-edited
-   block (lambda (block)
-           (unless overblock-pycell--moving (overblock-pycell--drop-rendering block)))))
-
 (defun overblock-pycell--backend ()
   "Return what `overblock-run' needs to drive an inferior Python.
 docs/custom-mode.org lists the slots."
@@ -613,8 +597,7 @@ docs/custom-mode.org lists the slots."
         :code-at #'overblock-pycell--code-at
         :starts #'overblock-pycell--starts
         :bar #'overblock-pycell--bar
-        :buttons 'overblock-pycell-result-buttons
-        :stale #'overblock-pycell--stale-when-edited))
+        :buttons 'overblock-pycell-result-buttons))
 
 ;;;; Commands
 
@@ -762,8 +745,7 @@ repeated clicks move the same cell."
     ;; This signals when there is nowhere to move, before anything is
     ;; removed. Every error puts point back: outline moves point before
     ;; it refuses.
-    (let ((overblock-pycell--moving t)
-          (here (point-marker)))
+    (let ((here (point-marker)))
       (condition-case error
           (outline-move-subtree-down arg)
         ;; The text before the first boundary line is a cell to

@@ -154,7 +154,6 @@ it. This table is the one list of the slots.
 | =:starts=    | () → markers     | yes                                | a marker on the start of each region, in order                       |
 | =:bar=       | () → overlays    | no, no bars                        | draw the bars of the region that starts at point, and return them    |
 | =:buttons=   | symbol           | no, no buttons                     | the option that holds the buttons of a result header                 |
-| =:stale=     | (BLOCK)          | no, =overblock-stale-when-edited=  | make a new result block go on an edit                                |
 
 =:process=, =:start=, =:arm=, =:restart=, =:send=, =:step=,
 =:region-at=, =:code-at=, =:starts= and =:bar= run in the notebook.

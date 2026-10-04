@@ -421,9 +421,7 @@ the part that shows; without it the lines of TEXT are counted."
         ;; An empty cell has no newline of its own, and `overblock-show'
         ;; returns nil. No error: this runs in the process filter.
         (when block
-          (funcall (or (plist-get overblock-run-backend :stale)
-                       #'overblock-stale-when-edited)
-                   block)
+          (overblock-stale-when-edited block)
           (overblock-run-update block))
         block))))
 
