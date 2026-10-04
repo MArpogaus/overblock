@@ -257,12 +257,9 @@ The quotes go, and so does the indentation every line shares with the
 definition it belongs to: a doc string is written where the code stands
 and reads as prose one column from the left."
   (let* ((text (buffer-substring-no-properties beg end))
-         (quotes (nth 1 (overblock-pydoc--opened-with text)))
-         (bare (if quotes
-                   (string-remove-suffix
-                    quotes
-                    (substring text (+ (string-match (regexp-quote quotes) text)
-                                       (length quotes))))
+         (bare (if (string-match overblock-pydoc--opening text)
+                   (string-remove-suffix (match-string 2 text)
+                                         (substring text (match-end 0)))
                  text))
          (lines (split-string bare "\n"))
          ;; The first line follows the quotes, so the common
