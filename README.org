@@ -105,11 +105,12 @@ These options apply to every package of the repository.
 
 A block that is taller than the window stops the wheel. Thus
 =overblock-image-height= caps an inline image. Zero shows an image at
-its own size, or at the size its tag gives. The two result limits apply to both notebooks, and zero
-shows all. Set the options with =setopt=. A change of a result limit
-draws the results on the screen again at once. A change of
-=overblock-image-height= or =overblock-terminal-glyphs= applies to the
-next block that a mode draws.
+its own size, or at the size its tag gives. The two result limits
+apply to every notebook, and zero shows all. Set the options with
+=setopt=. A change of a result limit draws the results on the screen
+again at once. A change of =overblock-image-height= or
+=overblock-terminal-glyphs= applies to the next block that a mode
+draws.
 
 *** Faces
 
@@ -697,7 +698,7 @@ For the two notebooks:
 package-lint, relint and the batch tests. =make test STRICT=1= fails
 when a test would skip for a missing tool: a Markdown converter,
 markdown-mode, vtable, libxml2 or =sh=. =make test-live= runs the
-tests against a real IPython and a real R, and skips each one that is
+tests against a real IPython, R and bash, and skips each one that is
 not installed. =make scroll= needs a display and tests the scrolling.
 
 Install the hooks of =.pre-commit-config.yaml=:

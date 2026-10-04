@@ -36,8 +36,9 @@ each already has an owner:
 Thus =overblock-rmd-mode= is one =overblock-live-start= of the kind
 =rmd=, and a backend plist for the runner. The live cycle renders the
 paragraphs that =overblock-md-regions= gives with PROSE-ONLY, through
-=overblock-md-show=. The rest of the file is about R. It holds a few calls of ESS, the shape of a
-chunk header, and the statement that a chunk goes to R in.
+=overblock-md-show=. The rest of the file is about R. It holds a few
+calls of ESS, the shape of a chunk header, and the statement that a
+chunk goes to R in.
 
 A major mode hook calls =overblock-rmd-mode-maybe=, which reads the
 file name. It turns the mode on where the file ends in =.Rmd= or
@@ -86,9 +87,10 @@ and counts lines from the top of the chunk, not of the file.
 ** The chunk as an R string
 
 =overblock-rmd--r-string= prints the chunk as a string literal, with
-the newlines escaped, so that the whole chunk goes as one line. A literal newline inside the string is legal R. But comint
-would send it as a line of its own, and R would answer with a
-continuation prompt in the middle of the result.
+the newlines escaped, so that the whole chunk goes as one line. A
+literal newline inside the string is legal R. But comint would send
+it as a line of its own, and R would answer with a continuation prompt
+in the middle of the result.
 
 The mode uses =ess-send-string= and not =ess-send-region=. The region
 is not what goes to R, and =ess-send-region= gives a chunk to

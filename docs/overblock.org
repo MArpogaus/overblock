@@ -474,18 +474,14 @@ the result block. =overblock-pycell= sends Python cells with it, and
 ** The backend
 
 Nothing in the file knows a language. One plist, the *backend*, tells
-what the language is. =overblock-run-attach= sets it as the
-buffer-local =overblock-run--backend=, and =overblock-run-detach= removes
-it.
+what the language is.
 
 [[file:custom-mode.org::*The backend][docs/custom-mode.org]] lists the
 slots, what each one answers, and which ones a backend must have.
 
 Where =:error-p= says that the region failed, the bar of its result
-says =error=. =:code-at= is the part of the region that
-=overblock-run-this= sends, where it is not the whole region: the code
-between the fences of a chunk, or a cell without its =# %%= line. A
-region without code, such as a markdown cell, answers nil.
+says =error=, and a pass stops. =overblock-run-this= sends the
+=:code-at= of the region, and sends nothing where it is nil.
 
 =overblock-run--bars= goes to each start and calls =:bar=, which draws
 the bars of the region that starts there and returns them, an overlay
@@ -501,7 +497,7 @@ either.
 list that the reader changes shows at the next draw. The bar wears the
 face =overblock-bar= and the body =overblock-body= in each notebook. The
 result limits are the options =overblock-run-max-lines= and
-=overblock-run-max-line-length=, one pair for both notebooks.
+=overblock-run-max-line-length=, one pair for every notebook.
 =overblock-run-result-buttons= gives the five buttons that each result
 carries, with the words of the unit. =overblock-run-bar-buttons= gives
 the three that run from the bar of a region.
@@ -632,7 +628,7 @@ cannot start inside an overlay string. Thus:
   A block with an image ends lower than it started after a series of
   crossings.
 - A block taller than the window throws the wheel back. See
-  [[#the-image-cap][the image cap]].
+  [[*The image cap][the image cap]].
 - =scroll-up-line= does not pass such a block at all.
 
 =scroll-up=, =scroll-down=, =next-line= and a folded block pass.
@@ -684,10 +680,13 @@ suite of the code that it checks. These suites belong to the layer:
   end and no language. Its backend is a plist over =cat=. It tests a
   prompt that ends a run, an error that stops a pass, and a dead, killed
   or restarted shell. It also tests the queue, the follower, and the
-  buttons that both notebooks draw.
+  buttons that every notebook draws.
+- =test/overblock-examples-test.el=: the two example modes of
+  [[file:custom-mode.org][docs/custom-mode.org]].
 
 The notebook suites test the runner from above, and =make test-live=
-sends real regions to a real IPython and a real R.
+sends real regions to a real IPython, R and bash. The bash suite is
+=test/overblock-sh-live-test.el=.
 
 =test/overblock-client-test.el= is a caller of another shape. It renders
 the math of a Python doc string over its lines, with no process and no
