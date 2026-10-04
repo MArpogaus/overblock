@@ -966,8 +966,6 @@ The two keys of `org-edit-special', and no other."
 
 (define-minor-mode overblock-edit-mode
   "Edit the text under a block, as `org-edit-special' edits a source block."
-  ;; The :lighter also keeps the body out of the deprecated positional
-  ;; INIT-VALUE argument.
   :lighter " BlockEdit")
 
 (defun overblock-edit-in-buffer (beg end props)

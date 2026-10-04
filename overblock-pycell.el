@@ -751,8 +751,6 @@ to get plain `python-shell-send-region' back.  The mode binds no keys:
 `overblock-md-command' renders the markdown cells.  When none of its
 candidates is installed, they stay plain and the code cells still
 run."
-  ;; The :lighter also keeps the body out of the deprecated
-  ;; positional INIT-VALUE argument.
   :lighter " PyCell"
   (overblock-only-in 'overblock-pycell-mode 'python-base-mode)
   (if overblock-pycell-mode
