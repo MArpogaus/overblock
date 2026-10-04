@@ -436,10 +436,10 @@ runs."
 (defun overblock-pydoc--mode-for-markup ()
   "Return the major mode that reads a doc string of this buffer.
 `overblock-pydoc-modes' says which.  A markup the option does not
-name gets `rst-mode', and `text-mode' replaces a mode that is not
-installed."
+name gets `markdown-mode', as it gets the markdown converter, and
+`text-mode' replaces a mode that is not installed."
   (let ((mode (or (alist-get overblock-pydoc-markup overblock-pydoc-modes)
-                  #'rst-mode)))
+                  #'markdown-mode)))
     (if (fboundp mode) mode #'text-mode)))
 
 (defun overblock-pydoc--put (beg end prose)

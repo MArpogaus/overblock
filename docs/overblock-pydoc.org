@@ -106,8 +106,8 @@ are written in. Two options are read through it:
 =overblock-pydoc-command= for the shell command and
 =overblock-pydoc-modes= for the major mode of the edit buffer. One
 option selects both, so that the rendering and the edit buffer agree.
-=rst-mode= answers for a markup that the option does not name, and
-=text-mode= answers for a mode that is not installed.
+A markup that the options do not name gets =overblock-md-command= and
+=markdown-mode=. =text-mode= answers for a mode that is not installed.
 
 The doc strings of the buffer go through =overblock-md--html-batch-async=
 with =overblock-md-command= bound to the command for the markup. This

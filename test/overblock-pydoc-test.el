@@ -115,7 +115,7 @@ markup and edited in the mode of another."
   (let ((overblock-pydoc-markup 'org)
         (overblock-md-command "cat"))
     (should (equal (overblock-pydoc--command-for-markup) "cat"))
-    (should (eq (overblock-pydoc--mode-for-markup) #'rst-mode))))
+    (should (eq (overblock-pydoc--mode-for-markup) #'markdown-mode))))
 
 (ert-deftest overblock-pydoc-test-a-doc-string-opens-its-line ()
   "Every doc string is found, and a string that is data is not one.
