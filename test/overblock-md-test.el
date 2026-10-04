@@ -1333,6 +1333,21 @@ from buffer text at point."
     (should (equal opened "https://example.com/x"))))
 
 
+(ert-deftest overblock-md-test-a-key-follows-a-link-of-the-block-at-point ()
+  "From a key, the block at point is asked for its links."
+  (with-temp-buffer
+    (insert "one\n")
+    (overblock-show 1 4 :kind 'mine
+                    :over (concat "a " (propertize "link" 'shr-url "https://a/")))
+    (goto-char 1)
+    (let (opened)
+      (cl-letf (((symbol-function 'browse-url)
+                 (lambda (url &rest _) (setq opened url))))
+        (overblock-md-follow-link))
+      (should (equal opened "https://a/")))
+    (goto-char (point-max))
+    (should-error (overblock-md-follow-link) :type 'user-error)))
+
 ;;;; A rendering shown over its source
 
 (ert-deftest overblock-md-test-show-fills-to-the-room-and-dresses ()

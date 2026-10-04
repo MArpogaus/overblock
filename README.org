@@ -433,8 +433,7 @@ A cell with the marker =# %% [markdown]= renders in place. Its bar shows
 the cell in its own buffer. The move buttons =⌃= and =⌄= come after it.
 A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
 other text, =mouse-1= shows the source, and =mouse-2= opens the edit
-buffer. =overblock-pycell-md-follow-link= opens a link from the
-keyboard.
+buffer. =overblock-md-follow-link= opens a link from the keyboard.
 
 A markdown cell that shows its source has a bar with the buttons of
 =overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
@@ -458,7 +457,7 @@ The Markdown features are those of
 | =overblock-pycell-md-render-cell=   | render the markdown cell at point                                              |
 | =overblock-pycell-md-raw=           | show the source of the markdown cell at point                                  |
 | =overblock-pycell-md-edit=          | edit the markdown cell in its own buffer                                       |
-| =overblock-pycell-md-follow-link=   | follow a link of the rendered cell                                             |
+| =overblock-md-follow-link=          | follow a link of the rendered cell                                             |
 
 
 

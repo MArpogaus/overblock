@@ -1227,20 +1227,57 @@ window, so `text-scale-adjust' is respected."
   (when-let* ((columns (overblock-window-columns)))
     (max 20 (- columns (or indent 0) 1))))
 
-(defun overblock-md-follow-link (event)
-  "Follow the rendered link clicked in EVENT; see `overblock-md-browse'.
+(defun overblock-md-follow-link (&optional event)
+  "Follow the rendered link clicked in EVENT, or one of the block at point.
 A rendering is a display string, and `shr-browse-url' reads the URL
-from buffer text at point.  This reads it from the clicked string."
-  (interactive "e")
-  (let* ((posn (event-start event))
-         (url (pcase (posn-string posn)
-                (`(,string . ,index) (get-text-property index 'shr-url string))
-                (_ (with-current-buffer (window-buffer (posn-window posn))
-                     (get-char-property (posn-point posn) 'shr-url))))))
-    (if url
-        (progn (select-window (posn-window posn))
-               (overblock-md-browse url))
-      (message "No link here"))))
+from buffer text at point.  A click reads it from the clicked string.
+Point never enters a display string, so from a key this asks the
+block at point for its links: with one, it is followed; with several,
+the reader chooses.  `overblock-md-browse' opens it."
+  (interactive (list last-input-event))
+  (if (mouse-event-p event)
+      (let* ((posn (event-start event))
+             (url (pcase (posn-string posn)
+                    (`(,string . ,index) (get-text-property index 'shr-url string))
+                    (_ (with-current-buffer (window-buffer (posn-window posn))
+                         (get-char-property (posn-point posn) 'shr-url))))))
+        (if url
+            (progn (select-window (posn-window posn))
+                   (overblock-md-browse url))
+          (message "No link here")))
+    (let ((links (overblock-md--links (overblock-at))))
+      (cond
+       ((null links) (user-error "No link here"))
+       ((null (cdr links)) (overblock-md-browse (cdar links)))
+       (t (overblock-md-browse
+           (cdr (assoc (completing-read "Follow link: " (mapcar #'car links)
+                                        nil t)
+                       links))))))))
+
+(defun overblock-md--links (block)
+  "Return the links of the rendering of BLOCK, in the order shown.
+Each is a cons of the visible text and the URL.  A BLOCK of nil has
+none.
+
+This reads the whole rendering, not its pieces: a piece that holds an
+image shows its row on the before-string and has an empty display
+string."
+  (let ((shown (and block (overblock-get block :over)))
+        (pos 0)
+        links)
+    (when (stringp shown)
+      (let ((len (length shown)))
+        (while (< pos len)
+          (let ((url (get-text-property pos 'shr-url shown))
+                (next (or (next-single-property-change pos 'shr-url shown)
+                          len)))
+            (when (stringp url)
+              (push (cons (string-trim (substring-no-properties
+                                        shown pos next))
+                          url)
+                    links))
+            (setq pos next)))))
+    (nreverse links)))
 
 (defun overblock-md-browse (url)
   "Open URL, the target of a link in the markdown of this buffer.

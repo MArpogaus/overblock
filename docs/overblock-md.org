@@ -24,7 +24,7 @@ the live cycle asks for.
 | =overblock-md-show=             | show a rendering over its own source             |
 | =overblock-md-columns=          | the columns that a window gives a rendering      |
 | =overblock-md-program=          | the converter that is installed, or nil          |
-| =overblock-md-follow-link=      | open the URL of a rendered link that was clicked |
+| =overblock-md-follow-link=      | open a rendered link, clicked or at point        |
 | =overblock-md-browse=           | open a link: a URL, a =#slug= heading, or a file |
 | =overblock-md-eglot-renderer=   | render the documentation of a language server    |
 | =overblock-md-regions=          | the Markdown blocks of a buffer                  |
@@ -136,7 +136,8 @@ Thus each link of a rendering gets =overblock-md-link-map= in place of
 URL from the clicked string. The parent is =shr-map=, whose
 =follow-link= makes =mouse-1= on a link do the same. Thus a click
 (=mouse-1= or =mouse-2=) on a rendered link opens it. A click on other
-text of a block shows its source.
+text of a block shows its source. From a key, =overblock-md-follow-link=
+reads the links of the block at point, and offers them.
 
 =overblock-md-browse= opens the link. A URL with a scheme goes to
 =browse-url=. A link of a README is often relative: =#slug= moves to

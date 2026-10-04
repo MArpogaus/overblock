@@ -364,52 +364,10 @@ blocks the scans are cheap."
   :doc "Keymap on rendered markdown cells.
 Only the mouse is bound: overblock-pycell binds no keys.  Put your own
 here, for example `overblock-pycell-md-edit' and
-`overblock-pycell-md-follow-link'.  Point never enters the rendering,
+`overblock-md-follow-link'.  Point never enters the rendering,
 so the overlays of the cell carry this map."
   "<mouse-2>" #'overblock-pycell-md-edit
   "<mouse-1>" #'overblock-pycell-md-raw)
-
-(defun overblock-pycell--md-links (block)
-  "Return the links of the rendering of BLOCK, in the order shown.
-Each is a cons of the visible text and the URL.
-
-This reads the whole rendering, not its pieces: a piece that holds an
-image shows its row on the before-string and has an empty display
-string."
-  (let ((shown (overblock-get block :over))
-        (pos 0)
-        links)
-    (when (stringp shown)
-      (let ((len (length shown)))
-        (while (< pos len)
-          (let ((url (get-text-property pos 'shr-url shown))
-                (next (or (next-single-property-change pos 'shr-url shown)
-                          len)))
-            (when (stringp url)
-              (push (cons (string-trim (substring-no-properties
-                                        shown pos next))
-                          url)
-                    links))
-            (setq pos next)))))
-    (nreverse links)))
-
-;;;###autoload
-(defun overblock-pycell-md-follow-link ()
-  "Follow a link of the rendered markdown cell at point.
-A click on a link follows it already, through `overblock-md-link-map'.
-Point never enters a display string, so this asks the cell for its
-links.
-With one, it is followed; with several, the reader chooses."
-  (interactive)
-  (let* ((block (overblock-pycell--md-at nil))
-         (links (overblock-pycell--md-links block)))
-    (cond
-     ((null links) (user-error "No link in this cell"))
-     ((null (cdr links)) (overblock-md-browse (cdar links)))
-     (t (overblock-md-browse
-         (cdr (assoc (completing-read "Follow link: " (mapcar #'car links)
-                                      nil t)
-                     links)))))))
 
 (defun overblock-pycell--md-show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.

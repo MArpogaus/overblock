@@ -238,8 +238,8 @@ shows the source until point leaves the cell. A moved cell renders at
 once.
 
 Point cannot be on a link, because it never enters a display string.
-Thus =overblock-pycell-md-follow-link= reads the links of the rendering
-and offers them. A click on a link uses the link keymap of
+Thus =overblock-md-follow-link= reads the links of the rendering and
+offers them. A click on a link uses the link keymap of
 overblock-md.
 
 * Scrolling

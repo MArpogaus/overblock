@@ -2053,7 +2053,7 @@ links."
     (goto-char (point-min))
     (forward-line 1)
     (let* ((block (overblock-pycell--md-at nil))
-           (links (overblock-pycell--md-links block)))
+           (links (overblock-md--links block)))
       (should (equal (mapcar #'cdr links)
                      '("https://ctan.org/" "https://gnu.org/")))
       (should (equal (mapcar #'car links) '("link" "another")))
@@ -2063,7 +2063,7 @@ links."
                    (lambda (url &rest _) (setq visited url)))
                   ((symbol-function 'completing-read)
                    (lambda (&rest _) (setq asked t) "another")))
-          (overblock-pycell-md-follow-link)
+          (overblock-md-follow-link)
           (should asked)
           (should (equal visited "https://gnu.org/")))))
     ;; A cell with no link says so.
@@ -2072,7 +2072,7 @@ links."
     (overblock-pycell-test--render-all)
     (goto-char (point-min))
     (forward-line 1)
-    (should-error (overblock-pycell-md-follow-link) :type 'user-error)))
+    (should-error (overblock-md-follow-link) :type 'user-error)))
 
 (ert-deftest overblock-pycell-test-a-link-on-an-image-is-found ()
   "A link around an image is found with the rest.
@@ -2096,7 +2096,7 @@ one: `overblock-md--image-file' returns nil for every path there."
       (overblock-pycell-test--render-all))
     (goto-char (point-min))
     (forward-line 1)
-    (should (equal (mapcar #'cdr (overblock-pycell--md-links (overblock-pycell--md-at nil)))
+    (should (equal (mapcar #'cdr (overblock-md--links (overblock-pycell--md-at nil)))
                    '("https://colab.google/" "https://gnu.org/")))))
 
 (ert-deftest overblock-pycell-test-a-pop-out-follows-a-running-cell ()
