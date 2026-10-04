@@ -1146,11 +1146,13 @@ before the thunk.  The regions that waited are dropped, as by
 interpreter can run timers between the prompt and the thunk."
   (when-let* ((shell (overblock-run-shell)))
     (with-current-buffer shell
+      ;; Up to the process mark: input typed at the prompt is not output.
       (when (and (process-live-p overblock-run--armed)
-                 (overblock-run--call
-                  :prompt-p
-                  (buffer-substring-no-properties
-                   (max (point-min) (- (point-max) 256)) (point-max))))
+                 (let ((end (process-mark overblock-run--armed)))
+                   (overblock-run--call
+                    :prompt-p
+                    (buffer-substring-no-properties
+                     (max (point-min) (- end 256)) end))))
         (setq overblock-run--armed nil
               overblock-run--queue nil)
         (overblock-run--home-drop)))))
