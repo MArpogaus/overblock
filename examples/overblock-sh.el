@@ -111,7 +111,7 @@ This is the `:bar' of the backend.  The label is what follows `%%'."
   (looking-at (concat overblock-sh--boundary "[[:blank:]]*\\(.*\\)"))
   (let ((title (string-trim (match-string-no-properties 1))))
     (overblock-bar-line (pos-bol) (pos-eol) 'sh
-                        (overblock-glyph "" "$")
+                        (overblock-glyph "" "$")
                         (if (string-empty-p title) "bash" title)
                         (overblock-buttons overblock-sh-bar-buttons))))
 
