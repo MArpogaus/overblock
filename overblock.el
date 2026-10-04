@@ -720,12 +720,11 @@ Each rendering line goes to the row it was rendered from, found by
 from carries nothing: an underline, a fence, a table rule.  A row
 without text takes a blank line where one comes next, so the gaps of
 the rendering fall on the gaps of the source; such a row carries `:gap'
-and stays in view.  The last row with text
-takes whatever is left.  See `overblock--take' for a wrapped line.
+and stays in view.  The last row with text takes whatever is left.
+See `overblock--take' for a wrapped line.
 
 Nil as a whole where fewer than half the source rows with text match a
-rendered line:
-the rendering is no line by line one of its source, and
+rendered line: the rendering is no line by line one of its source, and
 `overblock--spread' deals it instead."
   (let* ((overblock--keys (make-hash-table :test #'eq))
          (carry (seq-count #'overblock--carries-p rows))

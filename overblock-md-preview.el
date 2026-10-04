@@ -66,6 +66,7 @@
   "Render the markdown BEG..END over its own source, and return the block.
 HTML is the answer of the converter for it, when a batch converted the
 whole buffer.
+
 `overblock-show' deals the rendering over the lines of the region, a
 piece to a line, so a tall block scrolls like text."
   (overblock-md-show beg end (overblock-md-source beg end) html 'default

@@ -43,7 +43,7 @@
 ;; `overblock-pycell' sends Python cells to an inferior Python, and
 ;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
 ;; Each keeps its own buttons and options.  The walk that draws the bars
-;; and the commands are below, the same in both: run the region at
+;; and the commands are below, the same in each: run the region at
 ;; point, step to the next one, move between regions, run what is above
 ;; or below, stop, interrupt, restart, and fold, copy and discard a
 ;; result.
@@ -304,9 +304,9 @@ other bar, so it aligns with the glyph of the cell above."
   "Return the three buttons that run from the bar of a region.
 UNIT is the name of a region in a tooltip (a cell, a chunk).
 
-Both notebooks draw these three, in this order, so a `.py' file and an
-Rmd file show the same row.  A notebook adds its own buttons after
-them.  An entry has the shape `overblock-buttons' reads."
+Every notebook draws these three, in this order, so each shows the
+same row.  A notebook adds its own buttons after them.  An entry has
+the shape `overblock-buttons' reads."
   `((run-above ("" "⇈" "above") ,(format "Run every %s above this one" unit)
                overblock-run-above t)
     (run ("" "▷" "run") ,(format "Run this %s" unit) overblock-run-this t)
@@ -319,9 +319,9 @@ them.  An entry has the shape `overblock-buttons' reads."
 UNIT is the name of a region in a tooltip (a cell, a chunk), and
 PICTURE the name of a picture in a result (an image, a figure).
 
-Both notebooks draw these five, in this order, so a `.py' file and an
-Rmd file show the same row.  A notebook adds its own buttons after
-them.  An entry has the shape `overblock-buttons' reads."
+Every notebook draws these five, in this order, so each shows the
+same row.  A notebook adds its own buttons after them.  An entry has
+the shape `overblock-buttons' reads."
   `((stop ("" "□" "stop") ,(format "Interrupt this %s, and stop the pass" unit)
           overblock-run-interrupt running)
     (save-image ("" "↧" "save") ,(format "Save the result's %s to a file" picture)
@@ -336,10 +336,11 @@ them.  An entry has the shape `overblock-buttons' reads."
   "Return the header bar of a result, as the backend of this buffer says.
 FOLDED is non-nil when only the header shows.
 TOTAL and SHOWN count the lines and the inline subset.  RUNTIME is the
-time in seconds since the cell started.  STATE is `running' while the
-cell runs, `died' where the interpreter went away before the cell
-ended, `failed' where the backend calls the result an error, and nil
-where the cell finished.  IMAGEP marks a result with an image."
+time in seconds since the region started.  STATE is `running' while
+the region runs, `died' where the interpreter went away before the
+region ended, `failed' where the backend calls the result an error,
+and nil where the region finished.  IMAGEP marks a result with an
+image."
   (let* ((icons (overblock-buttons (symbol-value (plist-get overblock-run--backend :buttons))
                                    imagep total (eq state 'running)))
          (mark (overblock-run--mark folded total runtime state))
@@ -388,15 +389,15 @@ are and how many show, and the body is those that show."
 
 (defun overblock-run--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the region BEG..END, as the backend says.
-RUNTIME is the time in seconds since the cell started.  STATE is
-`running' while the cell runs, `died' where the interpreter went away
-before the cell ended, `failed' where the backend calls the result an
-error, and nil where the cell finished.
+RUNTIME is the time in seconds since the region started.  STATE is
+`running' while the region runs, `died' where the interpreter went
+away before the region ended, `failed' where the backend calls the
+result an error, and nil where the region finished.
 
-Empty TEXT gets a header that says \"no output\", so the cell shows as
-evaluated.  A replaced result keeps its fold state.  TOTAL is the
-number of lines the cell printed, for a running cell whose TEXT is only
-the part that shows; without it the lines of TEXT are counted."
+Empty TEXT gets a header that says \"no output\", so the region shows
+as evaluated.  A replaced result keeps its fold state.  TOTAL is the
+number of lines the region printed, for a running region whose TEXT is
+only the part that shows; without it the lines of TEXT are counted."
   (let* ((old (car (overblock-in beg end 'result)))
          (data (list :folded (and old (plist-get (overblock-get old :data)
                                                  :folded))
@@ -407,9 +408,9 @@ the part that shows; without it the lines of TEXT are counted."
         (progn (overblock-set old :data data)
                (overblock-run--update old)
                old)
-      ;; The newline that ends the cell carries the result, so the last
-      ;; cell of the buffer gets one. Without the restriction, because
-      ;; `point-max' of a narrowing can be inside the buffer. A
+      ;; The newline that ends the region carries the result, so the
+      ;; last region of the buffer gets one. Without the restriction,
+      ;; because `point-max' of a narrowing can be inside the buffer. A
       ;; read-only buffer keeps its text: this runs in the process
       ;; filter, where an error would leave the shell busy.
       (without-restriction
@@ -420,7 +421,7 @@ the part that shows; without it the lines of TEXT are counted."
                                    :kind 'result
                                    :data data
                                    :keymap overblock-run-result-map)))
-        ;; An empty cell has no newline of its own, and `overblock-show'
+        ;; An empty region has no newline of its own, and `overblock-show'
         ;; returns nil. No error: this runs in the process filter.
         (when block
           (overblock-stale-when-edited block)
@@ -944,7 +945,7 @@ than `replace-regexp-in-string', which copies the text twice."
     text))
 
 (defun overblock-run--output-so-far (from)
-  "Return the output of the running cell after FROM, cleaned.
+  "Return the output of the running region after FROM, cleaned.
 An incomplete escape sequence at the end is dropped: comint-mime
 renders it only when it is complete."
   (overblock-run--call :clean
@@ -999,10 +1000,10 @@ the head is empty: an incomplete escape sequence hides what follows."
         text)))
 
 (defun overblock-run--total (from)
-  "Return the number of lines the running cell has printed after FROM.
+  "Return the number of lines the running region has printed after FROM.
 Lines are counted as they arrive, so a tick does not read all the
 output again.  Leading blank lines do not count, as the `:clean' of
-the backend drops them, so the count agrees with the finished cell."
+the backend drops them, so the count agrees with the finished region."
   (let* ((state (or (plist-get overblock-run--state :count)
                     (cons (save-excursion
                             (goto-char from)
@@ -1049,9 +1050,9 @@ and comint adjusts the whole chain on every insertion."
 The one exit for every way a run ends; DIED marks abnormal ends.
 Call this in the shell buffer.
 
-Nothing happens where no cell is running: a failing send can end its
-cell through the filter and then signal, and the handler calls this a
-second time.  `overblock-run--abort' checks the same."
+Nothing happens where no region is running: a failing send can end
+its region through the filter and then signal, and the handler calls
+this a second time.  `overblock-run--abort' checks the same."
   (when overblock-run--state
     (pcase-let (((map (:from from) :beg (:end fin) :start :timer :follow
                       (:count count))
@@ -1088,7 +1089,7 @@ goes on."
     (overblock-run--next)))
 
 (defun overblock-run--abort (&optional reason)
-  "End the running cell abnormally, because its prompt will not return.
+  "End the running region abnormally, because its prompt will not return.
 A death notice, with the exit status when one is available, follows
 the output received so far.  This covers a dead interpreter (the
 ticker finds it), a killed shell buffer and a shell restart, which

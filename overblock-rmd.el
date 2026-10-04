@@ -31,8 +31,8 @@
 ;;
 ;; Turn `overblock-rmd-mode' on in an Rmd buffer, or add
 ;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.  Every ```{r}
-;; chunk then gets a bar with a run button.  The prose between the chunks
-;; reads as it will look.  Running a chunk grows its result below the
+;; chunk then gets a bar with run buttons.  The prose between the
+;; chunks reads as it will look.  Running a chunk grows its result below the
 ;; code: a header bar with a spinner, a stopwatch and buttons, and the
 ;; output of R underneath.
 ;;
@@ -333,7 +333,7 @@ session, Julia and Stata too."
               (mapcar #'car ess-process-name-list)))
 
 (defun overblock-rmd--process ()
-  "Return the live R process of this buffer, or nil for none.
+  "Return the live R process of this notebook, or nil for none.
 This is the `:process' of the backend.  ESS keeps the name in
 `ess-local-process-name', and `overblock-rmd--start' sets it.
 
@@ -352,9 +352,9 @@ must still find the process to restart."
 
 (defun overblock-rmd--start ()
   "Attach an R process to this buffer, starting one where none runs.
-This is the `:start' of the backend.  It returns the process, unlike
-the Python notebook: `inferior-ess' waits for the first prompt before
-it returns, so R is ready for a chunk and nothing has to be armed.
+This is the `:start' of the backend.  It returns the process:
+`inferior-ess' waits for the first prompt before it returns, so R is
+ready for a chunk and nothing has to be armed.
 
 `ess-force-buffer-current' takes the one R that runs, asks when there
 are several, and starts one when there is none.  It reads
@@ -536,8 +536,7 @@ docs/custom-mode.org lists the slots.  There is no `:arm':
 
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
-overblock-rmd binds no keys; put your own here.  The Python notebook
-binds none either.  For example:
+overblock-rmd binds no keys; put your own here, for example:
 
   (keymap-set overblock-rmd-mode-map \"C-<return>\" #\\='overblock-run-this)
   (keymap-set overblock-rmd-mode-map \"S-<return>\"
@@ -568,7 +567,7 @@ order in which a configuration turns the two on does not matter."
 ;;;###autoload
 (define-minor-mode overblock-rmd-mode
   "Run the R chunks of this buffer and show their results inline.
-Every chunk gets a bar with a run button, the prose between the chunks
+Every chunk gets a bar with run buttons, the prose between the chunks
 shows as it will look, and a click on a rendering shows its source.
 Turn the mode off to remove the bars, the results and the renderings.
 The mode binds no keys: `overblock-rmd-mode-map' is empty.

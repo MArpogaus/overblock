@@ -153,14 +153,14 @@ render button renders it."
   "What marks a cell boundary line as a markdown cell.
 As loose as `code-cells-boundary-regexp': any number of comment
 characters, with or without a space, since VS Code and Spyder write
-=#%% [markdown]= where jupytext writes =# %% [markdown]=.  A tag list or
-a title can follow, as on a code cell.
+#%% [markdown] where jupytext writes # %% [markdown].  A tag list or a
+title can follow, as on a code cell.
 
 The comment character is literal, not from the syntax table, so the
 answer is the same in a buffer whose mode is not set yet.")
 
 (defun overblock-pycell--md-cell-start (pos)
-  "Return the start of the =# %% [markdown]= line above POS, or nil.
+  "Return the start of the # %% [markdown] line above POS, or nil.
 A non-nil value marks POS as the body of a markdown cell."
   (save-excursion
     (goto-char pos)
@@ -196,8 +196,8 @@ on the same block.  A markdown cell has no code."
 
 (defun overblock-pycell--title (bol eol)
   "Return the title written on the boundary line BOL..EOL, or nil.
-What follows the =%%= marker is the title, as jupytext writes it,
-without the tag list of a =# %% [markdown]= line."
+What follows the %% marker is the title, as jupytext writes it,
+without the tag list of a # %% [markdown] line."
   (save-excursion
     (goto-char bol)
     (when (looking-at code-cells-boundary-regexp)
@@ -293,9 +293,8 @@ HTML is the answer of the converter for it, when a batch converted the
 whole buffer.  `overblock-md-show' renders it: a conversion that fails
 leaves the source in view.
 
-Only the word =markdown= of the boundary line carries the header, so
-=# %%= looks like every other cell boundary and `outline-minor-mode'
-still finds its heading."
+The bar of the cell goes over the boundary line, which stays in the
+buffer, so `outline-minor-mode' still finds its heading."
   (when-let* (;; Still a markdown cell: the boundary line can change
               ;; while an edit buffer is open.
               (from (overblock-pycell--md-cell-start beg))
@@ -471,8 +470,8 @@ buffer, where python.el knows the prompts."
   "Return TEXT without the prompts and the Out[N] labels of the shell.
 The prompt before the output goes, and the prompt after it goes (see
 `overblock-repl-strip-trailing-prompt').  An `Out[N]:' label goes where
-it starts a line.  Call this in the shell
-buffer, where that variable has its value."
+it starts a line.  Call this in the shell buffer, where
+`comint-prompt-regexp' has its value."
   (let ((rx (concat "\\(?:" comint-prompt-regexp "\\)")))
     ;; The (> ...) guard stops an endless loop on an empty match. The
     ;; last guard keeps a figure, which is a space with an image.
@@ -520,7 +519,7 @@ An interrupted cell ends with a bare `KeyboardInterrupt', and
 colon and a message.")
 
 (defun overblock-pycell--error-p (text)
-  "Return non-nil when TEXT is the output of a cell that failed.
+  "Return non-nil where TEXT is the output of a cell that failed.
 This is the `:error-p' of the backend.  A traceback says so in its
 first line, but `SyntaxError' prints no traceback line, and an
 interrupt or `sys.exit()' prints only the bare name.  So the last
