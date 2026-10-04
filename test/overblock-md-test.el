@@ -1348,6 +1348,14 @@ from buffer text at point."
     (goto-char (point-max))
     (should-error (overblock-md-follow-link) :type 'user-error)))
 
+(ert-deftest overblock-md-test-a-missing-converter-is-named ()
+  "Without a converter the reason names the commands that were tried."
+  (let ((overblock-md-command '("there-is-no-such-program-here" "nor-this")))
+    (should (string-match-p "there-is-no-such-program-here, nor-this"
+                            (overblock-md-missing))))
+  (when (overblock-md-program)
+    (should-not (overblock-md-missing))))
+
 ;;;; A rendering shown over its source
 
 (ert-deftest overblock-md-test-show-fills-to-the-room-and-dresses ()

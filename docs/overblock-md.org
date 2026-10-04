@@ -24,6 +24,7 @@ the live cycle asks for.
 | =overblock-md-show=             | show a rendering over its own source             |
 | =overblock-md-columns=          | the columns that a window gives a rendering      |
 | =overblock-md-program=          | the converter that is installed, or nil          |
+| =overblock-md-missing=          | why nothing renders, or nil                      |
 | =overblock-md-follow-link=      | open a rendered link, clicked or at point        |
 | =overblock-md-browse=           | open a link: a URL, a =#slug= heading, or a file |
 | =overblock-md-eglot-renderer=   | render the documentation of a language server    |
@@ -63,8 +64,9 @@ pipes. =cmark= can do a fence but no table. Perl =markdown= can do neither.
 [[file:overblock-pydoc.org][its notes]].
 
 shr reads the HTML with libxml2. Without libxml2 the markup stays
-plain text. =overblock-pycell-mode= tells which part is missing, and
-the other modes give no message.
+plain text. =overblock-md-missing= tells which part is missing.
+=overblock-pycell-mode= says it once, and the other modes give no
+message.
 
 =overblock-md-html-batch-async= sends many texts to the converter in
 one call, and does not wait for the answer. It puts a marker between

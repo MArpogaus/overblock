@@ -638,6 +638,16 @@ nil when none is installed, or when this Emacs has no
                      (and (executable-find (car argv)) argv)))
                  (ensure-list overblock-md-command))))
 
+(defun overblock-md-missing ()
+  "Return why markdown does not render in this Emacs, or nil where it does.
+A mode says it once, where it has markdown to render."
+  (unless (overblock-md-program)
+    (if (fboundp 'libxml-parse-html-region)
+        (format "no markdown converter found (%s)"
+                (string-join (ensure-list overblock-md-command) ", "))
+      "this Emacs was built without libxml, which shr reads the converter's \
+HTML with")))
+
 (defconst overblock-md--marker "overblockcellbreak8f2b1c"
   "What stands between cells when they go to the converter together.
 A plain word in a paragraph of its own, which every converter passes

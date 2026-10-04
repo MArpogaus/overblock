@@ -825,15 +825,9 @@ run."
         (setq-local overblock-md-heading-regexp
                     "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
         ;; Said once, and only when there is a markdown cell.
-        (when (and (not (overblock-md-program))
-                   (overblock-pycell--md-cells))
-          (message "overblock-pycell: %s, cells stay plain"
-                   (if (fboundp 'libxml-parse-html-region)
-                       (format "no markdown converter found (%s)"
-                               (string-join (ensure-list overblock-md-command)
-                                            ", "))
-                     "this Emacs was built without libxml, which shr reads \
-the converter's HTML with")))
+        (when-let* ((why (overblock-md-missing))
+                    ((overblock-pycell--md-cells)))
+          (message "overblock-pycell: %s, cells stay plain" why))
         ;; Point moving into a rendered cell changes nothing; a click
         ;; shows its source.
         (overblock-live-start 'markdown #'overblock-pycell-render-buffer t))
