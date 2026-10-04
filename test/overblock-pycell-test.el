@@ -1790,6 +1790,19 @@ A yank typed while the pass stood on a cell would land in that cell."
           (run-hooks 'post-command-hook)
           (should (string-match-p "^typedx = 1" (buffer-string))))))))
 
+(ert-deftest overblock-pycell-test-a-sideways-scroll-stops-the-scrolling ()
+  "A horizontal scroll of a notebook window is a scroll of the reader."
+  (overblock-pycell-test--with-notebook "# %% One\nx = 1\n"
+    (setq truncate-lines t)
+    (overblock-run--scroll-start)
+    (unwind-protect
+        (progn
+          (run-hooks 'pre-command-hook)
+          (set-window-hscroll (selected-window) 4)
+          (run-hooks 'post-command-hook)
+          (should-not (memq (current-buffer) overblock-run--scrolled)))
+      (overblock-run--scroll-stop))))
+
 (ert-deftest overblock-pycell-test-a-killed-notebook-takes-the-scroll-hooks-along ()
   "The command hooks of the scrolling go when the last such notebook dies."
   (let ((notebook (generate-new-buffer " *overblock-pycell-test-scroll*")))

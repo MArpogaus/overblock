@@ -581,12 +581,13 @@ can have started the pass.  A mouse yank at point, with
     (setq overblock-run--home-later nil)))
 
 (defun overblock-run--scroll-windows ()
-  "Return (WINDOW START VSCROLL POINT) for each window of a scrolling notebook."
+  "Return (WINDOW START VSCROLL HSCROLL POINT) for each scrolling notebook window."
   (setq overblock-run--scrolled (seq-filter #'buffer-live-p overblock-run--scrolled))
   (mapcan (lambda (buffer)
             (mapcar (lambda (window)
                       (list window (window-start window)
-                            (window-vscroll window t) (window-point window)))
+                            (window-vscroll window t) (window-hscroll window)
+                            (window-point window)))
                     (get-buffer-window-list buffer nil t)))
           overblock-run--scrolled))
 
