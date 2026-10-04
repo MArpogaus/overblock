@@ -341,8 +341,8 @@ because both can show in one notebook."
   "Return the row that closes a rendered doc string, INDENT columns in.
 Only a rule: the label and the buttons are on the bar above.
 
-It starts with a zero-width space, because `overblock--pieces' trims
-blank lines off the ends, and a row of spaces is a blank line."
+It starts with a zero-width space, because `overblock--piece-lines'
+trims blank lines off the ends, and a row of spaces is a blank line."
   (concat (propertize "\N{ZERO WIDTH SPACE}"
                       'face 'overblock-pydoc-footer)
           (overblock-bar "" "" "" 'overblock-pydoc-footer indent)))

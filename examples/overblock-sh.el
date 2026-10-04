@@ -34,7 +34,7 @@
 ;; script with `# %%' lines, and turn on M-x overblock-sh-mode.  Then
 ;; click the run button of a bar, or call `overblock-run-this'.
 ;;
-;; It has the sections of every notebook mode: Options, Regions, Bars,
+;; It has the sections of a notebook mode: Options, Regions, Bars,
 ;; Backend, Mode.  The backend is a plist of functions, and
 ;; `overblock-run-attach' gives it to the runner, which holds the
 ;; queue, the results and every command.  docs/custom-mode.org walks
@@ -100,7 +100,7 @@ This is the `:starts' of the backend."
 (defun overblock-sh--code-at ()
   "Return the code of the cell point is in as (BEG . END), or nil.
 This is the `:code-at' of the backend: the cell without its boundary
-line.  The result hangs on the last newline of the code."
+line.  Thus the \"# %%\" line does not go to the shell."
   (when-let* ((cell (overblock-sh--region-at)))
     (cons (save-excursion (goto-char (car cell)) (pos-bol 2))
           (cdr cell))))

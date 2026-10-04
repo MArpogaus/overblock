@@ -937,9 +937,7 @@ lone HTML comment, the block shows nothing and the region stays as it
 is.  The block is there all the same, so a live cycle does not convert
 the region again.  Any edit of the region takes the block down (see
 `overblock-stale-when-edited'): typing, a replacement over the buffer,
-a macro, an undo.  Point moving into the region reveals nothing.
-
-`overblock-md-show' uses this."
+a macro, an undo.  Point moving into the region reveals nothing."
   (when-let* ((block
                (if (string-empty-p (string-trim rendered))
                    ;; No keymap: a click in the source sets point.
@@ -1144,9 +1142,8 @@ on and stopped.  A mode binds this to the mouse."
 
 (defvar-keymap overblock-live-map
   :doc "Keymap on a rendering of a live cycle.
-A click shows the source of the rendering, to edit it.  The Markdown
-preview, the doc strings and the prose of an Rmd file share it, so a
-key put here works on all of them."
+A click shows the source of the rendering, to edit it.  The render
+modes share it, so a key put here works on all of them."
   "<mouse-1>" #'overblock-live-edit)
 
 (defun overblock-live-start (kind render &optional keep)

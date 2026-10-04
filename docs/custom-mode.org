@@ -164,8 +164,8 @@ runner does with each answer.
 ** The regions and the bars
 
 A cell starts at its =# %%= line. =:region-at= includes that line, and
-=:code-at= leaves it out. Thus the result hangs on the last newline of
-the code. =:bar= draws one bar on the =# %%= line. The buttons come from
+=:code-at= leaves it out. Thus the =# %%= line does not go to the
+shell. =:bar= draws one bar on the =# %%= line. The buttons come from
 the option, so a change of the option shows at once:
 
 #+begin_src emacs-lisp

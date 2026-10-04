@@ -26,14 +26,15 @@
 
 ;; An example, and no package: the smallest render mode on overblock.
 ;; Every run of lines that start with `>' in a text buffer shows as one
-;; block in the face of a comment, without the markers.  A click on a block shows its
-;; source, and the block renders again when point leaves it.
+;; block in the face of a comment, without the markers.  A click on a
+;; block shows its source, and the block renders again when point
+;; leaves it.
 ;;
 ;; To try it, evaluate this file with M-x load-file, open a text file
 ;; or a mail with quoted lines, and turn on M-x overblock-quote-mode.
 ;;
 ;; It has the sections of a render mode: Options, Regions, Rendering,
-;; Mode.  A mode whose regions come from the layer, such as
+;; Mode.  A mode whose regions come from overblock-md, such as
 ;; overblock-md-preview, has no Regions.  The live cycle of the layer
 ;; does the rest: `overblock-live-start' calls
 ;; `overblock-quote-render-buffer' when the reader stops, and

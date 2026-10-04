@@ -34,8 +34,7 @@
 ;; An external program turns the markdown into HTML, shr renders the
 ;; HTML, and latex-to-svg-backend turns LaTeX fragments into preview
 ;; images.  The result is a string that a block can show.
-;; `overblock-md-show' shows one over its own source, as the preview,
-;; the doc strings and the prose of an Rmd file do.
+;; `overblock-md-show' shows one over its own source.
 ;;
 ;; A rendered table is laid out in characters rather than pixels, so its
 ;; columns line up over the fixed-pitch lines of a buffer.  A local
@@ -173,8 +172,7 @@ shown in this buffer.")
 (defvar overblock-md-math-face 'default
   "The face whose foreground a formula is drawn in.
 A caller that paints its rendering in a face of its own binds this, so
-the formulas have the colour of the prose.  pydoc binds it to
-`font-lock-doc-face'.")
+the formulas have the colour of the prose.")
 
 (defvar overblock-md-width nil
   "The number of columns a rendering is filled to, or nil for shr's own.
@@ -519,8 +517,7 @@ asks this before it hides a line.")
 (defun overblock-md-fences (&optional comments)
   "Return the bounds of the front matter and every fenced block, in order.
 Each is a cons of the start of the opening fence line and the end of
-the closing one.  Public because `overblock-rmd' takes the R chunks of
-an Rmd file from it.
+the closing one.  Public because a mode takes its code chunks from it.
 
 A fence opens a block and the next fence closes it, whatever blank
 lines stand between them.  As in CommonMark, the closing fence is of
@@ -537,8 +534,8 @@ With COMMENTS, an HTML comment at the left margin is one region up to
 its end, and a fence in it opens nothing; see
 `overblock-md--comment' for where one begins.  Split at a
 blank line, its closing half would show as text, and a fence in it
-would open a block.  In an Rmd file a chunk in a comment still runs,
-so `overblock-rmd' asks for none."
+would open a block.  A caller whose code blocks run also in a comment
+asks for none."
   (save-excursion
     (goto-char (point-min))
     (let ((regions (overblock-md--front-matter))

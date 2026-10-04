@@ -32,9 +32,9 @@
 ;; Turn `overblock-rmd-mode' on in an Rmd buffer, or add
 ;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.  Every ```{r}
 ;; chunk then gets a bar with run buttons.  The prose between the
-;; chunks reads as it will look.  Running a chunk grows its result below the
-;; code: a header bar with a spinner, a stopwatch and buttons, and the
-;; output of R underneath.
+;; chunks reads as it will look.  Running a chunk grows its result
+;; below the code: a header bar with a spinner, a stopwatch and
+;; buttons, and the output of R underneath.
 ;;
 ;; An Rmd file is the inverse of a Python notebook.  A `.py' notebook
 ;; is code with `# %%' lines cutting it into cells; an Rmd file is
@@ -117,7 +117,7 @@
   (overblock-run-bar-buttons "chunk")
   "The buttons on the bar of an R chunk, left to right.
 An entry has the shape `overblock-buttons' reads.  A chunk bar is
-drawn before the chunk runs, so `lines' means nothing here.
+drawn before the chunk runs, so `lines' and `image' mean nothing here.
 
 The default is `overblock-run-bar-buttons' worded for a chunk: the row
 of the `.py' notebook without the two that move a cell, because a
@@ -130,10 +130,9 @@ chunk sits inside prose about it."
   (overblock-run-result-buttons "chunk" "figure")
   "The buttons on the header of a result, left to right.
 An entry has the shape `overblock-buttons' reads.  The default is
-`overblock-run-result-buttons' worded for a chunk: the row of the
-`.py' notebook without the two that move a cell, because a chunk sits
-inside prose about it.  The fold arrow and the spinner are not in this
-list: they show the state of the result."
+`overblock-run-result-buttons' worded for a chunk, without the move
+buttons, as in `overblock-rmd-bar-buttons'.  The fold arrow and the
+spinner are not in this list: they show the state of the result."
   :type overblock-button-type
   :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
