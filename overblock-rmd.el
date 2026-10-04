@@ -513,7 +513,7 @@ finds nothing, and the walk goes on to the next one."
 
 (defun overblock-rmd--backend ()
   "Return what `overblock-run' needs to drive an inferior R.
-The commentary of `overblock-run' lists the slots.  There is no `:arm':
+docs/custom-mode.org lists the slots.  There is no `:arm':
 `overblock-rmd--start' returns a process that has already prompted."
   (list :name "overblock-rmd"
         :unit "chunk"

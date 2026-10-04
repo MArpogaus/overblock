@@ -1,0 +1,303 @@
+#+TITLE: A mode of your own
+#+OPTIONS: toc:2
+
+This guide tells how to write a mode on the overblock layer. Two
+example modes in [[file:../examples/][=examples/=]] are the working
+examples. They are in no package. The guide shows short parts of them,
+and the files hold the full code. The API itself is in
+[[file:overblock.org][docs/overblock.org]]. This guide links to it and
+does not repeat it.
+
+To try an example, load it with =M-x load-file=. Then open a file of
+the right kind and turn the mode on:
+
+| Example            | Open                             | Turn on                    |
+|--------------------+----------------------------------+----------------------------|
+| [[file:../examples/overblock-quote.el][overblock-quote.el]] | a text file with =>= quote lines | =M-x overblock-quote-mode= |
+| [[file:../examples/overblock-sh.el][overblock-sh.el]]    | a shell script with =# %%= lines | =M-x overblock-sh-mode=    |
+
+* Two kinds of mode
+
+A *render mode* shows a region in a different form. It shows the
+rendering over the source, and the source comes back on a click. The
+live cycle of the layer renders the buffer again when the reader stops.
+=overblock-md-preview=, =overblock-pydoc= and =overblock-quote= are
+render modes.
+
+A *notebook mode* sends regions to a shell and shows each result under
+its region. =overblock-run.el= holds the queue, the result blocks and
+all the commands. The mode gives a plist of functions, the *backend*,
+which knows the language. =overblock-pycell=, =overblock-rmd= and
+=overblock-sh= are notebook modes.
+
+Pick a render mode when the text itself is the input, and nothing runs.
+Pick a notebook mode when a process makes the output. A mode can be
+both: =overblock-rmd= renders the prose and runs the R chunks.
+
+* The anatomy of a mode
+
+Each mode file has the same sections, in this order. A section that a
+mode does not need is not there.
+
+| Section   | What it holds                                                     |
+|-----------+-------------------------------------------------------------------|
+| Options   | the =defgroup=, the faces and the user options                    |
+| Regions   | the walk that finds the regions, and the region at point          |
+| Bars      | the bar of a region, in a notebook                                |
+| Rendering | the function that shows one region, and the render function       |
+| Backend   | the functions of the backend, and =MODE--backend= that lists them |
+| Commands  | the commands that only this mode has                              |
+| Mode      | the keymap, =MODE-mode=, and =MODE-mode-maybe= for a hook         |
+| Hooks     | the hooks of other packages that the mode joins                   |
+
+* Naming
+
+The examples use the names of the shipped modes. A reader who knows one
+mode can then read each other mode.
+
+- The prefix is the name of the mode file: =overblock-sh-=.
+- The kind of the blocks of a live cycle is the short name of the mode:
+  =quote=, =pydoc=, =rmd=.
+- The walk is =MODE--regions=. The region at point is
+  =MODE--region-at=, and the starts of all regions are =MODE--starts=.
+- One region shows through =MODE--show=. The live cycle calls
+  =MODE-render-buffer=.
+- The bar of a region is =MODE--bar=. The backend is =MODE--backend=.
+- The buttons are the options =MODE-bar-buttons= and
+  =MODE-result-buttons=.
+- A function of the backend is =MODE--SLOT=, for example
+  =overblock-sh--prompt-p= for =:prompt-p=. Its docstring says
+  "This is the =:prompt-p= of the backend."
+
+* A render mode: overblock-quote
+
+[[file:../examples/overblock-quote.el][=overblock-quote.el=]] shows each
+run of =>= lines in a text buffer as one block without the markers.
+
+The walk returns each region as a cons of its start and its end. A
+region holds whole lines, so the end is the start of the next line:
+
+#+begin_src emacs-lisp
+  (while (re-search-forward "^>" nil t)
+    (let ((beg (pos-bol)))
+      (while (and (zerop (forward-line 1)) (looking-at-p ">")))
+      (push (cons beg (point)) regions)))
+#+end_src
+
+=MODE--show= makes the text and gives it to
+=overblock-show-rendering=. That function shows the text over the
+region, a piece to a line. It also takes the block down when the reader
+edits the region. =overblock-live-map= makes a click show the source:
+
+#+begin_src emacs-lisp
+  (overblock-show-rendering
+   beg end
+   (replace-regexp-in-string "^> ?" "" (buffer-substring-no-properties beg end))
+   'overblock-quote
+   :kind 'quote
+   :keymap overblock-live-map
+   :help-echo "mouse-1: edit this quote")
+#+end_src
+
+The render function renders only the regions that want a rendering.
+=overblock-live-wanted-p= says which. It leaves out the region at
+point, a region with a rendering, and the active region:
+
+#+begin_src emacs-lisp
+  (pcase-dolist (`(,beg . ,end) (overblock-quote--regions))
+    (when (overblock-live-wanted-p beg end 'quote)
+      (overblock-quote--show beg end)))
+#+end_src
+
+The mode starts and stops one live cycle. =overblock-only-in= refuses a
+buffer of the wrong major mode:
+
+#+begin_src emacs-lisp
+  (when overblock-quote-mode
+    (overblock-only-in 'overblock-quote-mode 'text-mode))
+  (if overblock-quote-mode
+      (overblock-live-start 'quote #'overblock-quote-render-buffer)
+    (overblock-live-stop 'quote))
+#+end_src
+
+A mode that renders Markdown uses =overblock-md-show= in place of
+=overblock-show-rendering=, and =overblock-md-render-regions= in its
+render function. One converter process then renders all regions.
+=overblock-md-preview.el= is the shortest example of this.
+
+* A notebook mode: overblock-sh
+
+[[file:../examples/overblock-sh.el][=overblock-sh.el=]] runs the =# %%=
+cells of a shell script in a bash of its own.
+
+** The backend
+
+The backend is a plist. =overblock-run-attach= sets it as the
+buffer-local =overblock-run-backend=, and =overblock-run-detach= removes
+it. This table is the one list of the slots.
+
+| Slot         | Signature        | Required                          | What it answers                                                      |
+|--------------+------------------+-----------------------------------+----------------------------------------------------------------------|
+| =:name=      | string           | no, "overblock"                   | the word that messages carry, as in "NAME: stopped at error"         |
+| =:unit=      | string           | no, "region"                      | what a region is called in a message or a tooltip: "cell", "chunk"   |
+| =:process=   | () → process     | yes                               | the live shell process of the notebook, or nil                       |
+| =:start=     | () → process     | yes                               | start a shell, and give it where it takes a region at once, else nil |
+| =:arm=       | (THUNK)          | where =:start= gives nil          | call THUNK on the first prompt of a new or restarted shell           |
+| =:restart=   | (PROC) → process | yes                               | start a shell in place of PROC, the old process or nil               |
+| =:send=      | (PROC BEG END)   | yes                               | send the region to the process                                       |
+| =:prompt-p=  | (TAIL) → boolean | yes                               | whether the output ends at a prompt                                  |
+| =:clean=     | (TEXT) → string  | yes                               | the output as a block can show it                                    |
+| =:error-p=   | (TEXT) → boolean | no, never                         | whether the region failed, which stops a pass                        |
+| =:step=      | () → boolean     | yes                               | run what is at point, and say whether the pass waits for a prompt    |
+| =:region-at= | () → cons        | yes                               | the region point is in, as =(BEG . END)=, or nil                     |
+| =:code-at=   | () → cons        | no, the region                    | what of that region goes to the shell, or nil for none               |
+| =:starts=    | () → markers     | yes                               | a marker on the start of each region, in order                       |
+| =:bar=       | () → overlays    | no, no bars                       | draw the bars of the region that starts at point, and return them    |
+| =:buttons=   | symbol           | no, no buttons                    | the option that holds the buttons of a result header                 |
+| =:stale=     | (BLOCK)          | no, =overblock-stale-when-edited= | make a new result block go on an edit                                |
+
+=:process=, =:start=, =:arm=, =:restart=, =:send=, =:step=,
+=:region-at=, =:code-at=, =:starts= and =:bar= run in the notebook.
+=:prompt-p=, =:clean= and =:error-p= run in the shell buffer.
+[[file:overblock.org::*The run loop][The run loop]] tells what the
+runner does with each answer.
+
+** The regions and the bars
+
+A cell starts at its =# %%= line. =:region-at= includes that line, and
+=:code-at= leaves it out. Thus the result hangs on the last newline of
+the code. =:bar= draws one bar on the =# %%= line. The buttons come from
+the option, so a change of the option shows at once:
+
+#+begin_src emacs-lisp
+  (overblock-bar-line (pos-bol) (pos-eol) 'sh
+                      (overblock-glyph "" "$")
+                      (if (string-empty-p title) "bash" title)
+                      (overblock-buttons overblock-sh-bar-buttons))
+#+end_src
+
+The defaults of the two button options come from the runner. Each
+notebook then shows the same row:
+
+#+begin_src emacs-lisp
+  (defcustom overblock-sh-bar-buttons (overblock-run-bar-buttons "cell")
+    ...
+    :type overblock-button-type
+    :set #'overblock-run-set-and-redraw)
+#+end_src
+
+** The shell
+
+The runner watches the output for the prompt. Thus the prompt must be
+known, and it must come once for each cell. The example sets both
+prompts through the environment. It also turns off the start-up files,
+the line editor and the history file:
+
+#+begin_src emacs-lisp
+  (process-environment
+   (append (list (concat "PS1=" overblock-sh--prompt) "PS2=" "HISTFILE=")
+           process-environment))
+  ...
+  (make-comint-in-buffer
+   "overblock-sh" (format "*overblock-sh: %s*" (buffer-name))
+   "bash" nil "--norc" "--noprofile" "--noediting" "-i")
+#+end_src
+
+=:send= wraps the cell in one group. Thus bash prompts once, at the end
+of the cell. A cell that fails adds its exit status as its last line,
+and =:error-p= looks for that line:
+
+#+begin_src emacs-lisp
+  (comint-send-string
+   proc (format "{ :\n%s\n} || echo \"[exit $?]\"\n"
+                (buffer-substring-no-properties beg end)))
+#+end_src
+
+=:clean= removes the last prompt and the face of the prompt. Then it
+cuts the text loose from the shell, with the helpers of
+[[file:overblock.org::*The output of a shell][The output of a shell]]:
+
+#+begin_src emacs-lisp
+  (overblock-repl-detach
+   (overblock-repl-drop-prompt-face
+    (overblock-repl-strip-trailing-prompt
+     text (regexp-quote overblock-sh--prompt))))
+#+end_src
+
+** The mode
+
+The mode only attaches the backend. The runner draws the bars through a
+live cycle of the kind =bar=, and it follows the width of the window:
+
+#+begin_src emacs-lisp
+  (if overblock-sh-mode
+      (overblock-run-attach (overblock-sh--backend))
+    (overblock-run-detach))
+#+end_src
+
+All commands come from =overblock-run=: =overblock-run-this=,
+=overblock-run-and-step=, =overblock-run-forward=,
+=overblock-run-backward=, =overblock-run-above=, =overblock-run-below=,
+=overblock-run-restart=, =overblock-run-restart-and-run-all=,
+=overblock-run-stop= and =overblock-run-interrupt=. The buttons call
+them.
+
+* The core API
+
+Each row names what a mode uses, and links to the reference.
+
+| A mode needs                  | It uses                                                             | Reference               |
+|-------------------------------+---------------------------------------------------------------------+-------------------------|
+| a block over a region         | =overblock-show=, =overblock-show-rendering=, =overblock-clear=     | [[file:overblock.org::*The block layer][The block layer]]         |
+| a block that goes on an edit  | =overblock-stale-when-edited=                                       | [[file:overblock.org::*What an edit takes down][What an edit takes down]] |
+| a buffer kept rendered        | =overblock-live-start=, =overblock-live-stop=, =overblock-live-map= | [[file:overblock.org::*The live cycle][The live cycle]]          |
+| a rendering in its own buffer | =overblock-edit-in-buffer=                                          | [[file:overblock.org::*The edit buffer][The edit buffer]]         |
+| a bar with buttons            | =overblock-bar-line=, =overblock-buttons=, =overblock-glyph=        | [[file:overblock.org::*The header bars][The header bars]]         |
+| Markdown as text              | =overblock-md-show=, =overblock-md-render-regions=                  | [[file:overblock-md.org][docs/overblock-md.org]]   |
+| shell output as text          | =overblock-repl-detach=, =overblock-repl-strip-trailing-prompt=     | [[file:overblock.org::*The output of a shell][The output of a shell]]   |
+| a notebook                    | =overblock-run-attach=, =overblock-run-region=, the commands        | [[file:overblock.org::*The run loop][The run loop]]            |
+| a slow walk kept              | =overblock-cached=                                                  | [[file:overblock.org::*What the hot paths do][What the hot paths do]]   |
+| the major mode it reads       | =overblock-only-in=                                                 | the docstring           |
+
+* Traps
+
+- *The shell must be comint.* The runner reads the output through
+  =comint-output-filter-functions= in the buffer of the process. A
+  process without comint never ends a run.
+- *One prompt for each region.* A shell that reads a region line by
+  line prompts after each line. The first prompt then ends the run.
+  Send the region as one unit: a =source= call in R, a group in bash.
+  A continuation prompt, such as =PS2= in bash, must print nothing.
+- *The prompt must be unique.* =:prompt-p= reads the last 256
+  characters of the output, without ANSI escapes. Output that ends like
+  the prompt ends the run too early.
+- *No echo.* Where the shell writes the input back, the input is in the
+  result. Turn the echo off in the shell, or remove it in =:clean=.
+- *The first prompt.* A new shell prints a prompt when it starts. A
+  region sent before it ends at that prompt, with no output. So
+  =:start= waits for the prompt and gives the process, or it gives nil
+  and =:arm= calls its thunk on the first prompt.
+- *A restart in the old buffer.* That buffer already ends at a prompt.
+  Wait for a prompt after the process mark of the new process, not for
+  the last characters of the buffer.
+- *Three slots run in the shell buffer.* =:prompt-p=, =:clean= and
+  =:error-p= cannot read the buffer-local values of the notebook. A
+  value that they need is a constant, or it is local to the shell.
+- *The width.* A rendering is made for the width of its window. The
+  live cycle draws it again when the width changes. Draw bars only in
+  =:bar=, so that the runner can draw them again.
+- *An option that the blocks show.* Give it a =:set= of
+  =overblock-run-set-and-redraw= in a notebook, or of
+  =overblock-live-set-and-redraw= in a render mode. Then a change shows
+  at once.
+- *The render function runs at each stop of the reader.* It must render
+  only what =overblock-live-wanted-p= allows. A walk of a large buffer
+  is slow, so keep it with =overblock-cached=.
+- *A mode sets no user option and binds no key.* Its keymap is empty,
+  and its docstring shows a binding to copy. It adds no global hook. A
+  =MODE-mode-maybe= function is for the user to add to a hook.
+- *The wrong buffer.* Call =overblock-only-in= first in the body of the
+  mode. It turns the mode off again and signals a =user-error=.
+- *Turn off cleanly.* =overblock-live-stop= and =overblock-run-detach=
+  remove the blocks and the bars. A mode that adds a hook removes it in
+  the same branch.

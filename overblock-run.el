@@ -37,41 +37,8 @@
 ;; `overblock-run-backend' is the notebook.  It is a buffer-local plist
 ;; that `overblock-run-attach' sets for the mode of the notebook.  A
 ;; send copies it into the shell buffer for the filter and the ticker.
-;; The shell and the regions:
-;;
-;;   :name      the word messages carry, as in "NAME: stopped at error"
-;;   :unit      what a region is called in a message: "cell", "chunk"
-;;   :process   () -> the live shell process, or nil.  In the notebook
-;;   :start     () -> start one; the process where it is ready to take a
-;;              region at once, nil where it will only prompt later
-;;   :arm       (THUNK) -> run THUNK on the first prompt of a new or
-;;              restarted shell.  Optional: without it, `:start' and
-;;              `:restart' must return the process
-;;   :restart   (PROC) -> start a new shell in place of PROC, the old
-;;              process or nil
-;;   :send      (PROC BEG END) -> send the region.  In the notebook
-;;   :prompt-p  (TAIL) -> non-nil where TAIL ends at a prompt.  In the shell
-;;   :clean     (TEXT) -> TEXT as a block can show it.  In the shell
-;;   :error-p   (TEXT) -> non-nil where the region failed, which stops a pass
-;;   :step      () -> run whatever is at point, and answer non-nil where
-;;              the walk must wait for a prompt before the next one
-;;   :region-at () -> (BEG . END) of the region point is in, or nil
-;;   :code-at   () -> (BEG . END) of what of that region goes to the
-;;              shell, or nil for none.  Optional: the region itself
-;;   :starts    () -> a marker on the start of every region, in order
-;;   :bar       () -> draw the bars of the region that starts at point,
-;;              and return them, an overlay or a list.  Optional
-;;
-;; And the look of a result block, which `overblock-run-show' draws:
-;;
-;;   :buttons      the option that holds the button descriptors, a symbol
-;;   :stale        a function called with each new result block, which
-;;                 makes it go on an edit, `overblock-stale-when-edited'
-;;                 where the backend names none
-;;
-;; The button option is named, not copied, because the reader can
-;; customize it while the notebook is open.  The bar has the face
-;; `overblock-bar' and the body `overblock-body', in every notebook.
+;; docs/custom-mode.org lists its slots, and walks through a notebook
+;; of bash cells, examples/overblock-sh.el.
 ;;
 ;; `overblock-pycell' sends Python cells to an inferior Python, and
 ;; `overblock-rmd' sends the R chunks of an Rmd file to an inferior R.
@@ -97,7 +64,7 @@
 
 (defvar-local overblock-run-backend nil
   "The backend of the shell of this buffer, a plist, or nil.
-The commentary of this file lists the slots.  The mode of a notebook
+docs/custom-mode.org lists the slots.  The mode of a notebook
 sets it and removes it when turned off, so the runner draws only in a
 buffer that has one.
 

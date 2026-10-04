@@ -8,6 +8,8 @@ the packages. The four packages on this layer have notes of their own:
 [[file:overblock-pydoc.org][overblock-pydoc]],
 [[file:overblock-pycell.org][overblock-pycell]] and
 [[file:overblock-rmd.org][overblock-rmd]].
+[[file:custom-mode.org][A mode of your own]] tells how to write a mode
+on the layer, with two example modes.
 
 The text uses these terms:
 
@@ -479,25 +481,8 @@ what the language is. =overblock-run-attach= sets it as the
 buffer-local =overblock-run-backend=, and =overblock-run-detach= removes
 it.
 
-The shell and the regions:
-
-| Slot         | Signature        | What it answers                                |
-|--------------+------------------+------------------------------------------------|
-| =:name=      | string           | the word that messages carry                   |
-| =:unit=      | string           | what a region is called: "cell", "chunk"       |
-| =:process=   | () → process     | the live shell process, or nil                 |
-| =:start=     | () → process     | start a shell; nil where it prompts later      |
-| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional          |
-| =:restart=   | (PROC) → process | start a shell in place of PROC, the old or nil |
-| =:send=      | (PROC BEG END)   | send the region to the process                 |
-| =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt            |
-| =:clean=     | (TEXT) → string  | the output as a block can show it              |
-| =:error-p=   | (TEXT) → boolean | whether the region failed, which stops a pass  |
-| =:step=      | () → boolean     | run what is at point, and say whether to wait  |
-| =:region-at= | () → cons        | the region point is in, as =(BEG . END)=       |
-| =:code-at=   | () → cons        | what of it goes to the shell; optional         |
-| =:starts=    | () → markers     | a marker at the start of each region, in order |
-| =:bar=       | () → overlays    | draw the bars of the region at point; optional |
+[[file:custom-mode.org::*The backend][docs/custom-mode.org]] lists the
+slots, what each one answers, and which ones a backend must have.
 
 Where =:error-p= says that the region failed, the bar of its result
 says =error=. =:code-at= is the part of the region that
@@ -514,13 +499,6 @@ timer and not =jit-lock= draws them: an error in another jit-lock
 function, such as a =python-ts-mode= grammar that does not match,
 stops the rest. An error in another live cycle does not stop the bars
 either.
-
-The look of a result block:
-
-| Slot       | What it holds                                                                                             |
-|------------+-----------------------------------------------------------------------------------------------------------|
-| =:buttons= | the symbol of the option that holds the button descriptors                                                |
-| =:stale=   | a function of each new result block that makes it go on an edit; =overblock-stale-when-edited= by default |
 
 =:buttons= names an option and does not copy its value. Thus a button
 list that the reader changes shows at the next draw. The bar wears the

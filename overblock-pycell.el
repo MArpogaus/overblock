@@ -599,7 +599,7 @@ rendered cell come down, through `overblock-pycell--drop-rendering'."
 
 (defun overblock-pycell--backend ()
   "Return what `overblock-run' needs to drive an inferior Python.
-The commentary of `overblock-run' lists the slots."
+docs/custom-mode.org lists the slots."
   (list :name "overblock-pycell"
         :unit "cell"
         :process #'overblock-pycell--process

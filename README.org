@@ -87,6 +87,8 @@ shows nothing by itself, so install it when another package needs it:
 
 The API for a package that shows blocks is in
 [[file:docs/overblock.org][docs/overblock.org]].
+[[file:docs/custom-mode.org][docs/custom-mode.org]] tells how to write a
+mode of your own, with two small example modes.
 
 *** Options
 
