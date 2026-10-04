@@ -153,6 +153,7 @@ shr is also told to fetch nothing, so the test uses no network."
   "An image named by URL is fetched once and drawn from the file.
 shr fetches with `url-queue-retrieve', which answers into a buffer
 that the rendering has already left."
+  (skip-unless (image-type-available-p 'png))
   (let* ((cache (make-temp-file "overblock-images" t))
          (process-environment (cons (concat "XDG_CACHE_HOME=" cache)
                                     process-environment))
@@ -992,6 +993,7 @@ without a formula stays."
 
 (ert-deftest overblock-md-test-an-image-is-found-from-the-file ()
   "An image path is from the file of the buffer, whatever binds the directory."
+  (skip-unless (image-type-available-p 'png))
   (let ((dir (make-temp-file "overblock-img" t)))
     (unwind-protect
         (with-temp-buffer
@@ -1010,6 +1012,7 @@ without a formula stays."
 
 (ert-deftest overblock-md-test-an-image-takes-the-size-of-its-tag ()
   "An image tag with width and height in pixels draws at that size."
+  (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
     (let ((image (overblock-md--image
                   file (dom-node 'img '((width . "80") (height . "40px")
