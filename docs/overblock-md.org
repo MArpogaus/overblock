@@ -21,8 +21,9 @@ The unit of the preview is a Markdown block. A block is one of these:
 
 - the front matter at the top of the file
 - a fenced code block
-- an HTML comment at the left margin that comes after a blank line, a
-  heading line or a fence line
+- an HTML comment at the left margin at the top of the file, or after a
+  blank line, a heading line, a fence line or the end of the front
+  matter
 - the run of lines between two blank lines or fences
 
 In a Markdown file a comment that holds a blank line is a block of its
@@ -357,9 +358,7 @@ each line.
 [[*The preview]] tells what a block is. Front matter runs from a first
 line of three dashes, with text right under it, to the next line of
 three dashes or three dots. A blank line in it does not end it. A
-comment without a blank line is a block after a blank line, a heading, a
-fence or the end of front matter. Elsewhere it is part of the paragraph.
-A comment runs to its =-->=, whatever blank lines stand in it, and a
+comment runs to its =-->=, whatever blank lines stand in it, and a
 fence in it opens nothing. In an Rmd file a chunk inside a comment still
 runs, so there a comment is no block. =overblock-md-fences= finds the
 fences first. =overblock-md--paragraphs= then walks the buffer with
