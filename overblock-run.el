@@ -257,8 +257,7 @@ lines, as in the options that pass a limit here."
 (defun overblock-run--count-lines (text)
   "Return how many lines TEXT holds.
 This searches all of TEXT, so a caller that knows the number does not
-ask.  A loop of `string-search' is several times faster than
-`cl-count'."
+ask."
   (let ((pos 0) (count 1))
     (while (setq pos (string-search "\n" text pos))
       (setq count (1+ count)
@@ -388,30 +387,27 @@ are and how many show, and the body is those that show."
   (let* ((data (overblock-get block :data))
          (folded (plist-get data :folded))
          (text (plist-get data :text))
-         (total (plist-get data :total)))
-    (let* ((empty (string-empty-p text))
-           (max overblock-run-max-lines)
-           (chars overblock-run-max-line-length)
-           (lines (unless empty (overblock-run--first-lines text max)))
-           (shown (overblock-run--body-lines lines chars))
-           ;; Counted once and kept, or a fold scans the whole output
-           ;; on every keypress.
-           (count (cond (empty 0)
-                        (total)
-                        (t (let ((n (overblock-run--count-lines text)))
-                             (overblock-set block :data
-                                            (plist-put data :total n))
-                             n)))))
-      (overblock-set block :header
-                     (overblock-run--header folded count (length shown)
-                                            (plist-get data :runtime)
-                                            (plist-get data :state)
-                                            (and lines
-                                                 (overblock-image-in text))))
-      (overblock-set block :body
-                     (when (and shown (not folded))
-                       (overblock-faced (string-join shown "\n") 'overblock-body)))
-      (overblock-refresh block))))
+         (total (plist-get data :total))
+         (empty (string-empty-p text))
+         (lines (unless empty
+                  (overblock-run--first-lines text overblock-run-max-lines)))
+         (shown (overblock-run--body-lines lines overblock-run-max-line-length))
+         ;; Counted once and kept, or a fold scans the whole output on
+         ;; every keypress.
+         (count (cond (empty 0)
+                      (total)
+                      (t (let ((n (overblock-run--count-lines text)))
+                           (overblock-set block :data (plist-put data :total n))
+                           n)))))
+    (overblock-set block :header
+                   (overblock-run--header folded count (length shown)
+                                          (plist-get data :runtime)
+                                          (plist-get data :state)
+                                          (and lines (overblock-image-in text))))
+    (overblock-set block :body
+                   (when (and shown (not folded))
+                     (overblock-faced (string-join shown "\n") 'overblock-body)))
+    (overblock-refresh block)))
 
 (defun overblock-run--show (beg end text runtime &optional state total)
   "Show TEXT as the result of the region BEG..END, as the backend says.
