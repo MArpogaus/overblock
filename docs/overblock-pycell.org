@@ -39,9 +39,8 @@ the buttons of =overblock-pycell-bar-buttons=:
 | =⌃=    | =overblock-pycell-move-cell-up=   | move this cell up            |
 | =⌄=    | =overblock-pycell-move-cell-down= | move this cell down          |
 
-A button acts on the cell of its bar. The line under the bar is still
-there. Point can go on it, and the bar follows what you write. Folding
-works from that line.
+A button acts on the cell of its bar. The line under the bar stays
+editable, see [[file:overblock.org::*Point on the line][Point on the line]].
 
 ** Results
 
