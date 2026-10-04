@@ -34,8 +34,9 @@ not change, so files, undo and a language server see nothing.
 A block that shows text over a region puts each rendered line on the
 source line it came from. Thus a tall rendering scrolls like text and
 does not jump past in one step.
-The four modes render Markdown where it is written, and show Python doc
-strings as documentation. They also show the output of a Python cell or
+
+The four modes render Markdown in place, and show Python doc strings
+as documentation. They also show the output of a Python cell or
 an R chunk under its code.
 
 [[file:img/demo.gif]]
@@ -67,6 +68,9 @@ and =use-package=. Each recipe gives its package a clone of its own with
 =:repo ("MArpogaus/overblock" . "NAME")=. Two packages in one clone
 can make elpaca hang. Install the other dependencies, such as
 latex-to-svg-backend or code-cells, as usual.
+
+For plain Emacs or package.el, put a clone on the load path:
+=(add-to-list 'load-path "/path/to/overblock")=.
 
 No package installs a hook or binds a key on the keyboard. Installing a
 package does not change how Emacs behaves.
@@ -113,8 +117,7 @@ Markdown buffer rendered over its own source.
 #+end_src
 
 The hook turns the preview on in each Markdown buffer. Without the
-hook, use =M-x overblock-md-preview-mode=. The mode works only in a
-buffer whose major mode derives from =markdown-mode=.
+hook, use =M-x overblock-md-preview-mode=.
 
 [[file:docs/overblock-md.org::*Use][Use]] in docs/overblock-md.org
 tells the commands and the options. It also tells how eglot shows the
@@ -228,8 +231,7 @@ Without use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
 #+end_src
 
 =overblock-rmd-mode-maybe= turns the mode on in a buffer whose file ends
-in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode works
-only in a buffer whose major mode derives from =markdown-mode=. It
+in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
 turns =overblock-md-preview-mode= off, because it renders the prose
 itself.
 
@@ -241,11 +243,9 @@ tells the buttons, the commands and the options.
 
 - Emacs 29.1 or later. =overblock= needs nothing more.
 - For each package that renders markup:
-  - A converter from Markdown to HTML. The candidates of
-    =overblock-md-command= are =pandoc --mathjax --no-highlight
-    --wrap=none -f markdown-implicit_figures=, =markdown_py -x tables
-    -x fenced_code=, =cmark-gfm -e table=, =markdown= and =cmark=. The
-    first one on =exec-path= is used.
+  - A converter from Markdown to HTML, see
+    [[file:docs/overblock-md.org::*The converter][=overblock-md-command=]].
+    The package uses the first one on =exec-path=.
   - An Emacs with libxml2, because shr reads the HTML with it.
   - Without a converter or without libxml2, the text stays as it is.
   - =latex= and =dvisvgm= for the formulas, which latex-to-svg-backend
@@ -254,8 +254,8 @@ tells the buttons, the commands and the options.
   =overblock-pydoc-command= are pandoc commands.
 - [[https://github.com/jrblevin/markdown-mode][markdown-mode]] is
   necessary for =overblock-md-preview-mode= and =overblock-rmd-mode=.
-  They refuse other major modes. =overblock-pydoc= opens a Markdown doc
-  string in =markdown-mode=, or in =text-mode= without it.
+  =overblock-pydoc= opens a Markdown doc string in =markdown-mode=, or
+  in =text-mode= without it.
 - =overblock-pycell= needs
   [[https://github.com/astoff/code-cells.el][code-cells]]. Text output
   needs nothing more. Images and tables need
@@ -315,7 +315,7 @@ commit.
 
 ** License
 
-Distributed under the [[file:COPYING][GPLv3]] License.
+The [[file:COPYING][GPLv3]] License applies.
 
 ** Contact
 

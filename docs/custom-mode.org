@@ -8,8 +8,11 @@ and the files hold the full code. The API itself is in
 [[file:overblock.org][docs/overblock.org]]. This guide links to it and
 does not repeat it.
 
-Install overblock first. Then load an example from a clone of the
-repository with =M-x load-file=. Open a file of the right kind and turn
+Install overblock first, as the
+[[file:../README.org::*Which One Do You Want][README]] tells, or put a
+clone on the load path: =(add-to-list 'load-path "/path/to/overblock")=.
+Then load an example from a clone of the repository with
+=M-x load-file=. Open a file of the right kind and turn
 the mode on:
 
 | Example            | Open                             | Turn on                                        |
