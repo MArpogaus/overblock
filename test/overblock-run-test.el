@@ -553,5 +553,28 @@ A Python buffer can hold the doc strings of another mode."
     (should-not (overblock-in (point-min) (point-max) 'result))
     (should (overblock-in (point-min) (point-max) 'other))))
 
+(ert-deftest overblock-run-test-the-bars-follow-the-starts ()
+  "Each start gets the bars `:bar' draws there, and no other bar stays.
+A bar of a block goes with its block."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n")
+    (let ((starts '(1 9)))
+      (overblock-run-attach
+       (append (list :starts (lambda () (mapcar #'copy-marker starts))
+                     :bar (lambda () (overblock-bar-line (pos-bol) (pos-eol)
+                                                         'test "" "bar" "")))
+               (overblock-run-test--backend)))
+      (should (= 2 (length (overblock-bars))))
+      (setq starts '(9))
+      (overblock-run-bars)
+      (should (equal (mapcar #'overlay-start (overblock-bars)) '(9)))
+      (let* ((bar (overblock-bar-over 1 4))
+             (block (overblock-show 5 8 :kind 'other :over "x"
+                                    :attached (list bar))))
+        (overblock-run-bars)
+        (should-not (overlay-buffer block))))
+    (overblock-run-detach)
+    (should-not (overblock-bars))))
+
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here

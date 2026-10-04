@@ -210,6 +210,11 @@ The whole engine name, then a blank before the chunk name, a comma
 before the options, or the closing brace.  So a ```{rmarkdown} chunk is
 not taken for R.")
 
+(defvar-local overblock-rmd--chunks nil
+  "The chunks of the last walk, and what the buffer was: (KEY . CHUNKS).
+The bars and a pass ask for the chunk of each start, and the walk reads
+the whole buffer.")
+
 (defun overblock-rmd-chunks ()
   "Return the R chunks of the buffer, in order.
 Each is a list (OPEN CODE-BEG CODE-END): where the opening fence line
@@ -218,7 +223,15 @@ closing fence line begins, so the region holds whole code lines,
 including the last newline, on which a result block hangs.
 
 A chunk with no code is left out.  The fences come from
-`overblock-md-preview-fences'."
+`overblock-md-preview-fences'.  The walk is kept until the text or the
+narrowing changes."
+  (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
+    (unless (equal key (car overblock-rmd--chunks))
+      (setq overblock-rmd--chunks (cons key (overblock-rmd--walk))))
+    (cdr overblock-rmd--chunks)))
+
+(defun overblock-rmd--walk ()
+  "Return the R chunks of the buffer, as `overblock-rmd-chunks' says."
   (let (chunks)
     (dolist (fence (overblock-md-preview-fences (point-max)))
       (save-excursion
@@ -246,9 +259,6 @@ A chunk with no code is left out.  The fences come from
   "Return the chunk POS, or point, stands in, or nil for none.
 Both fence lines count as part of the chunk, so a click on the bar and
 a point at the end of the code find the same one."
-  ;; ponytail: the whole buffer is walked for one answer, once per
-  ;; chunk in a pass. Cache the walk against
-  ;; `buffer-chars-modified-tick' if that is too slow.
   (let ((pos (or pos (point))))
     (seq-find (lambda (chunk)
                 (and (<= (nth 0 chunk) pos)
@@ -304,23 +314,25 @@ cycle renders the prose and leaves the chunks alone."
 
 ;;;; The bar over a chunk header
 
-(defun overblock-rmd--bar (open)
-  "Draw the bar over the opening fence line that begins at OPEN.
-A bar that is already there is drawn again, not replaced, so
+(defun overblock-rmd--bar ()
+  "Draw the bar over the chunk header point is on, and hide its closing fence.
+This is the `:bar' of the backend, and returns both overlays.  A bar
+that is already there is drawn again, not replaced, so
 `overblock-bar-draw' compares against its state.
 
 The glyph is the R logo of the devicons, the family of the Python
 notebook glyphs.  The label is the chunk name, or R when there is
 none."
-  (save-excursion
-    (goto-char open)
-    (overblock-bar-line (pos-bol) (pos-eol) 'chunk
-                        (overblock-glyph "" "◆" "R")
-                        (or (overblock-rmd--chunk-name (pos-bol) (pos-eol)) "R")
-                        (overblock-buttons overblock-rmd-chunk-buttons))))
+  (when-let* ((chunk (overblock-rmd--chunk-at)))
+    (list (overblock-bar-line (pos-bol) (pos-eol) 'chunk
+                              (overblock-glyph "" "◆" "R")
+                              (or (overblock-rmd--chunk-name (pos-bol) (pos-eol))
+                                  "R")
+                              (overblock-buttons overblock-rmd-chunk-buttons))
+          (overblock-rmd--hide-fence (nth 2 chunk)))))
 
 (defun overblock-rmd--hide-fence (close)
-  "Hide the closing fence line that begins at CLOSE.
+  "Hide the closing fence line that begins at CLOSE, and return the overlay.
 The chunk has a bar above it and its result has a bar, so the fence
 between them tells the reader nothing.  The line is invisible, not
 blank, so no empty row stays.
@@ -329,7 +341,7 @@ It is not painted over: font lock gives the fence the background of
 `markdown-code-face', and the face of the text under a display string
 wins over the face of the string.
 
-The overlay is a bar of this mode, so `overblock-rmd--bars' removes it
+The overlay is a bar of this mode, so `overblock-run-bars' removes it
 when its chunk is gone."
   (save-excursion
     (goto-char close)
@@ -346,31 +358,6 @@ when its chunk is gone."
         (overlay-put ov 'overblock-bar 'chunk-end)
         (overlay-put ov 'invisible t)
         (move-overlay ov bol end)))))
-
-(defun overblock-rmd--bars ()
-  "Bar the header of every R chunk, and drop the bars of what is not one.
-The idle cycle calls this, not a change hook, so a file of many chunks
-is walked when the reader stops, not on each keypress."
-  (let* ((chunks (overblock-rmd-chunks))
-         (opens (mapcar #'car chunks))
-         ;; Where `overblock-rmd-chunks' ends the code: the closing fence.
-         (closes (mapcar (lambda (chunk) (nth 2 chunk)) chunks)))
-    (dolist (bar (overblock-bars))
-      (let ((kind (overblock-bar-kind bar))
-            (bol (save-excursion (goto-char (overlay-start bar)) (pos-bol))))
-        (when (or (and (eq kind 'chunk) (not (memql bol opens)))
-                  (and (eq kind 'chunk-end) (not (memql bol closes))))
-          (delete-overlay bar))))
-    (mapc #'overblock-rmd--bar opens)
-    (mapc #'overblock-rmd--hide-fence closes)))
-
-;;;###autoload
-(defun overblock-rmd-render-buffer ()
-  "Bar every chunk of the buffer and render the prose between them.
-`overblock-live-start' calls this when the reader stops."
-  (interactive)
-  (overblock-rmd--bars)
-  (overblock-md-preview-render-buffer))
 
 ;;;; R at the other end
 
@@ -536,7 +523,7 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
         :step #'overblock-rmd--step
         :region-at #'overblock-rmd--region-at
         :starts #'overblock-rmd--starts
-        :redraw #'overblock-rmd--bars
+        :bar #'overblock-rmd--bar
         :buttons 'overblock-rmd-result-buttons))
 
 ;;;; The commands
@@ -676,7 +663,7 @@ chunk.  The chunks are still fontified and indented as R."
                     #'overblock-rmd--prose)
         (overblock-rmd--stay-in-host)
         (add-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host nil t)
-        (overblock-live-start 'md-preview #'overblock-rmd-render-buffer))
+        (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer))
     (overblock-live-stop 'md-preview)
     (overblock-run-detach)
     (remove-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host t)

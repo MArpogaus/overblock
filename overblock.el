@@ -211,6 +211,9 @@ plist, and every entry is optional:
   :header    text shown above the body.
   :hidden    non-nil shows nothing at all, decorations included.
   :attached  overlays of the caller's own, deleted with the block.
+             Each points back at the block in its `overblock-block'
+             property, so `overblock-bar-drop' takes a bar of a block
+             down with the block.
   :keymap and :help-echo go on every overlay the block draws; an
              overlay of the caller under `:attached' keeps its own.  A
              click is answered by the string it lands on, with what
@@ -263,6 +266,8 @@ by every `overblock-refresh'."
       ;; list in place.
       (overlay-put block 'overblock (append props (list :newline nil
                                                         :parts nil)))
+      (dolist (ov (plist-get props :attached))
+        (overlay-put ov 'overblock-block block))
       (when (eq (without-restriction (char-after anchor-end)) ?\n)
         (let ((ov (make-overlay anchor-end (1+ anchor-end) nil t)))
           (overlay-put ov 'evaporate t)
@@ -999,8 +1004,11 @@ rendering."
            (lambda ()
              (when (buffer-live-p buffer)
                (with-current-buffer buffer
+                 ;; One failing cycle, such as a font lock that
+                 ;; signals, leaves the others, the bars among them.
                  (dolist (spec overblock-live--specs)
-                   (funcall (nth 1 spec))))))))))
+                   (with-demoted-errors "overblock: %S"
+                     (funcall (nth 1 spec)))))))))))
 
 (defun overblock-live--close ()
   "Forget the region a rendering last came off, and free its markers."
@@ -1064,7 +1072,8 @@ stays source until point leaves it.
 
 RENDER is called once here and then whenever the reader stops.  It
 must leave alone what `overblock-live-wanted-p' says wants no
-rendering.
+rendering.  A KIND that names no blocks is a cycle all the same: a
+notebook draws its bars through one of the kind `bar'.
 
 A rendering comes off when the reader asks (`overblock-live-edit',
 which a mode binds to a click) and when its region is edited (see
@@ -1767,15 +1776,17 @@ GLYPH, LABEL and ICONS are those of `overblock-bar-draw'.  Every bar on
 a line of the buffer (the boundary line of a cell, the header of an R
 chunk) is drawn through here.
 
-A bar of another kind on that line is not reused: the bar of a
-rendered markdown cell belongs to its block.
+A line has one bar.  A bar of KIND there is drawn again, and every
+other bar of the line goes, through `overblock-bar-drop'.
 
 The overlay is moved to the line every time, because text typed at its
 end falls outside it."
-  (let* ((there (overblock-bar-in bol (min (point-max) (1+ eol))))
-         (ov (if (eq (overblock-bar-kind there) kind)
-                 there
-               (overblock-bar-over bol eol))))
+  (let* ((end (min (point-max) (1+ eol)))
+         (ov (or (overblock-bar-in bol end kind)
+                 (overblock-bar-over bol eol))))
+    (dolist (bar (overlays-in bol end))
+      (when (and (overblock-bar-kind bar) (not (eq bar ov)))
+        (overblock-bar-drop bar)))
     (move-overlay ov bol eol)
     (overblock-bar-draw ov kind glyph label icons)
     ov))
@@ -1809,11 +1820,22 @@ width, from `overblock--width-changed', or a customized button list."
 Also nil for nil, which `overblock-bar-in' often returns."
   (and ov (overlay-get ov 'overblock-bar)))
 
-(defun overblock-bar-in (beg end)
+(defun overblock-bar-in (beg end &optional kind)
   "Return a bar overlay that covers any of BEG..END, or nil.
-A region, not a position: text inserted at the start of a line moves
-the start of its bar."
-  (seq-find #'overblock-bar-kind (overlays-in beg end)))
+Only a bar of KIND, where KIND is given.  A region, not a position:
+text inserted at the start of a line moves the start of its bar."
+  (seq-find (lambda (ov)
+              (and (overblock-bar-kind ov)
+                   (or (not kind) (eq kind (overblock-bar-kind ov)))))
+            (overlays-in beg end)))
+
+(defun overblock-bar-drop (bar)
+  "Delete BAR, and the block it belongs to where it has one.
+The bar of a rendering is one of the `:attached' of its block (see
+`overblock-show'), and the source comes back with the block gone."
+  (if-let* ((block (overlay-get bar 'overblock-block)))
+      (overblock-delete block)
+    (delete-overlay bar)))
 
 (defun overblock-bars ()
   "Return the bar overlays of this buffer.

@@ -55,8 +55,8 @@
 ;;              the walk must wait for a prompt before the next one
 ;;   :region-at () -> (BEG . END) of the region point is in, or nil
 ;;   :starts    () -> a marker on the start of every region, in order
-;;   :redraw    () -> draw the mode's own bars again, for a new width or
-;;              a new button list.  Optional
+;;   :bar       () -> draw the bars of the region that starts at point,
+;;              and return them, an overlay or a list.  Optional
 ;;
 ;; And the look of a result block, which `overblock-run-show' draws:
 ;;
@@ -1196,7 +1196,7 @@ the notebook starts one of its own, of the kind `bar': it draws the
 bars when the reader stops."
   (setq-local overblock-run-backend backend)
   (add-hook 'overblock-width-functions #'overblock-run--redraw nil t)
-  (overblock-live-start 'bar (lambda () (overblock-run--call :redraw))))
+  (overblock-live-start 'bar #'overblock-run-bars))
 
 (defun overblock-run-detach ()
   "Stop this buffer being a notebook, and take its results and bars down.
@@ -1211,11 +1211,26 @@ buffer."
 (defun overblock-run--redraw ()
   "Draw the results and the bars of this notebook again.
 For a new width or a new button list.  A result is drawn again from
-its record, as a tick does, and the `:redraw' of the backend draws the
-bars of the mode."
+its record, as a tick does."
   (dolist (block (overblock-in (point-min) (point-max) 'result))
     (overblock-run-update block))
-  (overblock-run--call :redraw))
+  (overblock-run-bars))
+
+(defun overblock-run-bars ()
+  "Draw the bar of every region of this notebook, and drop every other bar.
+The `:bar' of the backend draws the bars of the region that starts at
+point, and returns them.  The live cycle of the kind `bar' calls this
+when the reader stops, so a bar follows each edit, also where font
+lock signals.  The whole buffer, also when narrowed."
+  (without-restriction
+    (save-excursion
+      (let ((kept (mapcan (lambda (start)
+                            (goto-char start)
+                            (set-marker start nil)
+                            (ensure-list (overblock-run--call :bar)))
+                          (overblock-run--call :starts))))
+        (dolist (bar (overblock-bars))
+          (unless (memq bar kept) (overblock-bar-drop bar)))))))
 
 (defun overblock-run--result-at (event)
   "Return the result block at point, or at the click in EVENT.

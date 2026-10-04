@@ -256,7 +256,7 @@ two."
     (code-cells-mode)
     (setq-local overblock-run-backend (overblock-pycell--backend))
     (let ((bars (lambda ()
-                  (seq-count (lambda (ov) (overlay-get ov 'overblock-pycell-main))
+                  (seq-count (lambda (ov) (overlay-get ov 'overblock-block))
                              (overlays-in (point-min) (point-max))))))
       (overblock-pycell-test--render-all)
       (should (= (funcall bars) 1))
@@ -2496,21 +2496,24 @@ A markdown boundary line is left to the rendering, which brings its own."
                      "# %%")))))
 
 (ert-deftest overblock-pycell-test-a-cell-typed-in-gets-a-bar ()
-  "A boundary line written into the buffer is barred as it appears.
+  "A boundary line written into the buffer is barred when the reader stops.
 And a line that becomes a markdown boundary loses the code bar it had."
   (overblock-pycell-test--with-notebook "# %%\nx = 1\n"
     (goto-char (point-max))
     (insert "\n# %% Later\nz = 3\n")
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("python" "Later")))
     ;; The title is read again when the line is edited.
     (goto-char (point-min))
     (end-of-line)
     (insert " Named")
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Named" "Later")))
     ;; And a line rewritten as a markdown boundary loses its code bar.
     (goto-char (point-min))
     (delete-region (pos-bol) (pos-eol))
     (insert "# %% [markdown]")
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Later")))))
 
 (ert-deftest overblock-pycell-test-a-narrowing-hides-no-cell-from-the-bars ()
@@ -2578,14 +2581,17 @@ deleted, the buttons of the bar would act on the wrong cell."
     (should (equal (overblock-pycell-test--bar-labels) '("One" "Two")))
     (goto-char (point-min))
     (insert " ")                        ; " # %% One" is no boundary
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Two")))
     (goto-char (point-min))
     (delete-char 1)
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("One" "Two")))
     ;; Half a marker is no marker.
     (goto-char (point-min))
     (re-search-forward "%%")
     (delete-char -1)
+    (overblock-run-bars)
     (should (equal (overblock-pycell-test--bar-labels) '("Two")))))
 
 (ert-deftest overblock-pycell-test-a-markdown-cell-showing-its-source-has-a-bar ()
@@ -2618,10 +2624,12 @@ code bar takes its place."
       (goto-char (point-min))
       (delete-region (pos-bol) (pos-eol))
       (insert "# %% [markdown] One")
+      (overblock-run-bars)
       (should (equal (funcall line) '(source 1)))
       (goto-char (point-min))
       (delete-region (pos-bol) (pos-eol))
       (insert "# %% One")
+      (overblock-run-bars)
       (should (equal (funcall line) '(code 1))))))
 
 (ert-deftest overblock-pycell-test-one-glyph-means-one-thing ()
@@ -2741,16 +2749,6 @@ later."
             (should-not (overblock-run--queued)))
         (kill-buffer shell)))))
 
-(ert-deftest overblock-pycell-test-a-change-leaves-the-search-alone ()
-  "A caller's match survives the bars being drawn.
-`after-change-functions' runs between a search and its use of the
-match, and the walk that draws the bars searches too."
-  (overblock-pycell-test--with-notebook "# %% code BEFORE\nx = 1\n"
-    (goto-char (point-min))
-    (should (search-forward "BEFORE" nil t))
-    (replace-match "AFTER")
-    (should (equal (buffer-string) "# %% code AFTER\nx = 1\n"))))
-
 (ert-deftest overblock-pycell-test-a-failure-without-a-traceback-stops-a-pass ()
   "Output that names an exception ends a pass, traceback or not.
 A `SyntaxError' prints only the name of the exception."
@@ -2785,6 +2783,7 @@ to the line before it reads the label."
       (should (eq (overblock-bar-kind bar) 'markdown))
       (goto-char (pos-eol))
       (insert " and more")
+      (overblock-run-bars)
       ;; The bar covers the whole line again, and says so.
       (should (= (overlay-end bar) (pos-eol)))
       (should (string-match-p "first and more"

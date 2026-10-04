@@ -187,12 +187,12 @@ and a ```{rmarkdown} chunk is not taken for R. The name is the word
 that knitr reads, after the engine and before the first comma or
 brace. A header of =r echo=FALSE= names no chunk.
 
-=overblock-rmd--bars= draws the bars from the idle cycle, and not from
-=after-change-functions= as the Python notebook does. A =.py= notebook
-has a bar for each cell and a change hook that costs a comparison. An
-Rmd file has a few chunks and a walk that reads the whole buffer, so
-the walk waits until the reader stops. Thus a bar arrives a moment
-after its header is written.
+=overblock-run-bars= draws the bars when the reader stops, as in the
+Python notebook. =overblock-rmd--bar= is the =:bar= of the backend: it
+draws the bar of one header and hides the closing fence of its chunk.
+The walk over the chunks reads the whole buffer, so it waits until the
+reader stops, and =overblock-rmd-chunks= keeps it until the text
+changes. Thus a bar arrives a moment after its header is written.
 
 =overblock-bar-line= moves the overlay to the end of the header line
 at each draw. Text typed at the end of that line falls outside the
@@ -221,7 +221,7 @@ the cut is part of the string. The layer watches the width with
 =text-scale-mode-hook=. When the columns change, it marks each bar
 stale and runs =overblock-width-functions=.
 =overblock-run-attach= puts the redraw of the runner there, and that
-redraw calls the =:redraw= slot, =overblock-rmd--bars=.
+redraw calls =overblock-run-bars=.
 
 * Figures
 

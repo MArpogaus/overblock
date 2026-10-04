@@ -145,14 +145,13 @@ The two move buttons come last, as on every bar (see
 (defun overblock-pycell--drop-rendering (block)
   "Take BLOCK down, and bar the boundary line a rendering leaves behind.
 The bar of a rendered markdown cell is an overlay of the block, so it
-goes with the block.  No text of that line changed, so nothing else
-puts a bar back."
-  (let ((markdown (eq (overblock-get block :kind) 'markdown))
-        (start (overlay-start block)))
+goes with the block.  The source bar comes at once, not when the
+reader stops."
+  (let ((from (and (eq (overblock-get block :kind) 'markdown)
+                   (overblock-pycell--md-cell-start (overlay-start block)))))
     (overblock-delete block)
-    (when markdown
-      (when-let* ((from (overblock-pycell--md-cell-start start)))
-        (overblock-pycell--cell-bars from start)))))
+    (when from
+      (save-excursion (goto-char from) (overblock-pycell--bar)))))
 
 (defvar overblock-pycell--moving nil
   "Non-nil while `overblock-pycell-move-cell-down' is moving a cell.
@@ -509,37 +508,18 @@ still finds its heading."
                             markdown)))
     (overblock-pycell--md-block beg end rendered)))
 
-(defun overblock-pycell--md-bar (hov)
-  "Draw the bar HOV of a rendered markdown cell, or draw it again.
-The bar is an overlay on the boundary line above the cell, one of the
-`:attached' of the block.  A width change redraws only the bar: its
-label depends on the width, the rendering does not."
-  (when (overlay-buffer hov)
-    ;; The overlay does not grow at its end, so a title typed at the end
-    ;; of the line would be outside it.
-    (save-excursion
-      (goto-char (overlay-start hov))
-      (move-overlay hov (pos-bol) (pos-eol)))
-    (overblock-bar-draw hov 'markdown
-                        (overblock-glyph "" "◇" "md")
-                        (or (overblock-pycell--cell-title (overlay-start hov)
-                                                          (overlay-end hov))
-                            "markdown")
-                        (overblock-buttons overblock-pycell-md-buttons))))
-
 (defun overblock-pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
 See `overblock-pycell--md-show', which renders and calls this."
-  (let* ((start (1- beg))
-         (help "mouse-2: edit this markdown cell, mouse-1: show source")
+  (let* ((help "mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
                 'keymap overblock-pycell-md-map 'help-echo help))
-         ;; The bar covers the boundary line up to its newline. Any
-         ;; other bar of the line goes first, such as a source bar.
-         (hov (let ((from (overblock-pycell--md-cell-start beg)))
-                (overblock-pycell--sole-bar from start nil)
-                (overblock-bar-over from start)))
+         ;; The bar covers the boundary line up to its newline. The old
+         ;; rendering goes first, with its bar, so this bar is new.
+         (hov (progn (overblock-clear beg end 'markdown)
+                     (overblock-pycell--md-bar
+                      (overblock-pycell--md-cell-start beg) (1- beg))))
          ;; The block covers the source of the cell, not the bar.
          (block (overblock-show beg end
                                 :kind 'markdown
@@ -555,9 +535,6 @@ See `overblock-pycell--md-show', which renders and calls this."
                                 :help-echo help
                                 :attached (list hov))))
     (overlay-put hov 'keymap overblock-pycell-md-map)
-    ;; A click on the bar lands on this overlay.
-    (overlay-put hov 'overblock-pycell-main block)
-    (overblock-pycell--md-bar hov)
     ;; An edit of the source removes the rendering and the bar, which no
     ;; edit of the cell reaches.
     (overblock-pycell--stale-when-edited block)
@@ -606,7 +583,7 @@ A click on the bar lands on the overlay of the bar, which points back
 at the block.  Signal a `user-error' where there is no rendered cell."
   (overblock-goto-event event)
   (or (overblock-at 'markdown)
-      (seq-some (lambda (ov) (overlay-get ov 'overblock-pycell-main))
+      (seq-some (lambda (ov) (overlay-get ov 'overblock-block))
                 (overlays-in (max (1- (point)) (point-min))
                              (min (1+ (point)) (point-max))))
       (user-error "No rendered markdown cell here")))
@@ -692,13 +669,6 @@ without the tag list of a =# %% [markdown]= line."
                       (buffer-substring-no-properties (match-end 0) eol))))))
         (unless (string-empty-p title) title)))))
 
-(defun overblock-pycell--bar-redraw (ov)
-  "Draw the bar OV again, of whichever kind of cell it belongs to."
-  (pcase (overblock-bar-kind ov)
-    ('code (overblock-pycell--code-bar (overlay-start ov) (overlay-end ov)))
-    ('source (overblock-pycell--source-bar (overlay-start ov) (overlay-end ov)))
-    ('markdown (overblock-pycell--md-bar ov))))
-
 (defun overblock-pycell--bar-line (bol eol kind glyph plain buttons)
   "Draw the bar of KIND over the boundary line BOL..EOL.
 GLYPH comes before the label, PLAIN is the label of a cell without a
@@ -724,95 +694,26 @@ a cell without one: a new one, or one taken back to its source."
                               (overblock-glyph "" "◆" "py") "python"
                               overblock-pycell-cell-buttons))
 
-(defun overblock-pycell--drop-bar (bar)
-  "Take BAR down, and the rendering it belongs to where it has one.
-A markdown bar is an overlay of a block: the block goes with it, and
-the source of the cell comes back."
-  (if-let* ((block (overlay-get bar 'overblock-pycell-main)))
-      (overblock-delete block)
-    (delete-overlay bar)))
+(defun overblock-pycell--md-bar (bol eol)
+  "Draw the bar of the rendered markdown cell whose boundary line is BOL..EOL.
+The bar is one of the `:attached' of the block of the rendering."
+  (overblock-pycell--bar-line bol eol 'markdown
+                              (overblock-glyph "" "◇" "md") "markdown"
+                              overblock-pycell-md-buttons))
 
-(defun overblock-pycell--cell-bars (start end)
-  "Draw the bar of every code cell whose boundary line START..END touches.
-Whole lines, whatever START and END are: this is called with the
-bounds of a change.  `overblock-pycell--bar-this-line' decides the bar
-of each line."
-  (save-excursion
-    (let ((from (progn (goto-char (min start end)) (pos-bol)))
-          (to (progn (goto-char (max start end)) (pos-eol)))
-          done)
-      ;; The lines with a bar: one can have stopped being a boundary.
-      (dolist (bar (seq-filter #'overblock-bar-kind
-                               (overlays-in from (min (point-max) (1+ to)))))
-        (when-let* ((pos (overlay-start bar)))
-          (goto-char pos)
-          (forward-line 0)
-          (push (point) done)
-          (overblock-pycell--bar-this-line)))
-      ;; The boundary lines, searched for: a `revert-buffer' reports one
-      ;; change over the whole buffer.
-      (goto-char from)
-      ;; Point first: `forward-line' can carry point past TO, and a bound
-      ;; behind point is an error.
-      (while (and (< (point) to)
-                  (re-search-forward code-cells-boundary-regexp to t))
-        (forward-line 0)
-        ;; Not a second time.
-        (unless (memq (point) done)
-          (overblock-pycell--bar-this-line))
-        (forward-line 1)))))
-
-(defun overblock-pycell--sole-bar (bol eol kinds)
-  "Return the one bar to keep on the line BOL..EOL, and drop the others.
-KINDS names the kinds to keep, best first; every bar of another kind
-goes, and so does a second bar of the same kind.  Nil keeps none.
-
-A line has one bar, and both the pass over boundary lines and the
-rendering of a markdown cell put one there."
-  (let ((bars (seq-filter #'overblock-bar-kind
-                          (overlays-in bol (min (point-max) (1+ eol)))))
-        keep)
-    (dolist (kind kinds)
-      (unless keep
-        (setq keep (seq-find (lambda (bar) (eq (overblock-bar-kind bar) kind))
-                             bars))))
-    (dolist (bar bars)
-      (unless (eq bar keep) (overblock-pycell--drop-bar bar)))
-    keep))
-
-(defun overblock-pycell--bar-this-line ()
-  "Give the line point is on the bar it should have, or take one away.
-Four lines to tell apart: one that is no boundary, a markdown boundary
-whose cell is rendered, a markdown boundary whose cell shows its source,
-and a code boundary."
+(defun overblock-pycell--bar ()
+  "Draw the bar of the boundary line point is on, and return it.
+This is the `:bar' of the backend.  A markdown cell has the bar of its
+rendering, or a source bar where it shows its source.  The text above
+the first boundary line has none."
   (let ((bol (pos-bol))
         (eol (pos-eol)))
-    (cond
-     ;; No boundary line now: its buttons would act on the wrong cell.
-     ((not (looking-at-p code-cells-boundary-regexp))
-      (overblock-pycell--sole-bar bol eol nil))
-     ;; A rendered markdown cell has the bar of its rendering; one that
-     ;; shows its source gets a source bar.
-     ((looking-at-p overblock-pycell--md-boundary)
-      (let ((bar (overblock-pycell--sole-bar bol eol '(markdown source))))
-        ;; Drawn again, for a title edited on the line.
-        (if (eq (overblock-bar-kind bar) 'markdown)
-            (overblock-pycell--md-bar bar)
-          (overblock-pycell--source-bar bol eol))))
-     (t
-      ;; A markdown or source bar on a code boundary goes.
-      (overblock-pycell--sole-bar bol eol '(code))
-      (overblock-pycell--code-bar bol eol)))))
-
-(defun overblock-pycell--bars-after-change (beg end _length)
-  "Draw the bars of the lines the change BEG..END touched.
-On `after-change-functions', not `jit-lock-register': an error in
-another jit-lock function, such as a `python-ts-mode' grammar that does
-not match, skips the rest.
-
-The match data belongs to the caller: a change hook can run between a
-search and its `replace-match'."
-  (save-match-data (overblock-pycell--cell-bars beg end)))
+    (cond ((not (looking-at-p code-cells-boundary-regexp)) nil)
+          ((not (looking-at-p overblock-pycell--md-boundary))
+           (overblock-pycell--code-bar bol eol))
+          ((overblock-bar-in bol (min (point-max) (1+ eol)) 'markdown)
+           (overblock-pycell--md-bar bol eol))
+          (t (overblock-pycell--source-bar bol eol)))))
 
 ;;;; Running cells
 
@@ -965,7 +866,7 @@ The commentary of `overblock-run' lists the slots."
         :step #'overblock-pycell--step
         :region-at #'overblock-pycell--cell-at
         :starts #'overblock-pycell--cell-starts
-        :redraw (lambda () (mapc #'overblock-pycell--bar-redraw (overblock-bars)))
+        :bar #'overblock-pycell--bar
         :buttons 'overblock-pycell-result-buttons
         :stale #'overblock-pycell--stale-when-edited))
 
@@ -1077,10 +978,6 @@ run."
         ;; removed by the last, not at load time.
         (advice-add 'outline-flag-region :after
                     #'overblock-pycell--outline-flag-blocks)
-        (add-hook 'after-change-functions #'overblock-pycell--bars-after-change nil t)
-        ;; The whole buffer, also when narrowed.
-        (without-restriction
-          (overblock-pycell--cell-bars (point-min) (point-max)))
         ;; Said once, and only when there is a markdown cell.
         (when (and (not (overblock-md-program))
                    (overblock-pycell--md-cells))
@@ -1097,7 +994,6 @@ the converter's HTML with")))
     (overblock-live-stop 'markdown)
     (overblock-run-detach)
     (kill-local-variable 'overblock-md-heading-regexp)
-    (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
     ;; The last notebook removes the advice. The mode variable of this
     ;; buffer is already nil.
     (unless (seq-some (lambda (buffer)

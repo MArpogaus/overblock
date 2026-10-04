@@ -80,32 +80,37 @@ the result does, and the reader does not choose them.
 
 A cell has a bar in place of its =# %%= line. The label is the name
 after the marker, and the buttons are =overblock-pycell-cell-buttons=.
-=overblock-pycell--cell-bars= draws the bars of code cells. A rendered
-markdown cell has the bar of its block.
+=overblock-pycell--bar= is the =:bar= of the backend, and draws the bar
+of one boundary line. A rendered markdown cell has the bar of its
+block.
 
 The overlay, its strings, the width it is cut to and what point does
 to it belong to the layer: see [[file:overblock.org][its notes]].
 
 *** What draws them, and when
 
-=after-change-functions= draws them, and not =jit-lock=. One error in
-another jit-lock function stops the rest. A =python-ts-mode= buffer
-whose grammar does not match the mode signals from redisplay, and then
-no bar would show. Thus the bars are drawn once when the mode starts,
-and again over the lines that a change touched.
+=overblock-run-bars= draws them when the mode starts, and again when
+the reader stops, as in the Rmd notebook. Thus a bar arrives a moment
+after its line is written. The bar cycle does not depend on =jit-lock=.
+One error in a jit-lock function stops the rest, and a =python-ts-mode=
+buffer whose grammar does not match the mode signals from redisplay. See
+[[file:overblock.org][the notes of the layer]].
 
 =overblock-bar-draw= rebuilds a bar only when its line, its label or
-its icons change. Thus the change hook costs a comparison for a line
-that only moved. A change of width marks each bar stale, and
-=overblock-pycell--bar-redraw= draws them again.
+its icons change. Thus a walk over the cells costs a comparison for
+each bar that did not change. A change of width marks each bar stale,
+and the runner draws them again.
+
+The source bar of a markdown cell comes at once when its rendering
+comes off, and does not wait for the reader to stop.
 
 *** One line, one bar
 
-Three things can want a bar on a boundary line. They are the pass over
-the buffer, the rendering of a markdown cell, and the pass after an
-edit.
-=overblock-pycell--sole-bar= keeps the bar that belongs to the line,
-and removes each other one. Each kind of line has its bar:
+Two things can want a bar on a boundary line. They are the walk over
+the cells and the rendering of a markdown cell. A line has one bar:
+=overblock-bar-line= removes each other bar of the line, and the walk
+removes the bar of a line that is no boundary. Each kind of line has
+its bar:
 
 | The line                          | The bar                        |
 |-----------------------------------+--------------------------------|

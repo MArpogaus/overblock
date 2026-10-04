@@ -446,15 +446,15 @@ The idle cycle draws the bars, and the same pass removes stale ones."
     ;; No longer an R chunk.
     (delete-region (point-min) (pos-eol))
     (insert "```{python}")
-    (overblock-rmd--bars)
+    (overblock-run-bars)
     (should-not (overblock-rmd-test--bar-labels))))
 
 (ert-deftest overblock-rmd-test-the-bar-of-a-chunk-is-drawn-once ()
   "A second pass over the buffer reuses the bar rather than adding one."
   (overblock-rmd-test--with-mode overblock-rmd-test--document
     (let ((bars (overblock-rmd-test--bar-labels)))
-      (overblock-rmd--bars)
-      (overblock-rmd--bars)
+      (overblock-run-bars)
+      (overblock-run-bars)
       (should (equal (overblock-rmd-test--bar-labels) bars)))))
 
 

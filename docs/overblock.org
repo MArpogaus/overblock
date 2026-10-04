@@ -51,6 +51,9 @@ the block:
   starts.
 - =:body= is on the newline that ends the region, and =:header= is above
   it.
+- =:attached= overlays go with the block. Each one points back at the
+  block in its =overblock-block= property. Thus a bar of a rendering
+  that =overblock-bar-drop= removes takes its block with it.
 
 A new block replaces the blocks of its own kind in the same region. A
 block without a kind replaces the blocks of each kind. The layer never
@@ -194,7 +197,8 @@ for what the bar stands on, and the buttons at the right edge.
 | =overblock-bar-over=     | an overlay that shows a bar in place of a line         |
 | =overblock-bar-draw=     | draw a bar on such an overlay                          |
 | =overblock-bar-line=     | find or make the bar of a line, and draw it            |
-| =overblock-bar-in=       | the bar that covers part of a region                   |
+| =overblock-bar-in=       | the bar, or the bar of a kind, over part of a region   |
+| =overblock-bar-drop=     | remove a bar, with the block it belongs to             |
 | =overblock-bars=         | the bars of the buffer                                 |
 | =overblock-bar-kind=     | what a bar was drawn as, or nil for no bar             |
 | =overblock-bar-stale=    | make a bar forget what it was drawn from               |
@@ -206,7 +210,9 @@ for what the bar stands on, and the buttons at the right edge.
 | =overblock-window-width= | the width of the narrowest window of the buffer        |
 
 A bar on a line of the buffer, such as a notebook cell line or an R
-chunk header, goes through =overblock-bar-line=. A bar that is a row of
+chunk header, goes through =overblock-bar-line=. A line has one bar:
+=overblock-bar-line= draws the bar of its kind again, and removes each
+other bar of the line with =overblock-bar-drop=. A bar that is a row of
 a rendering, such as the bar of a doc string, calls =overblock-bar=
 with the column of its indent.
 
@@ -463,10 +469,20 @@ The shell and the regions:
 | =:step=      | () → boolean     | run what is at point, and say whether to wait     |
 | =:region-at= | () → cons        | the region point is in, as =(BEG . END)=          |
 | =:starts=    | () → markers     | a marker at the start of each region, in order    |
-| =:redraw=    | ()               | draw the bars of the mode again; optional         |
+| =:bar=       | () → overlays    | draw the bars of the region at point; optional    |
 
 Where =:error-p= says that the region failed, the bar of its result
 says =error=.
+
+=overblock-run-bars= goes to each start and calls =:bar=, which draws
+the bars of the region that starts there and returns them, an overlay
+or a list. Each other bar of the buffer goes. A notebook draws its bars
+through a live cycle of the kind =bar=, which =overblock-run-attach=
+starts. Thus the bars follow an edit when the reader stops. An idle
+timer and not =jit-lock= draws them: an error in another jit-lock
+function, such as a =python-ts-mode= grammar that does not match,
+stops the rest. An error in another live cycle does not stop the bars
+either.
 
 The look of a result block:
 
@@ -493,6 +509,7 @@ running output is read in the shell buffer, cut to the result limits.
 |--------------------------------+--------------------------------------------------------------|
 | =overblock-run-attach=         | make this buffer a notebook with a backend                   |
 | =overblock-run-detach=         | stop being a notebook, and remove its results and bars       |
+| =overblock-run-bars=           | draw the bar of each region, and remove each other bar       |
 | =overblock-run-region=         | run one region, and start the shell where there is none      |
 | =overblock-run-cells=          | run several regions in order, to the first error             |
 | =overblock-run-on-prompt=      | queue regions to run when a new shell prompts                |

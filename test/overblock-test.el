@@ -1269,6 +1269,35 @@ does not keep shows the source of the region at point."
           (should (overblock-live-wanted-p 1 4 'kept)))
       (overblock-live-stop 'kept))))
 
+(ert-deftest overblock-test-a-line-has-one-bar ()
+  "A bar drawn on a line takes the place of every other bar there.
+A bar of a block takes its block with it, and the source comes back."
+  (with-temp-buffer
+    (insert "head\nbody\n")
+    (let* ((bar (overblock-bar-over 1 5))
+           (block (overblock-show 6 10 :kind 'rendered :over "x"
+                                  :attached (list bar))))
+      (overblock-bar-draw bar 'rendered "" "old" "")
+      (let ((new (overblock-bar-line 1 5 'source "" "new" "")))
+        (should (equal (overblock-bars) (list new)))
+        (should-not (overlay-buffer block))
+        (should (eq new (overblock-bar-line 1 5 'source "" "again" "")))))))
+
+(ert-deftest overblock-test-a-failing-cycle-leaves-the-others ()
+  "One live cycle that signals does not stop the next one."
+  (with-temp-buffer
+    (let (ran fail)
+      (overblock-live-start 'second (lambda () (setq ran t)))
+      (overblock-live-start 'first (lambda () (when fail (error "Font lock"))))
+      (setq ran nil fail t)
+      (unwind-protect
+          (cl-letf (((symbol-function 'run-with-idle-timer)
+                     (lambda (_secs _repeat fn) (funcall fn) nil)))
+            (overblock-live--settle)
+            (should ran))
+        (overblock-live-stop 'first)
+        (overblock-live-stop 'second)))))
+
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."
   (with-temp-buffer

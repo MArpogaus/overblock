@@ -588,7 +588,6 @@ before it.
 | =overblock-rmd-backward-chunk=      | move to the previous chunk                                |
 | =overblock-rmd-restart=             | restart R, and remove the results                         |
 | =overblock-rmd-restart-and-run-all= | restart, then run each chunk in order                     |
-| =overblock-rmd-render-buffer=       | bar each chunk, and render the prose between them         |
 | =overblock-live-edit=               | show the source of the prose at point                     |
 
 The commands of a result and of a pass are those of
