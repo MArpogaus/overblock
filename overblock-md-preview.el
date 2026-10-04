@@ -56,11 +56,6 @@
   :group 'overblock
   :prefix "overblock-md-preview-")
 
-(defvar-keymap overblock-md-preview-map
-  :doc "Keymap on a rendered block.
-A click shows the source of the block, to edit it."
-  "<mouse-1>" #'overblock-live-edit)
-
 (defvar-local overblock-md-preview-regions-function
   #'overblock-md-regions
   "Function that returns the regions of this buffer to render.
@@ -89,7 +84,7 @@ piece to a line, so a tall block scrolls like text."
                             "")))
     (overblock-show-rendering beg end rendered 'default
                               :kind 'md-preview
-                              :keymap overblock-md-preview-map
+                              :keymap overblock-live-map
                               :help-echo "mouse-1: edit this text")))
 
 ;;;; When to render them

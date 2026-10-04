@@ -221,7 +221,8 @@ which Emacs 31 includes and GNU ELPA has for older Emacs versions.
 | =overblock-md-forget-failed-images=  | try again the images that could not be read |
 | =overblock-live-edit=                | show the source of the block at point       |
 
-=overblock-md-preview-map= holds only the click, for your own keys.
+=overblock-live-map= holds only the click, for your own keys. The doc
+strings and the prose of an Rmd file use the same map.
 
 | Option                       | Default                        | Meaning                                 |
 |------------------------------+--------------------------------+-----------------------------------------|
@@ -286,7 +287,7 @@ indentation. =C-c C-c= (=overblock-edit-commit=) writes it back, and
 closing quotes of a doc string with several lines on a line of their
 own, as PEP 257 says.
 
-=overblock-pydoc-map= holds only the click.
+=overblock-live-map= holds only the click, as in the Markdown preview.
 
 | Option                    | Default                       | Meaning                                |
 |---------------------------+-------------------------------+----------------------------------------|

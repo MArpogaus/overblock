@@ -154,11 +154,6 @@ for that."
          (set-default symbol value)
          (overblock-pydoc--redraw)))
 
-(defvar-keymap overblock-pydoc-map
-  :doc "Keymap on a rendered doc string.
-A click shows the source of the doc string, to edit it."
-  "<mouse-1>" #'overblock-live-edit)
-
 ;;;; Which regions
 
 (defun overblock-pydoc--doc-face-p (pos)
@@ -445,7 +440,7 @@ the column of BEG, which for a raw doc string includes its prefix."
                beg end rendered 'font-lock-doc-face
                :kind 'pydoc
                :indent indent
-               :keymap overblock-pydoc-map
+               :keymap overblock-live-map
                :help-echo "mouse-1: edit this doc string")))))
 
 ;;;; When

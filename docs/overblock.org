@@ -336,6 +336,7 @@ so from this one function.
 | =overblock-live-stop=       | stop the cycle of a kind, and remove its blocks |
 | =overblock-live-wanted-p=   | whether a region still wants a rendering        |
 | =overblock-live-edit=       | show the source of the region at point or click |
+| =overblock-live-map=        | the click on a rendering, which calls the above |
 | =overblock-live-drop-if=    | remove the live blocks that a predicate selects |
 | =overblock-width-functions= | what to call when the buffer changes width      |
 

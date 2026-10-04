@@ -1057,6 +1057,13 @@ on and stopped.  A mode binds this to the mouse."
                                overblock-live--specs)))
     (overblock-take-down block)))
 
+(defvar-keymap overblock-live-map
+  :doc "Keymap on a rendering of a live cycle.
+A click shows the source of the rendering, to edit it.  The Markdown
+preview, the doc strings and the prose of an Rmd file share it, so a
+key put here works on all of them."
+  "<mouse-1>" #'overblock-live-edit)
+
 (defun overblock-live-start (kind render &optional keep)
   "Keep this buffer rendered, and let the reader edit what they click.
 KIND names the blocks, as for `overblock-show'.  RENDER is called with
