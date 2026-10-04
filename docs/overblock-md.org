@@ -455,6 +455,5 @@ goes to the converter as nothing, so a YAML error in it fails no batch.
   removes a rendering, an answer that arrives far from point, and the
   mode that leaves nothing behind.
 
-A fifth of all tests render markup, and skip where no converter is
-installed. =make test STRICT=1= makes such a skip a failure, and the CI
-sets it.
+[[file:overblock.org::*The tests][The tests]] of the layer tell how
+many tests need a converter.

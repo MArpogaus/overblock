@@ -137,7 +137,7 @@ lint: $(STAMP)
 relint: $(STAMP)
 	@$(BATCH) -l relint -f relint-batch $(SRC) $(EXAMPLES) $(TEST) $(wildcard demo/*.el)
 
-# A fifth of the suite renders markdown and skips itself where no
+# One test in seven renders markdown and skips itself where no
 # converter is installed. On a machine that is meant to have one that
 # silence is a lie, so STRICT=1 makes it a failure instead.
 test: $(STAMP)
