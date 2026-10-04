@@ -399,27 +399,27 @@ line.  The block leaves that many columns of every source line in
 view, so the indentation stays buffer text (with any indentation guide
 on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
-  (when-let* ((source (overblock-pydoc--source beg end)))
-    (let* ((indent (save-excursion (goto-char beg) (current-column)))
-           (overblock-md-command (overblock-pydoc--command-for-markup))
-           (overblock-md-math-face 'font-lock-doc-face)
-           (rendered (unless (string-empty-p source)
-                       (let ((overblock-md-width
-                              (overblock-md-columns
-                               (+ indent (overblock-pydoc--bar-room)))))
-                         (overblock-md-rendered source html)))))
-      ;; An empty doc string, and a conversion that fails, give an
-      ;; empty block, as in `overblock-md-show'.
-      (overblock-show-rendering
-       beg end
-       (if rendered
-           (overblock-pydoc--dressed (string-trim-right rendered "\n+") indent)
-         "")
-       'font-lock-doc-face
-       :kind 'pydoc
-       :indent indent
-       :keymap overblock-live-map
-       :help-echo "mouse-1: edit this doc string"))))
+  (let* ((source (overblock-pydoc--source beg end))
+         (indent (save-excursion (goto-char beg) (current-column)))
+         (overblock-md-command (overblock-pydoc--command-for-markup))
+         (overblock-md-math-face 'font-lock-doc-face)
+         (rendered (unless (string-empty-p source)
+                     (let ((overblock-md-width
+                            (overblock-md-columns
+                             (+ indent (overblock-pydoc--bar-room)))))
+                       (overblock-md-rendered source html)))))
+    ;; An empty doc string, and a conversion that fails, give an
+    ;; empty block, as in `overblock-md-show'.
+    (overblock-show-rendering
+     beg end
+     (if rendered
+         (overblock-pydoc--dressed (string-trim-right rendered "\n+") indent)
+       "")
+     'font-lock-doc-face
+     :kind 'pydoc
+     :indent indent
+     :keymap overblock-live-map
+     :help-echo "mouse-1: edit this doc string")))
 
 ;;;###autoload
 (defun overblock-pydoc-render-buffer ()
