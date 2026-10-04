@@ -34,6 +34,7 @@
 (require 'ert)
 (require 'overblock-rmd)
 (require 'overblock-test-common)
+(require 'overblock-md-preview)
 
 (defconst overblock-rmd-test--document
   "\
@@ -110,7 +111,6 @@ without removing the hooks."
 Both would render the same prose over each other.  The cycle of the
 mode goes on."
   (skip-unless (fboundp 'markdown-mode))
-  (require 'overblock-md-preview)
   (with-temp-buffer
     (insert "Some prose.\n\n```{r one}\n1 + 1\n```\n\nMore prose.\n")
     (markdown-mode)

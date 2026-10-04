@@ -32,6 +32,7 @@
 
 (require 'vtable)
 (require 'seq)
+(require 'overblock)
 
 (defconst overblock-test-common-image
   (propertize " " 'display '(image :type png :data "x"))

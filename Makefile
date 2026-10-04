@@ -71,9 +71,13 @@ $(STAMP):
 	@$(EMACS) -Q --batch --eval '$(init)' --eval '$(bootstrap)'
 	@touch $@
 
+# One Emacs per file: a file loaded for an earlier one would declare
+# its variables for the next, and hide that one's warnings.
 compile: $(STAMP)
-	@$(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
-	  -f batch-byte-compile $(SRC) $(TEST)
+	@for f in $(SRC) $(TEST); do \
+	  $(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
+	    -f batch-byte-compile $$f || exit 1; \
+	done
 	@rm -f ./*.elc test/*.elc
 
 # package-lint reads one main file and calls every symbol outside its
