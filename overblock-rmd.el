@@ -360,8 +360,8 @@ default applies."
 This is the `:send' of the backend.  The chunk is wrapped in a
 `source' of its own parse, so it is one statement and one prompt
 comes back at its end.  `print.eval' makes R print the value of every
-top level expression.  The commentary of this file says why the lines
-are not sent one by one.
+top level expression.  See \"One statement, one prompt\" in
+docs/overblock-rmd.org for why the lines are not sent one by one.
 
 Around the `source', a PNG device opens before the chunk at the size
 of `overblock-rmd--figure-size' and closes after it, whatever the
@@ -489,8 +489,8 @@ overblock-rmd binds no keys; put your own here, for example:
 
 (defun overblock-rmd--stay-in-host (&optional off)
   "Keep polymode from leaving this buffer for an inner one, or let it, with OFF.
-The commentary of this file says why.  Nothing happens where polymode
-is off.
+See \"Under polymode\" in docs/overblock-rmd.org.  Nothing happens
+where polymode is off.
 
 Called when the mode goes on and from `polymode-init-host-hook':
 polymode runs `markdown-mode-hook', which turns the mode on, before it
