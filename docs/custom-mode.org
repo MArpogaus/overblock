@@ -10,10 +10,10 @@ does not repeat it.
 
 Install overblock first, as the
 [[file:../README.org::*Which One Do You Want][README]] tells, or put a
-clone on the load path: =(add-to-list 'load-path "/path/to/overblock")=.
-Then load an example from a clone of the repository with
-=M-x load-file=. Open a file of the right kind and turn
-the mode on:
+clone on the load path:
+=(add-to-list 'load-path "/path/to/overblock")=. Then load an example
+from a clone of the repository with =M-x load-file=. Open a file of
+the right kind and turn the mode on:
 
 | Example            | Open                             | Turn on                                        |
 |--------------------+----------------------------------+------------------------------------------------|
@@ -74,8 +74,8 @@ mode can then read each other mode.
 - The buttons are the options =MODE-bar-buttons= and
   =MODE-result-buttons=.
 - A function of the backend is =MODE--SLOT=, for example
-  =overblock-sh--prompt-p= for =:prompt-p=. Its docstring says
-  "This is the `:prompt-p' of the backend."
+  =overblock-sh--prompt-p= for =:prompt-p=. Its docstring says "This
+  is the `:prompt-p' of the backend."
 
 * A render mode: overblock-quote
 

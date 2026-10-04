@@ -25,13 +25,13 @@ through the same loop.
 
 ** Chunks
 
-A bar stands in place of the fence line of each =```{r}= chunk. The bar
-shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
-shows /plot-one/. The bar has the buttons of
+A bar stands in place of the fence line of each =```{r}= chunk. The
+bar shows the chunk name that knitr reads, so =```{r plot-one,
+echo=FALSE}= shows /plot-one/. The bar has the buttons of
 =overblock-rmd-bar-buttons=. =⇈= runs each chunk above this one, and
 =▷= runs this chunk. =⇊= runs this chunk and each one below it. Like
-knitr, a pass
-skips a chunk with =eval=FALSE= or =#| eval: false=. =▷= still runs it.
+knitr, a pass skips a chunk with =eval=FALSE= or =#| eval: false=. =▷=
+still runs it.
 
 The closing fence is hidden, and the file does not change. A chunk of
 another engine, such as =```{python}=, stays as it is. The bars show
@@ -39,9 +39,10 @@ when you stop typing.
 
 ** Results
 
-A result works as in [[file:overblock-pycell.org::*Results][overblock-pycell]]: the same bar, the
-same pop-out buffer and the same commands. =overblock-rmd-result-buttons=
-holds its buttons; see
+A result works as in
+[[file:overblock-pycell.org::*Results][overblock-pycell]]: the same bar,
+the same pop-out buffer and the same commands.
+=overblock-rmd-result-buttons= holds its buttons; see
 [[file:overblock-pycell.org::*The header bars][The header bars]].
 
 A chunk that plots shows its figure under the output. The size comes
@@ -91,7 +92,8 @@ Put the keys in the =:config= of the package:
 | =overblock-rmd-bar-buttons=    | three     | the buttons on the bar of a chunk           |
 | =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
 
-For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]].
+For the button format, see
+[[file:overblock.org::*Change the buttons][Change the buttons]].
 
 * Composed, not copied
 
@@ -116,8 +118,8 @@ chunk goes to R in.
 =overblock-rmd-mode-maybe= reads the file name, as the
 [[file:../README.org::*overblock-rmd: R chunks in an Rmd file][README]]
 tells. The mode itself refuses a major mode that does not derive from
-=markdown-mode=. The chunks are found in the text
-of the buffer, so polymode and plain =markdown-mode= use one path.
+=markdown-mode=. The chunks are found in the text of the buffer, so
+polymode and plain =markdown-mode= use one path.
 
 ** Under polymode
 
@@ -160,9 +162,9 @@ error then names.
 
 =overblock-rmd--r-string= prints the chunk as a string literal, with
 the newlines escaped, so that the whole chunk goes as one line. A
-literal newline inside the string is legal R. But comint would send
-it as a line of its own, and R would answer with a continuation prompt
-in the middle of the result.
+literal newline inside the string is legal R. But comint would send it
+as a line of its own, and R would answer with a continuation prompt in
+the middle of the result.
 
 The mode uses =ess-send-string= and not =ess-send-region=. The region
 is not what goes to R, and =ess-send-region= gives a chunk to
@@ -252,12 +254,12 @@ with the words for a chunk.
 [[file:overblock-pycell.org::*The header bars][The header bars]] of
 overblock-pycell tells the buttons of a result.
 
-=overblock-rmd--chunk-regexp= reads the whole engine name. After it can
-come a blank before the chunk name, a comma before the options, or the
-closing brace. Thus a ```{python} chunk is left alone,
-and a ```{rmarkdown} chunk is not taken for R. The name is the word
-that knitr reads, after the engine and before the first comma or
-brace. A header of =r echo=FALSE= names no chunk.
+=overblock-rmd--chunk-regexp= reads the whole engine name. After it
+can come a blank before the chunk name, a comma before the options, or
+the closing brace. Thus a ```{python} chunk is left alone, and a
+```{rmarkdown} chunk is not taken for R. The name is the word that
+knitr reads, after the engine and before the first comma or brace. A
+header of =r echo=FALSE= names no chunk.
 
 =overblock-rmd--bar= is the =:bar= of the backend: it draws the bar of
 one header and hides the closing fence of its chunk. The runner draws
@@ -290,22 +292,21 @@ through a display string.
 =overblock-bar= cuts the label to the room that the icons leave, and
 the cut is part of the string.
 [[file:overblock.org::*The live cycle][The live cycle]] tells how the
-layer watches the width.
-=overblock-run-attach= puts the redraw of the runner on
-=overblock-width-functions=, and that redraw calls
+layer watches the width. =overblock-run-attach= puts the redraw of the
+runner on =overblock-width-functions=, and that redraw calls
 =overblock-run--bars=.
 
 * Figures
 
 R draws to a graphics device and not to its terminal. Thus
-=overblock-rmd--send= opens a PNG device before the =source=, and
-closes it on exit, whatever the chunk did. The exit writes the name of
-each file that the device wrote, on a line of its own after
-=overblock-figure:=. =overblock-repl-file-images= reads those lines back in
-the shell buffer, as part of the clean. Each becomes what comint-mime
+=overblock-rmd--send= opens a PNG device before the =source=, and closes
+it on exit, whatever the chunk did. The exit writes the name of each
+file that the device wrote, on a line of its own after
+=overblock-figure:=. =overblock-repl-file-images= reads those lines back
+in the shell buffer, as part of the clean. Each becomes what comint-mime
 gives the Python notebook: one space that carries the image. From there
-the two notebooks share the cap, the save button, the pop-out buffer
-and the label that a terminal shows.
+the two notebooks share the cap, the save button, the pop-out buffer and
+the label that a terminal shows.
 
 [[*Results]] tells where the device size comes from.
 =overblock-rmd--figure-size= reads the header. An expression in it is
@@ -352,7 +353,8 @@ three candidates, none of them empty: a nerd glyph, a character of an
 ordinary monospace font, and a short word.
 
 =test/overblock-rmd-live-test.el= drives a real R, and =make test-live=
-runs it where R is installed. It tests what only a live interpreter can show:
+runs it where R is installed. It tests what only a live interpreter can
+show:
 
 - A chunk with its value, and each top level statement printed.
 - A table with its columns.

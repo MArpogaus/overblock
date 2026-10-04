@@ -3,10 +3,10 @@
 
 The [[file:../README.org][README]] tells you how to install the
 package, and [[*Use][Use]] tells how to use it. The rest of this
-document describes the implementation. Two
-packages of this repository do the work that is not Python. overblock
-puts a block on the screen ([[file:overblock.org][its notes]]), and
-overblock-md turns markup into a string that a block can show
+document describes the implementation. Two packages of this repository
+do the work that is not Python. overblock puts a block on the screen
+([[file:overblock.org][its notes]]), and overblock-md turns markup
+into a string that a block can show
 ([[file:overblock-md.org][its notes]]).
 
 =overblock-pydoc-mode= is =overblock-live-start= with three answers:
@@ -25,10 +25,10 @@ first two, and the rows that a rendering is drawn on.
 | =overblock-live-edit=           | show the source of one doc string     |
 
 =overblock-pydoc-edit= opens the prose without the quotes and the
-indentation, in an [[file:overblock.org::*The edit buffer][edit
-buffer]]. The commit puts the
-closing quotes of a doc string with several lines on a line of their
-own, as PEP 257 says.
+indentation, in an
+[[file:overblock.org::*The edit buffer][edit buffer]]. The commit puts
+the closing quotes of a doc string with several lines on a line of
+their own, as PEP 257 says.
 
 =overblock-live-map= holds only the click, as in the Markdown preview.
 
@@ -53,7 +53,8 @@ The face =overblock-pydoc-footer= draws the rule under a doc string.
 Change it with =set-face-attribute=, as for the faces of
 [[file:overblock.org::*Faces][overblock]].
 
-For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]].
+For the button format, see
+[[file:overblock.org::*Change the buttons][Change the buttons]].
 
 * Which strings are documentation
 
@@ -108,11 +109,11 @@ option selects both, so that the rendering and the edit buffer agree.
 A markup that the options do not name gets =overblock-md-command= and
 =markdown-mode=. =text-mode= answers for a mode that is not installed.
 
-The doc strings of the buffer go through =overblock-md--html-batch-async=
-with =overblock-md-command= bound to the command for the markup. This
-is one process for the buffer, and nothing waits for it. A doc string
-that the converter fails on stays source, and goes to the converter
-again only after an edit.
+The doc strings of the buffer go through
+=overblock-md--html-batch-async= with =overblock-md-command= bound to
+the command for the markup. This is one process for the buffer, and
+nothing waits for it. A doc string that the converter fails on stays
+source, and goes to the converter again only after an edit.
 
 [[*Commands and options]] tells why Markdown is the default. A numpy
 style doc string has numpydoc section titles over a Markdown body: a
@@ -125,10 +126,10 @@ markup of the other:
   paragraph. CommonMark has no definition list, and reads an indented
   line after a paragraph line as more of the paragraph.
 
-Thus the Markdown command asks for =hard_line_breaks=. Each source line
-stays a line, and an entry and its description stay apart. Only the
-indent of the description is lost. There is no reader for both, so the
-option is a choice. Both commands carry =--no-highlight= and
+Thus the Markdown command asks for =hard_line_breaks=. Each source
+line stays a line, and an entry and its description stay apart. Only
+the indent of the description is lost. There is no reader for both, so
+the option is a choice. Both commands carry =--no-highlight= and
 =--wrap=none=, for the reasons in
 [[file:overblock-md.org][the notes of overblock-md]]. The Markdown
 command also turns off =implicit_figures=, as =overblock-md-command=
@@ -147,11 +148,11 @@ because the prose reads from the left margin. The edit buffer of
 * The rows a rendering is drawn on
 
 Each row begins at the column where the block begins, and not at the
-indent of that line. The block keeps that many columns
-of each source line in view (the =:indent= of =overblock-show=). Thus
-the indent under a rendering is the text of the buffer, and the bars of
-an indent guide run through the doc string. A description line with a
-deeper indent is covered from that column on, so each row aligns. The
+indent of that line. The block keeps that many columns of each source
+line in view (the =:indent= of =overblock-show=). Thus the indent
+under a rendering is the text of the buffer, and the bars of an indent
+guide run through the doc string. A description line with a deeper
+indent is covered from that column on, so each row aligns. The
 rendering itself has no padding. Only a line that shares a row with
 another gets padding from the layer. The block of a raw doc string
 begins at the letter before its quotes, so its rows begin at that
@@ -182,16 +183,15 @@ a rendering, and a row of spaces is a blank line.
 
 The first line of the prose is on the bar, in the place of the label.
 The bar shows the glyph, the summary and the buttons at the window
-edge. The bar
-is the one row that a rendering adds to its doc string. With the
-summary on it, the rendering has as many rows as the doc string. Thus
-each piece has a line of its own, and two doc strings of the same shape
-render the same way.
+edge. The bar is the one row that a rendering adds to its doc string.
+With the summary on it, the rendering has as many rows as the doc
+string. Thus each piece has a line of its own, and two doc strings of
+the same shape render the same way.
 
 A doc string of one line is all bar, without a rule under it. The prose
 of each doc string is filled narrower by the room that the glyph and the
-buttons take, so the first line fits on the bar. A summary that is
-still too long is cut with an ellipsis.
+buttons take, so the first line fits on the bar. A summary that is still
+too long is cut with an ellipsis.
 
 ** The width one is built for
 
@@ -200,15 +200,15 @@ rule of the bar is spaces up to it.
 
 The prose has the columns of the narrowest window that shows the
 buffer, less the indent of the doc string, less the room of the bar
-(=overblock-pydoc--bar-room=), less one.
-=overblock-pydoc--show= binds =overblock-md-width= to that number; see
+(=overblock-pydoc--bar-room=), less one. =overblock-pydoc--show= binds
+=overblock-md-width= to that number; see
 [[file:overblock-md.org][the notes of overblock-md]].
 
 Each block carries the width it was built for, for the width watch of
-[[file:overblock.org::*The live cycle][the live cycle]].
-A doc string committed from its edit buffer can render while no window
-shows its buffer. Its width is then nil, and the buffer coming back
-into a window renders it again.
+[[file:overblock.org::*The live cycle][the live cycle]]. A doc string
+committed from its edit buffer can render while no window shows its
+buffer. Its width is then nil, and the buffer coming back into a
+window renders it again.
 
 ** When a bar is drawn again
 

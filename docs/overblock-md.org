@@ -3,8 +3,8 @@
 
 The [[file:../README.org][README]] tells you how to install the
 package, and [[*Use][Use]] tells how to use it. The rest of this
-document describes the API and the implementation. The
-block layer under it is another package of this repository:
+document describes the API and the implementation. The block layer
+under it is another package of this repository:
 [[file:overblock.org][its notes]].
 
 The package has two files. =overblock-md.el= turns markup into one
@@ -87,7 +87,8 @@ their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
 face =overblock-md-code=.
 
 The face =overblock-md-code= draws inline code. Change it with
-=set-face-attribute=, as for the faces of [[file:overblock.org::*Faces][overblock]].
+=set-face-attribute=, as for the faces of
+[[file:overblock.org::*Faces][overblock]].
 
 * Markup rendered
 
@@ -133,8 +134,8 @@ one leaves the math alone for the preview images:
   handler for it, and the alt text shows twice.
 
 =markdown_py= without its extensions turns a table into one line of
-pipes. =cmark= can do a fence but no table. Perl =markdown= can do neither.
-=overblock-pydoc-command= asks pandoc for the same; see
+pipes. =cmark= can do a fence but no table. Perl =markdown= can do
+neither. =overblock-pydoc-command= asks pandoc for the same; see
 [[file:overblock-pydoc.org][its notes]].
 
 The [[file:../README.org::*Prerequisites][README]] tells what a
@@ -143,15 +144,15 @@ rendering needs. =overblock-md-missing= tells which part is missing.
 message.
 
 =overblock-md--html-batch-async= sends many texts to the converter in
-one call, and does not wait for the answer. It puts a marker between
-the texts and cuts the HTML at that marker. One process for a buffer is
-much faster than one for each region. Where the number of pieces is
-not the number of texts, a text swallowed the markers, and each half
-of the texts goes again in a process of its own. A text alone that
-still fails leaves its text to be converted alone. A converter that
-fails on a batch, as pandoc does where a marker lands in a YAML block below the top,
-halves it the same way. A text that holds the marker itself makes no batch, and each
-text converts alone.
+one call, and does not wait for the answer. It puts a marker between the
+texts and cuts the HTML at that marker. One process for a buffer is much
+faster than one for each region. Where the number of pieces is not the
+number of texts, a text swallowed the markers, and each half of the
+texts goes again in a process of its own. A text alone that still fails
+leaves its text to be converted alone. A converter that fails on a
+batch, as pandoc does where a marker lands in a YAML block below the
+top, halves it the same way. A text that holds the marker itself makes
+no batch, and each text converts alone.
 
 =overblock-md-render-regions= sends one batch of a kind at a time. A
 cycle that comes while the batch is with the converter waits. When the
@@ -163,9 +164,10 @@ so the next cycle of that kind does not wait for good. A batch shows
 its regions over the whole buffer, also under a narrowing.
 
 The answer is nil where no converter is installed. A converter that
-exits with an error gives nil for a text alone, and halves a batch.
-The check is where the program is called and not in each caller. A signal from a minor mode body would
-leave the mode on with nothing rendered, and stop the rest of the hook.
+exits with an error gives nil for a text alone, and halves a batch. The
+check is where the program is called and not in each caller. A signal
+from a minor mode body would leave the mode on with nothing rendered,
+and stop the rest of the hook.
 
 ** Images
 
@@ -198,9 +200,9 @@ An image is drawn at the =width= and =height= of its tag, in pixels, as
 ~<img width="80">~ or pandoc's ={width=80}= gives them. A value such as
 =50%= is left out. The cap still holds over that size.
 
-The cap of an image is the work of the layer: =overblock-image-cap= and
-=overblock-image-height=, in [[file:overblock.org][the notes of the
-layer]].
+The cap of an image is the work of the layer: =overblock-image-cap=
+and =overblock-image-height=, in
+[[file:overblock.org][the notes of the layer]].
 
 ** Links
 
@@ -214,20 +216,20 @@ open a link, as [[*The preview]] says. From a key,
 =overblock-md-follow-link= reads the links of the block at point, and
 offers them.
 
-=overblock-md--browse= opens the link as [[*The preview]] tells. The id
-of a heading is the one that pandoc or GitHub makes. A path is
+=overblock-md--browse= opens the link as [[*The preview]] tells. The
+id of a heading is the one that pandoc or GitHub makes. A path is
 relative to the file of the buffer, and can end in a =#slug= too. A
-heading is a line of =#= or a line of text
-over a line of ~===~ or ~---~. In a Markdown buffer a =#= line in a
-fenced block is code, and no heading; in a notebook the fences of a
-markdown cell are comments, and are not seen. An HTML anchor,
-~id="slug"~ or ~name="slug"~, counts too,
-and the second of two equal headings is =slug-1=. A path that starts
-with a slash is from the root of the repository, =#L12= is line 12 of
-the file, as GitHub links code, and =#L4-L5= begins at line 4; =#l2=
-in lower case is the id of a heading. A link to a file that is not
-there says so and opens nothing. An image path is from the file of the
-buffer, whatever binds =default-directory= when the answer arrives.
+heading is a line of =#= or a line of text over a line of ~===~ or
+~---~. In a Markdown buffer a =#= line in a fenced block is code, and
+no heading; in a notebook the fences of a markdown cell are comments,
+and are not seen. An HTML anchor, ~id="slug"~ or ~name="slug"~, counts
+too, and the second of two equal headings is =slug-1=. A path that
+starts with a slash is from the root of the repository, =#L12= is line
+12 of the file, as GitHub links code, and =#L4-L5= begins at line 4;
+=#l2= in lower case is the id of a heading. A link to a file that is
+not there says so and opens nothing. An image path is from the file of
+the buffer, whatever binds =default-directory= when the answer
+arrives.
 
 An image inside a link keeps the link. shr puts the link around what
 the renderer inserted, and =overblock--fill-props= writes the keymap of
@@ -246,24 +248,25 @@ when the image arrives.
 The engine is asked from the buffer that shows the rendering, and not
 from the temporary buffer of shr. The engine reads its options in that
 buffer, as [[*The preview]] tells. A failed equation warns once for
-that buffer. The font height also
-comes from that buffer, so the formulas follow =text-scale-adjust=
-without a new compile. The colour is the foreground of the face in the
-variable =overblock-md-math-face=, =default= by default.
-=overblock-pydoc= binds it to =font-lock-doc-face=, so the formulas have
-the colour of the doc string. A theme change draws each formula again in
-the new colour. A code block or a table is painted in the background
-colour of the theme, and a theme change draws it again too.
+that buffer. The font height also comes from that buffer, so the
+formulas follow =text-scale-adjust= without a new compile. The colour
+is the foreground of the face in the variable
+=overblock-md-math-face=, =default= by default. =overblock-pydoc=
+binds it to =font-lock-doc-face=, so the formulas have the colour of
+the doc string. A theme change draws each formula again in the new
+colour. A code block or a table is painted in the background colour of
+the theme, and a theme change draws it again too.
 
 What the converter renders stays text, and only the rest becomes an
-image. pandoc renders simple math as text. Such text loses its
-=\(= and =\)= delimiters, and keeps the dollars.
+image. pandoc renders simple math as text. Such text loses its =\(=
+and =\)= delimiters, and keeps the dollars.
 
 A formula inside a table is an image with a stretch after it. The
 stretch makes up the width of the marks, so the row keeps its columns.
 
-The engine reports a failed formula once, with the log of LaTeX. =latex-to-svg-backend-invalidate= forgets one
-equation, so that it compiles again.
+The engine reports a failed formula once, with the log of LaTeX.
+=latex-to-svg-backend-invalidate= forgets one equation, so that it
+compiles again.
 
 ** Tables
 
@@ -314,12 +317,12 @@ buffer that no window shows, and shr then fills to the width of the
 frame. A block is usually narrower, so the rows would run past the
 edge of the window.
 
-Thus the mode that renders binds =overblock-md-width=, because it knows
-where its block is. =overblock-md-show= does it for a rendering over its
-source. =overblock-md-columns= measures the room: the columns of the
-narrowest window that shows the buffer, less the indent that the mode
-gives, less one column. A row that fills the last column wraps.
-The answer is never less than twenty columns.
+Thus the mode that renders binds =overblock-md-width=, because it
+knows where its block is. =overblock-md-show= does it for a rendering
+over its source. =overblock-md-columns= measures the room: the columns
+of the narrowest window that shows the buffer, less the indent that
+the mode gives, less one column. A row that fills the last column
+wraps. The answer is never less than twenty columns.
 
 Nil is a legal answer, and a buffer in no window gives it. shr then
 fills as it does by itself. The layer renders the blocks again when the
@@ -356,35 +359,35 @@ each line.
 [[*The preview]] tells what a block is. Front matter runs from a first
 line of three dashes, with text right under it, to the next line of
 three dashes or three dots. A blank line in it does not end it. A
-comment runs to its =-->=, whatever blank lines stand in it, and a
-fence in it opens nothing. In an Rmd file a comment is no block; see
-[[file:overblock-rmd.org::*Known limits][its limits]]. =overblock-md-fences= finds the
-fences first. =overblock-md--paragraphs= then walks the buffer with
-those bounds. It jumps over a fence, so a blank line inside a fence ends
-no paragraph. A fence also ends the paragraph that touches it, as in
-CommonMark. Thus prose with no blank line before a fence is a block of
-its own. A fence under a list item does not end the item, which goes on
-after it.
+comment runs to its =-->=, whatever blank lines stand in it, and a fence
+in it opens nothing. In an Rmd file a comment is no block; see
+[[file:overblock-rmd.org::*Known limits][its limits]].
+=overblock-md-fences= finds the fences first. =overblock-md--paragraphs=
+then walks the buffer with those bounds. It jumps over a fence, so a
+blank line inside a fence ends no paragraph. A fence also ends the
+paragraph that touches it, as in CommonMark. Thus prose with no blank
+line before a fence is a block of its own. A fence under a list item
+does not end the item, which goes on after it.
 
 A backtick fence with another backtick on its line is inline code and
-opens no block. Outside a list item, a fence four or more spaces in is the text of an
-indented code block and opens no block. A closing fence is at most
-three columns in. Under a list item, an opening fence at or right of
-the text of the item can close with a fence up to three columns deeper
-than its own. An opening fence left of that text closes as at the
-margin. A fence on the line of a list item, as in =1. ```bash=, opens
-a block in that item and closes none. A block goes to the converter
-with its closing fence under its opening marks, and with one where it
-closes none. The converter then reads it as the preview pairs it, alone
-and in a batch. Each block also goes out with the link reference
-definitions it uses, the lines =[ref]: url= whose label it holds, so a
-=[text][ref]= link or badge renders in a block that holds no
-definition; the converter writes nothing for them. A line that pandoc
-reads as text, as =[1]: Smith, J. (2020)=, is no definition. The columns are counted in the text, because a rendering hides
-the indentation from =current-indentation=. A later paragraph of a
-list item ends at the next item. In one block with that paragraph, the
-converter reads the item as more text of the paragraph, and the item
-loses its bullet.
+opens no block. Outside a list item, a fence four or more spaces in is
+the text of an indented code block and opens no block. A closing fence
+is at most three columns in. Under a list item, an opening fence at or
+right of the text of the item can close with a fence up to three columns
+deeper than its own. An opening fence left of that text closes as at the
+margin. A fence on the line of a list item, as in =1. ```bash=, opens a
+block in that item and closes none. A block goes to the converter with
+its closing fence under its opening marks, and with one where it closes
+none. The converter then reads it as the preview pairs it, alone and in
+a batch. Each block also goes out with the link reference definitions it
+uses, the lines =[ref]: url= whose label it holds, so a =[text][ref]=
+link or badge renders in a block that holds no definition; the converter
+writes nothing for them. A line that pandoc reads as text, as
+=[1]: Smith, J. (2020)=, is no definition. The columns are counted in
+the text, because a rendering hides the indentation from
+=current-indentation=. A later paragraph of a list item ends at the next
+item. In one block with that paragraph, the converter reads the item as
+more text of the paragraph, and the item loses its bullet.
 
 Under a list item, a block goes to the converter without the spaces
 that indent its first line. Thus a fence under a later paragraph is not
@@ -421,9 +424,10 @@ and again when the answer arrives. The reader can click, type and move
 while the process runs.
 
 A rendering comes off on each edit under it, through
-=overblock-stale-when-edited=: typing, a replacement over the buffer, a
-macro and an undo. [[file:overblock.org::*The live cycle][The live
-cycle]] tells what point does to a rendering.
+=overblock-stale-when-edited=: typing, a replacement over the buffer,
+a macro and an undo.
+[[file:overblock.org::*The live cycle][The live cycle]] tells what
+point does to a rendering.
 
 A block that renders to nothing, such as YAML front matter or a lone
 HTML comment, stays as it is and is not blanked. It gets an empty

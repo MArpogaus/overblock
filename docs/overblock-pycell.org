@@ -16,11 +16,12 @@ The text uses these terms:
 
 Two packages of this repository do the work that is not Python.
 overblock puts a block on the screen and holds the run loop of both
-notebooks ([[file:overblock.org][its notes]]). overblock-md turns markup
-into a string that a block can show ([[file:overblock-md.org][its
-notes]]). This document is about the part that knows Python. The other
-notebook, [[file:overblock-rmd.org][overblock-rmd]], runs R chunks
-through the same loop.
+notebooks ([[file:overblock.org][its notes]]). overblock-md turns
+markup into a string that a block can show
+([[file:overblock-md.org][its notes]]). This document is about the
+part that knows Python. The other notebook,
+[[file:overblock-rmd.org][overblock-rmd]], runs R chunks through the
+same loop.
 
 * Use
 
@@ -83,9 +84,10 @@ where it is. A key that you press in the notebook during a pass gives
 point and the view back. The key then acts there, not at the cell that
 runs, and a stop key does the same. A scroll or a click in the
 notebook moves on from the view you see, and stops the scrolling. A
-cell that waits its turn ([[file:overblock.org::*Known limits][Known
-limits]]) makes the echo area say =overblock-pycell: this cell queued=.
-A pass says =N cells queued=, which counts its markdown cells too.
+cell that waits its turn
+([[file:overblock.org::*Known limits][Known limits]]) makes the echo
+area say =overblock-pycell: this cell queued=. A pass says
+=N cells queued=, which counts its markdown cells too.
 
 A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
 =print?=. Such a cell goes to IPython as it is. Its tracebacks count
@@ -127,8 +129,8 @@ The Markdown features are those of
 
 The package binds only the mouse on its bars and blocks. These keymaps
 bind no key, so you can bind your own. The edit buffer of a markdown
-cell has the keys of [[file:overblock.org::*The edit buffer][the edit
-buffer]].
+cell has the keys of
+[[file:overblock.org::*The edit buffer][the edit buffer]].
 
 | Map                         | Where it answers                   |
 |-----------------------------+------------------------------------|
@@ -138,8 +140,9 @@ buffer]].
 | =overblock-pycell-md-map=   | a rendered markdown cell           |
 
 The parent of =overblock-run-pop-map= is =special-mode-map=, so =q=
-quits the buffer of a result. As for the [[file:overblock.org::*Change the buttons][buttons]], put
-the keys in the =:config= of the package.
+quits the buffer of a result. As for the
+[[file:overblock.org::*Change the buttons][buttons]], put the keys in
+the =:config= of the package.
 
 #+begin_src emacs-lisp
   (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
@@ -161,8 +164,10 @@ the keys in the =:config= of the package.
 | =overblock-pycell-md-buttons=     | three buttons | the buttons on a rendered markdown cell    |
 | =overblock-pycell-source-buttons= | three buttons | the buttons on an unrendered markdown cell |
 
-For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]]. The result
-limits are the options of [[file:overblock.org::*Options, faces and buttons][overblock]].
+For the button format, see
+[[file:overblock.org::*Change the buttons][Change the buttons]]. The
+result limits are the options of
+[[file:overblock.org::*Options][overblock]].
 
 ** Comparison with other packages
 
@@ -228,10 +233,10 @@ to it belong to the layer: see [[file:overblock.org][its notes]].
 
 =overblock-run--bars= draws them when the mode starts, and again when
 the reader stops. Thus a bar arrives a moment after its line is
-written. [[file:overblock.org::*The backend][The backend]] in the notes
-of the layer tells why the bars do not come from =jit-lock=, and
-[[file:overblock.org::*A bar in place of a line][A bar in place of a
-line]] when a bar is drawn again.
+written. [[file:overblock.org::*The backend][The backend]] in the
+notes of the layer tells why the bars do not come from =jit-lock=, and
+[[file:overblock.org::*A bar in place of a line][A bar in place of a line]]
+when a bar is drawn again.
 
 The source bar of a markdown cell comes at once when its rendering
 comes off, and does not wait for the reader to stop.
@@ -261,13 +266,13 @@ typing before the marker is not typing inside the bar.
 output. A shell that has not prompted yet sends its first prompt into
 that wait, and the setup of python.el then waits on the dead process
 until =C-g=. Thus =overblock-pycell--restart=, the =:restart= of the
-backend, deletes the process at
-once, and =python-shell-make-comint= starts a new one in the same
-buffer, under its name, so a shell dedicated by hand stays so. The
-command is the one of the notebook, also where the interpreter had
-died: an environment switched in the notebook takes effect at the
-restart. A command typed with =C-u C-c C-p= does not survive it,
-because python.el keeps no sign of which command was typed.
+backend, deletes the process at once, and =python-shell-make-comint=
+starts a new one in the same buffer, under its name, so a shell
+dedicated by hand stays so. The command is the one of the notebook,
+also where the interpreter had died: an environment switched in the
+notebook takes effect at the restart. A command typed with
+=C-u C-c C-p= does not survive it, because python.el keeps no sign of
+which command was typed.
 
 The first-prompt filter of python.el needs point at the end of the
 shell buffer. =comint-exec= puts it there, and each window of the
@@ -283,8 +288,8 @@ that a last cell can lack.
 
 =overblock-pycell-move-cell-down= reads what both cells show, moves the
 text, and puts each block back on its cell. After the outline move,
-point is where the moved cell now begins. Thus the two new ranges are read from the buffer, and
-are not counted from the old positions.
+point is where the moved cell now begins. Thus the two new ranges are
+read from the buffer, and are not counted from the old positions.
 
 The move must know two things:
 
@@ -363,8 +368,7 @@ once.
 
 Point cannot be on a link, because it never enters a display string.
 Thus =overblock-md-follow-link= reads the links of the rendering and
-offers them. A click on a link uses the link keymap of
-overblock-md.
+offers them. A click on a link uses the link keymap of overblock-md.
 
 * Scrolling
 

@@ -3,9 +3,9 @@
 
 This document describes the API and the implementation of the layer.
 The [[file:../README.org][README]] tells you how to install the
-packages. [[*Options, faces and buttons][Options, faces and buttons]]
-tells how to change them. The four packages on this layer have notes
-of their own: [[file:overblock-md.org][overblock-md]],
+packages. [[*Use][Use]] tells how to change them. The four packages on
+this layer have notes of their own:
+[[file:overblock-md.org][overblock-md]],
 [[file:overblock-pydoc.org][overblock-pydoc]],
 [[file:overblock-pycell.org][overblock-pycell]] and
 [[file:overblock-rmd.org][overblock-rmd]].
@@ -24,7 +24,9 @@ The text uses these terms:
   the packages here are notebooks, and =overblock-run.el= is the loop
   they share.
 
-* Options, faces and buttons
+* Use
+
+** Options
 
 These options apply to every package of the repository.
 
@@ -205,10 +207,9 @@ file carries no line of code.
 Where fewer than half of the source lines with text match a rendered
 line, the rendering is not line by line. A source line that the
 renderer wraps still counts once. The lines of the rendering are then
-dealt evenly over the source lines with text. A longer
-rendering loses its blank lines first, and the blank lines of the
-source stay in view as gaps. A blank line in view also keeps the wheel
-moving.
+dealt evenly over the source lines with text. A longer rendering loses
+its blank lines first, and the blank lines of the source stay in view
+as gaps. A blank line in view also keeps the wheel moving.
 
 A cloak is an invisible overlay that starts at the newline of the line
 above. An invisible run that starts inside a line, or a line of no
@@ -432,10 +433,9 @@ The render function must leave alone each region for which
   in. With KEEP, it is the region point is in, while point stays in
   the text that a rendering last came off.
 
-=overblock-md-preview-mode= and =overblock-rmd-mode= start their cycles
-without KEEP.
-=overblock-pydoc= and =overblock-pycell= start theirs with KEEP,
-because the reader works in the rendering.
+=overblock-md-preview-mode= and =overblock-rmd-mode= start their
+cycles without KEEP. =overblock-pydoc= and =overblock-pycell= start
+theirs with KEEP, because the reader works in the rendering.
 
 A rendering comes off when the reader clicks it and when the text
 under it changes. Point that moves to a rendering does not remove it.
@@ -526,7 +526,8 @@ that ends without a newline a prompt, and paints it
 =comint-highlight-prompt=. =overblock-repl-detach= removes that face
 and keeps the colours of the output.
 
-To cap the images is the work of =overblock-image-cap=. The file needs =vtable=, which Emacs ships.
+To cap the images is the work of =overblock-image-cap=. The file needs
+=vtable=, which Emacs ships.
 
 * The run loop
 
@@ -614,37 +615,36 @@ cell in a row, and each frame would run its tail on the way out.
 With =overblock-run-scroll=, each region of a pass goes to the top of
 each window that shows the notebook, so the code that runs is visible.
 [[file:overblock-pycell.org::*Results][Results]] of overblock-pycell
-tells where a pass leaves point and the view.
-=overblock-run--go-home= puts them back. Where a minibuffer is open,
-this occurs after it closes, because its exit gives the windows back
-as they were. A restart ends the pass the same way. Where a minibuffer
-was open when a region failed, point and the view stay where they were
-when the minibuffer opened. While a minibuffer is open, a step
-moves neither point nor the windows, and the next region catches up.
-With the option nil, a pass never scrolls. A single region does not
-start the scrolling, also when it waits on the queue. A region that
-joins a scrolling pass goes with it. A pass or a region can join a
-region that waits, or a pass that no longer scrolls. Where the home of
-that pass is in the same notebook, the new request takes the home
-over. Then a pass scrolls.
+tells where a pass leaves point and the view. =overblock-run--go-home=
+puts them back. Where a minibuffer is open, this occurs after it
+closes, because its exit gives the windows back as they were. A
+restart ends the pass the same way. Where a minibuffer was open when a
+region failed, point and the view stay where they were when the
+minibuffer opened. While a minibuffer is open, a step moves neither
+point nor the windows, and the next region catches up. With the option
+nil, a pass never scrolls. A single region does not start the
+scrolling, also when it waits on the queue. A region that joins a
+scrolling pass goes with it. A pass or a region can join a region that
+waits, or a pass that no longer scrolls. Where the home of that pass
+is in the same notebook, the new request takes the home over. Then a
+pass scrolls.
 
 A click sets point itself, so a mouse event gets no home back. A mouse
 yank at point, with =mouse-yank-at-point=, counts as a key. The
-scrolling stops at the
-first command of the reader in the notebook, or at one that scrolls a
-window of it. Only a command counts: redisplay moves a window start
-for =scroll-margin=, and output arrives between commands. Thus
-=pre-command-hook= notes each window of the notebook, and
-=post-command-hook= compares. Commands in a minibuffer are not noted
-or compared: its exit gives the windows back, so the command that
-opened it counts as one. Once stopped, the pass leaves point and the
-windows alone, to its end.
+scrolling stops at the first command of the reader in the notebook, or
+at one that scrolls a window of it. Only a command counts: redisplay
+moves a window start for =scroll-margin=, and output arrives between
+commands. Thus =pre-command-hook= notes each window of the notebook,
+and =post-command-hook= compares. Commands in a minibuffer are not
+noted or compared: its exit gives the windows back, so the command
+that opened it counts as one. Once stopped, the pass leaves point and
+the windows alone, to its end.
 
 The messages at the end of a pass are those of
 [[file:overblock-pycell.org::*Results][overblock-pycell]], with the
 =:name= of the backend. A single region sent to a free shell says no
-message, and a region that waited on the queue does. The home marker is in the shell buffer too, and is set when
-the shell exists.
+message, and a region that waited on the queue does. The home marker is
+in the shell buffer too, and is set when the shell exists.
 
 A region sent while the shell is busy waits, as [[*Known limits]]
 says, and runs as it was sent. A pass asked for then also goes behind
@@ -734,8 +734,8 @@ the speed back.
 
 * Known limits
 
-These limits apply to each package. The notes of each package list
-its own limits.
+These limits apply to each package. The notes of each package list its
+own limits.
 
 - A bar is cut to the narrowest window that shows its buffer. A narrow
   side window beside a wide one cuts each label in both.

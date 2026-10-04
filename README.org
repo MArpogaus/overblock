@@ -36,16 +36,17 @@ source line it came from. Thus a tall rendering scrolls like text and
 does not jump past in one step.
 
 The four modes render Markdown in place, and show Python doc strings
-as documentation. They also show the output of a Python cell or
-an R chunk under its code.
+as documentation. They also show the output of a Python cell or an R
+chunk under its code.
 
 [[file:img/demo.gif]]
 
 The animation shows the four modes in turn. It shows a Markdown file,
 the doc strings of a Python module, a =# %%= notebook and an =.Rmd=
 file. A real Emacs session recorded it with the setup in
-[[file:demo/init.el][=demo/init.el=]]. [[file:demo/README.org][=demo/README.org=]]
-tells how to record it again.
+[[file:demo/init.el][=demo/init.el=]].
+[[file:demo/README.org][=demo/README.org=]] tells how to record it
+again.
 
 ** Which One Do You Want
 
@@ -100,11 +101,11 @@ shows nothing by itself, so install it when another package needs it:
                                "overblock-run.el")))
 #+end_src
 
-[[file:docs/overblock.org::*Options, faces and buttons][Options, faces and buttons]]
-tells how to change what every package shows. The API for a package
-that shows blocks is in [[file:docs/overblock.org][docs/overblock.org]].
-[[file:docs/custom-mode.org][docs/custom-mode.org]] tells how to write a
-mode of your own, with two small example modes.
+[[file:docs/overblock.org::*Use][Use]] in docs/overblock.org tells how
+to change what every package shows. The API for a package that shows
+blocks is in [[file:docs/overblock.org][docs/overblock.org]].
+[[file:docs/custom-mode.org][docs/custom-mode.org]] tells how to write
+a mode of your own, with two small example modes.
 
 ** overblock-md: markup rendered to text
 
@@ -229,8 +230,8 @@ Without use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
     :hook (markdown-mode . overblock-rmd-mode-maybe))
 #+end_src
 
-=overblock-rmd-mode-maybe= turns the mode on in a buffer whose file ends
-in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
+=overblock-rmd-mode-maybe= turns the mode on in a buffer whose file
+ends in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
 turns =overblock-md-preview-mode= off, because it renders the prose
 itself.
 
