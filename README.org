@@ -443,21 +443,21 @@ The Markdown features are those of
 
 *** Commands
 
-| Command                                | Action                                                                         |
-|----------------------------------------+--------------------------------------------------------------------------------|
-| =overblock-pycell-mode=                | turn the mode on or off for a buffer                                           |
-| =overblock-pycell-mode-maybe=          | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
-| =overblock-pycell-restart=             | restart with the environment of the notebook, and remove the results           |
-| =overblock-pycell-restart-and-run-all= | restart, then run each cell in order                                           |
-| =overblock-run-above=                  | run each cell above this one                                                   |
-| =overblock-run-below=                  | run this cell and each cell below it                                           |
-| =overblock-run-stop=                   | stop the pass after the cell that runs now                                     |
-| =overblock-run-clear-results=          | remove each result                                                             |
-| =overblock-pycell-render-buffer=       | render each markdown cell that is not rendered                                 |
-| =overblock-pycell-md-render-cell=      | render the markdown cell at point                                              |
-| =overblock-pycell-md-raw=              | show the source of the markdown cell at point                                  |
-| =overblock-pycell-md-edit=             | edit the markdown cell in its own buffer                                       |
-| =overblock-pycell-md-follow-link=      | follow a link of the rendered cell                                             |
+| Command                             | Action                                                                         |
+|-------------------------------------+--------------------------------------------------------------------------------|
+| =overblock-pycell-mode=             | turn the mode on or off for a buffer                                           |
+| =overblock-pycell-mode-maybe=       | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
+| =overblock-run-restart=             | restart with the environment of the notebook, and remove the results           |
+| =overblock-run-restart-and-run-all= | restart, then run each cell in order                                           |
+| =overblock-run-above=               | run each cell above this one                                                   |
+| =overblock-run-below=               | run this cell and each cell below it                                           |
+| =overblock-run-stop=                | stop the pass after the cell that runs now                                     |
+| =overblock-run-clear-results=       | remove each result                                                             |
+| =overblock-pycell-render-buffer=    | render each markdown cell that is not rendered                                 |
+| =overblock-pycell-md-render-cell=   | render the markdown cell at point                                              |
+| =overblock-pycell-md-raw=           | show the source of the markdown cell at point                                  |
+| =overblock-pycell-md-edit=          | edit the markdown cell in its own buffer                                       |
+| =overblock-pycell-md-follow-link=   | follow a link of the rendered cell                                             |
 
 
 
@@ -586,8 +586,8 @@ before it.
 | =overblock-rmd-run-chunk-and-step=  | run the chunk at point, and move to the next              |
 | =overblock-rmd-forward-chunk=       | move to the next chunk                                    |
 | =overblock-rmd-backward-chunk=      | move to the previous chunk                                |
-| =overblock-rmd-restart=             | restart R, and remove the results                         |
-| =overblock-rmd-restart-and-run-all= | restart, then run each chunk in order                     |
+| =overblock-run-restart=             | restart R, and remove the results                         |
+| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
 | =overblock-live-edit=               | show the source of the prose at point                     |
 
 The commands of a result and of a pass are those of

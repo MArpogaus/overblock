@@ -45,8 +45,10 @@
 ;;   :start     () -> start one; the process where it is ready to take a
 ;;              region at once, nil where it will only prompt later
 ;;   :arm       (THUNK) -> run THUNK on the first prompt of a new or
-;;              restarted shell.  Optional: without it, `:start' must
-;;              return the process
+;;              restarted shell.  Optional: without it, `:start' and
+;;              `:restart' must return the process
+;;   :restart   (PROC) -> start a new shell in place of PROC, the old
+;;              process or nil
 ;;   :send      (PROC BEG END) -> send the region.  In the notebook
 ;;   :prompt-p  (TAIL) -> non-nil where TAIL ends at a prompt.  In the shell
 ;;   :clean     (TEXT) -> TEXT as a block can show it.  In the shell
@@ -301,16 +303,20 @@ where the cell finished.  IMAGEP marks a result with an image."
      mark (string-join (delq nil (list failed label time)) " · ")
      icons 'overblock-bar)))
 
-(defun overblock-run-restart (reason restart)
-  "Take point home, end what runs, drop the queue and results, then RESTART.
-REASON goes to a region still running, through `overblock-run-abort':
-its region can be in another buffer on the same shell, whose block
-would otherwise keep a frozen running header.
+;;;###autoload
+(defun overblock-run-restart ()
+  "Restart the interpreter of this notebook, and remove every result.
+Point goes home, the region that runs ends and the queue goes.  The
+renderings stay, such as the prose of an Rmd file and the markdown
+cells of a notebook.
 
-RESTART is called with the old process, or nil where there was none,
-and starts the new interpreter, which is the job of the notebook.  A
-region asked for before its first prompt waits for it, where the
-backend has an `:arm'."
+A region still running gets a note: it can be in another buffer on the
+same shell, whose block would otherwise keep a frozen running header.
+The `:restart' of the backend starts the new interpreter.  A region
+asked for before its first prompt waits for it, where the backend has
+an `:arm'."
+  (interactive)
+  (overblock-run--must)
   (let ((proc (overblock-run--call :process)))
     ;; The pass ends here: point and the windows go back, so a pass
     ;; asked for at once starts where the first one did. Before the
@@ -318,11 +324,25 @@ backend has an `:arm'."
     (overblock-run-go-home)
     (when proc
       (with-current-buffer (process-buffer proc)
-        (overblock-run-abort reason)))
+        (overblock-run-abort "The interpreter was restarted")))
     (overblock-run--queue-set nil)
     (overblock-run-clear-results)
-    (funcall restart proc)
+    (overblock-run--call :restart proc)
     (overblock-run--arm)))
+
+;;;###autoload
+(defun overblock-run-restart-and-run-all ()
+  "Restart the interpreter, then run every region of this notebook in order.
+The pass stops at the first error, or on `overblock-run-stop'.  A new
+interpreter that prompts later runs them on its first prompt."
+  (interactive)
+  (overblock-run-restart)
+  (let ((starts (overblock-run--call :starts))
+        (said (format "%s: running every %s"
+                      (overblock-run--name) (overblock-run--unit))))
+    (if (overblock-run--busy-p)
+        (overblock-run-on-prompt starts said)
+      (overblock-run--pass starts said))))
 
 ;;;###autoload
 (defun overblock-run-clear-results ()

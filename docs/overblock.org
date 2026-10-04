@@ -330,14 +330,14 @@ start, and again when the reader stops for =overblock-live-idle=
 seconds. A mode that sends a whole buffer through one converter does
 so from this one function.
 
-| Function or variable             | What it does                                    |
-|----------------------------------+-------------------------------------------------|
-| =overblock-live-start=           | start the cycle in this buffer                  |
-| =overblock-live-stop=            | stop the cycle of a kind, and remove its blocks |
-| =overblock-live-wanted-p=        | whether a region still wants a rendering        |
-| =overblock-live-edit=            | show the source of the region at point or click |
-| =overblock-live-drop-if=         | remove the live blocks that a predicate selects |
-| =overblock-width-functions=      | what to call when the buffer changes width      |
+| Function or variable        | What it does                                    |
+|-----------------------------+-------------------------------------------------|
+| =overblock-live-start=      | start the cycle in this buffer                  |
+| =overblock-live-stop=       | stop the cycle of a kind, and remove its blocks |
+| =overblock-live-wanted-p=   | whether a region still wants a rendering        |
+| =overblock-live-edit=       | show the source of the region at point or click |
+| =overblock-live-drop-if=    | remove the live blocks that a predicate selects |
+| =overblock-width-functions= | what to call when the buffer changes width      |
 
 The render function must leave alone each region for which
 =overblock-live-wanted-p= is nil:
@@ -455,21 +455,22 @@ it.
 
 The shell and the regions:
 
-| Slot         | Signature        | What it answers                                   |
-|--------------+------------------+---------------------------------------------------|
-| =:name=      | string           | the word that messages carry                      |
-| =:unit=      | string           | what a region is called: "cell", "chunk"          |
-| =:process=   | () → process     | the live shell process, or nil                    |
-| =:start=     | () → process     | start a shell; nil where it prompts later         |
-| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional             |
-| =:send=      | (PROC BEG END)   | send the region to the process                    |
-| =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt               |
-| =:clean=     | (TEXT) → string  | the output as a block can show it                 |
-| =:error-p=   | (TEXT) → boolean | whether the region failed, which stops a pass     |
-| =:step=      | () → boolean     | run what is at point, and say whether to wait     |
-| =:region-at= | () → cons        | the region point is in, as =(BEG . END)=          |
-| =:starts=    | () → markers     | a marker at the start of each region, in order    |
-| =:bar=       | () → overlays    | draw the bars of the region at point; optional    |
+| Slot         | Signature        | What it answers                                |
+|--------------+------------------+------------------------------------------------|
+| =:name=      | string           | the word that messages carry                   |
+| =:unit=      | string           | what a region is called: "cell", "chunk"       |
+| =:process=   | () → process     | the live shell process, or nil                 |
+| =:start=     | () → process     | start a shell; nil where it prompts later      |
+| =:arm=       | (THUNK)          | run THUNK on a first prompt; optional          |
+| =:restart=   | (PROC) → process | start a shell in place of PROC, the old or nil |
+| =:send=      | (PROC BEG END)   | send the region to the process                 |
+| =:prompt-p=  | (TAIL) → boolean | whether the output ends at a prompt            |
+| =:clean=     | (TEXT) → string  | the output as a block can show it              |
+| =:error-p=   | (TEXT) → boolean | whether the region failed, which stops a pass  |
+| =:step=      | () → boolean     | run what is at point, and say whether to wait  |
+| =:region-at= | () → cons        | the region point is in, as =(BEG . END)=       |
+| =:starts=    | () → markers     | a marker at the start of each region, in order |
+| =:bar=       | () → overlays    | draw the bars of the region at point; optional |
 
 Where =:error-p= says that the region failed, the bar of its result
 says =error=.
@@ -505,34 +506,36 @@ running output is read in the shell buffer, cut to the result limits.
 
 ** The functions
 
-| Function                       | What it does                                                 |
-|--------------------------------+--------------------------------------------------------------|
-| =overblock-run-attach=         | make this buffer a notebook with a backend                   |
-| =overblock-run-detach=         | stop being a notebook, and remove its results and bars       |
-| =overblock-run-bars=           | draw the bar of each region, and remove each other bar       |
-| =overblock-run-region=         | run one region, and start the shell where there is none      |
-| =overblock-run-cells=          | run several regions in order, to the first error             |
-| =overblock-run-on-prompt=      | queue regions to run when a new shell prompts                |
-| =overblock-run-next=           | run the next region of the queue                             |
-| =overblock-run-shell=          | the buffer that holds the queue and the run state            |
-| =overblock-run-running-region= | the region that runs now                                     |
-| =overblock-run-go-home=        | put point and the view back where the pass was asked for     |
-| =overblock-run-show=           | draw a result                                                |
-| =overblock-run-update=         | draw a result again                                          |
-| =overblock-run-header=         | the bar of a result                                          |
-| =overblock-run-output-head=    | the head of what a running region printed                    |
-| =overblock-run-total=          | the lines it printed, counted as they arrive                 |
-| =overblock-run-follow=         | copy a running output into a buffer as it prints             |
-| =overblock-run-abort=          | end a run whose prompt will never come                       |
-| =overblock-run-restart=        | go home, end the run, clear the queue and results, restart   |
-| =overblock-run-set-and-redraw= | the =:set= of an option that the blocks on the screen follow |
+| Function                            | What it does                                                 |
+|-------------------------------------+--------------------------------------------------------------|
+| =overblock-run-attach=              | make this buffer a notebook with a backend                   |
+| =overblock-run-detach=              | stop being a notebook, and remove its results and bars       |
+| =overblock-run-bars=                | draw the bar of each region, and remove each other bar       |
+| =overblock-run-region=              | run one region, and start the shell where there is none      |
+| =overblock-run-cells=               | run several regions in order, to the first error             |
+| =overblock-run-on-prompt=           | queue regions to run when a new shell prompts                |
+| =overblock-run-next=                | run the next region of the queue                             |
+| =overblock-run-shell=               | the buffer that holds the queue and the run state            |
+| =overblock-run-running-region=      | the region that runs now                                     |
+| =overblock-run-go-home=             | put point and the view back where the pass was asked for     |
+| =overblock-run-show=                | draw a result                                                |
+| =overblock-run-update=              | draw a result again                                          |
+| =overblock-run-header=              | the bar of a result                                          |
+| =overblock-run-output-head=         | the head of what a running region printed                    |
+| =overblock-run-total=               | the lines it printed, counted as they arrive                 |
+| =overblock-run-follow=              | copy a running output into a buffer as it prints             |
+| =overblock-run-abort=               | end a run whose prompt will never come                       |
+| =overblock-run-restart=             | go home, end the run, clear the queue and results, restart   |
+| =overblock-run-restart-and-run-all= | restart, then run each region in order                       |
+| =overblock-run-set-and-redraw=      | the =:set= of an option that the blocks on the screen follow |
 
 The commands of a result are the same in each notebook:
 =overblock-run-toggle-output=, =overblock-run-copy-output=,
 =overblock-run-pop-output=, =overblock-run-save-image=,
 =overblock-run-discard-output=, =overblock-run-clear-results=,
-=overblock-run-above=, =overblock-run-below=, =overblock-run-stop= and
-=overblock-run-interrupt=. Each package keeps its own buttons and the
+=overblock-run-above=, =overblock-run-below=, =overblock-run-stop=,
+=overblock-run-interrupt=, =overblock-run-restart= and
+=overblock-run-restart-and-run-all=. Each package keeps its own buttons and the
 commands that know its regions.
 
 ** The queue is in the shell buffer

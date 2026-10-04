@@ -379,7 +379,7 @@ ESS keeps the name in `ess-local-process-name', and
 
 When this buffer has no name yet and exactly one R runs, this adopts
 that R and sets the name, as `ess-request-a-process' does.  The side
-effect is for `overblock-rmd-restart': a file that has not run a chunk
+effect is for `overblock-run-restart': a file that has not run a chunk
 must still find the process to restart."
   (unless ess-local-process-name
     (when-let* ((names (overblock-rmd--r-processes))
@@ -405,6 +405,18 @@ ESS buffer."
   (save-window-excursion
     (ess-force-buffer-current "R process to use: "))
   (overblock-rmd--process))
+
+(defun overblock-rmd--restart (proc)
+  "Kill PROC, where there is one, and start a new R in its place.
+This is the `:restart' of the backend.  ESS has no restart that asks
+nothing: `ess-quit' runs `ess-cleanup', which offers to kill the
+buffers of the session."
+  (when proc
+    (delete-process proc)
+    ;; Refreshed, the list drops the dead process, so the new R takes
+    ;; the same name and buffer.
+    (update-ess-process-name-list))
+  (overblock-rmd--start))
 
 (defun overblock-rmd--r-string (text)
   "Return TEXT as an R string literal, escapes and quotes and all.
@@ -516,6 +528,7 @@ The commentary of `overblock-run' lists the slots.  There is no `:arm':
         :unit "chunk"
         :process #'overblock-rmd--process
         :start #'overblock-rmd--start
+        :restart #'overblock-rmd--restart
         :send #'overblock-rmd--send
         :prompt-p #'overblock-rmd--prompt-p
         :clean #'overblock-rmd--clean
@@ -576,34 +589,6 @@ comes first, as with `code-cells-backward-cell'."
   "Move point to the code of the previous chunk, ARG chunks back."
   (interactive "p")
   (overblock-rmd-forward-chunk (- (or arg 1))))
-
-;;;###autoload
-(defun overblock-rmd-restart ()
-  "Restart R, and remove every result of this buffer.
-The renderings of the prose stay.
-
-The process is killed and a new one starts.  ESS has no restart that
-asks nothing: `ess-quit' runs `ess-cleanup', which offers to kill the
-buffers of the session."
-  (interactive)
-  (overblock-run-restart
-   "R was restarted"
-   (lambda (proc)
-     (when proc
-       (delete-process proc)
-       ;; Refreshed, the list drops the dead process, so the new R
-       ;; takes the same name and buffer.
-       (update-ess-process-name-list))
-     (overblock-rmd--start))))
-
-;;;###autoload
-(defun overblock-rmd-restart-and-run-all ()
-  "Restart R, then run every chunk of the buffer in order.
-The pass stops at the first error, or on `overblock-run-stop'."
-  (interactive)
-  (overblock-rmd-restart)
-  (overblock-run-cells (overblock-rmd--starts)
-                       "overblock-rmd: running every chunk"))
 
 ;;;; The mode
 

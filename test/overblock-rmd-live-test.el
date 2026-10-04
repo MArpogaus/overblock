@@ -153,7 +153,7 @@ could end, with the line or both."
   (overblock-rmd-live-test--with-document
       "```{r a}\n\"first\"\n```\n\nprose\n\n```{r b}\nstop(\"boom\")\n```\n\n\
 ```{r c}\n\"never\"\n```\n"
-    (overblock-rmd-restart-and-run-all)
+    (overblock-run-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
                              (null (overblock-run--queued))
@@ -173,7 +173,7 @@ The chunks go to one R at its top level: `source' with its default
 `local = FALSE' evaluates in the global environment."
   (overblock-rmd-live-test--with-document
       "```{r set}\nlive_value <- 7\n```\n\n```{r use}\nlive_value * 6\n```\n"
-    (overblock-rmd-restart-and-run-all)
+    (overblock-run-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-rmd-live-test--idle-p)
                              (null (overblock-run--queued))
@@ -193,7 +193,7 @@ The last chunk of a pass is sent with the queue already empty, and the
 running chunk runs to its end."
   (overblock-rmd-live-test--with-document
       "```{r a}\n\"first\"\n```\n\n```{r b}\nSys.sleep(1)\n\"last\"\n```\n"
-    (overblock-rmd-restart-and-run-all)
+    (overblock-run-restart-and-run-all)
     ;; The last chunk runs: nothing queued, one chunk live.
     (should (overblock-test-common-wait
              (lambda ()
@@ -217,7 +217,7 @@ running chunk runs to its end."
   (overblock-rmd-live-test--with-document
       "```{r a}\nrestart_witness <- 1\nexists(\"restart_witness\")\n```\n"
     (should (equal (overblock-rmd-live-test--run-first) "[1] TRUE"))
-    (overblock-rmd-restart)
+    (overblock-run-restart)
     (should-not (overblock-test-common-results))
     (should (overblock-rmd--process))
     ;; The new R does not know it.

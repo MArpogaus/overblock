@@ -128,7 +128,8 @@ typing before the marker is not typing inside the bar.
 =python-shell-restart= kills the process and waits for its last
 output. A shell that has not prompted yet sends its first prompt into
 that wait, and the setup of python.el then waits on the dead process
-until =C-g=. Thus =overblock-pycell-restart= deletes the process at
+until =C-g=. Thus =overblock-pycell--restart=, the =:restart= of the
+backend, deletes the process at
 once, and =python-shell-make-comint= starts a new one in the same
 buffer, under its name, so a shell dedicated by hand stays so. The
 command is the one of the notebook, also where the interpreter had

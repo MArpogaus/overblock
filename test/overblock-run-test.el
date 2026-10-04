@@ -286,8 +286,11 @@ this test runs them."
     (setq overblock-run--queue (list (copy-marker 1)))
     (let (restarted)
       (with-current-buffer notebook
-        (overblock-run-restart "runtest: restarting"
-                               (lambda (proc) (setq restarted (or proc t)))))
+        (setq-local overblock-run-backend
+                    (append (list :restart
+                                  (lambda (proc) (setq restarted (or proc t))))
+                            overblock-run-backend))
+        (overblock-run-restart))
       (should restarted)
       (should-not overblock-run--state)
       (should-not overblock-run--queue)
@@ -305,21 +308,21 @@ this test runs them."
                            (copy-marker (point-max) t))
                     :start (float-time) :timer (timer-create))))
       (with-current-buffer notebook
-        (overblock-run-restart "runtest: restarting" #'ignore)
+        (overblock-run-restart)
         (should (= (point) (point-min))))
       ;; A pass that waits while nothing runs: the restart takes point
       ;; home and frees the home, so the prompt of the new shell takes
       ;; no point back, and the notebook no longer scrolls.
       (with-current-buffer notebook
         (overblock-run--home-set (point-marker))
-        (overblock-run-restart "runtest: restarting" #'ignore))
+        (overblock-run-restart))
       (should-not overblock-run--home)
       (should-not (memq notebook overblock-run--scrolled))
       ;; A backend that can arm waits for the first prompt again.
       (with-current-buffer notebook
         (setq-local overblock-run-backend
                     (append (list :arm #'ignore) overblock-run-backend))
-        (overblock-run-restart "runtest: restarting" #'ignore)
+        (overblock-run-restart)
         (should (overblock-run--busy-p)))
       ;; The result of the running region goes too.
       (should-not (overblock-run-test--result notebook)))))
@@ -575,6 +578,29 @@ A bar of a block goes with its block."
         (should-not (overlay-buffer block))))
     (overblock-run-detach)
     (should-not (overblock-bars))))
+
+(ert-deftest overblock-run-test-restart-and-run-all-takes-every-region ()
+  "A restart and run all queues every start, now or on the first prompt.
+A shell that is ready runs the pass at once, and one that prompts later
+runs it on that prompt."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let ((overblock-run-test--shell (current-buffer))
+          busy ran)
+      (setq-local overblock-run-backend
+                  (append (list :starts (lambda () (list (copy-marker 1)
+                                                         (copy-marker 5))))
+                          (overblock-run-test--backend)))
+      (cl-letf (((symbol-function 'overblock-run--busy-p) (lambda () busy))
+                ((symbol-function 'overblock-run--pass)
+                 (lambda (starts said) (push (list 'now (length starts) said) ran)))
+                ((symbol-function 'overblock-run-on-prompt)
+                 (lambda (starts said) (push (list 'prompt (length starts) said) ran))))
+        (overblock-run-restart-and-run-all)
+        (setq busy t)
+        (overblock-run-restart-and-run-all))
+      (should (equal ran '((prompt 2 "runtest: running every cell")
+                           (now 2 "runtest: running every cell")))))))
 
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here

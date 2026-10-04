@@ -814,6 +814,20 @@ work on the first prompt."
   (run-python nil (overblock-pycell--dedicated))
   nil)
 
+(defun overblock-pycell--restart (proc)
+  "Start a new Python in place of PROC, or one where PROC is nil.
+This is the `:restart' of the backend.  The new process starts in the
+buffer of the old one, with the command of the notebook: a switch of
+its environment takes effect at the restart.  Not `python-shell-restart',
+which can freeze Emacs: see \"The restart\" in docs/overblock-pycell.org."
+  (if (not proc)
+      (overblock-pycell--start)
+    (let ((buffer (process-buffer proc)))
+      (delete-process proc)
+      (python-shell-make-comint (python-shell-calculate-command)
+                                (string-trim (buffer-name buffer)
+                                             "\\*" "\\*")))))
+
 (defun overblock-pycell--arm (thunk)
   "Call THUNK on the first prompt of the Python shell of this notebook.
 This is the `:arm' of the backend.  THUNK runs after the setup of
@@ -859,6 +873,7 @@ The commentary of `overblock-run' lists the slots."
         :process #'python-shell-get-process
         :start #'overblock-pycell--start
         :arm #'overblock-pycell--arm
+        :restart #'overblock-pycell--restart
         :send #'overblock-pycell--send-region
         :prompt-p #'python-shell-comint-end-of-output-p
         :clean #'overblock-pycell--clean
@@ -895,27 +910,6 @@ prompt.  A cell sent while the shell is busy or starts is queued."
           (goto-char end)))
     (overblock-run-region start end)))
 
-;;;###autoload
-(defun overblock-pycell-restart ()
-  "Restart the Python interpreter and remove every result.
-The rendered markdown cells stay: a pass that stops early would leave
-the cells after it plain."
-  (interactive)
-  (overblock-run-restart
-   "The interpreter was restarted"
-   (lambda (proc)
-     ;; Not `python-shell-restart', which can freeze Emacs: see "The
-     ;; restart" in docs/overblock-pycell.org.
-     (if (not proc)
-         (overblock-pycell--start)
-       ;; The command of the notebook: a switch of its environment
-       ;; takes effect at the restart.
-       (let ((buffer (process-buffer proc)))
-         (delete-process proc)
-         (python-shell-make-comint (python-shell-calculate-command)
-                                   (string-trim (buffer-name buffer)
-                                                "\\*" "\\*")))))))
-
 (defun overblock-pycell--cell-starts ()
   "Return a marker on the first line of every cell of the buffer, in order.
 The text above the first boundary line is a cell too, where there is
@@ -935,16 +929,6 @@ The same as `code-cells-eval' (\\[code-cells-eval]) on that cell."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (apply #'code-cells-eval (code-cells--bounds nil nil t)))
-
-;;;###autoload
-(defun overblock-pycell-restart-and-run-all ()
-  "Restart the Python interpreter, then evaluate every cell in order.
-The pass stops at the first error, or on `overblock-run-stop'."
-  (interactive)
-  (overblock-pycell-restart)
-  ;; A restarted shell has a live process that has not prompted yet.
-  (overblock-run-on-prompt (overblock-pycell--cell-starts)
-                           "overblock-pycell: running every cell"))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.

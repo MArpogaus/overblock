@@ -674,7 +674,7 @@ where the old interpreter had died."
                 (set-window-buffer window shell)
                 (set-window-point window 1)
                 (setq-local python-shell-interpreter "switched-ipython")
-                (overblock-pycell-restart)
+                (overblock-run-restart)
                 (should (= (window-point window)
                            (with-current-buffer shell (point-max))))
                 (should-not (process-live-p proc))
@@ -685,7 +685,7 @@ where the old interpreter had died."
                 (delete-process new)
                 (setq new nil)
                 (set-window-point window 1)
-                (overblock-pycell-restart)
+                (overblock-run-restart)
                 (should (= (window-point window)
                            (with-current-buffer shell (point-max))))
                 (delete-window window)))))
@@ -1658,14 +1658,14 @@ for at once starts where the first one did."
                      (lambda (&rest _) 'proc))
                     ((symbol-function 'process-buffer)
                      (lambda (_proc) shell))
-                    ((symbol-function 'overblock-run-clear-results) #'ignore))
+                    ((symbol-function 'overblock-run-clear-results) #'ignore)
+                    ((symbol-function 'overblock-pycell--restart) #'ignore))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode))
             (set-window-start window (point-min))
             (goto-char (+ (point-min) 2))
             (dolist (stop (list #'overblock-run-go-home
-                                (lambda ()
-                                  (overblock-run-restart "restarting" #'ignore))))
+                                #'overblock-run-restart))
               (overblock-run--home-set (point-marker))
               (overblock-run--scroll-to two)
               (should (= (window-start window) two))
@@ -2164,7 +2164,7 @@ a lost block that keeps lines invisible, so the restart sweeps too."
       (let ((orphan (make-overlay (point-min) (1+ (point-min)))))
         (overlay-put orphan 'overblock-part t)
         (overlay-put orphan 'invisible t)
-        (overblock-pycell-restart)
+        (overblock-run-restart)
         (should-not (overlay-buffer orphan))))))
 
 (ert-deftest overblock-pycell-test-a-narrower-window-gets-a-new-bar ()
@@ -2286,7 +2286,7 @@ remembers its shell instead."
 
 (ert-deftest overblock-pycell-test-a-restart-keeps-the-renderings ()
   "A restart takes the results down and leaves the markdown standing.
-`overblock-pycell-restart-and-run-all' renders a cell only when the
+`overblock-run-restart-and-run-all' renders a cell only when the
 pass reaches it, so a pass that stops early would leave the cells after
 it plain."
   (cl-letf (((symbol-function 'run-python) #'ignore)
@@ -2302,7 +2302,7 @@ it plain."
         (overblock-show (+ beg 16) (point-max) :kind 'markdown :over "text"))
       (should (overblock-in (point-min) (point-max) 'result))
       (should (overblock-in (point-min) (point-max) 'markdown))
-      (overblock-pycell-restart)
+      (overblock-run-restart)
       (should-not (overblock-in (point-min) (point-max) 'result))
       (should (overblock-in (point-min) (point-max) 'markdown)))))
 

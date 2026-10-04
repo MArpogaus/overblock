@@ -114,7 +114,7 @@ an error in the process filter would leave the shell busy."
   "A pass over all the cells stops at the first cell that raises."
   (overblock-pycell-live-test--with-notebook
       "# %%\nprint('a')\n\n# %%\nraise ValueError('boom')\n\n# %%\nprint('never')\n"
-    (overblock-pycell-restart-and-run-all)
+    (overblock-run-restart-and-run-all)
     (should (overblock-test-common-wait
              (lambda () (and (overblock-pycell-live-test--idle-p)
                              (null (overblock-run--queued))
@@ -135,7 +135,7 @@ an error in the process filter would leave the shell busy."
              (lambda () (and (overblock-pycell-live-test--idle-p)
                              (overblock-test-common-results)))
              60))
-    (overblock-pycell-restart)
+    (overblock-run-restart)
     (goto-char (point-max))
     (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
       (overblock-pycell-eval-region beg end))
@@ -154,7 +154,7 @@ stop can be called from any buffer, so it must find the shell itself.
 The running cell runs to its end, and the pass ends clean."
   (overblock-pycell-live-test--with-notebook
       "# %%\nprint('a')\n\n# %%\nimport time; time.sleep(1)\n"
-    (overblock-pycell-restart-and-run-all)
+    (overblock-run-restart-and-run-all)
     ;; The last cell runs: nothing queued, one cell live.
     (should (overblock-test-common-wait
              (lambda ()

@@ -147,10 +147,10 @@ process buffer.
 
 ESS has no restart that asks nothing: =ess-quit= runs =ess-cleanup=,
 which offers to kill the buffers of the session. Thus
-=overblock-rmd-restart= kills the process, and =inferior-ess= starts a
-new one in the same buffer.
+=overblock-rmd--restart=, the =:restart= of the backend, kills the
+process, and =inferior-ess= starts a new one in the same buffer.
 
-=overblock-run-restart= runs first. It puts point and the view back
+=overblock-run-restart= runs it. First it puts point and the view back
 where a pass was asked for, then ends the running chunk as a death,
 because the chunk can belong to another buffer on the same R. It
 empties the queue, so no pass continues into a dead process, and it
@@ -245,7 +245,7 @@ The files are temporary files of R and go with the session.
 
 * What a clear must sweep
 
-=overblock-rmd-restart= removes the results and keeps the renderings of
+=overblock-run-restart= removes the results and keeps the renderings of
 the prose, because a rendering does not depend on the interpreter. A
 clear that names a kind cannot sweep an orphan, because an orphan has
 no kind. Thus =overblock-run-clear-results= calls
