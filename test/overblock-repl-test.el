@@ -88,11 +88,6 @@ table can bring its own."
     (should (equal (split-string clean "\n")
                    '("first  second" "1      one" "2      two")))))
 
-(ert-deftest overblock-repl-test-first-lines-of-zero-is-every-line ()
-  "A limit of zero takes every line, as the options that pass one mean."
-  (should (equal (overblock-repl-first-lines "a\nb\nc\n" 0) '("a" "b" "c" "")))
-  (should (equal (overblock-repl-first-lines "a\nb\nc\n" 2) '("a" "b"))))
-
 (ert-deftest overblock-repl-test-a-copy-keeps-what-the-columns-carry ()
   "The copy of a table keeps every column property, `min-width' included.
 comint-mime gives each column a `:min-width' and no `:width', so a

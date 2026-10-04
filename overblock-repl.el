@@ -35,9 +35,8 @@
 ;; cuts a copy loose from all of that.  The properties of the shell go,
 ;; and the columns of a table are laid out in characters.  The table
 ;; keeps its object under `overblock-repl-table', so a caller can show
-;; it live elsewhere.  `overblock-repl-first-lines' takes the head of a
-;; long output without reading the rest of it.  Capping the images of a
-;; line belongs to the layer: `overblock-image-cap'.
+;; it live elsewhere.  Capping the images of a line belongs to the
+;; layer: `overblock-image-cap'.
 ;;
 ;; What a prompt looks like is the caller's business: it belongs to the
 ;; shell it came from.  `overblock-repl-strip-trailing-prompt' takes it
@@ -288,32 +287,6 @@ properties of the images and the table object stay."
                              (if (eq (aref copy (1- tend)) ?\n) "\n" "")
                              (substring copy tend)))))
       copy)))
-
-(defun overblock-repl-first-lines (text limit)
-  "Return the first LIMIT lines of TEXT, every line where LIMIT is zero.
-Only that part of TEXT is read and copied, so a long result costs what
-a short one costs, on a tick five times a second.  Zero means all
-lines, as in the options that pass a limit here."
-  (if (<= limit 0)
-      (split-string text "\n")
-    (let ((pos 0) (count 0) (cut nil))
-      (while (and (null cut)
-                  (setq pos (string-search "\n" text pos)))
-        (setq count (1+ count)
-              pos (1+ pos))
-        (when (>= count limit) (setq cut (1- pos))))
-      (split-string (if cut (substring text 0 cut) text) "\n"))))
-
-(defun overblock-repl-count-lines (text)
-  "Return how many lines TEXT holds.
-This searches all of TEXT, so a caller that knows the number does not
-ask.  A loop of `string-search' is several times faster than
-`cl-count'."
-  (let ((pos 0) (count 1))
-    (while (setq pos (string-search "\n" text pos))
-      (setq count (1+ count)
-            pos (1+ pos)))
-    count))
 
 (provide 'overblock-repl)
 ;;; overblock-repl.el ends here

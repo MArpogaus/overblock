@@ -242,6 +242,32 @@ shares them.  For example:
 Point never enters the block, so the overlays of the region carry
 this map.")
 
+(defun overblock-run--first-lines (text limit)
+  "Return the first LIMIT lines of TEXT, every line where LIMIT is zero.
+Only that part of TEXT is read and copied, so a long result costs what
+a short one costs, on a tick five times a second.  Zero means all
+lines, as in the options that pass a limit here."
+  (if (<= limit 0)
+      (split-string text "\n")
+    (let ((pos 0) (count 0) (cut nil))
+      (while (and (null cut)
+                  (setq pos (string-search "\n" text pos)))
+        (setq count (1+ count)
+              pos (1+ pos))
+        (when (>= count limit) (setq cut (1- pos))))
+      (split-string (if cut (substring text 0 cut) text) "\n"))))
+
+(defun overblock-run--count-lines (text)
+  "Return how many lines TEXT holds.
+This searches all of TEXT, so a caller that knows the number does not
+ask.  A loop of `string-search' is several times faster than
+`cl-count'."
+  (let ((pos 0) (count 1))
+    (while (setq pos (string-search "\n" text pos))
+      (setq count (1+ count)
+            pos (1+ pos)))
+    count))
+
 (defun overblock-run--shorten (line chars)
   "Return LINE cut to CHARS characters.
 The cut is marked with an ellipsis.  A CHARS of zero leaves the line
@@ -256,7 +282,7 @@ whole."
   "Return LINES as they show inline.
 Each is cut to CHARS characters, and nothing shows after the first line
 with an image that can be drawn: more figures would make the block,
-and the scroll step, grow without bound.  `overblock-repl-first-lines'
+and the scroll step, grow without bound.  `overblock-run--first-lines'
 decides before this how many lines show.  A display without images
 names them instead.  A line with an image is not cut, since the image
 can be past the cut; its images are capped to `overblock-image-height'."
@@ -369,13 +395,13 @@ are and how many show, and the body is those that show."
     (let* ((empty (string-empty-p text))
            (max overblock-run-max-lines)
            (chars overblock-run-max-line-length)
-           (lines (unless empty (overblock-repl-first-lines text max)))
+           (lines (unless empty (overblock-run--first-lines text max)))
            (shown (overblock-run--body-lines lines chars))
            ;; Counted once and kept, or a fold scans the whole output
            ;; on every keypress.
            (count (cond (empty 0)
                         (total)
-                        (t (let ((n (overblock-repl-count-lines text)))
+                        (t (let ((n (overblock-run--count-lines text)))
                              (overblock-set block :data
                                             (plist-put data :total n))
                              n)))))

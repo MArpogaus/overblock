@@ -142,6 +142,11 @@ The shell has a copy of the backend, but no bars to draw."
     (should-not (advice-member-p #'overblock-run--keep-result-newline
                                  'outline-flag-region))))
 
+(ert-deftest overblock-run-test-first-lines-of-zero-is-every-line ()
+  "A limit of zero takes every line, as the options that pass one mean."
+  (should (equal (overblock-run--first-lines "a\nb\nc\n" 0) '("a" "b" "c" "")))
+  (should (equal (overblock-run--first-lines "a\nb\nc\n" 2) '("a" "b"))))
+
 (ert-deftest overblock-run-test-a-dead-shell-is-no-notebook ()
   "A shell whose process ended is no notebook, though it keeps the backend."
   (with-temp-buffer

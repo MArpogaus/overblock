@@ -136,7 +136,7 @@ region."
   "Return the leading LINES of a result, as the runner's limits bound them.
 The runner takes the budgets as arguments, so the tests supply them."
   (overblock-run--body-lines
-   (overblock-repl-first-lines (string-join lines "\n") overblock-run-max-lines)
+   (overblock-run--first-lines (string-join lines "\n") overblock-run-max-lines)
    overblock-run-max-line-length))
 
 (defun overblock-run-header-of-pycell (folded total shown runtime state imagep)

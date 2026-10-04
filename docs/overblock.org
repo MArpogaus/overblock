@@ -502,8 +502,6 @@ It changes three things:
 |----------------------------------------+-------------------------------------------------|
 | =overblock-repl-detach=                | a copy of shell output that a block can show    |
 | =overblock-repl-table-copy=            | the table object of a copy, for a live table    |
-| =overblock-repl-first-lines=           | the head of an output, without reading the rest |
-| =overblock-repl-count-lines=           | the lines of an output                          |
 | =overblock-repl-strip-trailing-prompt= | remove the prompt at the end of an output       |
 | =overblock-repl-file-images=           | the PNG files that an output names, as images   |
 
@@ -515,9 +513,7 @@ that ends without a newline a prompt, and paints it
 =comint-highlight-prompt=. =overblock-repl-detach= removes that face
 and keeps the colours of the output.
 
-=overblock-repl-first-lines= stops at its limit, and a limit of zero
-reads every line. To cap the images is the work of
-=overblock-image-cap=. The file needs =vtable=, which Emacs ships.
+To cap the images is the work of =overblock-image-cap=. The file needs =vtable=, which Emacs ships.
 
 * The run loop
 
@@ -721,8 +717,7 @@ the speed back.
 - =overblock--fill-props= takes a plist and walks the rendering once.
 - =overblock-run--show= keeps the block that it has when only the data
   changed, which is each tick of a growing output.
-- =overblock-repl-first-lines= and =overblock-repl-count-lines= are
-  bounded.
+- =overblock-run--first-lines= reads an output only to its limit.
 - =overblock-cached= keeps the answer of a walk of the whole buffer
   until the text or the narrowing changes. The live cycle asks on each
   command. Thus the doc strings of a Python buffer, the chunks of an
