@@ -163,7 +163,7 @@ and a cell that prints one line arrives as one such chunk.  Only that
 face goes: ansi-color and comint-mime put the colours of the output in
 the same property."
   (progn
-    (let ((text (overblock-repl-drop-prompt-face
+    (let ((text (overblock-repl-detach
                  (propertize "one" 'font-lock-face
                              'comint-highlight-prompt))))
       (should (equal (substring-no-properties text) "one"))
@@ -172,7 +172,7 @@ the same property."
       (should-not (memq 'font-lock-face (text-properties-at 0 text))))
     ;; A run that carries the prompt face beside a colour of its own
     ;; keeps the colour, and a run without the prompt face is untouched.
-    (let ((text (overblock-repl-drop-prompt-face
+    (let ((text (overblock-repl-detach
                  (concat (propertize "red" 'font-lock-face
                                      '(bold comint-highlight-prompt))
                          "\n"

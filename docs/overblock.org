@@ -452,7 +452,6 @@ It changes three things:
 | =overblock-repl-first-lines=           | the head of an output, without reading the rest |
 | =overblock-repl-count-lines=           | the lines of an output                          |
 | =overblock-repl-strip-trailing-prompt= | remove the prompt at the end of an output       |
-| =overblock-repl-drop-prompt-face=      | remove the face comint paints a prompt with     |
 | =overblock-repl-file-images=           | the PNG files that an output names, as images   |
 
 What a prompt looks like belongs to the shell, so the caller gives the
@@ -460,8 +459,8 @@ pattern. =overblock-repl-strip-trailing-prompt= also removes a prompt
 on the same line as output without a final newline, which a pattern
 anchored at a line start cannot see. comint calls each chunk of output
 that ends without a newline a prompt, and paints it
-=comint-highlight-prompt=. =overblock-repl-drop-prompt-face= removes
-that face and keeps the colours of the output.
+=comint-highlight-prompt=. =overblock-repl-detach= removes that face
+and keeps the colours of the output.
 
 =overblock-repl-first-lines= stops at its limit, and a limit of zero
 reads every line. To cap the images is the work of

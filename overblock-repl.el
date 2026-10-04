@@ -41,9 +41,8 @@
 ;;
 ;; What a prompt looks like is the caller's business: it belongs to the
 ;; shell it came from.  `overblock-repl-strip-trailing-prompt' takes it
-;; off the end of an output, and `overblock-repl-drop-prompt-face'
-;; takes the face comint paints it with.  `overblock-repl-file-images'
-;; reads back the image files a program named, one to a line.
+;; off the end of an output.  `overblock-repl-file-images' reads back
+;; the image files a program named, one to a line.
 ;;
 ;; docs/overblock.org has the details, under "The output of a shell".
 
@@ -172,7 +171,7 @@ assignment, is then empty."
         (substring text 0 (match-beginning 0))
       text)))
 
-(defun overblock-repl-drop-prompt-face (text)
+(defun overblock-repl--drop-prompt-face (text)
   "Return TEXT without the face comint paints a prompt with.
 comint calls a chunk of output that ends without a newline a prompt,
 and paints it `comint-highlight-prompt'.  A cell that prints one line
@@ -182,8 +181,8 @@ Only that face goes: ansi-color and comint-mime put other faces in the
 same property.  A run left without a face loses the property instead
 of a nil value, because each face run costs redisplay time.
 
-TEXT changes in place: pass a copy, such as one from
-`buffer-substring'."
+TEXT changes in place.  `overblock-repl-detach' calls this on its
+copy."
   (let ((pos 0)
         (len (length text)))
     (while (< pos len)
@@ -248,8 +247,9 @@ mouse face and the help echo go, and a table keeps its object under
 The bookkeeping of comint goes too: fields, sticky boundaries, change
 hooks and read-only prompts.  A copy with them puts read-only text on
 the kill ring, and its hooks run comint functions in the buffer it is
-yanked into.  The faces, the display properties of the images and the
-table object stay."
+yanked into.  So does the face comint paints a prompt with (see
+`overblock-repl--drop-prompt-face').  The other faces, the display
+properties of the images and the table object stay."
   (let* ((beg 0)
          (end (length text))
          (blank (lambda (i) (and (memq (aref text i) '(?\s ?\t ?\n ?\r))
@@ -274,6 +274,7 @@ table object stay."
                 front-sticky rear-nonsticky inhibit-line-move-field-capture
                 insert-in-front-hooks insert-behind-hooks modification-hooks)
        copy)
+      (overblock-repl--drop-prompt-face copy)
       ;; Back to front, so the positions of earlier regions hold. The
       ;; newline a run swallowed is put back, so the output after the
       ;; table does not join its last row.

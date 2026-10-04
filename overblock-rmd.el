@@ -468,8 +468,7 @@ The wrapper of `overblock-rmd--send' names each figure on a line of its
 own, which `overblock-repl-file-images' reads back."
   (overblock-repl-detach
    (overblock-repl-file-images
-    (overblock-repl-drop-prompt-face
-     (overblock-repl-strip-trailing-prompt text inferior-ess-primary-prompt))
+    (overblock-repl-strip-trailing-prompt text inferior-ess-primary-prompt)
     "overblock-figure:")))
 
 (defconst overblock-rmd--error-regexp "^Error\\(?: in\\>\\|:\\|$\\)"

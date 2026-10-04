@@ -172,12 +172,11 @@ This is the `:prompt-p' of the backend."
 
 (defun overblock-sh--clean (text)
   "Return TEXT as a result block can show it.
-This is the `:clean' of the backend.  The prompt and its face go, and
-the copy is cut loose from the shell."
+This is the `:clean' of the backend.  The prompt goes, and the copy is
+cut loose from the shell."
   (overblock-repl-detach
-   (overblock-repl-drop-prompt-face
-    (overblock-repl-strip-trailing-prompt
-     text (regexp-quote overblock-sh--prompt)))))
+   (overblock-repl-strip-trailing-prompt
+    text (regexp-quote overblock-sh--prompt))))
 
 (defun overblock-sh--error-p (text)
   "Return non-nil where TEXT is the output of a cell that failed.

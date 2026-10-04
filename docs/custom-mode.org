@@ -213,15 +213,14 @@ and =:error-p= looks for that line:
                 (buffer-substring-no-properties beg end)))
 #+end_src
 
-=:clean= removes the last prompt and the face of the prompt. Then it
-cuts the text loose from the shell, with the helpers of
+=:clean= removes the last prompt. Then it cuts the text loose from the
+shell, with the helpers of
 [[file:overblock.org::*The output of a shell][The output of a shell]]:
 
 #+begin_src emacs-lisp
   (overblock-repl-detach
-   (overblock-repl-drop-prompt-face
-    (overblock-repl-strip-trailing-prompt
-     text (regexp-quote overblock-sh--prompt))))
+   (overblock-repl-strip-trailing-prompt
+    text (regexp-quote overblock-sh--prompt)))
 #+end_src
 
 ** The mode

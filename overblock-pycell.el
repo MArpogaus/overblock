@@ -529,13 +529,11 @@ buffer, where that variable has its value."
 
 (defun overblock-pycell--clean (text)
   "Return TEXT as a result block can show it.
-This is the `:clean' of the backend.  The prompts, the Out[N] labels
-and the prompt face go, and the copy is cut loose from the shell: see
-`overblock-pycell--strip-prompts', `overblock-repl-drop-prompt-face'
-and `overblock-repl-detach'.  Call this in the shell buffer, where
-`comint-prompt-regexp' has its value."
-  (overblock-repl-detach
-   (overblock-repl-drop-prompt-face (overblock-pycell--strip-prompts text))))
+This is the `:clean' of the backend.  The prompts and the Out[N]
+labels go, and the copy is cut loose from the shell: see
+`overblock-pycell--strip-prompts' and `overblock-repl-detach'.  Call
+this in the shell buffer, where `comint-prompt-regexp' has its value."
+  (overblock-repl-detach (overblock-pycell--strip-prompts text)))
 
 (defconst overblock-pycell--error-tail
   (concat "\\`"
