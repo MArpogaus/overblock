@@ -217,7 +217,7 @@ bar left on the line could not be swept."
     (insert "# %% [markdown]\n# %%\nprint(1)\n")
     (python-mode)
     (code-cells-mode)
-    (should-not (overblock-pycell--md-show 17 17))
+    (should-not (overblock-pycell--show 17 17))
     (should-not (seq-filter #'overblock-bar-kind
                             (overlays-in (point-min) (point-max))))))
 
@@ -228,7 +228,7 @@ bar left on the line could not be swept."
     (python-mode)
     (code-cells-mode)
     (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
-      (let ((block (overblock-pycell--md-show 17 31)))
+      (let ((block (overblock-pycell--show 17 31)))
         (should block)
         (should (string-match-p "Some \\*text\\*"
                                 (overblock-get block :over)))))))
@@ -270,7 +270,7 @@ two."
         (should-not (overblock-in (point-min) (point-max) 'pycell))
         (should (= (funcall bars) 0))
         ;; Rendering again leaves one bar, not two.
-        (overblock-pycell--md-show beg (point))
+        (overblock-pycell--show beg (point))
         (should (= (funcall bars) 1))))))
 
 (ert-deftest overblock-pycell-test-show-text-result ()

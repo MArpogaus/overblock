@@ -204,7 +204,7 @@ without the tag list of a =# %% [markdown]= line."
                       (buffer-substring-no-properties (match-end 0) eol))))))
         (unless (string-empty-p title) title)))))
 
-(defun overblock-pycell--md-regions ()
+(defun overblock-pycell--regions ()
   "Return the body of every markdown cell of the buffer, in order.
 Each is a cons of the start and the end of the body, which is the next
 boundary line or the end of the buffer.  An empty cell is left out."
@@ -275,7 +275,7 @@ the first boundary line has none."
   "Strip the comment prefixes from the markdown cell TEXT."
   (replace-regexp-in-string "^# ?" "" text))
 
-(defun overblock-pycell--md-source (beg end)
+(defun overblock-pycell--source (beg end)
   "Return the markdown of the cell body BEG..END, as the converter reads it."
   (overblock-pycell--md-uncomment (buffer-substring-no-properties beg end)))
 
@@ -299,7 +299,7 @@ reader stops."
     (when from
       (save-excursion (goto-char from) (overblock-pycell--bar)))))
 
-(defun overblock-pycell--md-show (beg end &optional html)
+(defun overblock-pycell--show (beg end &optional html)
   "Show the markdown cell body BEG..END rendered, in place.
 With HTML, the cell is not converted again: it was converted with the
 rest of the buffer.
@@ -321,7 +321,7 @@ still finds its heading."
               ((< beg end))
               ;; Without a converter the cell stays plain text.
               ((overblock-md-program))
-              (markdown (overblock-pycell--md-source beg end))
+              (markdown (overblock-pycell--source beg end))
               ;; A conversion that fails shows the markdown as it is,
               ;; so the cell does not go to the converter on every pass.
               (rendered (or (let ((overblock-md-width (overblock-md-columns)))
@@ -331,7 +331,7 @@ still finds its heading."
 
 (defun overblock-pycell--md-block (beg end rendered)
   "Show RENDERED over the markdown cell BEG..END, with a bar above it.
-See `overblock-pycell--md-show', which renders and calls this."
+See `overblock-pycell--show', which renders and calls this."
   (let* ((help "mouse-2: edit this markdown cell, mouse-1: show source")
          (text (overblock-fill-props
                 (overblock-faced rendered 'default)
@@ -375,8 +375,8 @@ does not wait.  Nothing happens without a converter;
 `overblock-pycell-mode' says so once when it goes on."
   (interactive)
   (overblock-md-render-regions
-   (overblock-pycell--md-regions)
-   'pycell #'overblock-pycell--md-source #'overblock-pycell--md-show))
+   (overblock-pycell--regions)
+   'pycell #'overblock-pycell--source #'overblock-pycell--show))
 
 ;;;; Backend
 
@@ -624,7 +624,7 @@ Without an interpreter, one starts and the cell follows on its first
 prompt.  A cell sent while the shell is busy or starts is queued."
   (if (overblock-pycell--md-cell-start start)
       (progn
-        (overblock-pycell--md-show start end)
+        (overblock-pycell--show start end)
         ;; Redisplay pushes point out of the hidden text upwards; put it
         ;; below instead.
         (when (<= (1- start) (point) end)
@@ -649,7 +649,7 @@ button on the bar of a cell that shows its source."
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
     (unless (overblock-pycell--md-cell-start beg)
       (user-error "This is not a markdown cell"))
-    (overblock-pycell--md-show beg end)))
+    (overblock-pycell--show beg end)))
 
 ;;;###autoload
 (defun overblock-pycell-md-raw (&optional event)
@@ -682,7 +682,7 @@ Empty MD stays empty: `overblock-pycell--md-comment' would write a bare
     (delete-region beg end)
     (insert (if (string-empty-p md) "" (overblock-pycell--md-comment md)) tail)
     ;; To point: END does not move over the text written at BEG.
-    (overblock-pycell--md-show beg (point))))
+    (overblock-pycell--show beg (point))))
 
 ;;;###autoload
 (defun overblock-pycell-md-edit (&optional event)
@@ -702,7 +702,7 @@ it back and renders it; `overblock-edit-abort' discards the edit."
            ;; Trimmed on the right: the blank line between cells stays
            ;; out of the edit buffer, and `--md-put' restores it.
            :text (lambda (from to)
-                   (string-trim-right (overblock-pycell--md-source from to)))
+                   (string-trim-right (overblock-pycell--source from to)))
            :put #'overblock-pycell--md-put))))
 
 (defun overblock-pycell--cell-state (beg end)
@@ -720,10 +720,10 @@ alone."
   (when (car state)
     (overblock-run-result-restore beg end (car state)))
   (when (cdr state)
-    (overblock-pycell--md-show (save-excursion (goto-char beg)
-                                               (forward-line 1)
-                                               (point))
-                               end)))
+    (overblock-pycell--show (save-excursion (goto-char beg)
+                                            (forward-line 1)
+                                            (point))
+                            end)))
 
 ;;;###autoload
 (defun overblock-pycell-move-cell-down (&optional arg event)
@@ -826,7 +826,7 @@ run."
                     "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
         ;; Said once, and only when there is a markdown cell.
         (when-let* ((why (overblock-md-missing))
-                    ((overblock-pycell--md-regions)))
+                    ((overblock-pycell--regions)))
           (message "overblock-pycell: %s, cells stay plain" why))
         ;; Point moving into a rendered cell changes nothing; a click
         ;; shows its source.
