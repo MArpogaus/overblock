@@ -11,9 +11,7 @@ overblock-md turns markup into a string that a block can show
 
 =overblock-pydoc-mode= is =overblock-live-start= with three answers:
 which regions, what to render them with, and when. This file holds the
-first two, and the rows that a rendering is drawn on. The mode starts
-its cycle with KEEP, so point that moves into a rendering changes
-nothing.
+first two, and the rows that a rendering is drawn on.
 
 * Use
 
@@ -27,8 +25,8 @@ nothing.
 | =overblock-live-edit=           | show the source of one doc string     |
 
 =overblock-pydoc-edit= opens the prose without the quotes and the
-indentation. =C-c C-c= (=overblock-edit-commit=) writes it back, and
-=C-c C-k= (=overblock-edit-abort=) discards it. The commit puts the
+indentation, in an [[file:overblock.org::*The edit buffer][edit
+buffer]]. The commit puts the
 closing quotes of a doc string with several lines on a line of their
 own, as PEP 257 says.
 
@@ -59,11 +57,12 @@ For the button format, see [[file:overblock.org::*Change the buttons][Change the
 
 * Which strings are documentation
 
-Font lock has decided it already. python.el paints the doc string of a
-module, a definition or an assignment with =font-lock-doc-face=, and
-each other string with =font-lock-string-face=. Its tree-sitter
-fontifier paints the same face. Thus =python-mode= and =python-ts-mode=
-use one path, and no grammar is necessary.
+Font lock has decided it already, as the
+[[file:../README.org::*overblock-pydoc: Python doc strings][README]]
+tells. python.el paints the doc string of a module, a definition or an
+assignment with =font-lock-doc-face=, and each other string with
+=font-lock-string-face=. Its tree-sitter fontifier paints the same
+face, so no grammar is necessary.
 
 The face is read as a list, because a theme can add its own face to
 that of font lock.
@@ -160,20 +159,12 @@ column.
 
 ** Padded with spaces, not with a stretch
 
-A row holds its label at the left and its buttons at the window edge.
-The space between them is real spaces, and not a
-=(space :align-to (- right ...))=. A block shows its text on a display
-property, and a display property inside a display string does not show.
-
-The row is not padded to the full width of the window. The indent
-columns are not part of the row. Padded to the full width, the buttons
-of an indented doc string would wrap to a row of their own. One column
-of slack stays at the end, because a row that fills the last column
-wraps.
-
-The spaces are counted in columns and measured in pixels. Thus a nerd
-glyph that draws wider than it counts does not push the buttons past
-the edge.
+A row of a rendering is padded with spaces, as
+[[file:overblock.org::*The header bars][The header bars]] tells, and
+keeps [[file:overblock.org::*A column of slack][a column of slack]].
+The indent columns are not part of the row. Padded to the full width
+of the window, the buttons of an indented doc string would wrap to a
+row of their own.
 
 ** The rules
 
@@ -213,9 +204,8 @@ buffer, less the indent of the doc string, less the room of the bar
 =overblock-pydoc--show= binds =overblock-md-width= to that number; see
 [[file:overblock-md.org][the notes of overblock-md]].
 
-Each block carries the width it was built for. The layer watches the
-width for each package with =overblock--width-changed=, and removes the
-blocks built for another width. The live cycle then renders them again.
+Each block carries the width it was built for, for the width watch of
+[[file:overblock.org::*The live cycle][the live cycle]].
 A doc string committed from its edit buffer can render while no window
 shows its buffer. Its width is then nil, and the buffer coming back
 into a window renders it again.
