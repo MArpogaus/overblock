@@ -654,16 +654,16 @@ its markdown was rendered."
 
 (defun overblock-pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
-STATE comes from `overblock-pycell--cell-state'.  A markdown cell
+BEG is the start of the boundary line, and STATE comes from
+`overblock-pycell--cell-state'.  Both blocks go on the lines under the
+boundary line, as a run and a rendering put them.  A markdown cell
 renders here, not by the live cycle, which leaves the cell at point
 alone."
-  (when (car state)
-    (overblock-run-result-restore beg end (car state)))
-  (when (cdr state)
-    (overblock-pycell--show (save-excursion (goto-char beg)
-                                            (forward-line 1)
-                                            (point))
-                            end)))
+  (let ((body (save-excursion (goto-char beg) (forward-line 1) (point))))
+    (when (car state)
+      (overblock-run-result-restore body end (car state)))
+    (when (cdr state)
+      (overblock-pycell--show body end))))
 
 ;;;###autoload
 (defun overblock-pycell-move-cell-down (&optional arg event)

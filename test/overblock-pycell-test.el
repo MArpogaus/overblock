@@ -1260,7 +1260,8 @@ VS Code and Spyder write =#%% [markdown]= where jupytext writes
 (ert-deftest overblock-pycell-test-move-cell-carries-its-result ()
   "A cell that moves takes its result with it, and point comes along.
 `transpose-regions' leaves an overlay where the text was, so the block
-of one cell would end up under the other."
+of one cell would end up under the other.  The result covers the code
+of the cell, not its boundary line, as a run puts it."
   (with-temp-buffer
     (insert "# %%\nfirst = 1\n\n# %%\nsecond = 2\n\n# %%\nthird = 3\n")
     (python-mode)
@@ -1295,7 +1296,13 @@ of one cell would end up under the other."
       (goto-char (point-min))
       (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
         (should (equal (overblock-run--result-text (car (overblock-in beg end 'result)))
-                       "two"))))))
+                       "two")))
+      (dolist (block (overblock-in (point-min) (point-max) 'result))
+        (should (equal (buffer-substring (overlay-start block)
+                                         (+ 2 (overlay-start block)))
+                       (if (equal (overblock-run--result-text block) "one")
+                           "fi"
+                         "se")))))))
 
 (ert-deftest overblock-pycell-test-move-cell-keeps-a-rendered-markdown-cell ()
   "A rendered markdown cell moves whole, marker and rendering.
