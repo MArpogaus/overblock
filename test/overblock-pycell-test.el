@@ -225,6 +225,7 @@ bar left on the line could not be swept."
   "A cell the converter fails on keeps its source in view, and goes no more.
 The block stays, empty.  The cell has the source bar, and no edit
 keymap: a click on the bar lands in the source."
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# Some *text*.\n# %%\nprint(1)\n")
     (python-mode)
@@ -2379,6 +2380,7 @@ it plain."
   "A run-all pass crosses markdown cells without building a frame each.
 `overblock-run--next' is a loop.  With recursion, each frame would run
 its tail on the way out and send a code cell while another runs."
+  (skip-unless (overblock-md-program))
   (with-temp-buffer
     (insert "# %% [markdown]\n# one\n\n# %% [markdown]\n# two\n\n"
             "# %%\nx = 1\n\n# %%\ny = 2\n")
