@@ -61,7 +61,8 @@ No package is on MELPA yet. Thus a package manager cannot find the
 packages of this repository by name. Each package that you use needs a
 recipe of its own, and so does each package of this repository that it
 needs. Declare them from the bottom up: =overblock= first, then
-=overblock-md=, then the mode.
+=overblock-md=, then the mode. Leave out the =:hook= of overblock-md
+where the preview is not wanted.
 
 The snippets below are for [[https://github.com/progfolio/elpaca][elpaca]]
 and =use-package=. Each recipe gives its package a clone of its own with
@@ -146,10 +147,6 @@ The mode uses the faces of font lock to find the doc strings. Thus it
 works in =python-mode= and in =python-ts-mode=, and a string that is
 data stays as it is.
 
-Declare the recipes of [[#overblock-the-block-layer][overblock]] and
-[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
-the =:hook= of overblock-md where the preview is not wanted.
-
 #+begin_src emacs-lisp
   (use-package overblock-pydoc
     :ensure (overblock-pydoc :host github
@@ -173,10 +170,6 @@ a notebook does. It needs no Jupyter kernel. The cells go to the Python
 interpreter of =python.el=, so the =*Python*= buffer keeps the full
 log. The files stay plain Python with =# %%= markers, as jupytext
 writes them.
-
-Declare the recipes of [[#overblock-the-block-layer][overblock]] and
-[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
-the =:hook= of overblock-md where the preview is not wanted.
 
 #+begin_src emacs-lisp
   ;; Cells in plain Python files, with the "# %%" convention.
@@ -222,10 +215,6 @@ and the options.
 output under each chunk. The prose between the chunks renders as in
 =overblock-md-preview-mode=. There is no knitr run. The chunks go to
 the R interpreter of ESS, so the R buffer keeps the full log.
-
-Declare the recipes of [[#overblock-the-block-layer][overblock]] and
-[[#overblock-md-markup-rendered-to-text][overblock-md]] first. Leave out
-the =:hook= of overblock-md where the preview is not wanted.
 
 Add =:mode ("\\.[rR]md\\'" . markdown-mode)= to the markdown-mode form
 of overblock-md. That line opens an =.Rmd= file in =markdown-mode=.
@@ -308,8 +297,6 @@ Before a push, they run package-lint, the compilation and the tests. A
 workflow runs the same hooks on each push.
 
 The notes of each package are in =docs/=, one file for each package.
-[[file:docs/overblock.org][docs/overblock.org]] holds the API of the
-layer and the run loop.
 
 ** Contributions
 
