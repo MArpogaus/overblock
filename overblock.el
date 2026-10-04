@@ -51,7 +51,8 @@
 ;; text with no piece left for them go under a cloak; a blank line
 ;; stays, as the gap it is.
 ;;
-;; See `overblock-show' for what a caller may pass.
+;; See `overblock-show' for what a caller may pass.  docs/overblock.org
+;; has the details.
 
 ;;; Code:
 

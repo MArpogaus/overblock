@@ -4,7 +4,7 @@
 
 ;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
 ;; Assisted-by: Claude:claude-opus-5
-;; Keywords: text, markdown, convenience
+;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/overblock
 
 ;; This file is not part of GNU Emacs.
@@ -29,6 +29,9 @@
 ;; a click on a rendering shows the source it stands on.  After an edit,
 ;; the block renders again when point has left it.
 ;;
+;; Turn the mode on with M-x overblock-md-preview-mode, or add it to
+;; `markdown-mode-hook'.
+;;
 ;; The unit is the markdown block: the front matter, the run of lines
 ;; between two blank lines or fences, a whole fenced block of code, or
 ;; an HTML comment.  `overblock-md-regions' finds them.  The block goes
@@ -39,10 +42,10 @@
 ;; cycle, each in a package of its own.  `overblock-rmd-mode' renders
 ;; the prose of an Rmd file itself, and turns this mode off there.
 ;;
-;; This file says which regions to render, what to render them with,
-;; and when.  `overblock-md' knows what a block of markdown is.  The
-;; showing, the hiding of the source under the rendering, and the edit
-;; that makes a rendering stale belong to the layer.
+;; `overblock-md' knows what a block of markdown is.  The showing, the
+;; hiding of the source under the rendering, and the edit that makes a
+;; rendering stale belong to the layer.  docs/overblock-md.org has the
+;; details.
 
 ;;; Code:
 

@@ -44,6 +44,8 @@
 ;; off the end of an output, and `overblock-repl-drop-prompt-face'
 ;; takes the face comint paints it with.  `overblock-repl-file-images'
 ;; reads back the image files a program named, one to a line.
+;;
+;; docs/overblock.org has the details, under "The output of a shell".
 
 ;;; Code:
 

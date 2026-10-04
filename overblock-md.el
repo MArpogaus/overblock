@@ -50,6 +50,8 @@
 ;; HTML comments and the paragraphs.  `overblock-md-source' is the text
 ;; of one block as the converter reads it.  The preview and the prose of
 ;; an Rmd file are cut this way.
+;;
+;; docs/overblock-md.org has the details.
 
 ;;; Code:
 

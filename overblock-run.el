@@ -80,6 +80,8 @@
 ;; point, step to the next one, move between regions, run what is above
 ;; or below, stop, interrupt, restart, and fold, copy and discard a
 ;; result.
+;;
+;; docs/overblock.org has the details, under "The run loop".
 
 ;;; Code:
 

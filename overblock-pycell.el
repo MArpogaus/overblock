@@ -62,6 +62,8 @@
 ;; rendered markdown cell has lines of its own and moves like ordinary
 ;; text.  It stands as tall as its source.  Where the rendering is
 ;; shorter, the lines left over are hidden.
+;;
+;; docs/overblock-pycell.org has the details.
 
 ;;; Code:
 

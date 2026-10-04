@@ -29,8 +29,9 @@
 ;; Notebook style results for the R chunks of an Rmd file, built from
 ;; ESS alone: no knitr run, no rendered document.
 ;;
-;; Turn `overblock-rmd-mode' on in an Rmd buffer, and every ```{r}
-;; chunk gets a bar with a run button.  The prose between the chunks
+;; Turn `overblock-rmd-mode' on in an Rmd buffer, or add
+;; `overblock-rmd-mode-maybe' to `markdown-mode-hook'.  Every ```{r}
+;; chunk then gets a bar with a run button.  The prose between the chunks
 ;; reads as it will look.  Running a chunk grows its result below the
 ;; code: a header bar with a spinner, a stopwatch and buttons, and the
 ;; output of R underneath.
@@ -82,7 +83,7 @@
 ;;
 ;; `overblock' draws the blocks, `overblock-md' turns markdown into a
 ;; string, and `overblock-run' sends a region to a shell and shows what
-;; comes back.
+;; comes back.  docs/overblock-rmd.org has the details.
 
 ;;; Code:
 

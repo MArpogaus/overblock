@@ -33,6 +33,9 @@
 ;; The edit button (`overblock-pydoc-edit') opens the doc string in a
 ;; buffer of its own.  Point moving through one changes nothing.
 ;;
+;; Turn the mode on with M-x overblock-pydoc-mode, or add it to
+;; `python-base-mode-hook'.
+;;
 ;; Font lock decides which strings are documentation.  python.el paints
 ;; the doc string of a module, a definition or an assignment with
 ;; `font-lock-doc-face', and every other string with
@@ -40,8 +43,7 @@
 ;; of its own, and works in `python-mode' and `python-ts-mode' alike.
 ;;
 ;; It runs the same live cycle as `overblock-md-preview-mode', through
-;; `overblock-live-start'.  This file says which regions to render, and
-;; with what.
+;; `overblock-live-start'.  docs/overblock-pydoc.org has the details.
 
 ;;; Code:
 
