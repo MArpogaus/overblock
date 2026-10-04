@@ -783,8 +783,6 @@ The package installs no hook itself."
   (when (derived-mode-p 'python-base-mode)
     (overblock-pycell-mode)))
 
-;;;; Hooks
-
 ;; Keyed on the minor mode: with it off, code-cells falls through to its
 ;; stock python entry, `python-shell-send-region'.
 (setf (alist-get 'overblock-pycell-mode code-cells-eval-region-commands)
