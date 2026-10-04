@@ -144,6 +144,18 @@ Nil renders such an image as its alt text and uses no network."
   :type 'boolean
   :group 'overblock-md)
 
+(defcustom overblock-md-eldoc-width 72
+  "Columns a language server's documentation is filled to.
+`overblock-md-eglot-renderer' renders in a buffer that no window
+shows, so this sets the width for the echo area, the *eldoc* buffer
+and an eldoc-box child frame alike."
+  :type 'natnum
+  :initialize #'custom-initialize-default
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (overblock-md--eldoc-forget))
+  :group 'overblock-md)
+
 ;;;; Faces
 
 (defface overblock-md-code '((t :inherit font-lock-constant-face))
@@ -207,6 +219,14 @@ arrives, so the hover is asked for again in this buffer.")
 
 (defvar overblock-md--eldoc-timer nil
   "The timer that asks for the hover again once its previews arrived.")
+
+(defvar overblock-md--eldoc-cache (make-hash-table :test #'equal)
+  "The rendering of each hover text seen, by the text.
+eldoc asks again on every idle after a move, often for the same text,
+and a converter process is slow.")
+
+(defconst overblock-md--eldoc-cache-size 200
+  "How many renderings are kept before the table is emptied.")
 
 ;;;; Converter
 
@@ -1924,30 +1944,11 @@ going to the converter on every pass."
 
 ;;;; Eglot renderer
 
-(defvar overblock-md--eldoc-cache (make-hash-table :test #'equal)
-  "The rendering of each hover text seen, by the text.
-eldoc asks again on every idle after a move, often for the same text,
-and a converter process is slow.")
-
-(defconst overblock-md--eldoc-cache-size 200
-  "How many renderings are kept before the table is emptied.")
-
 (defun overblock-md--eldoc-forget ()
   "Forget the renderings kept for eldoc.
 A theme change calls this, because a formula has the colour of the
 theme, and so does the `:set' of `overblock-md-eldoc-width'."
   (clrhash overblock-md--eldoc-cache))
-
-(defcustom overblock-md-eldoc-width 72
-  "Columns a language server's documentation is filled to.
-`overblock-md-eglot-renderer' renders in a buffer that no window
-shows, so this sets the width for the echo area, the *eldoc* buffer
-and an eldoc-box child frame alike."
-  :type 'natnum
-  :set (lambda (symbol value)
-         (set-default symbol value)
-         (overblock-md--eldoc-forget))
-  :group 'overblock-md)
 
 (defun overblock-md--eldoc-markdown (md)
   "Return MD as the converter reads it the way the server meant it.
