@@ -1599,6 +1599,16 @@ They run in order and the pass stops at the first error, or on
                                          (overblock-run--name)
                                          (overblock-run--unit t)))))
 
+(defun overblock-run--drop-queue ()
+  "Empty the queue of the pass, and forget where it goes home.
+Return \"N UNITS left unrun\", or nil where nothing was queued."
+  (let ((queued (length (overblock-run--queued))))
+    (overblock-run--queue-set nil)
+    ;; A stopped pass does not take point home.
+    (overblock-run--home-set nil)
+    (when (> queued 0)
+      (format "%d %s left unrun" queued (overblock-run--unit (> queued 1))))))
+
 ;;;###autoload
 (defun overblock-run-stop (&optional event)
   "Stop the pass after the region that is running now.
@@ -1608,14 +1618,10 @@ the notebook to act on.  In a buffer that follows a result, this stops
 the pass of the shell of the result."
   (interactive (list last-input-event))
   (overblock-goto-event event)
-  (let ((queued (length (overblock-run--queued))))
-    (overblock-run--queue-set nil)
-    ;; A stopped pass does not take point home.
-    (overblock-run--home-set nil)
+  (let ((left (overblock-run--drop-queue)))
     (message "%s: %s" (overblock-run--name)
-             (if (> queued 0)
-                 (format "the pass is stopped, %d %s left unrun"
-                         queued (overblock-run--unit (> queued 1)))
+             (if left
+                 (concat "the pass is stopped, " left)
                "nothing was queued"))))
 
 ;;;###autoload
@@ -1645,19 +1651,13 @@ with only a new prompt, so no output can stop the pass."
                      (= running mine))
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
-    (let ((queued (length (overblock-run--queued))))
-      (overblock-run--queue-set nil)
-      ;; A stopped pass does not take point home.
-      (overblock-run--home-set nil)
+    (let ((left (overblock-run--drop-queue)))
       (interrupt-process (or (get-buffer-process shell)
                              ;; `interrupt-process' of nil takes the
                              ;; process of the current buffer.
                              (user-error "The interpreter is gone")))
       (message "%s: interrupted%s" (overblock-run--name)
-               (if (> queued 0)
-                   (format ", %d %s left unrun"
-                           queued (overblock-run--unit (> queued 1)))
-                 "")))))
+               (if left (concat ", " left) "")))))
 
 (provide 'overblock-run)
 ;;; overblock-run.el ends here
