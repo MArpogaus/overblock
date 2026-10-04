@@ -1602,44 +1602,30 @@ is kept per command in `overblock--button-keymaps'."
                           "<mouse-1>" #'overblock--button-release
                           "<drag-mouse-1>" #'overblock--button-release))))
 
-(defun overblock-buttons (descriptors &optional imagep lines runningp)
+(defun overblock-buttons (descriptors)
   "Return the icon group that DESCRIPTORS ask for.
 DESCRIPTORS has the shape of `overblock-button-type', as every button
 option here.  \"Buttons\" in docs/overblock.org tells what each part of
-a descriptor does.
-
-IMAGEP says the block holds an image, LINES how many lines it has and
-RUNNINGP that it is still being written.  Each decides the buttons that
-show only with an image, with output, while the region runs, or once
-it has ended."
-  (with-memoization (gethash (list descriptors imagep (> (or lines 0) 0)
-                                   runningp (display-graphic-p)
+a descriptor does.  The WHEN of a descriptor is for the caller to
+read; this shows every descriptor it gets."
+  (with-memoization (gethash (list descriptors (display-graphic-p)
                                    (frame-parameter nil 'font)
                                    overblock-terminal-glyphs)
                              overblock--button-rows)
-    (overblock--buttons descriptors imagep lines runningp)))
+    (overblock--buttons descriptors)))
 
-(defun overblock--buttons (descriptors imagep lines runningp)
+(defun overblock--buttons (descriptors)
   "Return the icon group DESCRIPTORS ask for, built afresh.
-IMAGEP, LINES and RUNNINGP are those of `overblock-buttons', which is
-this function behind a table."
-  (concat
-   (string-join
-    (seq-keep
-     (lambda (descriptor)
-       (pcase-let ((`(,_key ,glyphs ,help ,command ,when) descriptor))
-         (when (pcase when
-                 ('image imagep)
-                 ('lines (> (or lines 0) 0))
-                 ('running runningp)
-                 ('done (not runningp))
-                 (_ t))
-           ;; The space after the glyph is part of the button, which
-           ;; makes the target two columns wide.
-           (overblock-button (concat (apply #'overblock-glyph glyphs) " ")
-                             help command))))
-     descriptors)
-    " ")))
+`overblock-buttons' is this function behind a table."
+  (string-join
+   (mapcar (lambda (descriptor)
+             (pcase-let ((`(,_key ,glyphs ,help ,command) descriptor))
+               ;; The space after the glyph is part of the button, which
+               ;; makes the target two columns wide.
+               (overblock-button (concat (apply #'overblock-glyph glyphs) " ")
+                                 help command)))
+           descriptors)
+   " "))
 
 (defun overblock--cut (text face room)
   "Return TEXT cut with an ellipsis to ROOM pixels, drawn in FACE.

@@ -67,8 +67,8 @@
 (defcustom overblock-rmd-bar-buttons
   (overblock-run-bar-buttons "chunk")
   "The buttons on the bar of an R chunk, left to right.
-An entry has the shape `overblock-buttons' reads.  A chunk bar is
-drawn before the chunk runs, so `lines' and `image' mean nothing here.
+An entry has the shape `overblock-buttons' reads.  The bar shows
+every entry, whatever its WHEN.
 
 The default is `overblock-run-bar-buttons' worded for a chunk: the row
 of the `.py' notebook without the two that move a cell, because a

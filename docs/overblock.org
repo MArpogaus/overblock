@@ -304,9 +304,9 @@ Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=:
   draw the last label.
 - HELP is the tooltip.
 - COMMAND runs on a click, with the click in =last-input-event=.
-- WHEN is =t=, =image=, =lines=, =running= or =done=. The button then
-  shows always, with an image, with output, while the region runs, or
-  when the run has ended.
+- WHEN is =t=, =image=, =lines=, =running= or =done=. Only the result
+  header of a notebook reads it, as [[*The backend][The backend]] tells. A bar shows each
+  button of its list.
 
 Use three candidates: a codicon of a nerd font, a character of an
 ordinary monospace font, and a short word. Use a word and not a letter,
@@ -566,7 +566,10 @@ face =overblock-bar= and the body =overblock-body= in each notebook. The
 result limits are the options =overblock-run-max-lines= and
 =overblock-run-max-line-length=, one pair for every notebook.
 =overblock-run-result-buttons= gives the five buttons that each result
-carries, with the words of the unit. =overblock-run-bar-buttons= gives
+carries, with the words of the unit. The header reads the WHEN of each
+button. It shows a =t= button always, an =image= button with an image,
+a =lines= button with output, a =running= button while the region runs,
+and a =done= button when the run has ended. =overblock-run-bar-buttons= gives
 the three that run from the bar of a region.
 
 A send copies the backend into the shell buffer. The filter and the

@@ -505,41 +505,33 @@ rows, and a plain `setq' of the option takes effect."
                      "x  ")))))
 
 (ert-deftest overblock-test-a-button-row-is-built-once ()
-  "The row is built once for a question and read from the table after.
-The header of a running result asks five times a second."
-  (let ((descriptors '((one ("x ") "first" ignore t)))
-        (built 0))
+  "The row is built once for a list and read from the table after.
+The header of a running result asks five times a second, each time
+with a fresh list."
+  (let ((built 0))
     (overblock--forget-glyphs)
     (cl-letf* ((real (symbol-function 'overblock--buttons))
                ((symbol-function 'overblock--buttons)
                 (lambda (&rest args) (setq built (1+ built)) (apply real args))))
-      (dotimes (_ 5) (overblock-buttons descriptors nil 3 t))
+      (dotimes (_ 5) (overblock-buttons (list '(one ("x ") "first" ignore t))))
       (should (= built 1))
-      ;; Another question, another build.
-      (overblock-buttons descriptors nil 0 t)
+      ;; Another list, another build.
+      (overblock-buttons '((two ("y ") "second" ignore t)))
       (should (= built 2)))))
 
 (ert-deftest overblock-test-buttons-come-from-their-descriptors ()
-  "The header shows the buttons of the option, in its order.
-A descriptor whose WHEN is `image' or `lines' waits for those."
+  "The row shows each button of the list, in its order.
+WHEN is for the caller to read."
   (let ((descriptors '((one ("1") "first" ignore t)
                        (two ("2") "second" ignore lines)
                        (three ("3") "third" ignore image))))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors nil 0))
-                   "1 "))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors nil 3))
-                   "1  2 "))
-    (should (equal (substring-no-properties
-                    (overblock-buttons descriptors t 3))
+    (should (equal (substring-no-properties (overblock-buttons descriptors))
                    "1  2  3 "))
-    ;; The order is the order of the list.
     (should (equal (substring-no-properties
-                    (overblock-buttons (reverse descriptors) t 3))
+                    (overblock-buttons (reverse descriptors)))
                    "3  2  1 "))
     ;; A button carries its tooltip.
-    (let ((row (overblock-buttons descriptors nil 0)))
+    (let ((row (overblock-buttons descriptors)))
       (should (equal (get-text-property 0 'help-echo row) "first")))))
 
 (ert-deftest overblock-test-pieces-keep-a-multiline-image-whole ()

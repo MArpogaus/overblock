@@ -68,10 +68,9 @@ slots are in the same column on every bar.")
   (append (overblock-run-bar-buttons "cell")
           overblock-pycell--move-buttons)
   "The buttons on the bar of a code cell, left to right.
-An entry has the shape `overblock-buttons' reads.  A cell bar is drawn
-before the cell runs, so `lines' and `image' mean nothing here.  The
-three that run come from `overblock-run-bar-buttons', shared with the
-Rmd notebook.
+An entry has the shape `overblock-buttons' reads.  The bar shows
+every entry, whatever its WHEN.  The three that run come from
+`overblock-run-bar-buttons', shared with the Rmd notebook.
 
 The two move buttons come last, as on every bar (see
 `overblock-pycell--move-buttons')."
@@ -98,9 +97,9 @@ spinner are not in this list: they show the state of the result."
                   overblock-pycell-md-edit t))
           overblock-pycell--move-buttons)
   "The buttons on the header of a rendered markdown cell.
-An entry has the shape `overblock-buttons' reads.  A markdown cell has
-no output, so `lines' and `image' mean nothing here.  There is no
-button for the source: a click on the rendering shows it."
+An entry has the shape `overblock-buttons' reads.  The header shows
+every entry, whatever its WHEN.  There is no button for the source:
+a click on the rendering shows it."
   :type overblock-button-type
   :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)

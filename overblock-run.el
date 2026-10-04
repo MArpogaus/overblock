@@ -357,6 +357,21 @@ the shape `overblock-buttons' reads."
     (discard ("" "✕" "drop") "Discard this result"
              overblock-run-discard-output done)))
 
+(defun overblock-run--shown-buttons (total state imagep)
+  "Return the buttons of the backend that a result header shows.
+TOTAL, STATE and IMAGEP are those of `overblock-run--header'.  The
+WHEN of each button decides: `image' with an image, `lines' with
+output, `running' while the region runs, `done' once it has ended,
+and anything else always."
+  (seq-filter (lambda (d)
+                (pcase (nth 4 d)
+                  ('image imagep)
+                  ('lines (> total 0))
+                  ('running (eq state 'running))
+                  ('done (not (eq state 'running)))
+                  (_ t)))
+              (symbol-value (plist-get overblock-run--backend :buttons))))
+
 (defun overblock-run--header (folded total shown runtime state imagep)
   "Return the header bar of a result, as the backend of this buffer says.
 FOLDED is non-nil when only the header shows.
@@ -366,8 +381,8 @@ the region runs, `died' where the interpreter went away before the
 region ended, `failed' where the backend calls the result an error,
 and nil where the region finished.  IMAGEP marks a result with an
 image."
-  (let* ((icons (overblock-buttons (symbol-value (plist-get overblock-run--backend :buttons))
-                                   imagep total (eq state 'running)))
+  (let* ((icons (overblock-buttons (overblock-run--shown-buttons
+                                    total state imagep)))
          (mark (overblock-run--mark folded total runtime state))
          (label (cond ((> total 0)
                        (format "%d line%s%s" total (if (= total 1) "" "s")

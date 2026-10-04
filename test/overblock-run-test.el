@@ -43,6 +43,9 @@
     (discard ("" "✕" "drop") "Discard" overblock-run-discard-output t))
   "Two buttons, which is enough to tell a running header from a done one.")
 
+(defvar overblock-run-test-results nil
+  "The buttons of a header test.")
+
 (defvar overblock-run-test--shell nil
   "The shell buffer of the run in hand, for the backend's `:process'.")
 
@@ -411,9 +414,28 @@ what was printed before it asked."
 (ert-deftest overblock-run-test-a-running-result-offers-no-discard ()
   "The discard button waits for the region to end.
 While the region runs, the next tick would draw the result again."
-  (let ((buttons (overblock-run-result-buttons "cell" "image")))
-    (should-not (string-search "drop" (overblock-buttons buttons nil 1 t)))
-    (should (string-search "drop" (overblock-buttons buttons nil 1 nil)))))
+  (let ((overblock-run--backend (list :buttons 'overblock-run-test-results))
+        (overblock-run-test-results (overblock-run-result-buttons "cell" "image")))
+    (should-not (string-search "drop" (overblock-run--header nil 1 1 0.1 'running nil)))
+    (should (string-search "drop" (overblock-run--header nil 1 1 0.1 nil nil)))))
+
+(ert-deftest overblock-run-test-the-header-shows-what-applies ()
+  "The header shows a button where its WHEN holds, in the order of the list."
+  (let ((overblock-run--backend (list :buttons 'overblock-run-test-results))
+        (overblock-run-test-results '((one ("A") "first" ignore t)
+                                      (two ("B") "second" ignore lines)
+                                      (three ("C") "third" ignore image)
+                                      (four ("D") "fourth" ignore running)
+                                      (five ("E") "fifth" ignore done))))
+    (cl-flet ((shows (total state imagep)
+                (let ((bar (substring-no-properties
+                            (overblock-run--header nil total total 0.1 state imagep))))
+                  (seq-filter (lambda (n) (string-search n bar))
+                              '("A " "B " "C " "D " "E ")))))
+      (should (equal (shows 0 nil nil) '("A " "E ")))
+      (should (equal (shows 3 nil nil) '("A " "B " "E ")))
+      (should (equal (shows 3 nil t) '("A " "B " "C " "E ")))
+      (should (equal (shows 3 'running nil) '("A " "B " "D "))))))
 
 (ert-deftest overblock-run-test-both-notebooks-draw-the-same-five ()
   "The five buttons of a result header are one list, drawn for both.

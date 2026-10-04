@@ -198,6 +198,11 @@ names a picture in a result:
     :set #'overblock-run-set-and-redraw)
 #+end_src
 
+The result header reads the last element of each entry, WHEN. A result
+then shows each button only when it applies, for example the interrupt
+button only while the cell runs. A bar shows each button of its list.
+See [[file:overblock.org::*The backend][The backend]] for the values of WHEN.
+
 ** The shell
 
 The runner watches the output for the prompt. Thus the prompt must be
