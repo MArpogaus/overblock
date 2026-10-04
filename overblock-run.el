@@ -1233,6 +1233,24 @@ pass scrolled to its end and did not fail (see `overblock-run-go-home')."
 
 ;;;; The notebook and its commands
 
+(defun overblock-run--keep-result-newline (from to flag)
+  "Keep the newline a result block hangs on out of a fold over FROM..TO.
+FLAG is non-nil where `outline-flag-region' hid the region.  A fold
+that reaches the end of the buffer covers that newline, unlike a fold
+in the middle.  The block, with the bar that folds the result, would
+go with it, so the invisible run is shrunk back off the newline.  An
+advice of `outline-flag-region' while a notebook is on."
+  (dolist (block (and flag (overblock-in from to 'result)))
+    ;; A deleted overlay has no end, and this runs on every fold.
+    (when-let* ((nl (overblock-get block :newline))
+                ((overlay-buffer nl))
+                ((<= (overlay-end nl) to)))
+      (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
+        (when (and (eq (overlay-get ov 'invisible) 'outline)
+                   (> (overlay-end ov) (overlay-start nl)))
+          (move-overlay ov (overlay-start ov)
+                        (max (overlay-start ov) (overlay-start nl))))))))
+
 (defun overblock-run-attach (backend)
   "Make this buffer a notebook that runs through BACKEND.
 The mode of a notebook calls this as it goes on, and
@@ -1243,6 +1261,7 @@ the notebook starts one of its own, of the kind `bar': it draws the
 bars when the reader stops."
   (setq-local overblock-run-backend backend)
   (add-hook 'overblock-width-functions #'overblock-run--redraw nil t)
+  (advice-add 'outline-flag-region :after #'overblock-run--keep-result-newline)
   (overblock-live-start 'bar #'overblock-run-bars))
 
 (defun overblock-run-detach ()
@@ -1253,7 +1272,11 @@ buffer."
   (kill-local-variable 'overblock-run-backend)
   (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
   (mapc #'delete-overlay (overblock-bars))
-  (overblock-run-clear-results))
+  (overblock-run-clear-results)
+  (unless (seq-some (lambda (buffer)
+                      (buffer-local-value 'overblock-run-backend buffer))
+                    (buffer-list))
+    (advice-remove 'outline-flag-region #'overblock-run--keep-result-newline)))
 
 (defun overblock-run--redraw ()
   "Draw the results and the bars of this notebook again.

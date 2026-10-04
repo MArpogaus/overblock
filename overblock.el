@@ -1113,7 +1113,27 @@ nothing, so scrolling does not make the text grow and shrink."
   ;; the second for the text scale.
   (add-hook 'window-configuration-change-hook #'overblock--width-changed nil t)
   (add-hook 'text-scale-mode-hook #'overblock--width-changed nil t)
+  ;; One advice for the session, added by the first cycle and removed
+  ;; by the last, not at load time.
+  (advice-add 'outline-flag-region :after #'overblock--fold)
   (funcall render))
+
+(defun overblock--fold (from to flag)
+  "Hide or show the renderings in FROM..TO to match an outline fold.
+FLAG is non-nil where `outline-flag-region' hid the region.
+
+A rendering over its source, a block with `:over', is the content of
+the region, so it goes under the fold: `:hidden' takes it off the
+screen, and a refresh shows it again.  A block after its region, such
+as a result, stays: it has its own fold button.
+
+The advice is global, so this runs on every fold in every outline
+buffer while a live cycle is on; with no blocks the scan is cheap."
+  (dolist (block (overblock-in from to))
+    (when (and (overblock-get block :over)
+               (not (eq (and flag t) (and (overblock-get block :hidden) t))))
+      (overblock-set block :hidden flag)
+      (overblock-refresh block))))
 
 (defun overblock-live-render-again (kind)
   "Call the render function of the live cycle of KIND in this buffer now.
@@ -1148,7 +1168,11 @@ The hooks and the timer go with the last cycle of the buffer."
     (when (timerp overblock-live--timer)
       (cancel-timer overblock-live--timer)
       (setq overblock-live--timer nil))
-    (overblock-live--close)))
+    (overblock-live--close)
+    (unless (seq-some (lambda (buffer)
+                        (buffer-local-value 'overblock-live--specs buffer))
+                      (buffer-list))
+      (advice-remove 'outline-flag-region #'overblock--fold))))
 
 (defun overblock-refresh (block)
   "Show BLOCK again from its properties.

@@ -314,43 +314,6 @@ A non-nil value marks POS as the body of a markdown cell."
     (forward-line -1)
     (and (looking-at-p overblock-pycell--md-boundary) (point))))
 
-(defun overblock-pycell--keep-result-newline (from to)
-  "Keep the newline a result block hangs on out of a fold over FROM..TO.
-A fold that reaches the end of the buffer covers that newline, unlike a
-fold in the middle.  The block, with the bar that folds the result,
-would go with it, so the invisible run is shrunk back off the
-newline."
-  (dolist (block (overblock-in from to 'result))
-    ;; A deleted overlay has no end, and this runs on every fold.
-    (when-let* ((nl (overblock-get block :newline))
-                ((overlay-buffer nl))
-                ((<= (overlay-end nl) to)))
-      (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
-        (when (and (eq (overlay-get ov 'invisible) 'outline)
-                   (> (overlay-end ov) (overlay-start nl)))
-          (move-overlay ov (overlay-start ov)
-                        (max (overlay-start ov) (overlay-start nl))))))))
-
-(defun overblock-pycell--outline-flag-blocks (from to flag)
-  "Hide or show the blocks in FROM..TO to match an outline fold.
-FLAG is non-nil where `outline-flag-region' hid the region.
-
-A rendered markdown cell is the content of its cell, so it goes under
-the fold: `:hidden' takes it off the screen, and a refresh shows it
-again.
-
-A result block stays: it has its own fold button, so code and result
-fold apart.  `overblock-pycell--keep-result-newline' leaves it room.
-
-The advice is global, so this runs on every fold in every outline
-buffer while a notebook has the mode on.  It tests the blocks, not the
-mode, because a buffer can have blocks with the mode off; with no
-blocks the scans are cheap."
-  (when flag (overblock-pycell--keep-result-newline from to))
-  (dolist (block (overblock-in from to 'markdown))
-    (overblock-set block :hidden flag)
-    (overblock-refresh block)))
-
 (defun overblock-pycell--md-uncomment (text)
   "Strip the comment prefixes from the markdown cell TEXT."
   (replace-regexp-in-string "^# ?" "" text))
@@ -861,10 +824,6 @@ run."
         ;; A heading of a markdown cell is a comment: `# # Title'.
         (setq-local overblock-md-heading-regexp
                     "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
-        ;; One advice for the session, added by the first notebook and
-        ;; removed by the last, not at load time.
-        (advice-add 'outline-flag-region :after
-                    #'overblock-pycell--outline-flag-blocks)
         ;; Said once, and only when there is a markdown cell.
         (when (and (not (overblock-md-program))
                    (overblock-pycell--md-cells))
@@ -880,13 +839,7 @@ the converter's HTML with")))
         (overblock-live-start 'markdown #'overblock-pycell-render-buffer t))
     (overblock-live-stop 'markdown)
     (overblock-run-detach)
-    (kill-local-variable 'overblock-md-heading-regexp)
-    ;; The last notebook removes the advice. The mode variable of this
-    ;; buffer is already nil.
-    (unless (seq-some (lambda (buffer)
-                        (buffer-local-value 'overblock-pycell-mode buffer))
-                      (buffer-list))
-      (advice-remove 'outline-flag-region #'overblock-pycell--outline-flag-blocks))))
+    (kill-local-variable 'overblock-md-heading-regexp)))
 
 ;;;###autoload
 (defun overblock-pycell-mode-maybe ()

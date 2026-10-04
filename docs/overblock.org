@@ -84,6 +84,15 @@ and carries what shows after it.
 properties. Thus a fold is =:hidden= and =overblock-refresh=, and
 nothing is saved and given back.
 
+An outline fold takes the renderings over its region along. While a
+live cycle is on, =overblock--fold= advises =outline-flag-region=: a
+block with =:over= in the region is =:hidden=, and shows again when
+the fold opens. A block after its region, such as a result, stays,
+because it has a fold button of its own. While a notebook is on, the
+runner keeps the newline that a result hangs on out of a fold that
+reaches the end of the buffer
+(=overblock-run--keep-result-newline=).
+
 The buffer text never changes. Where the region ends without a
 newline, the body goes on the anchor.
 

@@ -86,7 +86,8 @@ windows that show it, and a command that follows a click selects one."
 (defmacro overblock-pycell-test--with-mode (&rest body)
   "Evaluate BODY with `overblock-pycell-mode' on, and turn it off afterwards.
 The mode adds the advice on `outline-flag-region' that folds a block
-with its code, so a test of a fold needs the mode.  The mode goes off
+with its code, through its live cycles and the runner, so a test of a
+fold needs the mode.  The mode goes off
 afterwards, because `with-temp-buffer' kills its buffer without
 removing the advice."
   (declare (indent 0))
@@ -2828,9 +2829,11 @@ session runs its timers whenever it waits for a process."
 
 (ert-deftest overblock-pycell-test-the-mode-owns-the-outline-advice ()
   "The advice on `outline-flag-region' comes with a notebook and goes with it.
-Loading the file adds no advice."
+One advice hides the renderings under a fold, the other keeps the
+newline of a result out of it.  Loading the files adds no advice."
   (let ((advised (lambda ()
-                   (and (advice-member-p #'overblock-pycell--outline-flag-blocks
+                   (and (advice-member-p #'overblock--fold 'outline-flag-region)
+                        (advice-member-p #'overblock-run--keep-result-newline
                                          'outline-flag-region)
                         t))))
     ;; No notebook is open, so no advice: every test that turns the mode
@@ -2854,7 +2857,8 @@ Loading the file adds no advice."
             (with-current-buffer two (overblock-pycell-mode -1))
             (should-not (funcall advised)))
         (mapc #'kill-buffer (list one two))
-        (advice-remove 'outline-flag-region #'overblock-pycell--outline-flag-blocks)))))
+        (advice-remove 'outline-flag-region #'overblock--fold)
+        (advice-remove 'outline-flag-region #'overblock-run--keep-result-newline)))))
 
 (ert-deftest overblock-pycell-test-a-result-does-not-come-back-with-the-mode-off ()
   "The end of a run shows nothing in a notebook whose mode is off.

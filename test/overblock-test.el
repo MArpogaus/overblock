@@ -1276,6 +1276,20 @@ not leave it, and no region rendered again."
       (goto-char (point-max))
       (should-not (overblock-at)))))
 
+(ert-deftest overblock-test-a-fold-takes-a-rendering-along ()
+  "An outline fold hides a rendering over its source, not a block after it."
+  (with-temp-buffer
+    (insert "one\ntwo\nthree\n")
+    (let ((over (overblock-show 1 4 :kind 'mine :over "ONE"))
+          (after (overblock-show 5 8 :kind 'yours :body "result")))
+      (overblock--fold 1 (point-max) t)
+      (should (overblock-get over :hidden))
+      (should-not (overblock-get over :parts))
+      (should-not (overblock-get after :hidden))
+      (overblock--fold 1 (point-max) nil)
+      (should-not (overblock-get over :hidden))
+      (should (overblock-get over :parts)))))
+
 (defvar-local overblock-test--cache nil
   "The cache of `overblock-test-a-cache-holds-until-the-text-changes'.")
 
