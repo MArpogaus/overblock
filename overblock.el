@@ -117,11 +117,18 @@ counts."
 
 (defun overblock-at (&optional kind)
   "Return the block of KIND at point, or nil.
-Point counts as inside a block that starts or ends at point.  A caller
+Point counts as inside a block that starts or ends at point, and on an
+overlay the block has `:attached', such as a bar above it.  A caller
 that works from a click moves point there first."
-  (car (overblock-in (max (1- (point)) (point-min))
-                     (min (1+ (point)) (point-max))
-                     kind)))
+  (let ((beg (max (1- (point)) (point-min)))
+        (end (min (1+ (point)) (point-max))))
+    (or (car (overblock-in beg end kind))
+        (seq-some (lambda (ov)
+                    (when-let* ((block (overlay-get ov 'overblock-block))
+                                ((or (null kind)
+                                     (eq kind (overblock-get block :kind)))))
+                      block))
+                  (overlays-in beg end)))))
 
 (defun overblock--carriers (block)
   "Return the overlays that carry what BLOCK shows, the anchor apart.

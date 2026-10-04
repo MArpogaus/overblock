@@ -513,13 +513,10 @@ does not wait.  Nothing happens without a converter;
 
 (defun overblock-pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
-A click on the bar lands on the overlay of the bar, which points back
-at the block.  Signal a `user-error' where there is no rendered cell."
+A click on the bar finds the block too: the bar is attached to it.
+Signal a `user-error' where there is no rendered cell."
   (overblock-goto-event event)
   (or (overblock-at 'markdown)
-      (seq-some (lambda (ov) (overlay-get ov 'overblock-block))
-                (overlays-in (max (1- (point)) (point-min))
-                             (min (1+ (point)) (point-max))))
       (user-error "No rendered markdown cell here")))
 
 ;;;###autoload

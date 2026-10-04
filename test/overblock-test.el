@@ -1262,6 +1262,20 @@ not leave it, and no region rendered again."
       (overblock-live-render-again 'other)
       (should (= calls 1)))))
 
+(ert-deftest overblock-test-a-block-is-at-its-attached-bar ()
+  "Point on an overlay a block has attached finds the block."
+  (with-temp-buffer
+    (insert "bar\nbody\n\nelse\n")
+    (let* ((bar (make-overlay 1 4))
+           (block (overblock-show 5 10 :kind 'mine :over "BODY"
+                                  :attached (list bar))))
+      (goto-char 2)
+      (should (eq (overblock-at 'mine) block))
+      (should (eq (overblock-at) block))
+      (should-not (overblock-at 'other))
+      (goto-char (point-max))
+      (should-not (overblock-at)))))
+
 (defvar-local overblock-test--cache nil
   "The cache of `overblock-test-a-cache-holds-until-the-text-changes'.")
 

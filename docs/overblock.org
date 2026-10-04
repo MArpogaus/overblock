@@ -53,7 +53,8 @@ the block:
   it.
 - =:attached= overlays go with the block. Each one points back at the
   block in its =overblock-block= property. Thus a bar of a rendering
-  that =overblock-bar-drop= removes takes its block with it.
+  that =overblock-bar-drop= removes takes its block with it, and
+  =overblock-at= on the bar finds the block.
 
 A new block replaces the blocks of its own kind in the same region. A
 block without a kind replaces the blocks of each kind. The layer never
