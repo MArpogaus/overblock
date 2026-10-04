@@ -148,7 +148,7 @@ The PNG device uses 96 dots an inch unless the header says `dpi'.
 
 ;;;; Regions
 
-(defconst overblock-rmd-chunk-regexp
+(defconst overblock-rmd--chunk-regexp
   "^[[:blank:]]*```+[[:blank:]]*{[[:blank:]]*[rR][[:blank:],}]"
   "What the opening line of an R chunk looks like.
 The whole engine name, then a blank before the chunk name, a comma
@@ -160,7 +160,7 @@ not taken for R.")
 The bars and a pass ask for the chunk of each start, and the walk reads
 the whole buffer.")
 
-(defun overblock-rmd-chunks ()
+(defun overblock-rmd--chunks ()
   "Return the R chunks of the buffer, in order.
 Each is a list (OPEN CODE-BEG CODE-END): where the opening fence line
 begins, and the code between the two fences.  CODE-END is where the
@@ -173,12 +173,12 @@ narrowing changes."
   (overblock-cached 'overblock-rmd--chunks-cache #'overblock-rmd--walk))
 
 (defun overblock-rmd--walk ()
-  "Return the R chunks of the buffer, as `overblock-rmd-chunks' says."
+  "Return the R chunks of the buffer, as `overblock-rmd--chunks' says."
   (let (chunks)
     (dolist (fence (overblock-md-fences))
       (save-excursion
         (goto-char (car fence))
-        (when (looking-at-p overblock-rmd-chunk-regexp)
+        (when (looking-at-p overblock-rmd--chunk-regexp)
           (forward-line 1)
           (let ((code-beg (point))
                 (code-end
@@ -207,7 +207,7 @@ a point at the end of the code find the same one."
                      (<= pos (save-excursion
                                (goto-char (nth 2 chunk))
                                (pos-eol)))))
-              (overblock-rmd-chunks))))
+              (overblock-rmd--chunks))))
 
 (defun overblock-rmd--region-at ()
   "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
@@ -221,7 +221,7 @@ the code, where the result hangs."
   "Return a marker on the opening fence of every chunk, in order.
 This is the `:starts' of the backend."
   (mapcar (lambda (chunk) (copy-marker (nth 0 chunk)))
-          (overblock-rmd-chunks)))
+          (overblock-rmd--chunks)))
 
 (defun overblock-rmd--code-at ()
   "Return the code of the chunk point is in as (BEG . END), or nil.

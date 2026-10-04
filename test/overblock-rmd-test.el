@@ -91,7 +91,7 @@ without removing the hooks."
                   (save-excursion
                     (goto-char (nth 0 chunk))
                     (overblock-rmd--title (pos-bol) (pos-eol)))))
-          (overblock-rmd-chunks)))
+          (overblock-rmd--chunks)))
 
 (defun overblock-rmd-test--bar-labels ()
   "Return the whole text of every chunk bar of the buffer, in order."
@@ -143,7 +143,7 @@ The last newline of the code is in it, because a result block hangs
 on it: `overblock-show' shows a body on the newline that ends its
 region."
   (overblock-rmd-test--with-document overblock-rmd-test--document
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (should (equal (buffer-substring-no-properties beg end) "x <- 1:5\nx\n"))
       ;; The closing fence starts where the region ends.
       (should (equal (buffer-substring-no-properties end (+ end 3)) "```")))))
@@ -161,7 +161,7 @@ closing brace."
                   ("```{r, echo=FALSE}\n1\n```\n" . 1)
                   ("```{r name}\n1\n```\n" . 1)))
     (overblock-rmd-test--with-document (car case)
-      (should (= (length (overblock-rmd-chunks)) (cdr case))))))
+      (should (= (length (overblock-rmd--chunks)) (cdr case))))))
 
 (defclass overblock-rmd-test--polymode ()
   ((keep-in-mode :initform nil))
@@ -196,7 +196,7 @@ The header of the next chunk is a fence too.  A closing fence has
 nothing after the backquotes, so a header can only open a chunk."
   (overblock-rmd-test--with-mode
       "```{r a}\n1\n\n```{r b}\n2\n```\n"
-    (let ((chunks (overblock-rmd-chunks)))
+    (let ((chunks (overblock-rmd--chunks)))
       ;; Both chunks are there.
       (should (= (length chunks) 2))
       (should (equal (mapcar (lambda (chunk)
@@ -213,7 +213,7 @@ nothing after the backquotes, so a header can only open a chunk."
 The last line of a file without a final newline is code, not a
 closing fence."
   (overblock-rmd-test--with-document "```{r a}\nmean(x)"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (should (equal (buffer-substring-no-properties beg end) "mean(x)")))))
 
 (ert-deftest overblock-rmd-test-a-chunk-name-is-the-word-knitr-reads ()
@@ -235,7 +235,7 @@ An option where a name would be names nothing: knitr reads
 The bar is on the opening fence, so a command that follows a click
 finds the chunk from there."
   (overblock-rmd-test--with-document "prose\n\n```{r a}\n1\n2\n```\n\nmore\n"
-    (let ((chunk (car (overblock-rmd-chunks))))
+    (let ((chunk (car (overblock-rmd--chunks))))
       (dolist (line '(3 4 5 6))
         (goto-char (point-min))
         (forward-line (1- line))
@@ -269,7 +269,7 @@ finds the chunk from there."
   "The regions to render are the paragraphs; no chunk line is among them."
   (overblock-rmd-test--with-document overblock-rmd-test--document
     (let ((prose (overblock-rmd--regions))
-          (chunks (overblock-rmd-chunks)))
+          (chunks (overblock-rmd--chunks)))
       (should (= (length prose) 2))
       (should (equal (buffer-substring-no-properties (car (car prose))
                                                      (cdr (car prose)))
@@ -419,7 +419,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 (ert-deftest overblock-rmd-test-a-result-hangs-under-the-code ()
   "The result of a chunk shows after its code and before the closing fence."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (should (overblock-run--show beg end "[1] 1" 0.4))
       (let ((block (car (overblock-in (point-min) (point-max) 'result))))
         (should block)
@@ -433,7 +433,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 (ert-deftest overblock-rmd-test-a-result-folds ()
   "The fold button hides the body and leaves the header."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (overblock-run--show beg end "one\ntwo" 0.1)
       (goto-char beg)
       (overblock-run-toggle-output)
@@ -448,7 +448,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 (ert-deftest overblock-rmd-test-a-result-is-discarded-and-copied ()
   "The two buttons that take a result away and put it on the kill ring."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (overblock-run--show beg end "[1] 1" 0.1)
       (goto-char beg)
       (let ((kill-ring nil))
@@ -466,7 +466,7 @@ The idle cycle draws the bars, and the same pass removes stale ones."
 (ert-deftest overblock-rmd-test-an-edit-of-the-code-drops-the-result ()
   "A result stands for the code it was run from; editing that takes it down."
   (overblock-rmd-test--with-mode "```{r a}\n1\n```\n"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (overblock-run--show beg end "[1] 1" 0.1)
       (should (overblock-in (point-min) (point-max) 'result))
       (goto-char beg)
@@ -548,7 +548,7 @@ command called with the mode off signals."
   (overblock-rmd-test--with-document "```{r a}\n1\n```\n"
     (let ((overblock-md-command nil))
       (overblock-rmd-mode 1)
-      (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+      (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
         (overblock-run--show beg end "[1] 1" 0.1))
       (should (overblock-bars))
       (should (overblock-in (point-min) (point-max) 'result))

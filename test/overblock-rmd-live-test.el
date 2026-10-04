@@ -48,7 +48,7 @@
 (defun overblock-rmd-live-test--run-first ()
   "Run the first chunk of the buffer and wait for its result.
 Return the text of that result."
-  (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+  (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
     (overblock-run-region beg end))
   (should (overblock-test-common-wait
            (lambda () (and (overblock-rmd-live-test--idle-p)
@@ -230,10 +230,10 @@ running chunk runs to its end."
 Point comes back to where the second chunk was asked for."
   (overblock-rmd-live-test--with-document
       "```{r slow}\nSys.sleep(2)\n1\n```\n\n```{r other}\n2\n```\n"
-    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (car (overblock-rmd--chunks))))
       (overblock-run-region beg end))
     (goto-char (point-max))
-    (pcase-let ((`(,_open ,beg ,end) (cadr (overblock-rmd-chunks))))
+    (pcase-let ((`(,_open ,beg ,end) (cadr (overblock-rmd--chunks))))
       (overblock-run-region beg end)
       (should (equal (mapcar (lambda (region) (marker-position (car region)))
                              (overblock-run--queued))

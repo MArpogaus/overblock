@@ -181,7 +181,7 @@ with the words for a chunk. A result has the buttons of
 =overblock-run-result-buttons= with the words for a chunk. The Python
 notebook shows the same buttons, so the two rows agree.
 
-=overblock-rmd-chunk-regexp= reads the whole engine name. After it can
+=overblock-rmd--chunk-regexp= reads the whole engine name. After it can
 come a blank before the chunk name, a comma before the options, or the
 closing brace. Thus a ```{python} chunk is left alone,
 and a ```{rmarkdown} chunk is not taken for R. The name is the word
@@ -192,7 +192,7 @@ brace. A header of =r echo=FALSE= names no chunk.
 Python notebook. =overblock-rmd--bar= is the =:bar= of the backend: it
 draws the bar of one header and hides the closing fence of its chunk.
 The walk over the chunks reads the whole buffer, so it waits until the
-reader stops, and =overblock-rmd-chunks= keeps it until the text
+reader stops, and =overblock-rmd--chunks= keeps it until the text
 changes. Thus a bar arrives a moment after its header is written.
 
 =overblock-bar-line= moves the overlay to the end of the header line
