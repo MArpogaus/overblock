@@ -652,5 +652,44 @@ moves on, and stays after the last region."
         (should (= (point) 9))
         (should (= (length sent) 4))))))
 
+(ert-deftest overblock-run-test-a-guarded-key-answers-at-the-result ()
+  "The filter lets a key through at the end of a region that has a result.
+A reader binds TAB in the result map, and TAB indents everywhere else
+in the region: the filter keeps the two apart."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (setq-local overblock-run-backend (overblock-run-test--backend))
+    (let ((block (overblock-run-show 1 5 "42" 0.3)))
+      ;; At the end of the region, next to the result.
+      (goto-char (overlay-end block))
+      (should (overblock-run-tab-filter 'a-command))
+      ;; Nowhere else in it.
+      (goto-char 1)
+      (should-not (overblock-run-tab-filter 'a-command))
+      (goto-char (1- (overlay-end block)))
+      (should-not (overblock-run-tab-filter 'a-command)))))
+
+(ert-deftest overblock-run-test-a-result-record-comes-back ()
+  "A result kept as a record shows again as it was, with its fold."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (setq-local overblock-run-backend (overblock-run-test--backend))
+    (let ((block (overblock-run-show 1 5 "first\nsecond" 0.3)))
+      (goto-char 1)
+      (overblock-run-toggle-output)
+      (let ((record (overblock-run-result-record 1 5)))
+        (overblock-delete block)
+        (should-not (overblock-run-result-record 1 5))
+        (overblock-run-result-restore 1 5 record)
+        (should (equal (overblock-run-result-record 1 5) record))
+        (should (plist-get record :folded))))))
+
+(ert-deftest overblock-run-test-the-running-region-is-found-in-a-range ()
+  "A range holds the running region where its start is in it."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (should (overblock-run-running-in-p 1 3))
+      (should-not (overblock-run-running-in-p 5 9)))))
+
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here

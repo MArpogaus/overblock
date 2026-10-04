@@ -484,7 +484,7 @@ keys in the =:config= of the package.
   ;; elsewhere.
   (keymap-set overblock-run-result-map "TAB"
               '(menu-item "" overblock-run-toggle-output
-                          :filter overblock-pycell-tab-filter))
+                          :filter overblock-run-tab-filter))
 #+end_src
 
 *** Options

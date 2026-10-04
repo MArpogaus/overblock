@@ -496,6 +496,15 @@ because a caller that moves text must know what must not move."
               (beg (plist-get state :beg)))
     (cons beg (plist-get state :end))))
 
+(defun overblock-run-running-in-p (beg end)
+  "Return non-nil where the region the shell runs starts in BEG..END.
+Only in this buffer: another notebook on the same shell can be the one
+running."
+  (when-let* ((running (overblock-run-running-region))
+              (mark (car running))
+              ((eq (marker-buffer mark) (current-buffer))))
+    (<= beg mark end)))
+
 (defvar-local overblock-run--home nil
   "Where point goes in the notebook when the queue of this shell ends.
 While the pass scrolls (see `overblock-run-scroll'), point walks
@@ -1288,6 +1297,36 @@ says so."
       (message "%s: the %s is still running, so this is only what shows"
                (overblock-run--name) (overblock-run--unit)))
     (plist-get data :text)))
+
+(defun overblock-run-tab-filter (cmd)
+  "Return CMD when point sits at the very end of a region with a result.
+A `menu-item' filter for a key in `overblock-run-result-map'.  It
+keeps a key that means something else in the region, such as TAB,
+active only at its end, next to the result:
+
+  (keymap-set overblock-run-result-map \"TAB\"
+              \\='(menu-item \"\" overblock-run-toggle-output
+                          :filter overblock-run-tab-filter))"
+  (and (eolp)
+       (seq-some (lambda (o) (eq (point) (overlay-end o)))
+                 (overblock-in (max (1- (point)) (point-min)) (point)
+                               'result))
+       cmd))
+
+(defun overblock-run-result-record (beg end)
+  "Return a copy of the record of the result in BEG..END, or nil for none.
+A mode that moves text keeps it, and `overblock-run-result-restore'
+shows it again."
+  (when-let* ((block (car (overblock-in beg end 'result))))
+    (copy-sequence (overblock-get block :data))))
+
+(defun overblock-run-result-restore (beg end record)
+  "Show RECORD as the result of the region BEG..END again.
+RECORD comes from `overblock-run-result-record', whole: the new block
+has no state of its own."
+  (when-let* ((block (overblock-run-show beg end "" 0.0)))
+    (overblock-set block :data record)
+    (overblock-run-update block)))
 
 ;;;###autoload
 (defun overblock-run-save-image (&optional event)

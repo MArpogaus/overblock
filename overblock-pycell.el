@@ -238,29 +238,13 @@ this in the shell buffer, where `comint-prompt-regexp' has its value."
   (overblock-repl-detach
    (overblock-pycell--drop-prompt-face (overblock-pycell--strip-prompts text))))
 
-(defun overblock-pycell-tab-filter (cmd)
-  "Return CMD when point sits at the very end of a cell with a result.
-A `menu-item' filter for a key in `overblock-run-result-map'.  It
-keeps a key that means something else in the cell, such as TAB, active
-only at the end of the cell, next to the result:
-
-  (keymap-set overblock-run-result-map \"TAB\"
-              \\='(menu-item \"\" overblock-run-toggle-output
-                          :filter overblock-pycell-tab-filter))"
-  (and (eolp)
-       (seq-some (lambda (o) (eq (point) (overlay-end o)))
-                 (overblock-in (max (1- (point)) (point-min)) (point)
-                               'result))
-       cmd))
-
 ;;;; Moving a cell
 
 (defun overblock-pycell--cell-state (beg end)
   "Return what the cell BEG..END shows, to put back after a move.
 The car is the record of its result, or nil, and the cdr says whether
 its markdown was rendered."
-  (cons (when-let* ((block (car (overblock-in beg end 'result))))
-          (copy-sequence (overblock-get block :data)))
+  (cons (overblock-run-result-record beg end)
         (and (overblock-in beg end 'markdown) t)))
 
 (defun overblock-pycell--restore-cell (beg end state)
@@ -268,25 +252,13 @@ its markdown was rendered."
 STATE comes from `overblock-pycell--cell-state'.  A markdown cell
 renders here, not by the live cycle, which leaves the cell at point
 alone."
-  ;; The whole record: the new block has no state of its own.
-  (when-let* ((record (car state))
-              (block (overblock-run-show beg end "" 0.0)))
-    (overblock-set block :data record)
-    (overblock-run-update block))
+  (when (car state)
+    (overblock-run-result-restore beg end (car state)))
   (when (cdr state)
     (overblock-pycell--md-show (save-excursion (goto-char beg)
                                                (forward-line 1)
                                                (point))
                                end)))
-
-(defun overblock-pycell--running-in-p (beg end)
-  "Return non-nil where the cell the shell is running lies in BEG..END.
-Only in this buffer: another notebook on the same shell can be the
-one running."
-  (when-let* ((running (overblock-run-running-region))
-              (mark (car running))
-              ((eq (marker-buffer mark) (current-buffer))))
-    (<= beg mark end)))
 
 ;;;###autoload
 (defun overblock-pycell-move-cell-down (&optional arg event)
@@ -315,7 +287,7 @@ repeated clicks move the same cell."
                (theirs (overblock-pycell--cell-state nbeg nend)))
     ;; A running cell cannot move: the run holds markers into the text
     ;; that the move cuts out.
-    (when (overblock-pycell--running-in-p (min beg nbeg) (max end nend))
+    (when (overblock-run-running-in-p (min beg nbeg) (max end nend))
       (user-error "Wait for the cell to finish, or M-x overblock-run-interrupt"))
     ;; From the boundary line: `outline-regexp' also holds the headings
     ;; of the major mode, so from inside a cell outline finds a `def'.

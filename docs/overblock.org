@@ -522,9 +522,13 @@ running output is read in the shell buffer, cut to the result limits.
 | =overblock-run-next=                | run the next region of the queue                             |
 | =overblock-run-shell=               | the buffer that holds the queue and the run state            |
 | =overblock-run-running-region=      | the region that runs now                                     |
+| =overblock-run-running-in-p=        | whether the region that runs starts in a range               |
 | =overblock-run-go-home=             | put point and the view back where the pass was asked for     |
 | =overblock-run-show=                | draw a result                                                |
 | =overblock-run-update=              | draw a result again                                          |
+| =overblock-run-result-record=       | a copy of the record of a result, to keep over a move        |
+| =overblock-run-result-restore=      | show a kept record again                                     |
+| =overblock-run-tab-filter=          | a =menu-item= filter: a key acts only next to a result       |
 | =overblock-run-header=              | the bar of a result                                          |
 | =overblock-run-output-head=         | the head of what a running region printed                    |
 | =overblock-run-total=               | the lines it printed, counted as they arrive                 |

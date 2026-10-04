@@ -1917,23 +1917,6 @@ not compared: a width change marks the bars stale."
         (overblock--width-changed)
         (should-not (equal wide (overblock-pycell-test--bar-texts)))))))
 
-(ert-deftest overblock-pycell-test-a-guarded-key-answers-at-the-result ()
-  "The filter lets a key through at the end of a cell that has a result.
-A reader binds TAB in the result map, and TAB indents everywhere else
-in the cell: the filter keeps the two apart."
-  (overblock-pycell-test--with-cells
-    (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
-      (overblock-run-show beg end "42" 0.3)
-      (let ((block (car (overblock-in (point-min) (point-max) 'result))))
-        ;; At the end of the cell, next to the result.
-        (goto-char (overlay-end block))
-        (should (overblock-pycell-tab-filter 'a-command))
-        ;; Nowhere else in it.
-        (goto-char beg)
-        (should-not (overblock-pycell-tab-filter 'a-command))
-        (goto-char (1- (overlay-end block)))
-        (should-not (overblock-pycell-tab-filter 'a-command))))))
-
 (ert-deftest overblock-pycell-test-a-running-cell-carries-an-interrupt-button ()
   "The header of a running cell holds an interrupt button, a finished one none.
 The button shows only while the cell runs, and its click is
