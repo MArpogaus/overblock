@@ -168,9 +168,6 @@ Display properties do not nest, so images need care.
 | =overblock-image-label= | put the labels in place of the images, for a terminal    |
 | =overblock-flattened=   | turn the pixel spaces of another window into spaces      |
 
-=overblock--fill-props= keeps the keymap of a link, because it writes
-only where the rendering has no property of its own.
-
 ** Where each row goes
 
 These rules are for a graphic frame:
