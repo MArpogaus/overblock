@@ -457,6 +457,51 @@ below the body of a result on the same newline, so a body wins."
       (overlay-put ov 'overblock-cloak t)
       (overblock--dress block ov))))
 
+(defun overblock--fill-props (string &rest properties)
+  "Set the PROPERTIES that STRING does not carry yet.
+PROPERTIES is a plist, and STRING is modified in place and returned.
+shr gives a link its own keymap and help echo; a plain `propertize'
+would replace both."
+  (let ((len (length string)))
+    (while properties
+      (let ((prop (pop properties))
+            (value (pop properties))
+            (pos 0))
+        (while (< pos len)
+          (let ((next (or (next-single-property-change pos prop string) len)))
+            (unless (get-text-property pos prop string)
+              (put-text-property pos next prop value string))
+            (setq pos next))))))
+  string)
+
+(defun overblock-show-rendering (beg end rendered face &rest props)
+  "Show RENDERED over BEG..END in FACE, and return the block.
+PROPS are those of `overblock-show'.  Its `:keymap' and `:help-echo'
+also go on the rendering where it has none of its own: shr writes a
+keymap on a link, and that one stays.
+
+Where RENDERED holds nothing to show, such as YAML front matter or a
+lone HTML comment, the block shows nothing and the region stays as it
+is.  The block is there all the same, so a live cycle does not convert
+the region again.  Any edit of the region takes the block down (see
+`overblock-stale-when-edited'): typing, a replacement over the buffer,
+a macro, an undo.  Point moving into the region reveals nothing."
+  (when-let* ((block
+               (if (string-empty-p (string-trim rendered))
+                   ;; No keymap: a click in the source sets point.
+                   (overblock-show beg end
+                                   :kind (plist-get props :kind)
+                                   :data (plist-get props :data)
+                                   :attached (plist-get props :attached))
+                 (apply #'overblock-show beg end
+                        :over (overblock--fill-props
+                               (overblock-faced rendered face)
+                               'keymap (plist-get props :keymap)
+                               'help-echo (plist-get props :help-echo))
+                        props))))
+    (overblock-stale-when-edited block)
+    block))
+
 ;;;; Rows and pieces
 
 (defun overblock--lines (text)
@@ -925,34 +970,6 @@ end of the last line is an insertion at the end."
     (overlay-put block 'modification-hooks hooks)
     (overlay-put block 'insert-in-front-hooks hooks)
     (overlay-put block 'insert-behind-hooks hooks)))
-
-(defun overblock-show-rendering (beg end rendered face &rest props)
-  "Show RENDERED over BEG..END in FACE, and return the block.
-PROPS are those of `overblock-show'.  Its `:keymap' and `:help-echo'
-also go on the rendering where it has none of its own: shr writes a
-keymap on a link, and that one stays.
-
-Where RENDERED holds nothing to show, such as YAML front matter or a
-lone HTML comment, the block shows nothing and the region stays as it
-is.  The block is there all the same, so a live cycle does not convert
-the region again.  Any edit of the region takes the block down (see
-`overblock-stale-when-edited'): typing, a replacement over the buffer,
-a macro, an undo.  Point moving into the region reveals nothing."
-  (when-let* ((block
-               (if (string-empty-p (string-trim rendered))
-                   ;; No keymap: a click in the source sets point.
-                   (overblock-show beg end
-                                   :kind (plist-get props :kind)
-                                   :data (plist-get props :data)
-                                   :attached (plist-get props :attached))
-                 (apply #'overblock-show beg end
-                        :over (overblock--fill-props
-                               (overblock-faced rendered face)
-                               'keymap (plist-get props :keymap)
-                               'help-echo (plist-get props :help-echo))
-                        props))))
-    (overblock-stale-when-edited block)
-    block))
 
 ;;;; Edit buffer
 
@@ -1867,23 +1884,6 @@ STRING is modified in place.
 An overlay string without a face inherits one from the buffer text
 next to it, so every block needs at least a base face."
   (add-face-text-property 0 (length string) face t string)
-  string)
-
-(defun overblock--fill-props (string &rest properties)
-  "Set the PROPERTIES that STRING does not carry yet.
-PROPERTIES is a plist, and STRING is modified in place and returned.
-shr gives a link its own keymap and help echo; a plain `propertize'
-would replace both."
-  (let ((len (length string)))
-    (while properties
-      (let ((prop (pop properties))
-            (value (pop properties))
-            (pos 0))
-        (while (< pos len)
-          (let ((next (or (next-single-property-change pos prop string) len)))
-            (unless (get-text-property pos prop string)
-              (put-text-property pos next prop value string))
-            (setq pos next))))))
   string)
 
 (defun overblock-cached (var function)
