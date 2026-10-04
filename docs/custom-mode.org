@@ -18,7 +18,7 @@ the right kind and turn the mode on:
 | Example            | Open                             | Turn on                                        |
 |--------------------+----------------------------------+------------------------------------------------|
 | [[file:../examples/overblock-quote.el][overblock-quote.el]] | a text file with =>= quote lines | =M-x overblock-quote-mode=                     |
-| [[file:../examples/overblock-sh.el][overblock-sh.el]]    | a shell script with =# %%= lines | =M-x overblock-sh-mode=, then click ▷ on a bar |
+| [[file:../examples/overblock-sh.el][overblock-sh.el]]    | a shell script with =# %%= lines | =M-x overblock-sh-mode=, then click the middle run button on a bar |
 
 * Two kinds of mode
 

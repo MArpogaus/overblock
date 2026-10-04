@@ -214,7 +214,7 @@ Open a Python file with =# %%= cells, and run a cell with
 =overblock-pycell-mode= off, and the blocks go. Then =code-cells-eval=
 uses =python-shell-send-region= again.
 
-Click =▷= on the bar of a cell to run it.
+To run a cell, click the middle run button on its bar.
 [[file:docs/overblock-pycell.org::*Use][Use]] in
 docs/overblock-pycell.org tells the buttons, the commands, the keymaps
 and the options.
@@ -245,7 +245,7 @@ ends in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
 turns =overblock-md-preview-mode= off, because it renders the prose
 itself.
 
-Click =▷= on the bar of a chunk to run it.
+To run a chunk, click the middle run button on its bar.
 [[file:docs/overblock-rmd.org::*Use][Use]] in docs/overblock-rmd.org
 tells the buttons, the commands and the options.
 
