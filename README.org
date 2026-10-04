@@ -50,13 +50,13 @@ again.
 
 ** Which One Do You Want
 
-| Package            | What you get                                      | It needs                                         |
-|--------------------+---------------------------------------------------+--------------------------------------------------|
-| =overblock=        | the layer, a library for other packages           | Emacs 29.1                                       |
-| =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend, markdown-mode |
-| =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=                      |
-| =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells          |
-| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ess, markdown-mode  |
+| Package            | What you get                                      | It needs                                                         |
+|--------------------+---------------------------------------------------+------------------------------------------------------------------|
+| =overblock=        | the layer, a library for other packages           | Emacs 29.1                                                       |
+| =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend; markdown-mode for the preview |
+| =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=                                      |
+| =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells                          |
+| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ess, markdown-mode                  |
 
 No package is on MELPA yet. Thus a package manager cannot find the
 packages of this repository by name. Each package that you use needs a
