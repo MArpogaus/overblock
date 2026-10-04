@@ -253,7 +253,7 @@ doc string carries: sections, math, a table and a code block."
   ;; the first cell that is code: run on a markdown cell renders it
   (goto-char (point-min))
   (search-forward "import numpy" nil t)
-  (call-interactively #'overblock-pycell-run-cell)
+  (call-interactively #'overblock-run-this)
   ;; The cell while it runs: a spinner, a stopwatch and an interrupt button.
   (ob-gif-wait 120 (lambda () (overblock-in (point-min) (point-max) 'result)))
   (ob-gif-frame 200)
@@ -264,7 +264,7 @@ doc string carries: sections, math, a table and a code block."
   ;; and the figure of the next one, drawn in the buffer
   (goto-char (point-min))
   (search-forward "plt.subplots" nil t)
-  (call-interactively #'overblock-pycell-run-cell)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 120
                (lambda ()
                  (seq-some (lambda (block)
@@ -320,7 +320,7 @@ still busy\"."
   ;; the first chunk, run in the R that ESS starts for it
   (goto-char (point-min))
   (search-forward "summary(cars" nil t)
-  (call-interactively #'overblock-rmd-run-chunk)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 60 (lambda () (overblock-in (point-min) (point-max) 'result)))
   (ob-gif-say "shell=%S ess=%S buffers=%S"
               (ignore-errors (overblock-run-shell))
@@ -338,7 +338,7 @@ still busy\"."
   (ob-gif-wait 60 (ob-gif-results 1))
   (goto-char (point-min))
   (search-forward "head(cars" nil t)
-  (call-interactively #'overblock-rmd-run-chunk)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 150
                (lambda ()
                  (>= (length (overblock-in (point-min) (point-max) 'result))
@@ -363,7 +363,7 @@ still busy\"."
     (overblock-run-toggle-output))
   (goto-char (point-min))
   (search-forward "plot(cars" nil t)
-  (call-interactively #'overblock-rmd-run-chunk)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 150
                (lambda ()
                  (>= (length (overblock-in (point-min) (point-max) 'result))
@@ -406,13 +406,13 @@ size."
   (ob-gif-frame 260)
   (goto-char (point-min))
   (search-forward "import numpy" nil t)
-  (call-interactively #'overblock-pycell-run-cell)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 120 (ob-gif-results 1))
   (ob-gif-settle 0.4)
   (ob-gif-frame 300)
   (goto-char (point-min))
   (search-forward "plt.subplots" nil t)
-  (call-interactively #'overblock-pycell-run-cell)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 120
                (lambda ()
                  (seq-some (lambda (block)
@@ -438,11 +438,11 @@ size."
   (ob-gif-frame 260)
   (goto-char (point-min))
   (search-forward "summary(cars" nil t)
-  (call-interactively #'overblock-rmd-run-chunk)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 120 (ob-gif-results 1))
   (goto-char (point-min))
   (search-forward "head(cars" nil t)
-  (call-interactively #'overblock-rmd-run-chunk)
+  (call-interactively #'overblock-run-this)
   (ob-gif-wait 120
                (lambda ()
                  (>= (length (overblock-in (point-min) (point-max) 'result))
