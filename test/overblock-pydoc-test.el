@@ -536,7 +536,7 @@ A changed list shows at once."
   (skip-unless (overblock-md-program))
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
-    (let ((was overblock-pydoc-buttons))
+    (let ((was overblock-pydoc-bar-buttons))
       (unwind-protect
           (progn
             (goto-char (point-max))
@@ -547,7 +547,7 @@ A changed list shows at once."
                                      (overblock-get block :over)))
                                   (overblock-in (point-min) (point-max)
                                                 'pydoc))))
-              (setopt overblock-pydoc-buttons nil)
+              (setopt overblock-pydoc-bar-buttons nil)
               (should (= (overblock-pydoc-test--wait 4) 4))
               (should-not
                (equal before
@@ -556,7 +556,7 @@ A changed list shows at once."
                                  (overblock-get block :over)))
                               (overblock-in (point-min) (point-max)
                                             'pydoc))))))
-        (setopt overblock-pydoc-buttons was)
+        (setopt overblock-pydoc-bar-buttons was)
         (overblock-pydoc-mode -1)))))
 
 (ert-deftest overblock-pydoc-test-a-row-leaves-room-for-the-indent ()

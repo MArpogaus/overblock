@@ -181,7 +181,7 @@ into a window renders it again.
 
 ** When a bar is drawn again
 
-The =:set= of =overblock-pydoc-buttons= is
+The =:set= of =overblock-pydoc-bar-buttons= is
 =overblock-live-set-and-redraw=. When you set the option with =setopt=,
 the renderings of each live buffer come down and render again with the
 new bars.

@@ -63,7 +63,7 @@ A rule that a face draws runs from the start of the text of the bar,
 the indentation of the doc string, to the edge of the window, so
 nothing has to measure it.")
 
-(defcustom overblock-pydoc-buttons
+(defcustom overblock-pydoc-bar-buttons
   '((edit ("" "✎" "edit") "Edit this doc string in its own buffer"
           overblock-pydoc-edit t))
   "The buttons on the bar of a rendered doc string, left to right.
@@ -354,7 +354,7 @@ The summary is on the bar so the rendering has as many rows as the
 doc string, and no row carries two lines.  A summary too long for the
 room is cut with an ellipsis, as any label of a bar is."
   (overblock-bar (overblock-pydoc--glyph) (concat summary " ")
-                 (overblock-buttons overblock-pydoc-buttons)
+                 (overblock-buttons overblock-pydoc-bar-buttons)
                  'overblock-bar indent))
 
 (defun overblock-pydoc--bar-room ()
@@ -362,7 +362,7 @@ room is cut with an ellipsis, as any label of a bar is."
 The prose is filled that much narrower, so the first line of a long
 summary fits the bar and is not cut there."
   (+ (string-width (overblock-pydoc--glyph))
-     (string-width (overblock-buttons overblock-pydoc-buttons))
+     (string-width (overblock-buttons overblock-pydoc-bar-buttons))
      3))
 
 (defun overblock-pydoc--dressed (prose indent)
