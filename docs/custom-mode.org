@@ -291,9 +291,9 @@ Each row names what a mode uses, and links to the reference.
 - *A restart in the old buffer.* That buffer already ends at a prompt.
   Wait for a prompt after the process mark of the new process, not for
   the last characters of the buffer.
-- *Three slots run in the shell buffer.* =:prompt-p=, =:clean= and
-  =:error-p= cannot read the buffer-local values of the notebook. A
-  value that they need is a constant, or it is local to the shell.
+- *Three slots run in the shell buffer*, as [[*The backend]] says. They
+  cannot read the buffer-local values of the notebook. A value that
+  they need is a constant, or it is local to the shell.
 - *The width.* A mode makes a rendering for the width of its window.
   The live cycle draws it again when the width changes. Draw bars only
   in =:bar=, so that the runner can draw them again.
@@ -307,8 +307,8 @@ Each row names what a mode uses, and links to the reference.
   only what =overblock-live-wanted-p= allows. A walk of a large buffer
   is slow, so keep it with =overblock-cached=:
   =(overblock-cached 'MODE--regions-cache #'MODE--walk)=.
-  =MODE--regions-cache= is a =defvar-local=, and the walk takes no arguments. Cache positions, not
-  the markers of =:starts=.
+  =MODE--regions-cache= is a =defvar-local=, and the walk takes no
+  arguments. Cache positions, not the markers of =:starts=.
 - *A mode sets no user option and binds no key.* Its keymap is empty,
   and the doc of the keymap shows a binding to copy. It adds no global
   hook. A =MODE-mode-maybe= function is for the user to add to a hook.
