@@ -1286,6 +1286,20 @@ does not cover the new text, so the region wants a new one."
           (should (overblock-in 1 9 'test-kind)))
       (overblock-live-stop 'test-kind))))
 
+(ert-deftest overblock-test-a-narrowing-keeps-a-rendering ()
+  "A narrowing that cuts a rendered block leaves the rendering alone.
+The walk sees only the accessible part of the block, a shorter region."
+  (with-temp-buffer
+    (insert "> a\n> b\n")
+    (overblock-live-start 'test-kind #'ignore)
+    (unwind-protect
+        (let ((block (overblock-show 1 9 :kind 'test-kind :over "ab")))
+          (narrow-to-region 5 9)
+          (goto-char (point-max))
+          (should-not (overblock-live-wanted-p 5 9 'test-kind))
+          (should (overlay-buffer block)))
+      (overblock-live-stop 'test-kind))))
+
 (ert-deftest overblock-test-a-cycle-renders-again-on-request ()
   "The render function of a cycle runs again when asked, and only its own."
   (with-temp-buffer

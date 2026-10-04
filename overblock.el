@@ -1112,10 +1112,14 @@ answer comes back, because the reader can click, type, move or turn
 the mode off meanwhile.
 
 A block of KIND that overlaps the region but does not cover it is
-stale and comes down: text typed on the line after a region joins it."
+stale and comes down: text typed on the line after a region joins it.
+A block that reaches past the narrowing stays: the walk saw only part
+of it."
   (dolist (block (overblock-in beg end kind))
-    (unless (and (= (overlay-start block) beg)
-                 (= (overlay-end block) (overblock--anchor-end beg end)))
+    (unless (or (and (= (overlay-start block) beg)
+                     (= (overlay-end block) (overblock--anchor-end beg end)))
+                (< (overlay-start block) (point-min))
+                (> (overlay-end block) (point-max)))
       (overblock--take-down block)))
   (not (or (not (assq kind overblock-live--specs))
            (if (not (nth 2 (assq kind overblock-live--specs)))
