@@ -49,14 +49,15 @@
 (require 'overblock)
 (require 'overblock-md)
 
+;;;; Options
+
 (defgroup overblock-md-preview nil
   "Markdown rendered over the lines it is written on."
   :group 'text
   :group 'overblock
   :prefix "overblock-md-preview-")
 
-
-;;;; What to render them with
+;;;; Rendering
 
 (defun overblock-md-preview--show (beg end &optional html)
   "Render the markdown BEG..END over its own source, and return the block.
@@ -68,8 +69,6 @@ piece to a line, so a tall block scrolls like text."
                      :kind 'md-preview
                      :keymap overblock-live-map
                      :help-echo "mouse-1: edit this text"))
-
-;;;; When to render them
 
 ;;;###autoload
 (defun overblock-md-preview-render-buffer ()
@@ -83,6 +82,8 @@ reader does not wait for it.
   (overblock-md-render-regions
    (overblock-md-regions)
    'md-preview #'overblock-md-source #'overblock-md-preview--show))
+
+;;;; Mode
 
 ;;;###autoload
 (define-minor-mode overblock-md-preview-mode
