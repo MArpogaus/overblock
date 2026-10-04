@@ -4,7 +4,7 @@
 #   make lint      package-lint, the MELPA rules
 #   make relint    regexp and docstring escapes
 #   make test      ERT test suite, STRICT=1 to refuse to skip
-#   make test-live the suites against a real ipython and a real R;
+#   make test-live the suites against a real ipython, R and bash;
 #                  each skips where its interpreter is not installed
 #   make scroll    scrolling tests, which need a display
 #   make clean     remove build output and the tool sandbox
@@ -25,11 +25,15 @@ DEPS    ?= package-lint relint code-cells comint-mime ess markdown-mode \
            latex-to-svg-backend
 
 SRC  := $(filter-out %-autoloads.el %-pkg.el,$(wildcard *.el))
+# The example modes of docs/custom-mode.org: no package, so compiled,
+# relinted and tested, but not linted.
+EXAMPLES := $(wildcard examples/*.el)
 TEST := $(wildcard test/*.el)
 # The live suites drive a real IPython and a real R, so the batch suite
 # does not load them; `test-live' below is their target. They are still
 # in TEST, so they are byte-compiled and relinted with the rest.
-LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el
+LIVE := test/overblock-pycell-live-test.el test/overblock-rmd-live-test.el \
+        test/overblock-sh-live-test.el
 # The scroll tests need a real frame to give a line a pixel height, so
 # under `--batch' they can only skip; `scroll' below runs them in one.
 # Left in SUITE they made `make test' report three skips for ever, and
@@ -61,7 +65,7 @@ strict = (dolist (want (list \
            (unless (car want) \
              (error "No %s: tests that want one would skip" (cdr want))))
 
-BATCH = $(EMACS) -Q --batch -L . -L test --eval '$(init)'
+BATCH = $(EMACS) -Q --batch -L . -L test -L examples --eval '$(init)'
 
 .PHONY: all compile lint relint test test-live scroll clean
 
@@ -74,11 +78,11 @@ $(STAMP):
 # One Emacs per file: a file loaded for an earlier one would declare
 # its variables for the next, and hide that one's warnings.
 compile: $(STAMP)
-	@for f in $(SRC) $(TEST); do \
+	@for f in $(SRC) $(EXAMPLES) $(TEST); do \
 	  $(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
 	    -f batch-byte-compile $$f || exit 1; \
 	done
-	@rm -f ./*.elc test/*.elc
+	@rm -f ./*.elc examples/*.elc test/*.elc
 
 # package-lint reads one main file and calls every symbol outside its
 # prefix an error, so it is run once for each package.
@@ -131,7 +135,7 @@ lint: $(STAMP)
 # shows the reader the = as text. The demo scripts are read here too, as
 # nothing else reads them.
 relint: $(STAMP)
-	@$(BATCH) -l relint -f relint-batch $(SRC) $(TEST) $(wildcard demo/*.el)
+	@$(BATCH) -l relint -f relint-batch $(SRC) $(EXAMPLES) $(TEST) $(wildcard demo/*.el)
 
 # A fifth of the suite renders markdown and skips itself where no
 # converter is installed. On a machine that is meant to have one that
@@ -161,6 +165,7 @@ endef
 test-live: $(STAMP)
 	$(call live,test/overblock-pycell-live-test.el,ipython)
 	$(call live,test/overblock-rmd-live-test.el,R)
+	$(call live,test/overblock-sh-live-test.el,bash)
 
 # A block is one buffer line and can be taller than the window, and only
 # a graphical frame gives a line a pixel height. These tests therefore
@@ -176,4 +181,4 @@ scroll: $(STAMP)
 	  cat scroll-report.txt 2>/dev/null; exit $$status
 
 clean:
-	@rm -rf $(SANDBOX) ./*.elc test/*.elc scroll-report.txt
+	@rm -rf $(SANDBOX) ./*.elc examples/*.elc test/*.elc scroll-report.txt
