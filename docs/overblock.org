@@ -500,13 +500,14 @@ It changes three things:
 - *The stretches.* comint-mime renders a DataFrame as a vtable, which
   sets the width of a space in pixels for the window of the shell. shr
   also aligns with pixels. Each stretch becomes as many real spaces as
-  it is characters wide. A vtable measures its header in its own face,
-  so a header label can stand one column left of its data.
+  it is characters wide. A vtable measures its header in its own face.
+  [[*Known limits]] tells what that does to the copy.
 - *The table.* The copy keeps the table object in the
   =overblock-repl-table= text property. The layer lays the table out
   again in characters, each column as wide as its widest cell, with the
   column names in bold. =overblock-repl-table-copy= gives the object to
-  a caller, which can draw a live table with =vtable-insert=.
+  a caller for a live table, as the pop-out buffer of
+  [[file:overblock-pycell.org::*Results][overblock-pycell]] shows.
 - *The keymap.* The copy loses the keymap of the shell. A block must
   not offer a click that it cannot answer.
 
@@ -612,12 +613,13 @@ cell in a row, and each frame would run its tail on the way out.
 
 With =overblock-run-scroll=, each region of a pass goes to the top of
 each window that shows the notebook, so the code that runs is visible.
-=overblock-run--go-home= puts point and the view of each window back
-when the pass ends with done. Where a minibuffer is open, this occurs
-after it closes, because its exit gives the windows back as they were.
-A restart ends the pass the same way. A failed region leaves them on
-it. Where a minibuffer was open when it failed, they stay where they
-were when the minibuffer opened. While a minibuffer is open, a step
+[[file:overblock-pycell.org::*Results][Results]] of overblock-pycell
+tells where a pass leaves point and the view.
+=overblock-run--go-home= puts them back. Where a minibuffer is open,
+this occurs after it closes, because its exit gives the windows back
+as they were. A restart ends the pass the same way. Where a minibuffer
+was open when a region failed, point and the view stay where they were
+when the minibuffer opened. While a minibuffer is open, a step
 moves neither point nor the windows, and the next region catches up.
 With the option nil, a pass never scrolls. A single region does not
 start the scrolling, also when it waits on the queue. A region that
@@ -626,12 +628,9 @@ region that waits, or a pass that no longer scrolls. Where the home of
 that pass is in the same notebook, the new request takes the home
 over. Then a pass scrolls.
 
-Before each key of the reader, point and the view go back to the home.
-Thus the key acts where the reader was, and not at the region that
-runs.
-A scroll command or a mouse event moves on from the view the reader
-sees: a click sets point itself. A mouse yank at point, with
-=mouse-yank-at-point=, counts as a key. The scrolling stops at the
+A click sets point itself, so a mouse event gets no home back. A mouse
+yank at point, with =mouse-yank-at-point=, counts as a key. The
+scrolling stops at the
 first command of the reader in the notebook, or at one that scrolls a
 window of it. Only a command counts: redisplay moves a window start
 for =scroll-margin=, and output arrives between commands. Thus
@@ -641,17 +640,15 @@ or compared: its exit gives the windows back, so the command that
 opened it counts as one. Once stopped, the pass leaves point and the
 windows alone, to its end.
 
-At its end, the pass says =NAME: done=, with the =:name= of the
-backend. A failed region ends the pass with =NAME: stopped at error=.
-A single region sent to a free shell says neither message. A region
-can wait on the queue, behind a busy shell or a starting interpreter.
-Such a region also ends its pass with =NAME: done=, or =NAME: stopped
-at error=. The home marker is in the shell buffer too, and is set when
+The messages at the end of a pass are those of
+[[file:overblock-pycell.org::*Results][overblock-pycell]], with the
+=:name= of the backend. A single region sent to a free shell says no
+message, and a region that waited on the queue does. The home marker is in the shell buffer too, and is set when
 the shell exists.
 
-A region sent while the shell is busy or starting waits in the queue,
-and runs as it was sent. A pass asked for then also goes behind the
-queue. Each request queues what it asks for, as in Jupyter: a region
+A region sent while the shell is busy waits, as [[*Known limits]]
+says, and runs as it was sent. A pass asked for then also goes behind
+the queue. Each request queues what it asks for, as in Jupyter: a region
 asked for twice runs twice, in the order asked. A =C-g= in the setup
 of a starting interpreter can stop the hook before the queue starts.
 The next run command then drops the regions that waited, as a stop
