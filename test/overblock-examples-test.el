@@ -91,6 +91,20 @@
     (overblock-sh-mode -1)
     (should-not (overblock-bars))))
 
+(ert-deftest overblock-examples-test-a-script-with-a-cell-turns-the-mode-on ()
+  "`overblock-sh-mode-maybe' turns the mode on only where there is a cell.
+The titles come from the boundary lines."
+  (with-temp-buffer
+    (insert "echo plain\n")
+    (sh-mode)
+    (overblock-sh-mode-maybe)
+    (should-not overblock-sh-mode)
+    (insert overblock-examples-test--script)
+    (overblock-sh-mode-maybe)
+    (should overblock-sh-mode)
+    (should (equal (overblock-sh--title 24 32) "one"))
+    (overblock-sh-mode -1)))
+
 (ert-deftest overblock-examples-test-the-output-of-bash-is-cleaned ()
   "The prompt goes from a result, and a failed cell reads as one."
   (should (equal (overblock-sh--clean "1\n2\noverblock-sh$ ") "1\n2"))

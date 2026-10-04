@@ -208,17 +208,34 @@ docs/custom-mode.org lists the slots."
 
 ;;;; Mode
 
+(defvar-keymap overblock-sh-mode-map
+  :doc "Keymap of `overblock-sh-mode', empty on purpose.
+overblock-sh binds no keys; put your own here, for example:
+
+  (keymap-set overblock-sh-mode-map \"C-<return>\" #\\='overblock-run-this)")
+
 (define-minor-mode overblock-sh-mode
   "Run the `# %%' cells of this shell script and show their results inline.
 Every cell gets a bar with run buttons.  The commands of
 `overblock-run' work here, such as `overblock-run-this' and
 `overblock-run-restart-and-run-all'.  Turn the mode off to remove the
-bars and the results."
+bars and the results.  The mode binds no keys: `overblock-sh-mode-map'
+is empty."
   :lighter " ShNb"
   (overblock-only-in 'overblock-sh-mode 'sh-mode)
   (if overblock-sh-mode
       (overblock-run-attach (overblock-sh--backend))
     (overblock-run-detach)))
+
+(defun overblock-sh-mode-maybe ()
+  "Enable `overblock-sh-mode' in a shell script that has a cell.
+Add it to a major mode hook:
+
+  (add-hook \\='sh-mode-hook #\\='overblock-sh-mode-maybe)"
+  (when (save-excursion
+          (goto-char (point-min))
+          (re-search-forward overblock-sh--boundary nil t))
+    (overblock-sh-mode)))
 
 (provide 'overblock-sh)
 ;;; overblock-sh.el ends here
