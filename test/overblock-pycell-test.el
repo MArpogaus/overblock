@@ -1422,7 +1422,7 @@ first line of the cell at the bottom edge, with the code out of sight."
                      (lambda (_proc beg _end) (setq sent beg))))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode))
-            (let ((second (cadr (overblock-pycell--cell-starts)))
+            (let ((second (cadr (overblock-pycell--starts)))
                   (window (get-buffer-window)))
               (set-window-start window (point-max))
               ;; As a pass starts: the home starts the scrolling.
@@ -1454,7 +1454,7 @@ z = 3
                     ((symbol-function 'overblock-run--send) #'ignore))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode))
-            (pcase-let* ((starts (overblock-pycell--cell-starts))
+            (pcase-let* ((starts (overblock-pycell--starts))
                          (`(,first ,second ,third)
                           (mapcar #'marker-position starts))
                          (window (get-buffer-window)))
@@ -1570,19 +1570,19 @@ does, and point comes back where the pass was asked for."
             (should-not (memq (current-buffer) overblock-run--scrolled))
             ;; Asked for further down: the pass takes the home over.
             (goto-char (point-max))
-            (overblock-run-cells (overblock-pycell--cell-starts) "running")
+            (overblock-run-cells (overblock-pycell--starts) "running")
             (should (memq (current-buffer) overblock-run--scrolled))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
             ;; Asked for again while it scrolls, by a click on the bar of
             ;; the cell that runs: the home stays. The pass put point on
             ;; that cell.
-            (overblock-run--scroll-to (cadr (overblock-pycell--cell-starts)))
+            (overblock-run--scroll-to (cadr (overblock-pycell--starts)))
             (let ((last-input-event
                    (list 'down-mouse-1
                          (list (get-buffer-window) (point) '(0 . 0) 0))))
               (run-hooks 'pre-command-hook)
-              (overblock-run-cells (overblock-pycell--cell-starts) "running")
+              (overblock-run-cells (overblock-pycell--starts) "running")
               (run-hooks 'post-command-hook))
             (should (= (point-max)
                        (buffer-local-value 'overblock-run--home shell)))
@@ -1593,7 +1593,7 @@ does, and point comes back where the pass was asked for."
                          (list (get-buffer-window) (point-min) '(0 . 0) 0))))
               (run-hooks 'pre-command-hook)
               (goto-char (point-min))
-              (overblock-run-cells (overblock-pycell--cell-starts) "running")
+              (overblock-run-cells (overblock-pycell--starts) "running")
               (run-hooks 'post-command-hook))
             (should (= (point-min)
                        (buffer-local-value 'overblock-run--home shell)))
@@ -1844,12 +1844,12 @@ z = 3
     (let (passed)
       (cl-letf (((symbol-function 'overblock-run-cells)
                  (lambda (cells _message) (setq passed cells))))
-        (goto-char (cadr (overblock-pycell--cell-starts)))
+        (goto-char (cadr (overblock-pycell--starts)))
         (forward-line 1)
         (overblock-run-below)
         (should (equal (mapcar #'marker-position passed)
                        (cdr (mapcar #'marker-position
-                                    (overblock-pycell--cell-starts)))))))))
+                                    (overblock-pycell--starts)))))))))
 
 (ert-deftest overblock-pycell-test-a-new-button-list-redraws-the-bars ()
   "Customizing the buttons draws the bars of an open notebook again.
@@ -2540,7 +2540,7 @@ The cells above are the ones the walk finds before this one begins."
     (should (equal (mapcar #'marker-position
                            (seq-take-while
                             (lambda (m) (< m (car (code-cells--bounds))))
-                            (overblock-pycell--cell-starts)))
+                            (overblock-pycell--starts)))
                    (list 1)))))
 
 (ert-deftest overblock-pycell-test-a-button-moves-the-cell-it-belongs-to ()

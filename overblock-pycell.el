@@ -731,7 +731,7 @@ Tracebacks then count lines from the top of the cell, not the file."
            (base64-encode-string (encode-coding-string code 'utf-8) t))
    proc))
 
-(defun overblock-pycell--send-region (proc beg end)
+(defun overblock-pycell--send (proc beg end)
   "Send BEG..END to PROC, as the `:send' of the backend.
 A cell of IPython syntax goes to the reader of IPython; every other
 one goes through `python-shell-send-region', which pads it so the line
@@ -740,6 +740,17 @@ numbers of a traceback match the buffer."
       (overblock-pycell--send-to-ipython
        proc (buffer-substring-no-properties beg end))
     (python-shell-send-region beg end)))
+
+(defun overblock-pycell--process ()
+  "Return the live Python process of this notebook, or nil for none.
+This is the `:process' of the backend."
+  (python-shell-get-process))
+
+(defun overblock-pycell--prompt-p (tail)
+  "Return non-nil where TAIL ends at a prompt of the Python shell.
+This is the `:prompt-p' of the backend.  Call this in the shell
+buffer, where python.el knows the prompts."
+  (python-shell-comint-end-of-output-p tail))
 
 (defun overblock-pycell--start ()
   "Start an inferior Python, and return nil: it prompts later.
@@ -794,8 +805,9 @@ saves a converter process per cell."
       (overblock-pycell-eval-region beg end))
     (not (overblock-pycell--md-cell-start beg))))
 
-(defun overblock-pycell--cell-at ()
-  "Return the cell point is in as (BEG . END), boundary line included."
+(defun overblock-pycell--region-at ()
+  "Return the cell point is in as (BEG . END), boundary line included.
+This is the `:region-at' of the backend."
   (pcase-let ((`(,beg ,end) (code-cells--bounds)))
     (cons beg end)))
 
@@ -808,23 +820,35 @@ on the same block.  A markdown cell has no code."
     (unless (overblock-pycell--md-cell-start beg)
       (cons beg end))))
 
+(defun overblock-pycell--starts ()
+  "Return a marker on the first line of every cell of the buffer, in order.
+The text above the first boundary line is a cell too, where there is
+any."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((cells (unless (looking-at-p code-cells-boundary-regexp)
+                   (list (point-min-marker)))))
+      (while (re-search-forward code-cells-boundary-regexp nil t)
+        (push (copy-marker (pos-bol)) cells))
+      (nreverse cells))))
+
 (defun overblock-pycell--backend ()
   "Return what `overblock-run' needs to drive an inferior Python.
 The commentary of `overblock-run' lists the slots."
   (list :name "overblock-pycell"
         :unit "cell"
-        :process #'python-shell-get-process
+        :process #'overblock-pycell--process
         :start #'overblock-pycell--start
         :arm #'overblock-pycell--arm
         :restart #'overblock-pycell--restart
-        :send #'overblock-pycell--send-region
-        :prompt-p #'python-shell-comint-end-of-output-p
+        :send #'overblock-pycell--send
+        :prompt-p #'overblock-pycell--prompt-p
         :clean #'overblock-pycell--clean
         :error-p #'overblock-pycell--error-p
         :step #'overblock-pycell--step
-        :region-at #'overblock-pycell--cell-at
+        :region-at #'overblock-pycell--region-at
         :code-at #'overblock-pycell--code-at
-        :starts #'overblock-pycell--cell-starts
+        :starts #'overblock-pycell--starts
         :bar #'overblock-pycell--bar
         :buttons 'overblock-pycell-result-buttons
         :stale #'overblock-pycell--stale-when-edited))
@@ -853,18 +877,6 @@ prompt.  A cell sent while the shell is busy or starts is queued."
         (when (<= (1- start) (point) end)
           (goto-char end)))
     (overblock-run-region start end)))
-
-(defun overblock-pycell--cell-starts ()
-  "Return a marker on the first line of every cell of the buffer, in order.
-The text above the first boundary line is a cell too, where there is
-any."
-  (save-excursion
-    (goto-char (point-min))
-    (let ((cells (unless (looking-at-p code-cells-boundary-regexp)
-                   (list (point-min-marker)))))
-      (while (re-search-forward code-cells-boundary-regexp nil t)
-        (push (copy-marker (pos-bol)) cells))
-      (nreverse cells))))
 
 (defvar-keymap overblock-pycell-mode-map
   :doc "Keymap of `overblock-pycell-mode', empty on purpose.
