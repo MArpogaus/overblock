@@ -1074,13 +1074,14 @@ waits."
   "Put CELLS on the queue of the shell and start the pass, saying MESSAGE."
   (overblock-run--home-set (point-marker))
   (overblock-run--queue-set cells)
+  ;; Said first: a pass with nothing to wait for says done at once.
+  (message "%s" message)
   (condition-case err
       (overblock-run-next)
     ;; A refused pass clears its home, so point does not jump later.
     (error (overblock-run--queue-set nil)
            (overblock-run--home-set nil)
-           (signal (car err) (cdr err))))
-  (message "%s" message))
+           (signal (car err) (cdr err)))))
 
 (defun overblock-run-cells (cells message)
   "Run CELLS in order, and say MESSAGE, or what was queued where busy.

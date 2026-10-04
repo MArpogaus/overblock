@@ -442,6 +442,22 @@ A markdown cell is rendered, not sent, so no run ends after it."
         (overblock-run--filter "ok\n>>> "))
       (should (equal said "runtest: done")))))
 
+(ert-deftest overblock-run-test-a-pass-with-nothing-to-wait-for-says-done-last ()
+  "A pass of regions the notebook answers itself ends on done.
+Its start message must not cover the done it says at once."
+  (overblock-run-test--with-run
+    (let (said)
+      (with-current-buffer notebook
+        (setq overblock-run-backend
+              (plist-put overblock-run-backend :step #'ignore))
+        (cl-letf (((symbol-function 'message)
+                   (lambda (format-string &rest args)
+                     (setq said (and format-string
+                                     (apply #'format format-string args))))))
+          (overblock-run--pass (list (copy-marker (point-max)))
+                               "runtest: running the cells")))
+      (should (equal said "runtest: done")))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty
