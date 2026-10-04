@@ -701,6 +701,37 @@ moves on, and stays after the last region."
         (should (= (point) 9))
         (should (= (length sent) 4))))))
 
+(ert-deftest overblock-run-test-a-stepped-entry-points-nowhere ()
+  "The runner frees the marker of an entry once it is stepped."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (setq overblock-run--backend
+            (plist-put overblock-run--backend :step #'ignore))
+      (let ((start (copy-marker 5)))
+        (overblock-run--pass (list start) "runtest: running the cells")
+        (should-not (marker-buffer start))))))
+
+(ert-deftest overblock-run-test-a-start-left-out-points-nowhere ()
+  "Above and below free the starts they do not queue."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n# c\nthree\n")
+    (let (starts queued)
+      (setq-local overblock-run--backend
+                  (list :starts (lambda ()
+                                  (setq starts (list (copy-marker 1)
+                                                     (copy-marker 9)
+                                                     (copy-marker 17))))
+                        :region-at (lambda () (cons 9 17))))
+      (cl-letf (((symbol-function 'overblock-run--cells)
+                 (lambda (cells _message) (setq queued cells))))
+        (goto-char 10)
+        (overblock-run-above)
+        (should (equal (mapcar #'marker-position queued) '(1)))
+        (should-not (seq-some #'marker-buffer (cdr starts)))
+        (overblock-run-below)
+        (should (equal (mapcar #'marker-position queued) '(9 17)))
+        (should-not (marker-buffer (car starts)))))))
+
 (ert-deftest overblock-run-test-a-guarded-key-answers-at-the-result ()
   "The filter lets a key through at the end of a region that has a result.
 A reader binds TAB in the result map, and TAB indents everywhere else

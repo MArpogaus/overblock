@@ -752,10 +752,14 @@ out."
           (throw 'waiting nil))
         (overblock-run--queue-set (cdr cells))
         ;; The entry of a killed notebook goes; the rest runs on.
-        (when (buffer-live-p (marker-buffer m))
-          (with-current-buffer (marker-buffer m)
-            (when (overblock-run--step entry m)
-              (throw 'waiting nil))))))))
+        (when (unwind-protect
+                  (and (buffer-live-p (marker-buffer m))
+                       (with-current-buffer (marker-buffer m)
+                         (overblock-run--step entry m)))
+                ;; A send copies the markers it keeps.
+                (set-marker m nil)
+                (when (consp entry) (set-marker (cdr entry) nil)))
+          (throw 'waiting nil))))))
 
 (defun overblock-run--step (entry m)
   "Run the queue ENTRY that begins at M, and say whether to wait.
@@ -1560,6 +1564,19 @@ comes first."
   (interactive "p")
   (overblock-run-forward (- (or arg 1))))
 
+(defun overblock-run--starts-split (below)
+  "Return the starts above the region at point, or from it down with BELOW.
+The starts are the markers of the `:starts' of the backend, and the
+ones not returned are freed."
+  (let ((beg (car (or (overblock-run--call :region-at)
+                      (user-error "No %s here" (overblock-run--unit)))))
+        kept)
+    (dolist (m (overblock-run--call :starts))
+      (if (eq (< m beg) (not below))
+          (push m kept)
+        (set-marker m nil)))
+    (nreverse kept)))
+
 ;;;###autoload
 (defun overblock-run-above (&optional event)
   "Run every region above the one at point, or above the one EVENT clicked.
@@ -1568,10 +1585,7 @@ They run in order and the pass stops at the first error, or on
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (overblock-run--must)
-  (let* ((beg (car (or (overblock-run--call :region-at)
-                       (user-error "No %s here" (overblock-run--unit)))))
-         (starts (seq-take-while (lambda (m) (< m beg))
-                                 (overblock-run--call :starts))))
+  (let ((starts (overblock-run--starts-split nil)))
     (unless starts (user-error "No %s above this one" (overblock-run--unit)))
     (overblock-run--cells starts (format "%s: running the %s above"
                                          (overblock-run--name)
@@ -1585,10 +1599,7 @@ They run in order and the pass stops at the first error, or on
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (overblock-run--must)
-  (let* ((beg (car (or (overblock-run--call :region-at)
-                       (user-error "No %s here" (overblock-run--unit)))))
-         (starts (seq-drop-while (lambda (m) (< m beg))
-                                 (overblock-run--call :starts))))
+  (let ((starts (overblock-run--starts-split t)))
     (overblock-run--cells starts (format "%s: running the %s from here down"
                                          (overblock-run--name)
                                          (overblock-run--unit t)))))

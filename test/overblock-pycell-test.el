@@ -1501,16 +1501,18 @@ first line of the cell at the bottom edge, with the code out of sight."
                      (lambda (_proc beg _end) (setq sent beg))))
             (with-current-buffer shell
               (setq major-mode 'inferior-python-mode))
-            (let ((second (cadr (overblock-pycell--starts)))
-                  (window (get-buffer-window)))
+            (let* ((second (cadr (overblock-pycell--starts)))
+                   ;; The runner frees the marker of the step.
+                   (pos (marker-position second))
+                   (window (get-buffer-window)))
               (set-window-start window (point-max))
               ;; As a pass starts: the home starts the scrolling.
               (overblock-run--home-set (point-marker))
               (overblock-run--queue-set (list second))
               (overblock-run--next)
-              (should (>= sent second))
-              (should (= (window-start window) second))
-              (should (= (window-point window) second))))
+              (should (>= sent pos))
+              (should (= (window-start window) pos))
+              (should (= (window-point window) pos))))
         (kill-buffer shell)))))
 
 (ert-deftest overblock-pycell-test-a-pass-stops-scrolling-when-the-reader-scrolls ()
