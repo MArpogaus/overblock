@@ -170,7 +170,7 @@ the option, so a change of the option shows at once:
 #+begin_src emacs-lisp
   (overblock-bar-line (pos-bol) (pos-eol) 'sh
                       (overblock-glyph "" "$")
-                      (if (string-empty-p title) "bash" title)
+                      (or (overblock-sh--title (pos-bol) (pos-eol)) "bash")
                       (overblock-buttons overblock-sh-bar-buttons))
 #+end_src
 

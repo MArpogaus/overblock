@@ -85,14 +85,6 @@ boundary line is no cell."
                        (pos-bol)
                      (point-max)))))))
 
-(defun overblock-sh--code-at ()
-  "Return the code of the cell point is in as (BEG . END), or nil.
-This is the `:code-at' of the backend: the cell without its boundary
-line.  The result hangs on the last newline of the code."
-  (when-let* ((cell (overblock-sh--region-at)))
-    (cons (save-excursion (goto-char (car cell)) (pos-bol 2))
-          (cdr cell))))
-
 (defun overblock-sh--starts ()
   "Return a marker on the boundary line of every cell, in order.
 This is the `:starts' of the backend."
@@ -103,17 +95,34 @@ This is the `:starts' of the backend."
         (push (copy-marker (pos-bol)) starts))
       (nreverse starts))))
 
+(defun overblock-sh--code-at ()
+  "Return the code of the cell point is in as (BEG . END), or nil.
+This is the `:code-at' of the backend: the cell without its boundary
+line.  The result hangs on the last newline of the code."
+  (when-let* ((cell (overblock-sh--region-at)))
+    (cons (save-excursion (goto-char (car cell)) (pos-bol 2))
+          (cdr cell))))
+
+(defun overblock-sh--title (bol eol)
+  "Return the title written on the boundary line BOL..EOL, or nil.
+What follows the `%%' marker is the title."
+  (save-excursion
+    (goto-char bol)
+    (when (looking-at overblock-sh--boundary)
+      (let ((title (string-trim
+                    (buffer-substring-no-properties (match-end 0) eol))))
+        (unless (string-empty-p title) title)))))
+
 ;;;; Bars
 
 (defun overblock-sh--bar ()
   "Draw the bar over the boundary line point is on, and return it.
-This is the `:bar' of the backend.  The label is what follows `%%'."
-  (looking-at (concat overblock-sh--boundary "[[:blank:]]*\\(.*\\)"))
-  (let ((title (string-trim (match-string-no-properties 1))))
-    (overblock-bar-line (pos-bol) (pos-eol) 'sh
-                        (overblock-glyph "" "$")
-                        (if (string-empty-p title) "bash" title)
-                        (overblock-buttons overblock-sh-bar-buttons))))
+This is the `:bar' of the backend.  The label is the title of the cell,
+or bash where it has none."
+  (overblock-bar-line (pos-bol) (pos-eol) 'sh
+                      (overblock-glyph "" "$")
+                      (or (overblock-sh--title (pos-bol) (pos-eol)) "bash")
+                      (overblock-buttons overblock-sh-bar-buttons)))
 
 ;;;; Backend
 
