@@ -264,8 +264,8 @@ It is not painted over: font lock gives the fence the background of
 `markdown-code-face', and the face of the text under a display string
 wins over the face of the string.
 
-The overlay is a bar of this mode, so `overblock-run--bars' removes it
-when its chunk is gone."
+The overlay is a bar of this mode, so the runner removes it when its
+chunk is gone."
   (save-excursion
     (goto-char close)
     ;; Only a fence line: an unclosed chunk ends at the end of the
@@ -285,8 +285,8 @@ when its chunk is gone."
 (defun overblock-rmd--bar ()
   "Draw the bar over the chunk header point is on, and hide its closing fence.
 This is the `:bar' of the backend, and returns both overlays.  A bar
-that is already there is drawn again, not replaced, so
-`overblock--bar-draw' compares against its state.
+that is already there is drawn again, not replaced, so the layer
+compares against its state.
 
 The glyph is the R logo of the devicons, the family of the Python
 notebook glyphs.  The label is the chunk name, or R when there is
@@ -498,8 +498,8 @@ code, as eval: false.")
 
 (defun overblock-rmd--step ()
   "Run the chunk at point, and say whether to wait for its prompt.
-This is the `:step' of the backend, with which `overblock-run--next'
-walks a pass down the buffer.  The prose is never queued.
+This is the `:step' of the backend, with which the runner walks a
+pass down the buffer.  The prose is never queued.
 
 A pass skips a chunk that knitr does not evaluate, as knitr does; a
 run of that one chunk still sends it.  A marker whose chunk is deleted

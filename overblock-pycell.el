@@ -532,8 +532,8 @@ line, where the name of the exception is, counts too."
 
 (defun overblock-pycell--step ()
   "Run the cell at point, and say whether to wait for a prompt.
-This is the `:step' of the backend, with which `overblock-run--next'
-walks a pass down the notebook.  A markdown cell renders here, with no
+This is the `:step' of the backend, with which the runner walks a
+pass down the notebook.  A markdown cell renders here, with no
 prompt to wait for.  One that is rendered already is left alone, which
 saves a converter process per cell."
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
