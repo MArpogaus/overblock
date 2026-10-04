@@ -458,6 +458,21 @@ Its start message must not cover the done it says at once."
                                "runtest: running the cells")))
       (should (equal said "runtest: done")))))
 
+(ert-deftest overblock-run-test-an-interrupt-says-so ()
+  "An interrupt says so in the echo area, with the regions it dropped."
+  (overblock-run-test--with-run
+    (let (said)
+      (cl-letf (((symbol-function 'interrupt-process) #'ignore)
+                ((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (apply #'format format-string args)))))
+        (with-current-buffer notebook
+          (overblock-run--queue-set (list (copy-marker 5) (copy-marker 9)))
+          (overblock-run-interrupt)
+          (should (equal said "runtest: interrupted, 2 cells left unrun"))
+          (overblock-run-interrupt)
+          (should (equal said "runtest: interrupted")))))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty

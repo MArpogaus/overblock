@@ -1448,13 +1448,19 @@ with only a new prompt, so no output can stop the pass."
                      (= running mine))
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
-    (with-current-buffer shell (setq overblock-run--queue nil))
-    ;; A stopped pass does not take point home.
-    (overblock-run--home-set nil)
-    (interrupt-process (or (get-buffer-process shell)
-                           ;; `interrupt-process' of nil takes the
-                           ;; process of the current buffer.
-                           (user-error "The interpreter is gone")))))
+    (let ((queued (length (overblock-run--queued))))
+      (with-current-buffer shell (setq overblock-run--queue nil))
+      ;; A stopped pass does not take point home.
+      (overblock-run--home-set nil)
+      (interrupt-process (or (get-buffer-process shell)
+                             ;; `interrupt-process' of nil takes the
+                             ;; process of the current buffer.
+                             (user-error "The interpreter is gone")))
+      (message "%s: interrupted%s" (overblock-run--name)
+               (if (> queued 0)
+                   (format ", %d %s left unrun"
+                           queued (overblock-run--unit (> queued 1)))
+                 "")))))
 
 (provide 'overblock-run)
 ;;; overblock-run.el ends here
