@@ -1644,7 +1644,7 @@ with only a new prompt, so no output can stop the pass."
           (user-error "The %s this buffer shows is not running"
                       (overblock-run--unit)))))
     (let ((queued (length (overblock-run--queued))))
-      (with-current-buffer shell (setq overblock-run--queue nil))
+      (overblock-run--queue-set nil)
       ;; A stopped pass does not take point home.
       (overblock-run--home-set nil)
       (interrupt-process (or (get-buffer-process shell)
