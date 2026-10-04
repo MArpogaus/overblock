@@ -275,7 +275,7 @@ fewer lines than the region must not leave the first row empty."
   "Properties are filled in only where the string carries none.
 The rendered markdown keeps the keymap that shr gave its links."
   (let ((s (concat "plain" (propertize "link" 'keymap 'shr-map))))
-    (overblock-fill-props s 'keymap 'block-map)
+    (overblock--fill-props s 'keymap 'block-map)
     (should (eq (get-text-property 0 'keymap s) 'block-map))
     (should (eq (get-text-property 6 'keymap s) 'shr-map))))
 
@@ -1244,7 +1244,7 @@ not leave it, and no region rendered again."
     (overblock-live-start 'test-kind #'ignore t)
     (unwind-protect
         (progn
-          (overblock-take-down (overblock-show 1 4 :kind 'test-kind :over "A"))
+          (overblock--take-down (overblock-show 1 4 :kind 'test-kind :over "A"))
           (erase-buffer)
           (insert "one\n\ntwo\n")
           (goto-char 2)

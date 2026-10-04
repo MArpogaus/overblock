@@ -323,7 +323,7 @@ plist, and every entry is optional:
   :keymap and :help-echo go on every overlay the block draws; an
              overlay of the caller under `:attached' keeps its own.  A
              click is answered by the string it lands on, with what
-             `overblock-fill-props' left there (such as the keymap of
+             `overblock--fill-props' left there (such as the keymap of
              shr on a link): the string answers the mouse, the
              overlays answer point.
 
@@ -896,9 +896,9 @@ the whole buffer, not of a narrowing."
             (not (and (equal (buffer-substring-no-properties beg end) "\n")
                       (= end (without-restriction (point-max)))))
           (/= beg end))
-    (overblock-take-down block)))
+    (overblock--take-down block)))
 
-(defun overblock-take-down (block)
+(defun overblock--take-down (block)
   "Take BLOCK down the way its maker asked, or delete it.
 The `:stale' function given to `overblock-stale-when-edited' removes
 a block with all that belongs to it, such as a bar above a rendered
@@ -948,7 +948,7 @@ a macro, an undo.  Point moving into the region reveals nothing.
                                    :data (plist-get props :data)
                                    :attached (plist-get props :attached))
                  (apply #'overblock-show beg end
-                        :over (overblock-fill-props
+                        :over (overblock--fill-props
                                (overblock-faced rendered face)
                                'keymap (plist-get props :keymap)
                                'help-echo (plist-get props :help-echo))
@@ -1069,7 +1069,7 @@ the mark is gone, through the timer that renders what has no
 rendering."
   (when (use-region-p)
     (dolist (spec overblock-live--specs)
-      (mapc #'overblock-take-down
+      (mapc #'overblock--take-down
             (overblock-in (region-beginning) (region-end) (car spec)))))
   (pcase overblock-live--open
     (`(,from . ,to)
@@ -1142,7 +1142,7 @@ on and stopped.  A mode binds this to the mouse."
                                      (car (overblock-in (pos-bol) (pos-eol)
                                                         (car spec)))))
                                overblock-live--specs)))
-    (overblock-take-down block)))
+    (overblock--take-down block)))
 
 (defvar-keymap overblock-live-map
   :doc "Keymap on a rendering of a live cycle.
@@ -1890,7 +1890,7 @@ next to it, so every block needs at least a base face."
   (add-face-text-property 0 (length string) face t string)
   string)
 
-(defun overblock-fill-props (string &rest properties)
+(defun overblock--fill-props (string &rest properties)
   "Set the PROPERTIES that STRING does not carry yet.
 PROPERTIES is a plist, and STRING is modified in place and returned.
 shr gives a link its own keymap and help echo; a plain `propertize'

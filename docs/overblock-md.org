@@ -155,7 +155,7 @@ there says so and opens nothing. An image path is from the file of the
 buffer, whatever binds =default-directory= when the answer arrives.
 
 An image inside a link keeps the link. shr puts the link around what
-the renderer inserted, and =overblock-fill-props= writes the keymap of
+the renderer inserted, and =overblock--fill-props= writes the keymap of
 a block only where the rendering has none.
 
 ** Formulas

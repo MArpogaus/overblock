@@ -115,7 +115,7 @@ the rendering is done; a file on disk is drawn at once."
 
 (ert-deftest overblock-md-test-keeps-a-link-on-an-image ()
   "An image inside a link keeps the link: a click follows the URL.
-`overblock-fill-props' leaves the properties shr gave the link alone."
+`overblock--fill-props' leaves the properties shr gave the link alone."
   (skip-unless (overblock-md-program))
   (skip-unless (image-type-available-p 'png))
   (overblock-md-test--with-image-file file
@@ -896,14 +896,14 @@ stop the hook that turns the mode on."
 
 (ert-deftest overblock-md-test-a-link-keeps-its-keymap-through-fill-props ()
   "A link in a rendered cell keeps its own keymap when the block fills one.
-The block gives every row its keymap with `overblock-fill-props', which
+The block gives every row its keymap with `overblock--fill-props', which
 must leave the keymap of shr on the link alone."
   (skip-unless (overblock-md-program))
   (let* ((shown (overblock-md-rendered "[text](https://example.org/)"))
          (pos (and shown (text-property-not-all 0 (length shown) 'keymap nil
                                                 shown))))
     (skip-unless pos)
-    (overblock-fill-props shown 'keymap (define-keymap "RET" #'ignore))
+    (overblock--fill-props shown 'keymap (define-keymap "RET" #'ignore))
     (should (eq (keymap-lookup (get-text-property pos 'keymap shown) "RET")
                 #'shr-browse-url))))
 
