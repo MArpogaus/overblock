@@ -915,6 +915,17 @@ another region is discarded only after the reader confirms."
   (interactive)
   (quit-window t))
 
+(defun overblock-cached (var function)
+  "Return what FUNCTION returns in this buffer, kept in VAR.
+VAR names a buffer-local variable, which holds (KEY . VALUE).
+FUNCTION is called with no arguments, and again only when the text
+or the narrowing changed since.  A walk of the whole buffer is slow,
+and the live cycle asks on every command."
+  (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
+    (unless (equal key (car (symbol-value var)))
+      (set var (cons key (funcall function))))
+    (cdr (symbol-value var))))
+
 (defun overblock-goto-event (event)
   "Select the window of EVENT and move point to the click.
 Any other event leaves point where it is: a command reads EVENT from

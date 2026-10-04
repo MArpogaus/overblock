@@ -1262,6 +1262,29 @@ not leave it, and no region rendered again."
       (overblock-live-render-again 'other)
       (should (= calls 1)))))
 
+(defvar-local overblock-test--cache nil
+  "The cache of `overblock-test-a-cache-holds-until-the-text-changes'.")
+
+(ert-deftest overblock-test-a-cache-holds-until-the-text-changes ()
+  "A cached answer is computed again after an edit or a new narrowing."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let* ((calls 0)
+           (ask (lambda ()
+                  (overblock-cached 'overblock-test--cache
+                                    (lambda () (setq calls (1+ calls)))))))
+      (funcall ask)
+      (funcall ask)
+      (should (= calls 1))
+      (insert "three\n")
+      (funcall ask)
+      (should (= calls 2))
+      (narrow-to-region 1 4)
+      (funcall ask)
+      (should (= calls 3))
+      (widen)
+      (should (= (funcall ask) 4)))))
+
 (defvar overblock-test--option nil
   "An option for `overblock-test-a-set-option-takes-the-renderings-down'.")
 

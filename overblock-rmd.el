@@ -173,7 +173,7 @@ before the options, or the closing brace.  So a ```{rmarkdown} chunk is
 not taken for R.")
 
 (defvar-local overblock-rmd--chunks nil
-  "The chunks of the last walk, and what the buffer was: (KEY . CHUNKS).
+  "The chunks of the last walk, for `overblock-cached'.
 The bars and a pass ask for the chunk of each start, and the walk reads
 the whole buffer.")
 
@@ -187,10 +187,7 @@ including the last newline, on which a result block hangs.
 A chunk with no code is left out.  The fences come from
 `overblock-md-fences'.  The walk is kept until the text or the
 narrowing changes."
-  (let ((key (list (buffer-chars-modified-tick) (point-min) (point-max))))
-    (unless (equal key (car overblock-rmd--chunks))
-      (setq overblock-rmd--chunks (cons key (overblock-rmd--walk))))
-    (cdr overblock-rmd--chunks)))
+  (overblock-cached 'overblock-rmd--chunks #'overblock-rmd--walk))
 
 (defun overblock-rmd--walk ()
   "Return the R chunks of the buffer, as `overblock-rmd-chunks' says."

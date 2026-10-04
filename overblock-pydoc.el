@@ -209,10 +209,9 @@ because it reads the first two of three quotes as an empty string."
             (min limit (+ (point) (1- fence)))))))))
 
 (defvar-local overblock-pydoc--strings-cache nil
-  "The doc strings of this buffer and the tick they were found at.
-A cons of (TICK . STRINGS).  The live cycle re-arms from
-`post-command-hook', and without the cache each motion of point walks
-the whole buffer again for the same answer.")
+  "The doc strings of this buffer, for `overblock-cached'.
+The live cycle re-arms from `post-command-hook', and without the cache
+each motion of point walks the whole buffer again for the same answer.")
 
 (defun overblock-pydoc--strings ()
   "Return the bounds of every doc string of the accessible buffer.
@@ -222,15 +221,8 @@ the closing quote.
 Font lock says which strings are documentation (see
 `overblock-pydoc--doc-face-p'), and the syntax scan says where each of
 them ends."
-  ;; A narrowed buffer is not cached: widening does not change
-  ;; `buffer-chars-modified-tick'.
-  (if (buffer-narrowed-p)
-      (overblock-pydoc--walk (point-min) (point-max))
-    (let ((tick (buffer-chars-modified-tick)))
-      (unless (eql (car overblock-pydoc--strings-cache) tick)
-        (setq overblock-pydoc--strings-cache
-              (cons tick (overblock-pydoc--walk (point-min) (point-max)))))
-      (cdr overblock-pydoc--strings-cache))))
+  (overblock-cached 'overblock-pydoc--strings-cache
+                    (lambda () (overblock-pydoc--walk (point-min) (point-max)))))
 
 (defun overblock-pydoc--walk (beg end)
   "Return the bounds of every doc string between BEG and END.

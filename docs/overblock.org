@@ -689,6 +689,11 @@ text of many lines scrolls as fast as none.
   changed, which is each tick of a growing output.
 - =overblock-repl-first-lines= and =overblock-repl-count-lines= are
   bounded.
+- =overblock-cached= keeps the answer of a walk of the whole buffer
+  until the text or the narrowing changes. The doc strings of a Python
+  buffer, the chunks of an Rmd file and the link definitions of a
+  Markdown buffer are kept so, because the live cycle asks on each
+  command.
 
 * The tests
 

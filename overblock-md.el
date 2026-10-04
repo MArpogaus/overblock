@@ -1768,10 +1768,9 @@ block goes out closed under its opening marks; see
       (replace-regexp-in-string (format "^ \\{0,%d\\}" indent) "" text)))))
 
 (defvar-local overblock-md--definitions nil
-  "The link reference definitions of this buffer, as (TICK . DEFINITIONS).
-TICK is the `buffer-chars-modified-tick' they were read at.
-DEFINITIONS is a hash table from a label, as
-`overblock-md--label' makes it, to its line.")
+  "The link reference definitions of this buffer, for `overblock-cached'.
+They are a hash table from a label, as `overblock-md--label' makes it,
+to its line.")
 
 (defconst overblock-md--definition-regexp
   (concat "^ \\{0,3\\}\\[\\([^]^\n][^]\n]*\\)\\]:[ \t]+"
@@ -1784,21 +1783,19 @@ such as [1]: Smith, J. (2020), which pandoc shows as text.")
 
 (defun overblock-md--definitions ()
   "Return the link reference definitions of this buffer, read once a change."
-  (let ((tick (buffer-chars-modified-tick)))
-    (unless (eq (car overblock-md--definitions) tick)
-      (setq overblock-md--definitions
-            (cons tick
-                  (save-excursion
-                    (goto-char (point-min))
-                    (let ((definitions (make-hash-table :test #'equal)))
-                      (while (re-search-forward
-                              overblock-md--definition-regexp nil t)
-                        (let ((label (match-string-no-properties 1))
-                              (line (match-string-no-properties 0)))
-                          (puthash (overblock-md--label label) line
-                                   definitions)))
-                      definitions)))))
-    (cdr overblock-md--definitions)))
+  (overblock-cached
+   'overblock-md--definitions
+   (lambda ()
+     (save-excursion
+       (goto-char (point-min))
+       (let ((definitions (make-hash-table :test #'equal)))
+         (while (re-search-forward overblock-md--definition-regexp nil t)
+           (let ((line (match-string-no-properties 0)))
+             ;; The label after the line: `split-string' in it
+             ;; changes the match data.
+             (puthash (overblock-md--label (match-string-no-properties 1))
+                      line definitions)))
+         definitions)))))
 
 (defun overblock-md--label (label)
   "Return LABEL as a reference matches it: lower case, one space a run.
