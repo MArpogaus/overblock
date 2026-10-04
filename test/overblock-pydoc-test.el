@@ -85,10 +85,10 @@ The rendering comes from an asynchronous process, so a test waits."
 (defun overblock-pydoc-test--first-lines ()
   "Return the first line of the prose of every doc string found."
   (mapcar (lambda (bounds)
-            (car (split-string (overblock-pydoc--source (car bounds)
+            (car (split-string (overblock-pydoc--prose (car bounds)
                                                         (cdr bounds))
                                "\n")))
-          (overblock-pydoc--strings)))
+          (overblock-pydoc--regions)))
 
 (ert-deftest overblock-pydoc-test-an-image-shows-its-alt-text-once ()
   "The Markdown command makes no figure, whose caption repeats the alt text."
@@ -132,7 +132,7 @@ are documentation; the string assigned inside the method is a value."
 quotes the syntax of a plain string delimiter, so a scan from the
 start reads the first two as an empty string."
   (overblock-pydoc-test--with
-    (let ((first (car (overblock-pydoc--strings))))
+    (let ((first (car (overblock-pydoc--regions))))
       (should (equal (buffer-substring-no-properties (car first) (cdr first))
                      "\"\"\"The module.\"\"\"")))))
 
@@ -148,7 +148,7 @@ half-typed \"\"\" goes under one block of prose."
     (should (equal (mapcar (lambda (region)
                              (buffer-substring-no-properties
                               (car region) (cdr region)))
-                           (overblock-pydoc--strings))
+                           (overblock-pydoc--regions))
                    '("\"\"\"Whole.\"\"\"")))))
 
 (defconst overblock-pydoc-test--mispaired
@@ -178,7 +178,7 @@ found."
   (with-temp-buffer
     (insert overblock-pydoc-test--mispaired)
     (python-mode)
-    (let ((bounds (overblock-pydoc--strings)))
+    (let ((bounds (overblock-pydoc--regions)))
       (dolist (region bounds)
         (goto-char (car region))
         (should (= (current-column) (current-indentation))))
@@ -199,7 +199,7 @@ a value would hide code."
             "    t = \"\"\"data here too\"\"\"\n"
             "    return t\n")
     (python-mode)
-    (should-not (overblock-pydoc--strings))))
+    (should-not (overblock-pydoc--regions))))
 
 (ert-deftest overblock-pydoc-test-a-quote-run-in-a-value-hides-nothing ()
   "A quote run inside an ordinary string costs no doc string its rendering.
@@ -210,7 +210,7 @@ closing fence up to the end of the buffer."
             "class A:\n"
             "    \"\"\"The doc string below the run.\"\"\"\n")
     (python-mode)
-    (should (= (length (overblock-pydoc--strings)) 1))))
+    (should (= (length (overblock-pydoc--regions)) 1))))
 
 (ert-deftest overblock-pydoc-test-an-escape-keeps-a-doc-string-whole ()
   "An escape sequence in the prose does not cut the doc string in two.
@@ -221,7 +221,7 @@ syntax scan says where the string ends."
     (insert "class A:\n"
             "    \"\"\"Doc with \\n and \\alpha in it.\n\n    More.\n    \"\"\"\n")
     (python-mode)
-    (let ((bounds (overblock-pydoc--strings)))
+    (let ((bounds (overblock-pydoc--regions)))
       (should (= (length bounds) 1))
       (should (string-suffix-p "More.\n    \"\"\""
                                (buffer-substring-no-properties
@@ -264,8 +264,8 @@ where the block starts, not to the indentation of the line."
 A doc string is indented with the code, and reads as prose from the
 left margin."
   (overblock-pydoc-test--with
-    (let ((bounds (nth 1 (overblock-pydoc--strings))))
-      (should (equal (overblock-pydoc--source (car bounds) (cdr bounds))
+    (let ((bounds (nth 1 (overblock-pydoc--regions))))
+      (should (equal (overblock-pydoc--prose (car bounds) (cdr bounds))
                      "Do a thing.\n\nParameters\n----------\nx : int\n    the thing to do")))))
 
 (ert-deftest overblock-pydoc-test-the-markup-is-rendered ()
@@ -296,7 +296,7 @@ while point stays in it."
   (overblock-pydoc-test--with
     (overblock-pydoc-mode 1)
     (unwind-protect
-        (let ((bounds (nth 1 (overblock-pydoc--strings))))
+        (let ((bounds (nth 1 (overblock-pydoc--regions))))
           ;; Point is in the second doc string while the converter
           ;; runs, and it renders all the same.
           (goto-char (1+ (car bounds)))
@@ -358,11 +358,11 @@ file."
     (insert "def f():\n    \"\"\"One.\"\"\"\n\ndef g():\n    \"\"\"Two.\"\"\"\n")
     (python-mode)
     (font-lock-ensure)
-    (should (= (length (overblock-pydoc--strings)) 2))
+    (should (= (length (overblock-pydoc--regions)) 2))
     (narrow-to-region (point-min) 26)
-    (should (= (length (overblock-pydoc--strings)) 1))
+    (should (= (length (overblock-pydoc--regions)) 1))
     (widen)
-    (should (= (length (overblock-pydoc--strings)) 2))))
+    (should (= (length (overblock-pydoc--regions)) 2))))
 
 (ert-deftest overblock-pydoc-test-the-doc-strings-are-found-once ()
   "The walk runs once while the buffer does not change.
@@ -376,11 +376,11 @@ each motion of point walks the whole buffer."
       (cl-letf* ((real (symbol-function 'overblock-pydoc--walk))
                  ((symbol-function 'overblock-pydoc--walk)
                   (lambda (&rest args) (setq walked (1+ walked)) (apply real args))))
-        (dotimes (_ 4) (overblock-pydoc--strings))
+        (dotimes (_ 4) (overblock-pydoc--regions))
         (should (= walked 1))
         (goto-char (point-max))
         (insert "# a comment\n")
-        (overblock-pydoc--strings)
+        (overblock-pydoc--regions)
         (should (= walked 2))))))
 
 (ert-deftest overblock-pydoc-test-a-unicode-blank-is-a-blank-line ()
@@ -393,8 +393,8 @@ indentation measure signal."
       (insert (format "def f():\n    \"\"\"Head.\n%s\n    Tail.\n    \"\"\"\n" blank))
       (python-mode)
       (font-lock-ensure)
-      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings))))
-        (let ((source (overblock-pydoc--source beg end)))
+      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--regions))))
+        (let ((source (overblock-pydoc--prose beg end)))
           (should (string-prefix-p "Head." source))
           (should (string-suffix-p "Tail." source)))))))
 
@@ -413,9 +413,9 @@ they were."
       (insert source)
       (python-mode)
       (font-lock-ensure)
-      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings))))
+      (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--regions))))
         (cl-letf (((symbol-function 'overblock-pydoc--show) #'ignore))
-          (overblock-pydoc--put beg end (overblock-pydoc--source beg end))))
+          (overblock-pydoc--put beg end (overblock-pydoc--prose beg end))))
       (should (equal (buffer-substring-no-properties (point-min) (point-max))
                      source)))))
 
@@ -426,7 +426,7 @@ A one-quote string cannot hold a newline."
     (insert "def f():\n    \"One line.\"\n")
     (python-mode)
     (font-lock-ensure)
-    (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--strings))))
+    (pcase-let ((`(,beg . ,end) (car (overblock-pydoc--regions))))
       (cl-letf (((symbol-function 'overblock-pydoc--show) #'ignore))
         (overblock-pydoc--put beg end "One line.\n\nAnd more.")))
     (should (equal (buffer-substring-no-properties (point-min) (point-max))
@@ -451,11 +451,11 @@ and steps the output lines to the right."
     (python-mode)
     (font-lock-ensure)
     (setq-local overblock-pydoc-markup 'markdown)
-    (pcase-let* ((`(,beg . ,end) (car (overblock-pydoc--strings)))
+    (pcase-let* ((`(,beg . ,end) (car (overblock-pydoc--regions)))
                  (overblock-md-command (overblock-pydoc--command-for-markup))
                  (text (substring-no-properties
                         (overblock-md-rendered
-                         (overblock-pydoc--converter-text beg end)))))
+                         (overblock-pydoc--source beg end)))))
       (should (string-search ">>> f(1)\n2" text)))))
 
 (ert-deftest overblock-pydoc-test-a-fenced-doctest-is-left-alone ()

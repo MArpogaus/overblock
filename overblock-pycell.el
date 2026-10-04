@@ -145,7 +145,7 @@ The two move buttons come last, as on every bar (see
 The bar of a rendered markdown cell is an overlay of the block, so it
 goes with the block.  The source bar comes at once, not when the
 reader stops."
-  (let ((from (and (eq (overblock-get block :kind) 'markdown)
+  (let ((from (and (eq (overblock-get block :kind) 'pycell)
                    (overblock-pycell--md-cell-start (overlay-start block)))))
     (overblock-delete block)
     (when from
@@ -209,7 +209,7 @@ this in the shell buffer, where `comint-prompt-regexp' has its value."
 The car is the record of its result, or nil, and the cdr says whether
 its markdown was rendered."
   (cons (overblock-run-result-record beg end)
-        (and (overblock-in beg end 'markdown) t)))
+        (and (overblock-in beg end 'pycell) t)))
 
 (defun overblock-pycell--restore-cell (beg end state)
   "Show STATE on the cell BEG..END again.
@@ -318,6 +318,10 @@ A non-nil value marks POS as the body of a markdown cell."
   "Strip the comment prefixes from the markdown cell TEXT."
   (replace-regexp-in-string "^# ?" "" text))
 
+(defun overblock-pycell--md-source (beg end)
+  "Return the markdown of the cell body BEG..END, as the converter reads it."
+  (overblock-pycell--md-uncomment (buffer-substring-no-properties beg end)))
+
 (defun overblock-pycell--md-comment (text)
   "Prefix each line of TEXT as a jupytext markdown comment."
   (mapconcat (lambda (l) (if (string-empty-p l) "#" (concat "# " l)))
@@ -354,8 +358,7 @@ still finds its heading."
               ((< beg end))
               ;; Without a converter the cell stays plain text.
               ((overblock-md-program))
-              (markdown (overblock-pycell--md-uncomment
-                         (buffer-substring-no-properties beg end)))
+              (markdown (overblock-pycell--md-source beg end))
               ;; A conversion that fails shows the markdown as it is,
               ;; so the cell does not go to the converter on every pass.
               (rendered (or (let ((overblock-md-width (overblock-md-columns)))
@@ -372,12 +375,12 @@ See `overblock-pycell--md-show', which renders and calls this."
                 'keymap overblock-pycell-md-map 'help-echo help))
          ;; The bar covers the boundary line up to its newline. The old
          ;; rendering goes first, with its bar, so this bar is new.
-         (hov (progn (overblock-clear beg end 'markdown)
+         (hov (progn (overblock-clear beg end 'pycell)
                      (overblock-pycell--md-bar
                       (overblock-pycell--md-cell-start beg) (1- beg))))
          ;; The block covers the source of the cell, not the bar.
          (block (overblock-show beg end
-                                :kind 'markdown
+                                :kind 'pycell
                                 ;; The source for the editor, as markers
                                 ;; that follow edits above the cell.
                                 ;; They outlive the block: the click
@@ -395,7 +398,7 @@ See `overblock-pycell--md-show', which renders and calls this."
     (overblock-pycell--stale-when-edited block)
     block))
 
-(defun overblock-pycell--md-cells ()
+(defun overblock-pycell--md-regions ()
   "Return the body of every markdown cell of the buffer, in order.
 Each is a cons of the start and the end of the body, which is the next
 boundary line or the end of the buffer.  An empty cell is left out."
@@ -426,18 +429,15 @@ does not wait.  Nothing happens without a converter;
 `overblock-pycell-mode' says so once when it goes on."
   (interactive)
   (overblock-md-render-regions
-   (overblock-pycell--md-cells)
-   'markdown
-   (lambda (from to)
-     (overblock-pycell--md-uncomment (buffer-substring-no-properties from to)))
-   #'overblock-pycell--md-show))
+   (overblock-pycell--md-regions)
+   'pycell #'overblock-pycell--md-source #'overblock-pycell--md-show))
 
 (defun overblock-pycell--md-at (event)
   "Return the markdown block at point, or at the click in EVENT.
 A click on the bar finds the block too: the bar is attached to it.
 Signal a `user-error' where there is no rendered cell."
   (overblock-goto-event event)
-  (or (overblock-at 'markdown)
+  (or (overblock-at 'pycell)
       (user-error "No rendered markdown cell here")))
 
 ;;;###autoload
@@ -498,9 +498,7 @@ it back and renders it; `overblock-edit-abort' discards the edit."
            ;; Trimmed on the right: the blank line between cells stays
            ;; out of the edit buffer, and `--md-put' restores it.
            :text (lambda (from to)
-                   (string-trim-right
-                    (overblock-pycell--md-uncomment
-                     (buffer-substring-no-properties from to))))
+                   (string-trim-right (overblock-pycell--md-source from to)))
            :put #'overblock-pycell--md-put))))
 
 ;;;; The bar over a boundary line
@@ -719,7 +717,7 @@ prompt to wait for.  One that is rendered already is left alone, which
 saves a converter process per cell."
   (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
     (unless (and (overblock-pycell--md-cell-start beg)
-                 (overblock-in beg end 'markdown))
+                 (overblock-in beg end 'pycell))
       (overblock-pycell-eval-region beg end))
     (not (overblock-pycell--md-cell-start beg))))
 
@@ -826,12 +824,12 @@ run."
                     "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
         ;; Said once, and only when there is a markdown cell.
         (when-let* ((why (overblock-md-missing))
-                    ((overblock-pycell--md-cells)))
+                    ((overblock-pycell--md-regions)))
           (message "overblock-pycell: %s, cells stay plain" why))
         ;; Point moving into a rendered cell changes nothing; a click
         ;; shows its source.
-        (overblock-live-start 'markdown #'overblock-pycell-render-buffer t))
-    (overblock-live-stop 'markdown)
+        (overblock-live-start 'pycell #'overblock-pycell-render-buffer t))
+    (overblock-live-stop 'pycell)
     (overblock-run-detach)
     (kill-local-variable 'overblock-md-heading-regexp)))
 

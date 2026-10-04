@@ -40,7 +40,9 @@ the block:
 #+end_src
 
 - =:kind= tells the blocks of one caller from those of another. A block
-  without a kind is anonymous.
+  without a kind is anonymous. A mode names its renderings after itself
+  (=md-preview=, =pydoc=, =pycell=, =rmd=). The runner names its results
+  =result=, and its live cycle of bars =bar=.
 - =:data= belongs to the caller. The layer keeps it and never reads it.
 - =:over= puts each line of the rendering on the source line it came
   from. A source line that carries nothing goes under a cloak. A blank

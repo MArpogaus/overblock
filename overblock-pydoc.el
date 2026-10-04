@@ -208,12 +208,12 @@ because it reads the first two of three quotes as an empty string."
             ;; string at the first of the three closing quotes.
             (min limit (+ (point) (1- fence)))))))))
 
-(defvar-local overblock-pydoc--strings-cache nil
+(defvar-local overblock-pydoc--regions-cache nil
   "The doc strings of this buffer, for `overblock-cached'.
 The live cycle re-arms from `post-command-hook', and without the cache
 each motion of point walks the whole buffer again for the same answer.")
 
-(defun overblock-pydoc--strings ()
+(defun overblock-pydoc--regions ()
   "Return the bounds of every doc string of the accessible buffer.
 Each is a cons of the position of the opening quote and the one after
 the closing quote.
@@ -221,12 +221,12 @@ the closing quote.
 Font lock says which strings are documentation (see
 `overblock-pydoc--doc-face-p'), and the syntax scan says where each of
 them ends."
-  (overblock-cached 'overblock-pydoc--strings-cache
+  (overblock-cached 'overblock-pydoc--regions-cache
                     (lambda () (overblock-pydoc--walk (point-min) (point-max)))))
 
 (defun overblock-pydoc--walk (beg end)
   "Return the bounds of every doc string between BEG and END.
-`overblock-pydoc--strings' is this behind a cache.  It calls
+`overblock-pydoc--regions' is this behind a cache.  It calls
 `font-lock-ensure' first, because jit lock paints only what has been
 on the screen."
   (font-lock-ensure beg end)
@@ -259,14 +259,14 @@ something else."
   (when (string-match overblock-pydoc--opening text)
     (list (match-string 1 text) (match-string 2 text))))
 
-(defun overblock-pydoc--converter-text (beg end)
+(defun overblock-pydoc--source (beg end)
   "Return the prose of the doc string BEG..END as the converter reads it.
-That is `overblock-pydoc--source', with every doctest of a Markdown doc
+That is `overblock-pydoc--prose', with every doctest of a Markdown doc
 string in a fence: Markdown reads `>>>' as three nested quotes."
-  (let ((source (overblock-pydoc--source beg end)))
+  (let ((prose (overblock-pydoc--prose beg end)))
     (if (eq overblock-pydoc-markup 'markdown)
-        (overblock-pydoc--fence-doctests source)
-      source)))
+        (overblock-pydoc--fence-doctests prose)
+      prose)))
 
 (defun overblock-pydoc--fence-doctests (text)
   "Return TEXT with each doctest outside a fence put in a pycon fence.
@@ -305,7 +305,7 @@ long as its own."
     (when doctest (push (concat doctest "```") out))
     (string-join (nreverse out) "\n")))
 
-(defun overblock-pydoc--source (beg end)
+(defun overblock-pydoc--prose (beg end)
   "Return the prose of the doc string BEG..END.
 The quotes go, and so does the indentation every line shares with the
 definition it belongs to: a doc string is written where the code stands
@@ -400,7 +400,7 @@ line.  The block leaves that many columns of every source line in
 view, so the indentation stays buffer text (with any indentation guide
 on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
-  (when-let* ((source (overblock-pydoc--converter-text beg end))
+  (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source))))
     (let ((indent (save-excursion (goto-char beg) (current-column)))
           (overblock-md-command (overblock-pydoc--command-for-markup))
@@ -427,14 +427,16 @@ runs.  `overblock-live-start' calls this again whenever the reader
 stops."
   (interactive)
   (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
-    (overblock-md-render-regions (overblock-pydoc--strings)
-                                 'pydoc #'overblock-pydoc--converter-text
+    (overblock-md-render-regions (overblock-pydoc--regions)
+                                 'pydoc #'overblock-pydoc--source
                                  #'overblock-pydoc--show)))
+
+;;;; The edit buffer
 
 (defun overblock-pydoc--put (beg end prose)
   "Write the edited PROSE back into the doc string BEG..END and render it.
 The quotes go back on, and every line but the first is indented to
-the column of the doc string, which undoes `overblock-pydoc--source'."
+the column of the doc string, which undoes `overblock-pydoc--prose'."
   (let* ((text (buffer-substring-no-properties beg end))
          (opened (or (overblock-pydoc--opened-with text) '("" "\"\"\"")))
          (prefix (nth 0 opened))
@@ -479,7 +481,7 @@ and `overblock-edit-abort' discards the edit."
                            (line-number-at-pos (overlay-start block)))
              :label "doc string"
              :mode (overblock-pydoc--mode-for-markup)
-             :text #'overblock-pydoc--source
+             :text #'overblock-pydoc--prose
              :put #'overblock-pydoc--put))
     (user-error "No rendered doc string here")))
 

@@ -160,7 +160,7 @@ a short one after them, which is where redisplay changes lines."
           ;; The blocks are the point of the test.
           (should (= (length (seq-filter
                               (lambda (o) (overblock-get o :parts))
-                              (overblock-in (point-min) (point-max) 'markdown)))
+                              (overblock-in (point-min) (point-max) 'pycell)))
                      3))
           (should (equal (overblock-pycell-scroll-test--stalls) nil))
           ;; One way only from Emacs 30; see
