@@ -979,13 +979,13 @@ than `replace-regexp-in-string', which copies the text twice."
       (substring text 0 (match-beginning 0))
     text))
 
-(defun overblock-run--output-so-far (from)
-  "Return the output of the running region after FROM, cleaned.
-An incomplete escape sequence at the end is dropped: comint-mime
-renders it only when it is complete."
+(defun overblock-run--output-so-far (from &optional end)
+  "Return the output of the running region from FROM to END, cleaned.
+END defaults to the end of the buffer.  An incomplete escape sequence
+at the end is dropped: comint-mime renders it only when it is complete."
   (overblock-run--call :clean
                        (overblock-run--whole-escapes
-                        (buffer-substring from (point-max)))))
+                        (buffer-substring from (or end (point-max))))))
 
 (defun overblock-run--output-head (from)
   "Return as much of the output after FROM as the block can show.
@@ -1026,9 +1026,7 @@ the head is empty: an incomplete escape sequence hides what follows."
                                      t))))
                         (+ from budget)
                       limit))
-             (text (overblock-run--call :clean
-                                        (overblock-run--whole-escapes
-                                         (buffer-substring from limit)))))
+             (text (overblock-run--output-so-far from limit)))
         (when (and (< limit (point-max))
                    (not (string-empty-p text)))
           (setq overblock-run--state (plist-put overblock-run--state :head text)))
