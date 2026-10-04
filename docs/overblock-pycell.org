@@ -1,8 +1,9 @@
 #+TITLE: How overblock-pycell works
 #+OPTIONS: toc:2
 
-This document describes the implementation. The
-[[file:../README.org][README]] tells you how to use the package.
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the implementation.
 
 The text uses these terms:
 
@@ -20,6 +21,145 @@ into a string that a block can show ([[file:overblock-md.org][its
 notes]]). This document is about the part that knows Python. The other
 notebook, [[file:overblock-rmd.org][overblock-rmd]], runs R chunks
 through the same loop.
+
+* Use
+
+** Cells
+
+A bar stands in place of each =# %%= line. The bar shows the name that
+you write after the marker. A cell without a name is /python/. These are
+the buttons of =overblock-pycell-bar-buttons=:
+
+| Button | Command                           | Action                       |
+|--------+-----------------------------------+------------------------------|
+| =⇈=    | =overblock-run-above=             | run each cell above this one |
+| =▷=    | =overblock-run-this=              | run this cell                |
+| =⇊=    | =overblock-run-below=             | run this cell and each below |
+| =⌃=    | =overblock-pycell-move-cell-up=   | move this cell up            |
+| =⌄=    | =overblock-pycell-move-cell-down= | move this cell down          |
+
+A button acts on the cell of its bar. The line under the bar is still
+there. Point can go on it, and the bar follows what you write. Folding
+works from that line.
+
+** Results
+
+The bar of a result shows a spinner and a stopwatch while the cell
+runs. After the run it shows the line count and the time. A cell that
+fails shows =error= on its bar. A cell that printed nothing shows /no
+output/. The bar shows =⚠= when the interpreter stops during the run.
+
+The fold arrow =▾= is at the left of the bar, and the buttons of
+=overblock-pycell-result-buttons= are at the right:
+
+| Button | Command                        | Action                                 |
+|--------+--------------------------------+----------------------------------------|
+| =▾=    | =overblock-run-toggle-output=  | fold or unfold the result              |
+| =□=    | =overblock-run-interrupt=      | interrupt this cell, and stop the pass |
+| =↧=    | =overblock-run-save-image=     | save the image of the result to a file |
+| =◫=    | =overblock-run-copy-output=    | copy the result, with the images       |
+| =↗=    | =overblock-run-pop-output=     | show the full result in its own buffer |
+| =✕=    | =overblock-run-discard-output= | discard the result                     |
+
+The move buttons =⌃= and =⌄= of [[*Cells][Cells]] come after them. The
+interrupt button shows while the cell runs, and the discard button
+when the run has ended.
+
+=overblock-run-pop-output= opens the result in a buffer of its own. A
+table there is a live vtable, so you can sort it with =S=. The buffer
+follows a cell that still runs. =overblock-run-interrupt= and
+=overblock-run-stop= also work in that buffer.
+
+=overblock-run-interrupt= stops the cell and the cells queued after
+it. =overblock-run-stop= lets the cell finish and empties the queue. A
+pass over several cells stops at the first error. At the end of a
+pass, the echo area says =overblock-pycell: done=, or
+=overblock-pycell: stopped at error= after a cell that failed. An
+interrupt says =overblock-pycell: interrupted=, with the number of
+cells it left unrun. A pass that ends with done, and scrolled to its
+end, puts point and the view back where you asked for it. A failed
+cell leaves them on that cell. The interrupt button leaves the view
+where it is. A key that you press in the notebook during a pass gives
+point and the view back. The key then acts there, not at the cell that
+runs, and a stop key does the same. A scroll or a click in the
+notebook moves on from the view you see, and stops the scrolling. A
+cell you ask for while another runs, or while the interpreter starts,
+waits its turn. The echo area then says
+=overblock-pycell: this cell queued=, or =N cells queued= for a pass,
+which counts its markdown cells too.
+
+A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
+=print?=. Such a cell goes to IPython as it is. Its tracebacks count
+lines from the top of the cell. An interpreter without IPython cannot
+run it.
+
+** Commands
+
+| Command                             | Action                                                                         |
+|-------------------------------------+--------------------------------------------------------------------------------|
+| =overblock-pycell-mode=             | turn the mode on or off for a buffer                                           |
+| =overblock-pycell-mode-maybe=       | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
+| =overblock-run-restart=             | restart with the environment of the notebook, and remove the results           |
+| =overblock-run-restart-and-run-all= | restart, then run each cell in order                                           |
+| =overblock-run-above=               | run each cell above this one                                                   |
+| =overblock-run-below=               | run this cell and each cell below it                                           |
+| =overblock-run-stop=                | stop the pass after the cell that runs now                                     |
+| =overblock-run-clear-results=       | remove each result                                                             |
+| =overblock-pycell-render-buffer=    | render each markdown cell that is not rendered                                 |
+| =overblock-pycell-md-render-cell=   | render the markdown cell at point                                              |
+| =overblock-live-edit=               | show the source of the markdown cell at point                                  |
+| =overblock-pycell-md-edit=          | edit the markdown cell in its own buffer                                       |
+| =overblock-md-follow-link=          | follow a link of the rendered cell                                             |
+
+The package binds only the mouse on its bars and blocks. These keymaps
+bind no key, so you can bind your own. The edit buffer of a markdown
+cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
+
+| Map                         | Where it answers                   |
+|-----------------------------+------------------------------------|
+| =overblock-pycell-mode-map= | the notebook, while the mode is on |
+| =overblock-run-result-map=  | inside a cell that shows a result  |
+| =overblock-run-pop-map=     | a result in its own buffer         |
+| =overblock-pycell-md-map=   | a rendered markdown cell           |
+
+The parent of =overblock-run-pop-map= is =special-mode-map=, so =q=
+quits the buffer of a result. As for the [[file:overblock.org::*Change the buttons][buttons]], put
+the keys in the =:config= of the package.
+
+#+begin_src emacs-lisp
+  (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
+  (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-run-stop)
+  (keymap-set overblock-run-pop-map "i" #'overblock-run-interrupt)
+  ;; TAB at the end of a cell folds its result, and does its usual work
+  ;; elsewhere.
+  (keymap-set overblock-run-result-map "TAB"
+              '(menu-item "" overblock-run-toggle-output
+                          :filter overblock-run-tab-filter))
+#+end_src
+
+** Options
+
+| Option                            | Default       | Meaning                                    |
+|-----------------------------------+---------------+--------------------------------------------|
+| =overblock-pycell-result-buttons= | seven buttons | the buttons on the bar of a result         |
+| =overblock-pycell-bar-buttons=    | five buttons  | the buttons on the bar of a code cell      |
+| =overblock-pycell-md-buttons=     | three buttons | the buttons on a rendered markdown cell    |
+| =overblock-pycell-source-buttons= | three buttons | the buttons on an unrendered markdown cell |
+
+For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]]. The result
+limits are the options of [[file:overblock.org::*Options, faces and buttons][overblock]].
+
+** Comparison with other packages
+
+- [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] uses the
+  Jupyter protocol and the =zmq= module, with kernels for many
+  languages. =overblock-pycell= uses the Python interpreter of
+  =python.el=.
+- [[https://github.com/astoff/code-cells.el][code-cells]] gives the
+  cells and the commands. =overblock-pycell= adds the output.
+- [[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits
+  =.ipynb= files. =overblock-pycell= edits plain Python files, which
+  are easy to diff.
 
 * How a result gets into the buffer
 
@@ -213,9 +353,22 @@ not know =get_ipython=.
 
 * Markdown cells
 
-A cell with the marker =# %% [markdown]= renders in place. The
-rendering is on the source lines, one piece for each line. Thus a cell
-has a height in lines and moves as normal text.
+A cell with the marker =# %% [markdown]= renders in place. Its bar
+shows /markdown/ and the buttons of =overblock-pycell-md-buttons=. =✎=
+edits the cell in its own buffer. The move buttons =⌃= and =⌄= come
+after it.
+A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
+other text, =mouse-1= shows the source, and =mouse-2= opens the edit
+buffer. =overblock-md-follow-link= opens a link from the keyboard.
+
+A markdown cell that shows its source has a bar with the buttons of
+=overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
+
+The Markdown features are those of
+[[file:overblock-md.org][overblock-md]].
+
+The rendering is on the source lines, one piece for each line. Thus a
+cell has a height in lines and moves as normal text.
 
 The cell keeps the height of its source, or becomes shorter. A table of
 three lines can render as one line, and the spare lines go under a
@@ -250,6 +403,11 @@ block with an image is harder to scroll through. The reasons are in
 A rendered markdown cell makes each scroll event more expensive. The
 cost comes from the face runs and not from the height. Turn the mode
 off to get the plain source and the speed back.
+
+* Known limits
+
+The last cell of a notebook gets a final newline if it has none. This
+is the only change =overblock-pycell= makes to the text.
 
 * The tests
 

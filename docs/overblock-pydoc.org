@@ -1,8 +1,9 @@
 #+TITLE: How overblock-pydoc works
 #+OPTIONS: toc:2
 
-This document describes the implementation. The
-[[file:../README.org][README]] tells you how to use the package. Two
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the implementation. Two
 packages of this repository do the work that is not Python. overblock
 puts a block on the screen ([[file:overblock.org][its notes]]), and
 overblock-md turns markup into a string that a block can show
@@ -13,6 +14,48 @@ which regions, what to render them with, and when. This file holds the
 first two, and the rows that a rendering is drawn on. The mode starts
 its cycle with KEEP, so point that moves into a rendering changes
 nothing.
+
+* Use
+
+** Commands and options
+
+| Command                         | Action                                |
+|---------------------------------+---------------------------------------|
+| =overblock-pydoc-mode=          | turn the rendering on or off          |
+| =overblock-pydoc-render-buffer= | render what is not rendered yet       |
+| =overblock-pydoc-edit=          | edit the doc string in its own buffer |
+| =overblock-live-edit=           | show the source of one doc string     |
+
+=overblock-pydoc-edit= opens the prose without the quotes and the
+indentation. =C-c C-c= (=overblock-edit-commit=) writes it back, and
+=C-c C-k= (=overblock-edit-abort=) discards it. The commit puts the
+closing quotes of a doc string with several lines on a line of their
+own, as PEP 257 says.
+
+=overblock-live-map= holds only the click, as in the Markdown preview.
+
+| Option                        | Default                       | Meaning                                |
+|-------------------------------+-------------------------------+----------------------------------------|
+| =overblock-pydoc-markup=      | =markdown=                    | the markup of the doc strings          |
+| =overblock-pydoc-command=     | a =pandoc= command per markup | the shell command for a doc string     |
+| =overblock-pydoc-modes=       | =rst-mode=, =markdown-mode=   | the major mode of the edit buffer      |
+| =overblock-pydoc-bar-buttons= | one edit button               | the buttons on the bar of a doc string |
+
+=overblock-pydoc-markup= selects the command and the edit mode. The
+default is Markdown, as in a numpy style doc string that mkdocstrings
+reads. A Sphinx project writes reStructuredText. Set the markup for
+such a project in =.dir-locals.el=:
+
+#+begin_src emacs-lisp
+  ;;; .dir-locals.el
+  ((python-base-mode . ((overblock-pydoc-markup . rst))))
+#+end_src
+
+The face =overblock-pydoc-footer= draws the rule under a doc string.
+Change it with =set-face-attribute=, as for the faces of
+[[file:overblock.org::*Faces][overblock]].
+
+For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]].
 
 * Which strings are documentation
 
@@ -185,6 +228,11 @@ The =:set= of =overblock-pydoc-bar-buttons= is
 =overblock-live-set-and-redraw=. When you set the option with =setopt=,
 the renderings of each live buffer come down and render again with the
 new bars.
+
+* Known limits
+
+At a text scale of -2 or below, the bar of a doc string can run a few
+pixels past the edge of the window.
 
 * The tests
 

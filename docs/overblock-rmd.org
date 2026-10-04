@@ -1,8 +1,9 @@
 #+TITLE: How overblock-rmd works
 #+OPTIONS: toc:2
 
-This document describes the implementation. The
-[[file:../README.org][README]] tells you how to use the package.
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the implementation.
 
 The text uses these terms:
 
@@ -19,6 +20,78 @@ buffer ([[file:overblock-md.org][its notes]]). This document is about
 the part that knows R and Rmd. The other notebook,
 [[file:overblock-pycell.org][overblock-pycell]], runs Python cells
 through the same loop.
+
+* Use
+
+** Chunks
+
+A bar stands in place of the fence line of each =```{r}= chunk. The bar
+shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
+shows /plot-one/. The bar has the buttons of
+=overblock-rmd-bar-buttons=. =⇈= runs each chunk above this one, and
+=▷= runs this chunk. =⇊= runs this chunk and each one below it. Like
+knitr, a pass
+skips a chunk with =eval=FALSE= or =#| eval: false=. =▷= still runs it.
+
+The closing fence is hidden, and the file does not change. A chunk of
+another engine, such as =```{python}=, stays as it is. The bars show
+when you stop typing.
+
+** Results
+
+A result works as in [[file:overblock-pycell.org::*Results][overblock-pycell]]: the same bar, the
+same pop-out buffer and the same commands. =overblock-rmd-result-buttons=
+holds the first five buttons of a Python result: stop, save, copy, pop
+and discard.
+
+A chunk that plots shows its figure under the output. The size comes
+from =fig.width=, =fig.height= and =dpi= in the chunk header, as with
+knitr. Each must be a plain number. A chunk without them uses
+=overblock-rmd-figure-size= at 96 dots per inch.
+
+A chunk goes to R as one statement. Thus a syntax error names =<text>=
+and counts lines from the top of the chunk.
+
+An interrupt stops the pass, and the result keeps what the chunk printed
+before it.
+
+** Commands and options
+
+| Command                             | Action                                                    |
+|-------------------------------------+-----------------------------------------------------------|
+| =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
+| =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
+| =overblock-run-this=                | run the chunk at point                                    |
+| =overblock-run-and-step=            | run the chunk at point, and move to the next              |
+| =overblock-run-forward=             | move to the next chunk                                    |
+| =overblock-run-backward=            | move to the previous chunk                                |
+| =overblock-run-restart=             | restart R, and remove the results                         |
+| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
+| =overblock-live-edit=               | show the source of the prose at point                     |
+| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                 |
+
+The commands of a result and of a pass are those of
+[[file:overblock-pycell.org::*Results][overblock-pycell]].
+
+The package binds only the mouse on its bars and blocks.
+=overblock-rmd-mode-map= answers in the buffer, and
+=overblock-run-result-map= in a chunk with a result. Both are empty.
+Put the keys in the =:config= of the package:
+
+#+begin_src emacs-lisp
+  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-run-this)
+  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-run-and-step)
+  (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
+  (keymap-set overblock-rmd-mode-map "C-c C-q" #'overblock-run-stop)
+#+end_src
+
+| Option                         | Default   | Meaning                                     |
+|--------------------------------+-----------+---------------------------------------------|
+| =overblock-rmd-figure-size=    | =(7 . 5)= | the width and height of a figure, in inches |
+| =overblock-rmd-bar-buttons=    | three     | the buttons on the bar of a chunk           |
+| =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
+
+For the button format, see [[file:overblock.org::*Change the buttons][Change the buttons]].
 
 * Composed, not copied
 
@@ -254,6 +327,15 @@ clear that names a kind cannot sweep an orphan, because an orphan has
 no kind. Thus =overblock-run-clear-results= calls
 =overblock-sweep-orphans= after the clear. Without it, the cloak of a
 lost block could keep lines of the buffer invisible.
+
+* Known limits
+
+- Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
+  not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
+- In an =.Rmd= file an HTML comment is no block of its own, because a
+  chunk inside it still runs. A paragraph with blank lines above and
+  below it in a comment shows as text. Keep a comment in an Rmd file to
+  one paragraph.
 
 * The tests
 

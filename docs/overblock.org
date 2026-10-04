@@ -2,9 +2,10 @@
 #+OPTIONS: toc:2
 
 This document describes the API and the implementation of the layer.
-The [[file:../README.org][README]] tells you how to install and use
-the packages. The four packages on this layer have notes of their own:
-[[file:overblock-md.org][overblock-md]],
+The [[file:../README.org][README]] tells you how to install the
+packages. [[*Options, faces and buttons][Options, faces and buttons]]
+tells how to change them. The four packages on this layer have notes
+of their own: [[file:overblock-md.org][overblock-md]],
 [[file:overblock-pydoc.org][overblock-pydoc]],
 [[file:overblock-pycell.org][overblock-pycell]] and
 [[file:overblock-rmd.org][overblock-rmd]].
@@ -22,6 +23,54 @@ The text uses these terms:
 - *notebook*: a buffer of regions and a shell to send them to. Two of
   the packages here are notebooks, and =overblock-run.el= is the loop
   they share.
+
+* Options, faces and buttons
+
+These options apply to every package of the repository.
+
+| Option                          | Default | Meaning                                          |
+|---------------------------------+---------+--------------------------------------------------|
+| =overblock-image-height=        |     0.8 | the share of the window for an inline image      |
+| =overblock-terminal-glyphs=     |     nil | whether this terminal draws the icon glyphs      |
+| =overblock-live-idle=           |     0.2 | the seconds of quiet before a mode renders again |
+| =overblock-run-max-lines=       |      12 | the result lines that show inline                |
+| =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
+| =overblock-run-scroll=          |       t | a pass scrolls until you type, scroll or click   |
+
+A block that is taller than the window stops the wheel. Thus
+=overblock-image-height= caps an inline image. Zero shows an image at
+its own size, or at the size its tag gives. The two result limits
+apply to every notebook, and zero shows all. Set the options with
+=setopt=. A change of a result limit draws the results on the screen
+again at once. A change of =overblock-image-height= or
+=overblock-terminal-glyphs= applies to the next block that a mode
+draws.
+
+** Faces
+
+The face =overblock-bar= draws each bar, and =overblock-body= draws the
+body of a result. Change a face with =set-face-attribute=:
+
+#+begin_src emacs-lisp
+  (set-face-attribute 'overblock-bar nil :overline nil)
+#+end_src
+
+** Change the buttons
+
+Each mode puts bars with buttons on the screen, and an option of the
+mode holds the buttons. [[*Buttons][Buttons]] tells the shape of an
+entry. This example removes the discard button of a notebook result:
+
+#+begin_src emacs-lisp
+  (setopt overblock-pycell-result-buttons
+          (seq-remove (lambda (b) (eq (car b) 'discard))
+                      overblock-pycell-result-buttons))
+#+end_src
+
+Put such forms in the =:config= of the =use-package= form of the
+package. At startup the package is not loaded yet, and its variables
+do not exist. Use =setopt= and not =setq=. With =setopt=, the bars of
+every open buffer change at once.
 
 * The block layer
 
@@ -91,10 +140,10 @@ An outline fold takes the renderings over its region along. While a
 live cycle is on, =overblock--fold= advises =outline-flag-region=: a
 block with =:over= in the region is =:hidden=, and shows again when
 the fold opens. A block after its region, such as a result, is not
-touched. While a notebook is on, the runner cuts a fold that ends at
-the newline of a result back to the line before the result
-(=overblock-run--keep-result-newline=). It does the same when a new
-result comes under a fold. Thus a folded cell shows its
+touched. While a notebook is on, the runner cuts back a fold that ends
+at the newline of a result (=overblock-run--keep-result-newline=). The
+fold then ends at the line before the result. The runner does the same
+when a new result comes under a fold. Thus a folded cell shows its
 whole result under its heading, with the fold button of the result. A
 result in the middle of a fold, such as a chunk under a folded
 section, goes under the fold.
@@ -188,7 +237,7 @@ cuts the text out from under a block.
 =overblock-image-height= caps an inline image at a share of the
 window. A block taller than the window stops the wheel, which goes back
 and starts again. An image with its own =:max-height= keeps it. A
-=:height= wins over =:max-height= in Emacs, so the layer brings an
+=:height= wins over =:max-height= in Emacs. Thus the layer brings an
 image with a =:height= over the limit down to it, and its =:width= in
 proportion.
 
@@ -491,15 +540,15 @@ Where =:error-p= says that the region failed, the bar of its result
 says =error=, and a pass stops. =overblock-run-this= sends the
 =:code-at= of the region, and sends nothing where it is nil.
 
-=overblock-run--bars= goes to each start and calls =:bar=, which draws
-the bars of the region that starts there and returns them, an overlay
-or a list. Each other bar of the buffer goes. A notebook draws its bars
-through a live cycle of the kind =bar=, which =overblock-run-attach=
-starts. Thus the bars follow an edit when the reader stops. An idle
-timer and not =jit-lock= draws them: an error in another jit-lock
-function, such as a =python-ts-mode= grammar that does not match,
-stops the rest. An error in another live cycle does not stop the bars
-either.
+=overblock-run--bars= goes to each start and calls =:bar=. =:bar=
+draws the bars of the region that starts there, and returns them as an
+overlay or a list. Each other bar of the buffer goes. A notebook draws
+its bars through a live cycle of the kind =bar=, which
+=overblock-run-attach= starts. Thus the bars follow an edit when the
+reader stops. An idle timer draws them, not =jit-lock=. In =jit-lock=,
+an error in another function stops the rest, for example a
+=python-ts-mode= grammar that does not match. An error in another live
+cycle does not stop the bars either.
 
 =:buttons= names an option and does not copy its value. Thus a button
 list that the reader changes shows at the next draw. The bar wears the
@@ -569,8 +618,9 @@ region that waits, or a pass that no longer scrolls. Where the home of
 that pass is in the same notebook, the new request takes the home
 over. Then a pass scrolls.
 
-Before each key of the reader, point and the view go back to the home,
-so the key acts where the reader was and not at the region that runs.
+Before each key of the reader, point and the view go back to the home.
+Thus the key acts where the reader was, and not at the region that
+runs.
 A scroll command or a mouse event moves on from the view the reader
 sees: a click sets point itself. A mouse yank at point, with
 =mouse-yank-at-point=, counts as a key. The scrolling stops at the
@@ -586,8 +636,8 @@ windows alone, to its end.
 At its end, the pass says =NAME: done=, with the =:name= of the
 backend. A failed region ends the pass with =NAME: stopped at error=.
 A single region sent to a free shell says neither message. A region
-that waited on the queue, behind a busy shell or a starting
-interpreter, also ends its pass with =NAME: done=, or =NAME: stopped
+can wait on the queue, behind a busy shell or a starting interpreter.
+Such a region also ends its pass with =NAME: done=, or =NAME: stopped
 at error=. The home marker is in the shell buffer too, and is set when
 the shell exists.
 
@@ -627,11 +677,14 @@ running header with a still spinner and stopwatch.
 
 A body is one buffer line, because it is one display string.
 =next-line= and =previous-line= cross it in one step. A window can
-start only at a buffer position.
+start only at a buffer position. A text shown over a region keeps its
+lines, and moves as normal text.
 
 A body with an image is on the after-string of the anchor, and a window
 cannot start inside an overlay string. Thus:
 
+- The wheel is less smooth through a block with an image than through
+  a block of text.
 - The wheel does not cross the block the same way in both directions.
   A block with an image ends lower than it started after a series of
   crossings.
@@ -644,15 +697,19 @@ cannot start inside an overlay string. Thus:
 Two scroll settings matter. Without =pixel-scroll-precision-mode=, the
 wheel crosses a block in one step. With =scroll-conservatively= above
 100, redisplay must not recenter, and two blocks taller than the window
-can pass the window between them with no end. A =scroll-margin= of 1 or
-more also stops this.
+can pass the window between them with no end. Keep it at 100 or below.
+A =scroll-margin= of 1 or more also stops this.
+
+On Emacs 29, the wheel can move the window back a little after a block
+taller than the window. Emacs 30 does not do this.
 
 ** The cost of a rendering
 
 A rendering makes each scroll event more expensive. The cost comes
 from the face runs and not from the height. Rendered markup holds
 several hundred face runs in a line, and source code holds a few. Plain
-text of many lines scrolls as fast as none.
+text of many lines scrolls as fast as none. Turn the mode off to get
+the speed back.
 
 * What the hot paths do
 
@@ -667,10 +724,25 @@ text of many lines scrolls as fast as none.
 - =overblock-repl-first-lines= and =overblock-repl-count-lines= are
   bounded.
 - =overblock-cached= keeps the answer of a walk of the whole buffer
-  until the text or the narrowing changes. The doc strings of a Python
-  buffer, the chunks of an Rmd file and the link definitions of a
-  Markdown buffer are kept so, because the live cycle asks on each
-  command.
+  until the text or the narrowing changes. The live cycle asks on each
+  command. Thus the doc strings of a Python buffer, the chunks of an
+  Rmd file and the link definitions of a Markdown buffer are kept so.
+
+* Known limits
+
+These limits apply to each package. The notes of each package list
+its own limits.
+
+- A bar is cut to the narrowest window that shows its buffer. A narrow
+  side window beside a wide one cuts each label in both.
+- The wheel and the scroll commands have limits near a block. See
+  [[*Scrolling][Scrolling]].
+- One region runs at a time for each interpreter. A region sent while
+  another runs, or while the interpreter starts, waits in the queue.
+- A table in a result is a copy with the columns as plain text. Thus
+  the header can stand one column left of its data, and you cannot
+  sort the copy. Sort the table in the buffer of
+  =overblock-run-pop-output=.
 
 * The tests
 

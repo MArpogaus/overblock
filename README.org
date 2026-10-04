@@ -85,72 +85,11 @@ shows nothing by itself, so install it when another package needs it:
                                "overblock-run.el")))
 #+end_src
 
-The API for a package that shows blocks is in
-[[file:docs/overblock.org][docs/overblock.org]].
+[[file:docs/overblock.org::*Options, faces and buttons][Options, faces and buttons]]
+tells how to change what every package shows. The API for a package
+that shows blocks is in [[file:docs/overblock.org][docs/overblock.org]].
 [[file:docs/custom-mode.org][docs/custom-mode.org]] tells how to write a
 mode of your own, with two small example modes.
-
-*** Options
-
-These options apply to every package of the repository.
-
-| Option                          | Default | Meaning                                          |
-|---------------------------------+---------+--------------------------------------------------|
-| =overblock-image-height=        |     0.8 | the share of the window for an inline image      |
-| =overblock-terminal-glyphs=     |     nil | whether this terminal draws the icon glyphs      |
-| =overblock-live-idle=           |     0.2 | the seconds of quiet before a mode renders again |
-| =overblock-run-max-lines=       |      12 | the result lines that show inline                |
-| =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
-| =overblock-run-scroll=          |       t | a pass scrolls until you type, scroll or click   |
-
-A block that is taller than the window stops the wheel. Thus
-=overblock-image-height= caps an inline image. Zero shows an image at
-its own size, or at the size its tag gives. The two result limits
-apply to every notebook, and zero shows all. Set the options with
-=setopt=. A change of a result limit draws the results on the screen
-again at once. A change of =overblock-image-height= or
-=overblock-terminal-glyphs= applies to the next block that a mode
-draws.
-
-*** Faces
-
-The face =overblock-bar= draws each bar, and =overblock-body= draws the
-body of a result. Change a face with =set-face-attribute=:
-
-#+begin_src emacs-lisp
-  (set-face-attribute 'overblock-bar nil :overline nil)
-#+end_src
-
-*** Buttons
-
-Each mode puts bars with buttons on the screen, and an option of the
-mode holds the buttons. Each entry of such an option is
-=(KEY GLYPHS HELP COMMAND WHEN)=:
-
-- KEY names the entry.
-- GLYPHS is a list of labels. The frame shows the first label that it
-  can draw. Keep a plain word at the end, because each frame can draw
-  the last label.
-- HELP is the tooltip, and COMMAND runs on a click.
-- WHEN says when the button shows. =t= shows it always, =image= with an
-  image and =lines= with output. =running= shows it while the region
-  runs, and =done= when the run has ended.
-
-The first label of each button is a codicon from a nerd font. A
-terminal shows the last label, unless =overblock-terminal-glyphs= is
-=t=. This example removes the discard button of a notebook result.
-Put such forms in the =:config= of the =use-package= form of the
-package: at startup the package is not loaded yet, and its variables
-do not exist.
-
-#+begin_src emacs-lisp
-  (setopt overblock-pycell-result-buttons
-          (seq-remove (lambda (b) (eq (car b) 'discard))
-                      overblock-pycell-result-buttons))
-#+end_src
-
-Use =setopt= and not =setq=. With =setopt=, the bars of every open
-buffer change at once.
 
 ** overblock-md: markup rendered to text
 
@@ -177,76 +116,9 @@ The hook turns the preview on in each Markdown buffer. Without the
 hook, use =M-x overblock-md-preview-mode=. The mode works only in a
 buffer whose major mode derives from =markdown-mode=.
 
-*** Markdown preview
-
-The unit of the preview is a Markdown block. A block is the front
-matter at the top of the file, a fenced code block, an HTML comment at
-the left margin that comes after a blank line, a heading line or a
-fence line, or the run of lines between two blank lines or fences. In
-a Markdown file a comment that holds a blank line is a block of its
-own. A fence indented under a list item is part of that item. A click on a rendered block shows its source, and a click on a
-link opens the link. A URL with a scheme opens in the browser. A
-relative path opens its file, and =#slug= moves to its heading, as on
-GitHub.
-Edit the source, and the block renders again when point leaves it. A
-marked region also shows its source, so you copy or cut the source.
-
-A fenced block that names its language, such as =```python=, gets the
-font lock of that language. A local image shows in the buffer. An image
-with a URL is fetched once and kept in the folder =overblock-images/=
-of the XDG cache folder, =~/.cache= by default. =mouse-1= and =mouse-2=
-both open a rendered link.
-
-A formula renders in the buffer that shows it. Thus a LaTeX preamble
-that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
-formula that fails stays text.
-
-*** Documentation from a language server
-
-eglot can render the documentation of a language server with this
-package:
-
-#+begin_src emacs-lisp
-  (setopt eglot-documentation-renderer #'overblock-md-eglot-renderer)
-#+end_src
-
-Then a hover shows tables in columns, the signature in the colours of
-its language, and formulas as images. This applies wherever eldoc shows
-the text. =eglot-documentation-renderer= needs eglot 1.24 or later,
-which Emacs 31 includes and GNU ELPA has for older Emacs versions.
-
-*** Commands and options
-
-| Command                              | Action                                      |
-|--------------------------------------+---------------------------------------------|
-| =overblock-md-preview-mode=          | turn the preview on or off                  |
-| =overblock-md-preview-render-buffer= | render what is not rendered yet             |
-| =overblock-md-forget-failed-images=  | try again the images that could not be read |
-| =overblock-live-edit=                | show the source of the block at point       |
-
-=overblock-live-map= holds only the click, for your own keys. The doc
-strings and the prose of an Rmd file use the same map.
-
-| Option                       | Default                        | Meaning                                 |
-|------------------------------+--------------------------------+-----------------------------------------|
-| =overblock-md-command=       | =pandoc=, then four candidates | the shell command from Markdown to HTML |
-| =overblock-md-remote-images= | =t=                            | whether to fetch an image named by URL  |
-| =overblock-md-code-modes=    | ten language names             | the major mode for a fenced block       |
-| =overblock-md-eldoc-width=   | 72                             | the columns of a language server's text |
-
-=overblock-md-command= is one shell command, or a list of candidates.
-[[#prerequisites][Prerequisites]] gives the default list.
-
-=overblock-md-code-modes= maps the language names that do not spell
-their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
-=LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
-face =overblock-md-code=.
-
-The face =overblock-md-code= draws inline code. Change it with
-=set-face-attribute=, as for the faces of [[#faces][overblock]].
-
-The details of the renderer are in
-[[file:docs/overblock-md.org][docs/overblock-md.org]].
+[[file:docs/overblock-md.org::*Use][Use]] in docs/overblock-md.org
+tells the commands and the options. It also tells how eglot shows the
+documentation of a language server with this package.
 
 ** overblock-pydoc: Python doc strings
 
@@ -275,46 +147,9 @@ the =:hook= of overblock-md where the preview is not wanted.
 Turn the mode on with =M-x overblock-pydoc-mode=. To turn it on in each
 Python buffer, add it to =python-base-mode-hook=.
 
-*** Commands and options
-
-| Command                         | Action                                |
-|---------------------------------+---------------------------------------|
-| =overblock-pydoc-mode=          | turn the rendering on or off          |
-| =overblock-pydoc-render-buffer= | render what is not rendered yet       |
-| =overblock-pydoc-edit=          | edit the doc string in its own buffer |
-| =overblock-live-edit=           | show the source of one doc string     |
-
-=overblock-pydoc-edit= opens the prose without the quotes and the
-indentation. =C-c C-c= (=overblock-edit-commit=) writes it back, and
-=C-c C-k= (=overblock-edit-abort=) discards it. The commit puts the
-closing quotes of a doc string with several lines on a line of their
-own, as PEP 257 says.
-
-=overblock-live-map= holds only the click, as in the Markdown preview.
-
-| Option                        | Default                       | Meaning                                |
-|-------------------------------+-------------------------------+----------------------------------------|
-| =overblock-pydoc-markup=      | =markdown=                    | the markup of the doc strings          |
-| =overblock-pydoc-command=     | a =pandoc= command per markup | the shell command for a doc string     |
-| =overblock-pydoc-modes=       | =rst-mode=, =markdown-mode=   | the major mode of the edit buffer      |
-| =overblock-pydoc-bar-buttons= | one edit button               | the buttons on the bar of a doc string |
-
-=overblock-pydoc-markup= selects the command and the edit mode. The
-default is Markdown, as in a numpy style doc string that mkdocstrings
-reads. A Sphinx project writes reStructuredText. Set the markup for
-such a project in =.dir-locals.el=:
-
-#+begin_src emacs-lisp
-  ;;; .dir-locals.el
-  ((python-base-mode . ((overblock-pydoc-markup . rst))))
-#+end_src
-
-The face =overblock-pydoc-footer= draws the rule under a doc string.
-Change it with =set-face-attribute=, as for the faces of
-[[#faces][overblock]].
-
-For the button format, see [[#buttons][Buttons]]. The details are in
-[[file:docs/overblock-pydoc.org][docs/overblock-pydoc.org]].
+[[file:docs/overblock-pydoc.org::*Use][Use]] in
+docs/overblock-pydoc.org tells the commands, the options and the
+markup of a project.
 
 ** overblock-pycell: Python notebook cells
 
@@ -361,161 +196,10 @@ Open a Python file with =# %%= cells, and run a cell with
 =overblock-pycell-mode= off, and the blocks go. Then =code-cells-eval=
 uses =python-shell-send-region= again.
 
-*** Cells
-
-A bar stands in place of each =# %%= line. The bar shows the name that
-you write after the marker. A cell without a name is /python/. These are
-the buttons of =overblock-pycell-bar-buttons=:
-
-| Button | Command                           | Action                       |
-|--------+-----------------------------------+------------------------------|
-| =⇈=    | =overblock-run-above=             | run each cell above this one |
-| =▷=    | =overblock-run-this=              | run this cell                |
-| =⇊=    | =overblock-run-below=             | run this cell and each below |
-| =⌃=    | =overblock-pycell-move-cell-up=   | move this cell up            |
-| =⌄=    | =overblock-pycell-move-cell-down= | move this cell down          |
-
-A button acts on the cell of its bar. The line under the bar is still
-there. Point can go on it, and the bar follows what you write. Folding
-works from that line.
-
-*** Results
-
-The bar of a result shows a spinner and a stopwatch while the cell
-runs. After the run it shows the line count and the time. A cell that
-fails shows =error= on its bar. A cell that printed nothing shows /no
-output/. The bar shows =⚠= when the interpreter stops during the run.
-
-The fold arrow =▾= is at the left of the bar, and the buttons of
-=overblock-pycell-result-buttons= are at the right:
-
-| Button | Command                        | Action                                 |
-|--------+--------------------------------+----------------------------------------|
-| =▾=    | =overblock-run-toggle-output=  | fold or unfold the result              |
-| =□=    | =overblock-run-interrupt=      | interrupt this cell, and stop the pass |
-| =↧=    | =overblock-run-save-image=     | save the image of the result to a file |
-| =◫=    | =overblock-run-copy-output=    | copy the result, with the images       |
-| =↗=    | =overblock-run-pop-output=     | show the full result in its own buffer |
-| =✕=    | =overblock-run-discard-output= | discard the result                     |
-
-The move buttons =⌃= and =⌄= of [[#cells][Cells]] come after them. The
-interrupt button shows while the cell runs, and the discard button
-when the run has ended.
-
-=overblock-run-pop-output= opens the result in a buffer of its own. A
-table there is a live vtable, so you can sort it with =S=. The buffer
-follows a cell that still runs. =overblock-run-interrupt= and
-=overblock-run-stop= also work in that buffer.
-
-=overblock-run-interrupt= stops the cell and the cells queued after
-it. =overblock-run-stop= lets the cell finish and empties the queue. A
-pass over several cells stops at the first error. At the end of a
-pass, the echo area says =overblock-pycell: done=, or
-=overblock-pycell: stopped at error= after a cell that failed. An
-interrupt says =overblock-pycell: interrupted=, with the number of
-cells it left unrun. A pass that ends with done, and scrolled to
-its end, puts point and the view back where you asked for it. A failed
-cell leaves them on that cell. The interrupt button leaves the view
-where it is. A key you press in the notebook during a pass, a stop key
-too, gives point and the view back and acts there, not at the cell
-that runs. A scroll or a click in the notebook moves on from the view
-you see, and stops the scrolling. A cell you ask for while another
-runs, or while the interpreter starts, waits its turn. The echo area
-then says =overblock-pycell: this cell queued=, or =N cells queued=
-for a pass, which counts its markdown cells too.
-
-A cell can hold IPython syntax, such as =%matplotlib inline=, =!ls= or
-=print?=. Such a cell goes to IPython as it is. Its tracebacks count
-lines from the top of the cell. An interpreter without IPython cannot
-run it.
-
-*** Markdown cells
-
-A cell with the marker =# %% [markdown]= renders in place. Its bar shows
-/markdown/ and the buttons of =overblock-pycell-md-buttons=. =✎= edits
-the cell in its own buffer. The move buttons =⌃= and =⌄= come after it.
-A click (=mouse-1= or =mouse-2=) on a rendered link opens it. On
-other text, =mouse-1= shows the source, and =mouse-2= opens the edit
-buffer. =overblock-md-follow-link= opens a link from the keyboard.
-
-A markdown cell that shows its source has a bar with the buttons of
-=overblock-pycell-source-buttons=. Its =⟳= button renders the cell.
-
-The Markdown features are those of
-[[#overblock-md-markup-rendered-to-text][overblock-md]].
-
-*** Commands
-
-| Command                             | Action                                                                         |
-|-------------------------------------+--------------------------------------------------------------------------------|
-| =overblock-pycell-mode=             | turn the mode on or off for a buffer                                           |
-| =overblock-pycell-mode-maybe=       | a hook function: the same, in a Python buffer only, for =code-cells-mode-hook= |
-| =overblock-run-restart=             | restart with the environment of the notebook, and remove the results           |
-| =overblock-run-restart-and-run-all= | restart, then run each cell in order                                           |
-| =overblock-run-above=               | run each cell above this one                                                   |
-| =overblock-run-below=               | run this cell and each cell below it                                           |
-| =overblock-run-stop=                | stop the pass after the cell that runs now                                     |
-| =overblock-run-clear-results=       | remove each result                                                             |
-| =overblock-pycell-render-buffer=    | render each markdown cell that is not rendered                                 |
-| =overblock-pycell-md-render-cell=   | render the markdown cell at point                                              |
-| =overblock-live-edit=               | show the source of the markdown cell at point                                  |
-| =overblock-pycell-md-edit=          | edit the markdown cell in its own buffer                                       |
-| =overblock-md-follow-link=          | follow a link of the rendered cell                                             |
-
-
-
-The package binds only the mouse on its bars and blocks. These keymaps
-bind no key, so you can bind your own. The edit buffer of a markdown
-cell uses =overblock-edit-mode-map=, with =C-c C-c= and =C-c C-k=.
-
-| Map                         | Where it answers                   |
-|-----------------------------+------------------------------------|
-| =overblock-pycell-mode-map= | the notebook, while the mode is on |
-| =overblock-run-result-map=  | inside a cell that shows a result  |
-| =overblock-run-pop-map=     | a result in its own buffer         |
-| =overblock-pycell-md-map=   | a rendered markdown cell           |
-
-The parent of =overblock-run-pop-map= is =special-mode-map=, so =q=
-quits the buffer of a result. As for the [[#buttons][buttons]], put the
-keys in the =:config= of the package.
-
-#+begin_src emacs-lisp
-  (keymap-set overblock-pycell-mode-map "C-c C-k" #'overblock-run-interrupt)
-  (keymap-set overblock-pycell-mode-map "C-c C-q" #'overblock-run-stop)
-  (keymap-set overblock-run-pop-map "i" #'overblock-run-interrupt)
-  ;; TAB at the end of a cell folds its result, and does its usual work
-  ;; elsewhere.
-  (keymap-set overblock-run-result-map "TAB"
-              '(menu-item "" overblock-run-toggle-output
-                          :filter overblock-run-tab-filter))
-#+end_src
-
-*** Options
-
-| Option                            | Default       | Meaning                                    |
-|-----------------------------------+---------------+--------------------------------------------|
-| =overblock-pycell-result-buttons= | seven buttons | the buttons on the bar of a result         |
-| =overblock-pycell-bar-buttons=    | five buttons  | the buttons on the bar of a code cell      |
-| =overblock-pycell-md-buttons=     | three buttons | the buttons on a rendered markdown cell    |
-| =overblock-pycell-source-buttons= | three buttons | the buttons on an unrendered markdown cell |
-
-For the button format, see [[#buttons][Buttons]]. The result limits are
-the options of [[#overblock-the-block-layer][overblock]].
-
-*** Comparison with other packages
-
-- [[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] uses the
-  Jupyter protocol and the =zmq= module, with kernels for many
-  languages. =overblock-pycell= uses the Python interpreter of
-  =python.el=.
-- [[https://github.com/astoff/code-cells.el][code-cells]] gives the
-  cells and the commands. =overblock-pycell= adds the output.
-- [[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits
-  =.ipynb= files. =overblock-pycell= edits plain Python files, which
-  are easy to diff.
-
-The details are in
-[[file:docs/overblock-pycell.org][docs/overblock-pycell.org]].
+Click =▷= on the bar of a cell to run it.
+[[file:docs/overblock-pycell.org::*Use][Use]] in
+docs/overblock-pycell.org tells the buttons, the commands, the keymaps
+and the options.
 
 ** overblock-rmd: R chunks in an Rmd file
 
@@ -546,77 +230,12 @@ Without use-package, add =("\\.[rR]md\\'" . markdown-mode)= to
 =overblock-rmd-mode-maybe= turns the mode on in a buffer whose file ends
 in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode works
 only in a buffer whose major mode derives from =markdown-mode=. It
-turns =overblock-md-preview-mode= off, because it renders the prose itself.
+turns =overblock-md-preview-mode= off, because it renders the prose
+itself.
 
-*** Chunks
-
-A bar stands in place of the fence line of each =```{r}= chunk. The bar
-shows the chunk name that knitr reads, so =```{r plot-one, echo=FALSE}=
-shows /plot-one/. The buttons of =overblock-rmd-bar-buttons= are =⇈=,
-which runs each chunk above this one, =▷=, which runs this chunk, and
-=⇊=, which runs this chunk and each one below it. Like knitr, a pass
-skips a chunk with =eval=FALSE= or =#| eval: false=. =▷= still runs it.
-
-The closing fence is hidden, and the file does not change. A chunk of
-another engine, such as =```{python}=, stays as it is. The bars show
-when you stop typing.
-
-*** Results
-
-A result works as in [[#results][overblock-pycell]]: the same bar, the
-same pop-out buffer and the same commands. =overblock-rmd-result-buttons=
-holds the first five buttons of a Python result: stop, save, copy, pop
-and discard.
-
-A chunk that plots shows its figure under the output. The size comes
-from =fig.width=, =fig.height= and =dpi= in the chunk header, as with
-knitr. Each must be a plain number. A chunk without them uses
-=overblock-rmd-figure-size= at 96 dots per inch.
-
-A chunk goes to R as one statement. Thus a syntax error names =<text>=
-and counts lines from the top of the chunk.
-
-An interrupt stops the pass, and the result keeps what the chunk printed
-before it.
-
-*** Commands and options
-
-| Command                             | Action                                                    |
-|-------------------------------------+-----------------------------------------------------------|
-| =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
-| =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
-| =overblock-run-this=                | run the chunk at point                                    |
-| =overblock-run-and-step=            | run the chunk at point, and move to the next              |
-| =overblock-run-forward=             | move to the next chunk                                    |
-| =overblock-run-backward=            | move to the previous chunk                                |
-| =overblock-run-restart=             | restart R, and remove the results                         |
-| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
-| =overblock-live-edit=               | show the source of the prose at point                     |
-| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                 |
-
-The commands of a result and of a pass are those of
-[[#results][overblock-pycell]].
-
-The package binds only the mouse on its bars and blocks.
-=overblock-rmd-mode-map= answers in the buffer, and
-=overblock-run-result-map= in a chunk with a result. Both are empty.
-Put the keys in the =:config= of the package:
-
-#+begin_src emacs-lisp
-  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-run-this)
-  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-run-and-step)
-  (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
-  (keymap-set overblock-rmd-mode-map "C-c C-q" #'overblock-run-stop)
-#+end_src
-
-| Option                         | Default   | Meaning                                     |
-|--------------------------------+-----------+---------------------------------------------|
-| =overblock-rmd-figure-size=    | =(7 . 5)= | the width and height of a figure, in inches |
-| =overblock-rmd-bar-buttons=    | three     | the buttons on the bar of a chunk           |
-| =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
-
-For the button format, see [[#buttons][Buttons]]. The details are in
-[[file:docs/overblock-rmd.org][docs/overblock-rmd.org]].
+Click =▷= on the bar of a chunk to run it.
+[[file:docs/overblock-rmd.org::*Use][Use]] in docs/overblock-rmd.org
+tells the buttons, the commands and the options.
 
 ** Prerequisites
 
@@ -648,49 +267,13 @@ For the button format, see [[#buttons][Buttons]]. The details are in
 
 ** Known Limits
 
-These limits apply to each package, unless a limit names one.
-
-- A bar is cut to the narrowest window that shows its buffer. A narrow
-  side window beside a wide one cuts each label in both.
-- A text shown after a region is one buffer line. =next-line= crosses it
-  in one step. A text shown over a region keeps its lines, and moves as
-  normal text.
-- The wheel is less smooth through a block with an image than through a
-  block of text. =scroll-up-line= does not pass such a block.
-  =scroll-up=, =scroll-down=, =next-line= and a fold pass it.
-- A rendering makes scrolling slower, because rendered markup holds
-  many face runs. Turn the mode off to get the speed back.
-- Without =pixel-scroll-precision-mode=, the wheel crosses a result in
-  one step.
-- With =scroll-conservatively= above 100, two blocks taller than the
-  window can pass the window between them with no end. Keep it at 100
-  or below, or set =scroll-margin= to 1 or more.
-- On Emacs 29, the wheel can move the window back a little after a
-  block taller than the window. Emacs 30 does not do this.
-- The last cell of a notebook gets a final newline if it has none. This
-  is the only change =overblock-pycell= makes to the text.
-- Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
-  not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
-- At a text scale of -2 or below, the bar of a doc string can run a few
-  pixels past the edge of the window.
-- One converter run renders all blocks of a buffer. A footnote of
-  Markdown therefore shows under the last block of the run, and its
-  definition stays as source.
-- In an =.Rmd= file an HTML comment is no block of its own, because a
-  chunk inside it still runs. A paragraph with blank lines above and
-  below it in a comment shows as text. Keep a comment in an Rmd file to
-  one paragraph.
-- A table column aligned with =:---:= or =---:= shows left aligned,
-  because shr reads no cell style.
-
-For the two notebooks:
-
-- One region runs at a time for each interpreter. A region sent while
-  another runs, or while the interpreter starts, waits in the queue.
-- A table in a result is a copy with the columns as plain text. Thus
-  the header can stand one column left of its data, and you cannot
-  sort the copy. Sort the table in the buffer of
-  =overblock-run-pop-output=.
+The notes of each package list its limits:
+[[file:docs/overblock.org::*Known limits][overblock]], which also holds
+the limits that all packages share,
+[[file:docs/overblock-md.org::*Known limits][overblock-md]],
+[[file:docs/overblock-pydoc.org::*Known limits][overblock-pydoc]],
+[[file:docs/overblock-pycell.org::*Known limits][overblock-pycell]] and
+[[file:docs/overblock-rmd.org::*Known limits][overblock-rmd]].
 
 ** Development
 

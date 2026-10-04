@@ -1,8 +1,9 @@
 #+TITLE: How overblock-md works
 #+OPTIONS: toc:2
 
-This document describes the API and the implementation. The
-[[file:../README.org][README]] tells you how to use the package. The
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the API and the implementation. The
 block layer under it is another package of this repository:
 [[file:overblock.org][its notes]].
 
@@ -11,6 +12,81 @@ propertized string, and cuts a Markdown buffer into the blocks that go
 to the converter. =overblock-md-preview.el= is a minor mode that shows
 a Markdown buffer over its own source. It gives the three answers that
 the live cycle asks for.
+
+* Use
+
+** The preview
+
+The unit of the preview is a Markdown block. A block is one of these:
+
+- the front matter at the top of the file
+- a fenced code block
+- an HTML comment at the left margin that comes after a blank line, a
+  heading line or a fence line
+- the run of lines between two blank lines or fences
+
+In a Markdown file a comment that holds a blank line is a block of its
+own. A fence indented under a list item is part of that item.
+
+A click on a rendered block shows its source, and a click on a link
+opens the link. A URL with a scheme opens in the browser. A relative
+path opens its file, and =#slug= moves to its heading, as on GitHub.
+Edit the source, and the block renders again when point leaves it. A
+marked region also shows its source, so you copy or cut the source.
+
+A fenced block that names its language, such as =```python=, gets the
+font lock of that language. A local image shows in the buffer. An image
+with a URL is fetched once and kept in the folder =overblock-images/=
+of the XDG cache folder, =~/.cache= by default. =mouse-1= and =mouse-2=
+both open a rendered link.
+
+A formula renders in the buffer that shows it. Thus a LaTeX preamble
+that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
+formula that fails stays text.
+
+** Documentation from a language server
+
+eglot can render the documentation of a language server with this
+package:
+
+#+begin_src emacs-lisp
+  (setopt eglot-documentation-renderer #'overblock-md-eglot-renderer)
+#+end_src
+
+Then a hover shows tables in columns, the signature in the colours of
+its language, and formulas as images. This applies wherever eldoc shows
+the text. =eglot-documentation-renderer= needs eglot 1.24 or later,
+which Emacs 31 includes and GNU ELPA has for older Emacs versions.
+
+** Commands and options
+
+| Command                              | Action                                      |
+|--------------------------------------+---------------------------------------------|
+| =overblock-md-preview-mode=          | turn the preview on or off                  |
+| =overblock-md-preview-render-buffer= | render what is not rendered yet             |
+| =overblock-md-forget-failed-images=  | try again the images that could not be read |
+| =overblock-live-edit=                | show the source of the block at point       |
+
+=overblock-live-map= holds only the click, for your own keys. The doc
+strings and the prose of an Rmd file use the same map.
+
+| Option                       | Default                        | Meaning                                 |
+|------------------------------+--------------------------------+-----------------------------------------|
+| =overblock-md-command=       | =pandoc=, then four candidates | the shell command from Markdown to HTML |
+| =overblock-md-remote-images= | =t=                            | whether to fetch an image named by URL  |
+| =overblock-md-code-modes=    | ten language names             | the major mode for a fenced block       |
+| =overblock-md-eldoc-width=   | 72                             | the columns of a language server's text |
+
+=overblock-md-command= is one shell command, or a list of candidates.
+[[file:../README.org::*Prerequisites][Prerequisites]] gives the default list.
+
+=overblock-md-code-modes= maps the language names that do not spell
+their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
+=LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
+face =overblock-md-code=.
+
+The face =overblock-md-code= draws inline code. Change it with
+=set-face-attribute=, as for the faces of [[file:overblock.org::*Faces][overblock]].
 
 * Markup rendered
 
@@ -363,6 +439,14 @@ HTML comment, stays as it is and is not blanked. It gets an empty
 block all the same, so the live cycle does not convert it again. So
 does a block the converter fails on, until it is edited. Front matter
 goes to the converter as nothing, so a YAML error in it fails no batch.
+
+* Known limits
+
+- One converter run renders all blocks of a buffer. A footnote of
+  Markdown therefore shows under the last block of the run, and its
+  definition stays as source.
+- A table column aligned with =:---:= or =---:= shows left aligned,
+  because shr reads no cell style.
 
 * The tests
 
