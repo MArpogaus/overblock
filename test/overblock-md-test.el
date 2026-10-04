@@ -1358,24 +1358,20 @@ from buffer text at point."
 
 ;;;; A rendering shown over its source
 
-(ert-deftest overblock-md-test-show-fills-to-the-room-and-dresses ()
-  "A rendering fills the window less its room, and wears its dress.
+(ert-deftest overblock-md-test-show-fills-to-the-window ()
+  "A rendering fills the window.
 A conversion that fails gives a block that shows nothing."
   (with-temp-buffer
     (insert "text\n")
     (let (width)
       (cl-letf (((symbol-function 'overblock-md-columns)
-                 (lambda (room) (- 80 (or room 0))))
+                 (lambda (&optional _room) 80))
                 ((symbol-function 'overblock-md-rendered)
                  (lambda (md _html) (setq width overblock-md-width) (upcase md))))
-        (let ((block (overblock-md-show 1 5 "text" nil 'default
-                                        :room 10
-                                        :dress (lambda (text) (concat "> " text))
-                                        :kind 'test)))
-          (should (= width 70))
+        (let ((block (overblock-md-show 1 5 "text" nil 'default :kind 'test)))
+          (should (= width 80))
           (should (equal (substring-no-properties (overblock-get block :over))
-                         "> TEXT"))
-          (should-not (overblock-get block :dress))))
+                         "TEXT"))))
       (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
         (let ((block (overblock-md-show 1 5 "text" nil 'default :kind 'test)))
           (should block)

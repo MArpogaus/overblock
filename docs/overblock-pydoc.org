@@ -169,7 +169,7 @@ rule of the bar is spaces up to it.
 The prose has the columns of the narrowest window that shows the
 buffer, less the indent of the doc string, less the room of the bar
 (=overblock-pydoc--bar-room=), less one.
-=overblock-md-show= carries that number to the renderer; see
+=overblock-pydoc--show= binds =overblock-md-width= to that number; see
 [[file:overblock-md.org][the notes of overblock-md]].
 
 Each block carries the width it was built for. The layer watches the

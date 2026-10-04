@@ -247,9 +247,9 @@ edge of the window.
 
 Thus the mode that renders binds =overblock-md-width=, because it knows
 where its block is. =overblock-md-show= does it for a rendering over its
-source, with the =:room= the mode gives. =overblock-md-columns=
-measures the room: the columns of the narrowest window that shows the
-buffer, less the indent of the block, less one column. A row that fills the last column wraps.
+source. =overblock-md-columns= measures the room: the columns of the
+narrowest window that shows the buffer, less the indent that the mode
+gives, less one column. A row that fills the last column wraps.
 The answer is never less than twenty columns.
 
 Nil is a legal answer, and a buffer in no window gives it. shr then

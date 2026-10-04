@@ -1911,22 +1911,16 @@ caller then leaves the markdown as it is."
 (defun overblock-md-show (beg end source html face &rest props)
   "Show the markdown SOURCE rendered over BEG..END in FACE, and return the block.
 HTML is the answer of the converter for SOURCE where a batch converted
-it, else nil.  PROPS go to `overblock-show-rendering', less two:
+it, else nil.  PROPS go to `overblock-show-rendering'.
 
-  :room   the columns of the window that the rendering leaves free.
-  :dress  a function that takes the rendering and returns what shows.
-
-The rendering is filled to the window, less the room.  A conversion
-that fails gives an empty block, which keeps the source in view and
-the region from going to the converter on every pass."
-  (let* ((dress (or (plist-get props :dress) #'identity))
-         (rendered (let ((overblock-md-width
-                          (overblock-md-columns (plist-get props :room))))
-                     (overblock-md-rendered source html))))
-    (cl-remf props :room)
-    (cl-remf props :dress)
-    (apply #'overblock-show-rendering beg end
-           (if rendered (funcall dress rendered) "") face props)))
+The rendering is filled to the window.  A conversion that fails gives
+an empty block, which keeps the source in view and the region from
+going to the converter on every pass."
+  (apply #'overblock-show-rendering beg end
+         (or (let ((overblock-md-width (overblock-md-columns)))
+               (overblock-md-rendered source html))
+             "")
+         face props))
 
 ;;;; Eglot renderer
 

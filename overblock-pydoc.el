@@ -397,14 +397,21 @@ on it).  The first row starts where the block does, so both must use
 the column of BEG, which for a raw doc string includes its prefix."
   (when-let* ((source (overblock-pydoc--source beg end))
               ((not (string-empty-p source))))
-    (let ((indent (save-excursion (goto-char beg) (current-column)))
-          (overblock-md-command (overblock-pydoc--command-for-markup))
-          (overblock-md-math-face 'font-lock-doc-face))
-      (overblock-md-show
-       beg end source html 'font-lock-doc-face
-       :room (+ indent (overblock-pydoc--bar-room))
-       :dress (lambda (prose)
-                (overblock-pydoc--dressed (string-trim-right prose "\n+") indent))
+    (let* ((indent (save-excursion (goto-char beg) (current-column)))
+           (overblock-md-command (overblock-pydoc--command-for-markup))
+           (overblock-md-math-face 'font-lock-doc-face)
+           (rendered (let ((overblock-md-width
+                            (overblock-md-columns
+                             (+ indent (overblock-pydoc--bar-room)))))
+                       (overblock-md-rendered source html))))
+      ;; A conversion that fails gives an empty block, as in
+      ;; `overblock-md-show'.
+      (overblock-show-rendering
+       beg end
+       (if rendered
+           (overblock-pydoc--dressed (string-trim-right rendered "\n+") indent)
+         "")
+       'font-lock-doc-face
        :kind 'pydoc
        :indent indent
        :keymap overblock-live-map
