@@ -50,7 +50,8 @@
 
 ;;;; Options
 
-(defgroup overblock-pycell nil "Inline results for Python code cells."
+(defgroup overblock-pycell nil
+  "Inline results for Python code cells."
   :group 'python
   :group 'overblock
   :prefix "overblock-pycell-")

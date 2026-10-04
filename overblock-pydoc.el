@@ -333,9 +333,7 @@ uses `overblock-md-command'."
       overblock-md-command))
 
 (defun overblock-pydoc--glyph ()
-  "Return the glyph that marks a doc string, as this frame draws it.
-The plain fallback is a page, not the diamond of a markdown cell,
-because both can show in one notebook."
+  "Return a page, the glyph of a doc string."
   (overblock-glyph "" "▯" "doc"))
 
 (defun overblock-pydoc--rule (indent)

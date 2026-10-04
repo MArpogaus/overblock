@@ -488,10 +488,9 @@ a macro, an undo.  Point moving into the region reveals nothing."
 
 (defun overblock--lines (text)
   "Split TEXT into the lines that can stand on a row of their own.
-A newline inside an image run stays where it is.  Such a run draws one
-image however many lines it covers, and display math covers three:
-the two dollar rows and the formula.  A piece for each of those lines
-would carry the same run and draw the same image again."
+A newline inside an image run stays where it is: a run of several
+lines, such as a tall formula, draws one image, and a piece for each
+line would draw it again."
   (let ((pos 0) (from 0) lines)
     ;; Search for the newlines, much faster than a walk.
     (while (setq pos (string-search "\n" text pos))
@@ -1045,8 +1044,7 @@ another region is discarded only after the reader confirms."
 (defun overblock-live-drop-if (pred)
   "Take down every live block of this buffer that PRED answers to.
 PRED is called with a block.  Nothing is drawn here: the live cycle
-draws when the reader stops.  Public for a package that must render
-again, after a theme change or when a preview arrives."
+draws when the reader stops."
   (when overblock-live--specs
     (dolist (spec overblock-live--specs)
       (dolist (block (overblock-in (point-min) (point-max) (car spec)))

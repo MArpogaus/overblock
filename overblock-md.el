@@ -45,9 +45,8 @@
 ;; `overblock-md--html-batch-async'.
 ;;
 ;; `overblock-md-regions' cuts a markdown buffer into the blocks that
-;; go to the converter whole.  These are the front matter, the fenced
-;; blocks, the HTML comments and the paragraphs.  `overblock-md-source' is the text
-;; of one block as the converter reads it.
+;; go to the converter whole.  `overblock-md-source' is the text of one
+;; block as the converter reads it.
 ;;
 ;; docs/overblock-md.org has the details.
 
