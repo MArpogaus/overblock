@@ -92,19 +92,19 @@ The face =overblock-md-code= draws inline code. Change it with
 
 =overblock-md-rendered= takes markup and gives one propertized string.
 
-| Function                        | What it does                                     |
-|---------------------------------+--------------------------------------------------|
-| =overblock-md-rendered=         | markup in, one propertized string out            |
-| =overblock-md-render-regions=   | render the regions of a buffer in one process    |
-| =overblock-md-show=             | show a rendering over its own source             |
-| =overblock-md-columns=          | the columns that a window gives a rendering      |
-| =overblock-md-program=          | the converter that is installed, or nil          |
-| =overblock-md-missing=          | why nothing renders, or nil                      |
-| =overblock-md-follow-link=      | open a rendered link, clicked or at point        |
-| =overblock-md-eglot-renderer=   | render the documentation of a language server    |
-| =overblock-md-regions=          | the Markdown blocks of a buffer                  |
-| =overblock-md-fences=           | the front matter and the fenced blocks           |
-| =overblock-md-source=           | the text of a block, as the converter reads it   |
+| Function                      | What it does                                   |
+|-------------------------------+------------------------------------------------|
+| =overblock-md-rendered=       | markup in, one propertized string out          |
+| =overblock-md-render-regions= | render the regions of a buffer in one process  |
+| =overblock-md-show=           | show a rendering over its own source           |
+| =overblock-md-columns=        | the columns that a window gives a rendering    |
+| =overblock-md-program=        | the converter that is installed, or nil        |
+| =overblock-md-missing=        | why nothing renders, or nil                    |
+| =overblock-md-follow-link=    | open a rendered link, clicked or at point      |
+| =overblock-md-eglot-renderer= | render the documentation of a language server  |
+| =overblock-md-regions=        | the Markdown blocks of a buffer                |
+| =overblock-md-fences=         | the front matter and the fenced blocks         |
+| =overblock-md-source=         | the text of a block, as the converter reads it |
 
 ** The converter
 
