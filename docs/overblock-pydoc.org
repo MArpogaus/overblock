@@ -115,10 +115,10 @@ is one process for the buffer, and nothing waits for it. A doc string
 that the converter fails on stays source, and goes to the converter
 again only after an edit.
 
-Markdown is the default. A numpy style doc string, as mkdocstrings
-reads it, has numpydoc section titles over a Markdown body: a fenced
-block, a pipe table, bold. Neither reader of pandoc knows the markup of
-the other:
+[[*Commands and options]] tells why Markdown is the default. A numpy
+style doc string has numpydoc section titles over a Markdown body: a
+fenced block, a pipe table, bold. Neither reader of pandoc knows the
+markup of the other:
 
 - The reStructuredText reader runs a pipe table together into one
   paragraph of pipes.
@@ -129,11 +129,11 @@ the other:
 Thus the Markdown command asks for =hard_line_breaks=. Each source line
 stays a line, and an entry and its description stay apart. Only the
 indent of the description is lost. There is no reader for both, so the
-option is a choice, and a Sphinx project sets it in =.dir-locals.el=.
-Both commands carry =--no-highlight= and =--wrap=none=, for the reasons
-in [[file:overblock-md.org][the notes of overblock-md]]. The Markdown command
-also turns off =implicit_figures=, as =overblock-md-command= does, so an image alone
-in a paragraph shows its alt text once.
+option is a choice. Both commands carry =--no-highlight= and
+=--wrap=none=, for the reasons in
+[[file:overblock-md.org][the notes of overblock-md]]. The Markdown
+command also turns off =implicit_figures=, as =overblock-md-command=
+does, so an image alone in a paragraph shows its alt text once.
 
 In a Markdown doc string, each doctest that is not in a fence and is
 less than four spaces in goes into a =pycon= fence before the
@@ -142,10 +142,8 @@ them as quotes. A doctest four or more spaces in is an indented code
 block already, and gets no fence.
 
 The quotes and the shared indent come off before the text is rendered,
-because the prose reads from the left margin. =overblock-pydoc-edit=
-gives that plain text to an edit buffer. The commit puts the quotes and
-the indent back. For a doc string of several lines, the closing quotes
-go on a line of their own, as PEP 257 writes it.
+because the prose reads from the left margin. The edit buffer of
+[[*Commands and options]] gets the same plain text.
 
 * The rows a rendering is drawn on
 
