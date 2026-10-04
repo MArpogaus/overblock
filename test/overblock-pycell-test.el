@@ -456,6 +456,34 @@ middle goes under the fold with its code."
           (should (invisible-p (- (point-max) 2)))
           (should-not (invisible-p (1- (point-max)))))))))
 
+(ert-deftest overblock-pycell-test-a-folded-cell-shows-its-result-below ()
+  "A folded cell shows its result on rows of its own under the heading.
+The result hangs on the blank line that ends the cell, and the fold
+stops before it.  The line break before the result stays in view, or
+the header is drawn on the heading row after the fold mark."
+  (with-temp-buffer
+    (insert "# %% one\nx = 1\nprint(x)\n\n# %% two\ny = 2\n")
+    (python-mode)
+    (code-cells-mode)
+    (setq-local overblock-run-backend (overblock-pycell--backend))
+    (overblock-pycell-test--with-mode
+      (goto-char (point-min))
+      (pcase-let ((`(,beg ,end) (code-cells--bounds nil nil t)))
+        (overblock-run-show beg end "1" 0.1)
+        (let ((block (car (overblock-in beg end 'result))))
+          (outline-flag-region (pos-eol) (1- end) t)
+          (should (invisible-p (+ beg 10)))
+          (should-not (invisible-p (1- (overlay-end block))))
+          (should-not (invisible-p (overlay-end block)))
+          ;; `outline-hide-sublevels' hides all, then shows each heading
+          ;; from the newline before it.
+          (outline-flag-region (point-min) (point-max) t)
+          (outline-flag-region (1- end) (save-excursion (goto-char end)
+                                                        (pos-eol))
+                               nil)
+          (should (invisible-p (+ beg 10)))
+          (should-not (invisible-p (1- (overlay-end block)))))))))
+
 (ert-deftest overblock-pycell-test-fold-md-round-trip ()
   "An outline fold takes a markdown block along, and gives it back."
   (skip-unless (overblock-md-program))

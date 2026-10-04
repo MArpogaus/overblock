@@ -1234,24 +1234,31 @@ shell buffer, where the filter and the ticker read it."
 
 ;;;; Notebook
 
-(defun overblock-run--keep-result-newline (from to flag)
-  "Keep the newline a result block hangs on out of a fold over FROM..TO.
-FLAG is non-nil where `outline-flag-region' hid the region.  A fold
-that reaches the end of the buffer covers that newline, unlike a fold
-in the middle.  The block, with the bar that folds the result, would
-go with it, so the invisible run is shrunk back off the newline.  A
-result in the middle of the fold goes under it.  An advice of
+(defun overblock-run--keep-result-newline (from to _flag)
+  "Keep the result that ends a fold near FROM..TO in view, whole.
+A fold ends at the newline a result block hangs on: before it in the
+middle of the buffer, over it at the end.  `outline-hide-sublevels'
+also ends one there, as it shows each heading from the newline before
+it.  The header of the result is on the anchor, after the newline of
+its region where the region ends in a blank line.  So such a fold is
+cut back to the line break before the header, and the folded region
+shows its result, with the bar that folds it, on rows of its own.  A
+result in the middle of a fold goes under it.  An advice of
 `outline-flag-region' while a notebook is on."
-  (dolist (block (and flag (overblock-in from to 'result)))
+  (dolist (block (overblock-in (max (point-min) (1- from))
+                               (min (point-max) (1+ to))
+                               'result))
     ;; A deleted overlay has no end, and this runs on every fold.
     (when-let* ((nl (overblock-get block :newline))
-                ((overlay-buffer nl))
-                ((= (overlay-end nl) to)))
-      (dolist (ov (overlays-in (overlay-start nl) (overlay-end nl)))
-        (when (and (eq (overlay-get ov 'invisible) 'outline)
-                   (> (overlay-end ov) (overlay-start nl)))
-          (move-overlay ov (overlay-start ov)
-                        (max (overlay-start ov) (overlay-start nl))))))))
+                ((overlay-buffer nl)))
+      (let ((cut (overlay-end block)))
+        (when (eq (char-before cut) ?\n)
+          (setq cut (1- cut)))
+        (dolist (ov (overlays-in cut (overlay-end nl)))
+          (when (and (eq (overlay-get ov 'invisible) 'outline)
+                     (< cut (overlay-end ov) (1+ (overlay-end nl))))
+            (move-overlay ov (overlay-start ov)
+                          (max (overlay-start ov) cut))))))))
 
 (defun overblock-run-attach (backend)
   "Make this buffer a notebook that runs through BACKEND.

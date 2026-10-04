@@ -91,11 +91,13 @@ nothing is saved and given back.
 An outline fold takes the renderings over its region along. While a
 live cycle is on, =overblock--fold= advises =outline-flag-region=: a
 block with =:over= in the region is =:hidden=, and shows again when
-the fold opens. A block after its region, such as a result, stays,
-because it has a fold button of its own. While a notebook is on, the
-runner keeps the newline that a result hangs on out of a fold that
-reaches the end of the buffer
-(=overblock-run--keep-result-newline=).
+the fold opens. A block after its region, such as a result, is not
+touched. While a notebook is on, the runner cuts a fold that ends at
+the newline of a result back to the line before the result
+(=overblock-run--keep-result-newline=). Thus a folded cell shows its
+whole result under its heading, with the fold button of the result. A
+result in the middle of a fold, such as a chunk under a folded
+section, goes under the fold.
 
 The buffer text never changes. Where the region ends without a
 newline, the body goes on the anchor.

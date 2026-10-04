@@ -1184,7 +1184,8 @@ FLAG is non-nil where `outline-flag-region' hid the region.
 A rendering over its source, a block with `:over', is the content of
 the region, so it goes under the fold: `:hidden' takes it off the
 screen, and a refresh shows it again.  A block after its region, such
-as a result, stays: it has its own fold button.
+as a result, is not touched: it goes under a fold that runs past it,
+and stays in view under a fold that ends at it.
 
 The advice is global, so this runs on every fold in every outline
 buffer while a live cycle is on; with no blocks the scan is cheap."
