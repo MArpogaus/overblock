@@ -315,6 +315,10 @@ function:
   (overblock-live-start 'my-kind #'my-render-buffer)
 #+end_src
 
+A third argument, KEEP, keeps the rendering at point. Each cycle has
+its own, so two modes of one buffer do not change the answer of each
+other.
+
 The render function takes no arguments. The layer calls it once at the
 start, and again when the reader stops for =overblock-live-idle=
 seconds. A mode that sends a whole buffer through one converter does
@@ -327,7 +331,6 @@ so from this one function.
 | =overblock-live-wanted-p=        | whether a region still wants a rendering        |
 | =overblock-live-edit=            | show the source of the region at point or click |
 | =overblock-live-drop-if=         | remove the live blocks that a predicate selects |
-| =overblock-live-source-at-point= | whether the region at point always shows source |
 | =overblock-width-functions=      | what to call when the buffer changes width      |
 
 The render function must leave alone each region for which
@@ -335,13 +338,13 @@ The render function must leave alone each region for which
 
 - A region that has a rendering.
 - A region that the active region reaches.
-- The region of the reader. With =overblock-live-source-at-point= t,
-  this is the region point is in. With nil, it is the region point is
-  in, while point stays in the text that a rendering last came off.
+- The region of the reader. Without KEEP, this is the region point is
+  in. With KEEP, it is the region point is in, while point stays in
+  the text that a rendering last came off.
 
-=overblock-md-preview-mode= keeps the default t. =overblock-pydoc= and
-=overblock-pycell= set it nil, because the reader works in the
-rendering.
+=overblock-md-preview-mode= starts its cycle without KEEP.
+=overblock-pydoc= and =overblock-pycell= start theirs with KEEP,
+because the reader works in the rendering.
 
 A rendering comes off when the reader clicks it and when the text
 under it changes. Point that moves to a rendering does not remove it.

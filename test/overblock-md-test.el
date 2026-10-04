@@ -422,11 +422,10 @@ stay, because nothing renders a region that has a rendering."
   (with-temp-buffer
     (insert "one\n\ntwo\n")
     (let ((overblock-md-command "sh -c cat")
-          (overblock-live-source-at-point nil)
           (shown nil))
       (unwind-protect
           (progn
-            (overblock-live-start 'md-test #'ignore)
+            (overblock-live-start 'md-test #'ignore t)
             (overblock-md-render-regions
              '((1 . 4) (6 . 9)) 'md-test
              (lambda (beg end) (buffer-substring-no-properties beg end))
@@ -449,13 +448,12 @@ who kept moving started a converter for every pause."
   (with-temp-buffer
     (insert "one\n\ntwo\n")
     (let ((overblock-md-command "sh -c cat")
-          (overblock-live-source-at-point nil)
           (cycles 0) (sent 0) (shown nil))
       (unwind-protect
           (cl-letf* ((send (symbol-function 'overblock-md-html-batch-async))
                      ((symbol-function 'overblock-md-html-batch-async)
                       (lambda (&rest args) (setq sent (1+ sent)) (apply send args))))
-            (overblock-live-start 'md-test (lambda () (setq cycles (1+ cycles))))
+            (overblock-live-start 'md-test (lambda () (setq cycles (1+ cycles))) t)
             (let ((render (lambda ()
                             (overblock-md-render-regions
                              '((1 . 4) (6 . 9)) 'md-test
@@ -476,10 +474,10 @@ who kept moving started a converter for every pause."
   "A batch whose rendering signals lets the next cycle send again."
   (with-temp-buffer
     (insert "one\n")
-    (let ((overblock-live-source-at-point nil))
+    (progn
       (unwind-protect
           (progn
-            (overblock-live-start 'md-test #'ignore)
+            (overblock-live-start 'md-test #'ignore t)
             (setq overblock-md--in-flight (list (cons 'md-test nil)))
             (should-error
              (overblock-md--show-batch
@@ -494,11 +492,10 @@ who kept moving started a converter for every pause."
   "A batch that lands while the reader has narrowed still renders."
   (with-temp-buffer
     (insert "one\n\ntwo\n")
-    (let ((overblock-live-source-at-point nil)
-          (shown nil))
+    (let ((shown nil))
       (unwind-protect
           (progn
-            (overblock-live-start 'md-test #'ignore)
+            (overblock-live-start 'md-test #'ignore t)
             (narrow-to-region 1 4)
             (overblock-md--show-batch
              (current-buffer) 'md-test
@@ -515,7 +512,6 @@ who kept moving started a converter for every pause."
   (with-temp-buffer
     (dotimes (i 120) (insert (format "line %d\n\n" i)))
     (let ((overblock-md-command "sh -c cat")
-          (overblock-live-source-at-point nil)
           (regions (let (all)
                      (goto-char (point-min))
                      (while (re-search-forward "^line .*$" nil t)
@@ -524,7 +520,7 @@ who kept moving started a converter for every pause."
           (counts nil) (shown 0))
       (unwind-protect
           (progn
-            (overblock-live-start 'md-test #'ignore)
+            (overblock-live-start 'md-test #'ignore t)
             (cl-letf* ((slices (symbol-function 'overblock-md--show-batch))
                        ((symbol-function 'overblock-md--show-batch)
                         (lambda (&rest args)

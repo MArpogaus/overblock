@@ -10,9 +10,9 @@ overblock-md turns markup into a string that a block can show
 
 =overblock-pydoc-mode= is =overblock-live-start= with three answers:
 which regions, what to render them with, and when. This file holds the
-first two, and the rows that a rendering is drawn on. The mode sets
-=overblock-live-source-at-point= to nil, so point that moves into a
-rendering changes nothing.
+first two, and the rows that a rendering is drawn on. The mode starts
+its cycle with KEEP, so point that moves into a rendering changes
+nothing.
 
 * Which strings are documentation
 

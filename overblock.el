@@ -946,7 +946,7 @@ each repeat of a held `C-n'.  One value for every live cycle."
   :group 'overblock)
 
 (defvar-local overblock-live--specs nil
-  "How this buffer renders itself: one (KIND RENDER) a live cycle.
+  "How this buffer renders itself: one (KIND RENDER KEEP) a live cycle.
 A buffer can have several, such as the markdown cells and the doc
 strings of a notebook, each from a mode of its own.
 `overblock-live-start' adds one and `overblock-live-stop' removes it.")
@@ -954,20 +954,11 @@ strings of a notebook, each from a mode of its own.
 (defvar-local overblock-live--timer nil
   "The timer that renders what the reader has finished with.")
 
-(defvar-local overblock-live-source-at-point t
-  "Whether the region point is in shows its source, wherever point went.
-With t, the region at point is not rendered, and renders when point
-leaves it.  A rendering already there stays.  A mode sets this nil
-where the reader works with the rendering (a markdown cell of a
-notebook, a doc string among code): then only the region a rendering
-came off stays source until point leaves it (see
-`overblock-live--open').")
-
 (defvar-local overblock-live--open nil
   "The region a rendering last came off, as (BEG . END) markers, or nil.
-While point stays in it the region is not rendered again, whatever
-`overblock-live-source-at-point' says; `overblock-live--settle' lets
-it go once point has left.")
+While point stays in it the region is not rendered again, also in a
+cycle that keeps the rendering at point (see `overblock-live-start');
+`overblock-live--settle' lets it go once point has left.")
 
 (defun overblock-live-drop-if (pred)
   "Take down every live block of this buffer that PRED answers to.
@@ -1020,16 +1011,17 @@ rendering."
 (defun overblock-live-wanted-p (beg end kind)
   "Return non-nil where the region BEG..END still wants a rendering of KIND.
 Three regions do not: one that has a rendering already, one the active
-region reaches, and the one the reader is at.  Which region that is
-depends on `overblock-live-source-at-point': the region point is in,
-or only the one point is in of those a rendering came off.  No
-region wants one where no live cycle of KIND is on.
+region reaches, and the one the reader is at.  That is the region
+point is in, or, where the cycle of KIND keeps the rendering at point
+\(see `overblock-live-start'), only the one point is in of those a
+rendering came off.  No region wants one where no live cycle of KIND
+is on.
 
 A process caller asks twice: before the conversion, and when the
 answer comes back, because the reader can click, type, move or turn
 the mode off meanwhile."
   (not (or (not (assq kind overblock-live--specs))
-           (if overblock-live-source-at-point
+           (if (not (nth 2 (assq kind overblock-live--specs)))
                (<= beg (point) end)
              (pcase overblock-live--open
                ;; The region point is in, of those the rendering came
@@ -1057,12 +1049,18 @@ on and stopped.  A mode binds this to the mouse."
                                overblock-live--specs)))
     (overblock-take-down block)))
 
-(defun overblock-live-start (kind render)
+(defun overblock-live-start (kind render &optional keep)
   "Keep this buffer rendered, and let the reader edit what they click.
 KIND names the blocks, as for `overblock-show'.  RENDER is called with
 no arguments to render what is not rendered yet; there a mode can send
 all regions through one converter.  `overblock-live-idle' is the quiet
 before RENDER is called again.
+
+Without KEEP, the region point is in shows its source, and renders
+when point leaves it.  With KEEP, a mode where the reader works with
+the rendering (a markdown cell of a notebook, a doc string among code)
+keeps the rendering at point: only the region a rendering came off
+stays source until point leaves it.
 
 RENDER is called once here and then whenever the reader stops.  It
 must leave alone what `overblock-live-wanted-p' says wants no
@@ -1072,7 +1070,7 @@ A rendering comes off when the reader asks (`overblock-live-edit',
 which a mode binds to a click) and when its region is edited (see
 `overblock-stale-when-edited').  Point moving into a rendering reveals
 nothing, so scrolling does not make the text grow and shrink."
-  (setf (alist-get kind overblock-live--specs) (list render))
+  (setf (alist-get kind overblock-live--specs) (list render keep))
   (setq overblock--columns (overblock-window-columns))
   (add-hook 'post-command-hook #'overblock-live--settle nil t)
   ;; A rendering is built for its columns (see

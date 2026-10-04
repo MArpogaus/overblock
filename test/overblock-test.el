@@ -1241,9 +1241,9 @@ The region a rendering came off grew over the whole buffer, point could
 not leave it, and no region rendered again."
   (with-temp-buffer
     (insert "one\n\ntwo\n")
-    (overblock-live-start 'test-kind #'ignore)
+    (overblock-live-start 'test-kind #'ignore t)
     (unwind-protect
-        (let ((overblock-live-source-at-point nil))
+        (progn
           (overblock-take-down (overblock-show 1 4 :kind 'test-kind :over "A"))
           (erase-buffer)
           (insert "one\n\ntwo\n")
@@ -1251,6 +1251,23 @@ not leave it, and no region rendered again."
           (should-not (overblock-live-wanted-p 1 4 'test-kind))
           (should (overblock-live-wanted-p 6 9 'test-kind)))
       (overblock-live-stop 'test-kind))))
+
+(ert-deftest overblock-test-each-live-cycle-says-what-point-reveals ()
+  "A cycle that keeps the rendering at point does so for its own kind.
+A notebook keeps its markdown cells, and a mode of the same buffer that
+does not keep shows the source of the region at point."
+  (with-temp-buffer
+    (insert "one\n\ntwo\n")
+    (overblock-live-start 'kept #'ignore t)
+    (overblock-live-start 'shown #'ignore)
+    (unwind-protect
+        (progn
+          (goto-char 2)
+          (should (overblock-live-wanted-p 1 4 'kept))
+          (should-not (overblock-live-wanted-p 1 4 'shown))
+          (overblock-live-stop 'shown)
+          (should (overblock-live-wanted-p 1 4 'kept)))
+      (overblock-live-stop 'kept))))
 
 (ert-deftest overblock-test-a-heading-takes-no-gap-of-its-own ()
   "The blank line shr puts after a heading does not make its row taller."

@@ -1070,9 +1070,6 @@ run."
   (if overblock-pycell-mode
       (progn
         (overblock-run-attach (overblock-pycell--backend))
-        ;; Point moving into a rendered cell changes nothing; a click
-        ;; shows its source.
-        (setq-local overblock-live-source-at-point nil)
         ;; A heading of a markdown cell is a comment: `# # Title'.
         (setq-local overblock-md-heading-regexp
                     "^# +#+[ \t]+\\(.*?\\)[ \t#]*$")
@@ -1094,12 +1091,11 @@ run."
                                             ", "))
                      "this Emacs was built without libxml, which shr reads \
 the converter's HTML with")))
-        (overblock-live-start 'markdown #'overblock-pycell-render-buffer))
+        ;; Point moving into a rendered cell changes nothing; a click
+        ;; shows its source.
+        (overblock-live-start 'markdown #'overblock-pycell-render-buffer t))
     (overblock-live-stop 'markdown)
     (overblock-run-detach)
-    ;; The doc strings of the buffer keep it while they render.
-    (unless (bound-and-true-p overblock-pydoc-mode)
-      (kill-local-variable 'overblock-live-source-at-point))
     (kill-local-variable 'overblock-md-heading-regexp)
     (remove-hook 'after-change-functions #'overblock-pycell--bars-after-change t)
     ;; The last notebook removes the advice. The mode variable of this
