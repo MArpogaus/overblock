@@ -35,9 +35,9 @@ point leaves it. A marked region also shows its source, so you copy or
 cut the source.
 
 A fenced block that names its language, such as =```python=, gets the
-font lock of that language. A local image shows in the buffer. An image
-with a URL is fetched once and kept in the folder =overblock-images/=
-of the XDG cache folder, =~/.cache= by default.
+font lock of that language. A local image shows in the buffer. The package
+fetches an image with a URL once and keeps it in the folder
+=overblock-images/= of the XDG cache folder, =~/.cache= by default.
 
 A formula renders in the buffer that shows it. Thus a LaTeX preamble
 that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
@@ -80,8 +80,8 @@ strings and the prose of an Rmd file use the same map.
 [[*The converter]] gives the default list.
 
 =overblock-md-code-modes= maps the language names that do not spell
-their mode, such as =elisp=, =bash= and =r=. Each other name is tried as
-=LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
+their mode, such as =elisp=, =bash= and =r=. The package tries each other name
+as =LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
 face =overblock-md-code=.
 
 The face =overblock-md-code= draws inline code. Change it with
@@ -175,10 +175,10 @@ grey placeholder of shr.
 
 Thus =overblock-md--tag-img= draws a file itself, through
 =shr-external-rendering-functions=. The alt text carries the image, so a
-terminal still tells what is there. An image named by URL is fetched
-once into the cache folder of [[*The preview]], and drawn from there. A
-URL that failed is not asked for again in the session, until
-=overblock-md-forget-failed-images=. An answer that is not an image,
+terminal still tells what is there. The package fetches an image named by
+URL once into the cache folder of [[*The preview]], and draws it from
+there. It does not ask again for a URL that failed in the session,
+until =overblock-md-forget-failed-images=. An answer that is not an image,
 such as the error page of a 404, is a failure too, and the file is not
 kept. With =overblock-md-remote-images= nil, the package fetches nothing
 and shows such an image as its alt text. shr does not get it, because
@@ -194,9 +194,9 @@ On any display, a local file that is not there, or that holds no image
 such as a git-lfs pointer, shows its label. A file counts as an image by
 its content: a header that Emacs knows, or an svg tag first.
 
-An image is drawn at the =width= and =height= of its tag, in pixels, as
-~<img width="80">~ or pandoc's ={width=80}= gives them. A value such as
-=50%= is left out. The cap still holds over that size.
+The package draws an image at the =width= and =height= of its tag, in
+pixels, as ~<img width="80">~ or pandoc's ={width=80}= gives them. It
+ignores a value such as =50%=. The cap still holds over that size.
 
 The cap of an image is the work of the layer: =overblock-image-cap=
 and =overblock-image-height=, in

@@ -25,8 +25,8 @@
 ;;; Commentary:
 
 ;; `overblock-md-preview-mode' shows a markdown buffer as it will read,
-;; and keeps it editable.  The text is rendered over its own source, and
-;; a click on a rendering shows the source it stands on.
+;; and keeps it editable.  The mode renders the text over its own
+;; source, and a click on a rendering shows the source it stands on.
 ;;
 ;; Turn the mode on with M-x overblock-md-preview-mode, or add it to
 ;; `markdown-mode-hook'.

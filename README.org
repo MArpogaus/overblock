@@ -63,7 +63,7 @@ packages of this repository by name. Each package that you use needs a
 recipe of its own, and so does each package of this repository that it
 needs. Declare them from the bottom up: =overblock= first, then
 =overblock-md=, then the mode. Leave out the =:hook= of overblock-md
-where the preview is not wanted.
+where you do not want the preview.
 
 The snippets below are for [[https://github.com/progfolio/elpaca][elpaca]]
 and =use-package=. Each recipe gives its package a clone of its own with

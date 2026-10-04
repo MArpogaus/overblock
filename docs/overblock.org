@@ -68,8 +68,8 @@ entry. This example removes the discard button of a notebook result:
 #+end_src
 
 Put such forms in the =:config= of the =use-package= form of the
-package. At startup the package is not loaded yet, and its variables
-do not exist. Use =setopt= and not =setq=. With =setopt=, the bars of
+package. At startup Emacs has not loaded the package yet, and its
+variables do not exist. Use =setopt= and not =setq=. With =setopt=, the bars of
 every open buffer change at once.
 
 * The block layer

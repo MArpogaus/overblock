@@ -28,7 +28,7 @@
 
 ;; `overblock-pydoc-mode' shows the doc strings of a Python buffer as
 ;; the documentation they are.  The triple quotes and the indentation go,
-;; the markup is rendered, and the code around them is untouched.  A
+;; the markup renders, and the code around them stays as it is.  A
 ;; click on one shows its source in place, through `overblock-live-edit'.
 ;; The edit button (`overblock-pydoc-edit') opens the doc string in a
 ;; buffer of its own.  Point moving through one changes nothing.

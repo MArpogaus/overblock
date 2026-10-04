@@ -36,10 +36,11 @@
 ;; images.  The result is a string that a block can show.
 ;; `overblock-md-show' shows one over its own source.
 ;;
-;; A rendered table is laid out in characters rather than pixels, so its
-;; columns line up over the fixed-pitch lines of a buffer.  A local
-;; image is drawn on the spot rather than fetched.  An image named by
-;; URL is fetched once into a cache, and drawn from there.
+;; The package lays out a rendered table in characters rather than
+;; pixels, so its columns line up over the fixed-pitch lines of a
+;; buffer.  It draws a local image on the spot rather than fetching it.
+;; It fetches an image named by URL once into a cache, and draws it
+;; from there.
 ;;
 ;; Rendering a whole buffer of blocks calls the program once, with
 ;; `overblock-md--html-batch-async'.
