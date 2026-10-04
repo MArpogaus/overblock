@@ -1252,6 +1252,20 @@ not leave it, and no region rendered again."
           (should (overblock-live-wanted-p 6 9 'test-kind)))
       (overblock-live-stop 'test-kind))))
 
+(ert-deftest overblock-test-the-line-after-a-region-is-outside-it ()
+  "Point at the start of the line after a region of whole lines is outside.
+Point at the end of a region that ends inside a line is still in it."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (overblock-live-start 'test-kind #'ignore)
+    (unwind-protect
+        (progn
+          (goto-char 5)
+          (should (overblock-live-wanted-p 1 5 'test-kind))
+          (goto-char 4)
+          (should-not (overblock-live-wanted-p 1 4 'test-kind)))
+      (overblock-live-stop 'test-kind))))
+
 (ert-deftest overblock-test-a-cycle-renders-again-on-request ()
   "The render function of a cycle runs again when asked, and only its own."
   (with-temp-buffer

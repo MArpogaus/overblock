@@ -1096,6 +1096,13 @@ rendering."
     (`(,from . ,to) (set-marker from nil) (set-marker to nil)))
   (setq overblock-live--open nil))
 
+(defun overblock--point-in-p (beg end)
+  "Return non-nil where point is in BEG..END.
+An END at the start of a line belongs to the next line: a region of
+whole lines ends there."
+  (and (<= beg (point) end)
+       (not (and (= (point) end) (eq (char-before end) ?\n)))))
+
 (defun overblock-live-wanted-p (beg end kind)
   "Return non-nil where the region BEG..END still wants a rendering of KIND.
 Three regions do not: one that has a rendering already, one the active
@@ -1110,13 +1117,13 @@ answer comes back, because the reader can click, type, move or turn
 the mode off meanwhile."
   (not (or (not (assq kind overblock-live--specs))
            (if (not (nth 2 (assq kind overblock-live--specs)))
-               (<= beg (point) end)
+               (overblock--point-in-p beg end)
              (pcase overblock-live--open
                ;; The region point is in, of those the rendering came
                ;; off: one that has grown over the whole buffer, by an
                ;; erase and a paste, holds back nothing else.
                (`(,from . ,to)
-                (and (<= from (point) to) (<= beg (point) end)
+                (and (<= from (point) to) (overblock--point-in-p beg end)
                      (< beg to) (> end from)))))
            (and (use-region-p)
                 (< beg (region-end))
