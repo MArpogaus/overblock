@@ -1109,22 +1109,6 @@ here and a timer does the work."
              0.1 nil #'overblock-md--latex-draw-arrivals))))
   nil)
 
-(defun overblock-md--eldoc-arrived (asker)
-  "Ask for the documentation of ASKER again, once the previews are in."
-  (unless (timerp overblock-md--eldoc-timer)
-    (setq overblock-md--eldoc-timer
-          (run-with-idle-timer
-           0.1 nil
-           (lambda ()
-             (setq overblock-md--eldoc-timer nil)
-             (when (and (buffer-live-p asker) (eq (window-buffer) asker))
-               (with-current-buffer asker
-                 ;; Not interactive, which would pop up *eldoc*; eldoc
-                 ;; has no public way to forget the request it answered.
-                 (setq eldoc--last-request-state nil)
-                 (eldoc-print-current-symbol-info)))))))
-  nil)
-
 (defun overblock-md--latex-draw-arrivals ()
   "Draw the buffers whose previews arrived while the reader waited."
   (setq overblock-md--latex-arrival-timer nil)
@@ -1948,6 +1932,22 @@ going to the converter on every pass."
 A theme change calls this, because a formula has the colour of the
 theme, and so does the `:set' of `overblock-md-eldoc-width'."
   (clrhash overblock-md--eldoc-cache))
+
+(defun overblock-md--eldoc-arrived (asker)
+  "Ask for the documentation of ASKER again, once the previews are in."
+  (unless (timerp overblock-md--eldoc-timer)
+    (setq overblock-md--eldoc-timer
+          (run-with-idle-timer
+           0.1 nil
+           (lambda ()
+             (setq overblock-md--eldoc-timer nil)
+             (when (and (buffer-live-p asker) (eq (window-buffer) asker))
+               (with-current-buffer asker
+                 ;; Not interactive, which would pop up *eldoc*; eldoc
+                 ;; has no public way to forget the request it answered.
+                 (setq eldoc--last-request-state nil)
+                 (eldoc-print-current-symbol-info)))))))
+  nil)
 
 (defun overblock-md--eldoc-markdown (md)
   "Return MD as the converter reads it the way the server meant it.
