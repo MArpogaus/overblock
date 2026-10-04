@@ -27,16 +27,16 @@ code with markers that cut it into cells. An Rmd file is Markdown prose
 with fenced chunks of code in it. Both need the same three things, and
 each already has an owner:
 
-| What                     | Whose                                    |
-|--------------------------+------------------------------------------|
-| the chunks               | =overblock-md-fences=                    |
-| the prose, rendered live | the live cycle of =overblock-md-preview= |
-| the run, and the result  | =overblock-run=                          |
+| What                     | Whose                                     |
+|--------------------------+-------------------------------------------|
+| the chunks               | =overblock-md-fences=                     |
+| the prose, rendered live | =overblock-md-regions= and the live cycle |
+| the run, and the result  | =overblock-run=                           |
 
-Thus =overblock-rmd-mode= is one =overblock-live-start=, a backend plist
-for the runner, and a buffer-local
-=overblock-md-preview-regions-function= that gives the prose only. The
-rest of the file is about R. It holds a few calls of ESS, the shape of a
+Thus =overblock-rmd-mode= is one =overblock-live-start= of the kind
+=rmd=, and a backend plist for the runner. The live cycle renders the
+paragraphs that =overblock-md-regions= gives with PROSE-ONLY, through
+=overblock-md-show=. The rest of the file is about R. It holds a few calls of ESS, the shape of a
 chunk header, and the statement that a chunk goes to R in.
 
 A major mode hook calls =overblock-rmd-mode-maybe=, which reads the

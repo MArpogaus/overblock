@@ -240,8 +240,7 @@ doc string carries: sections, math, a table and a code block."
 (defun ob-gif-md--settled ()
   "Return non-nil where every region of the buffer carries a rendering."
   (= (length (overblock-in (point-min) (point-max) 'md-preview))
-     (length (funcall overblock-md-preview-regions-function
-                      (point-min) (point-max)))))
+     (length (overblock-md-regions))))
 
 (defun ob-gif-pycell ()
   "A Python file as a notebook: cells, output, a figure."

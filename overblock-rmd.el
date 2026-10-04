@@ -38,13 +38,14 @@
 ;; An Rmd file is the inverse of a Python notebook.  A `.py' notebook
 ;; is code with `# %%' lines cutting it into cells; an Rmd file is
 ;; markdown prose with fenced chunks of code inside it.  So this
-;; package composes.  The chunks come from the fence walk of
-;; `overblock-md-preview', and the prose renders through the live cycle
-;; of `overblock-md-preview-mode'.  The running and the result blocks
-;; belong to `overblock-run', which `overblock-pycell' uses too, and so
-;; do the commands.  This file holds what knows about R and Rmd: the
-;; chunks, the bar of a chunk, and the calls into ESS that start R and
-;; send a chunk.
+;; package composes.  The chunks are the fences that `overblock-md'
+;; finds, and the prose is its paragraphs, rendered by a live cycle as
+;; `overblock-md-preview-mode' renders a markdown file.  The two modes
+;; would render the same prose, so this one turns the preview off.  The
+;; running and the result blocks belong to `overblock-run', which
+;; `overblock-pycell' uses too, and so do the commands.  This file holds
+;; what knows about R and Rmd: the chunks, the bar of a chunk, and the
+;; calls into ESS that start R and send a chunk.
 ;;
 ;; A chunk reaches R as one statement, not as its own lines:
 ;;
@@ -89,7 +90,6 @@
 (require 'overblock-run)
 (require 'overblock-repl)
 (require 'overblock-md)
-(require 'overblock-md-preview)
 (require 'eieio)                        ; `eieio-declare-slots', `eieio-oset'
 (require 'ess-inf)
 (require 'ess-r-mode)
@@ -99,6 +99,10 @@
 ;; The polymode slot that `overblock-rmd--stay-in-host' sets, declared
 ;; for the compiler.
 (eieio-declare-slots keep-in-mode)
+
+;; The preview this mode keeps off; see `overblock-rmd--no-preview'.
+(defvar overblock-md-preview-mode)
+(declare-function overblock-md-preview-mode "overblock-md-preview" (&optional arg))
 
 (defgroup overblock-rmd nil
   "Inline results for the R chunks of an Rmd file."
@@ -263,12 +267,32 @@ default applies."
                     (cons "fig.height" (cdr overblock-rmd-figure-size))
                     (cons "dpi" 96))))))
 
-(defun overblock-rmd--prose ()
+;;;; The prose between the chunks
+
+(defun overblock-rmd--regions ()
   "Return the prose blocks of the buffer, in order.
-The paragraphs, not the fences: a chunk is code that runs.  This is
-the value of `overblock-md-preview-regions-function', so the live
+The paragraphs, not the fences: a chunk is code that runs, so the live
 cycle renders the prose and leaves the chunks alone."
   (overblock-md-regions 'prose-only))
+
+(defun overblock-rmd--show (beg end &optional html)
+  "Render the prose BEG..END over its own source, and return the block.
+HTML is the answer of the converter for it, where a batch converted
+the buffer."
+  (overblock-md-show beg end (overblock-md-source beg end) html 'default
+                     :kind 'rmd
+                     :keymap overblock-live-map
+                     :help-echo "mouse-1: edit this text"))
+
+;;;###autoload
+(defun overblock-rmd-render-buffer ()
+  "Render the prose of the buffer that is not rendered yet.
+One asynchronous converter process does all of it, so the reader does
+not wait.  `overblock-live-start' calls this again whenever the reader
+stops."
+  (interactive)
+  (overblock-md-render-regions (overblock-rmd--regions) 'rmd
+                               #'overblock-md-source #'overblock-rmd--show))
 
 ;;;; The bar over a chunk header
 
@@ -517,6 +541,16 @@ sets `pm/polymode'."
   (when (bound-and-true-p pm/polymode)
     (eieio-oset pm/polymode 'keep-in-mode (unless off 'host))))
 
+(defun overblock-rmd--no-preview ()
+  "Turn `overblock-md-preview-mode' off, because this mode renders the prose.
+Both would render the same paragraphs over each other.  Called when
+this mode goes on, and from the preview's own hook after that, so the
+order in which a configuration turns the two on does not matter."
+  (when (bound-and-true-p overblock-md-preview-mode)
+    (overblock-md-preview-mode -1)
+    (message "overblock-rmd: overblock-md-preview-mode off, %s"
+             "this mode renders the prose itself")))
+
 (defvar-keymap overblock-rmd-mode-map
   :doc "Keymap of `overblock-rmd-mode', empty on purpose.
 overblock-rmd binds no keys; put your own here.  The Python notebook
@@ -546,29 +580,24 @@ chunk.  The chunks are still fontified and indented as R."
     (overblock-only-in 'overblock-rmd-mode 'markdown-mode))
   (if overblock-rmd-mode
       (progn
-        ;; Both modes use the same live cycle and kind of block, and
-        ;; would remove the renderings of each other.
-        (when (bound-and-true-p overblock-md-preview-mode)
-          (overblock-md-preview-mode -1)
-          (message "overblock-rmd: overblock-md-preview-mode off, %s"
-                   "this mode renders the prose itself"))
+        (overblock-rmd--no-preview)
+        (add-hook 'overblock-md-preview-mode-hook #'overblock-rmd--no-preview
+                  nil t)
         (overblock-run-attach (overblock-rmd--backend))
         ;; Without these, `ess-force-buffer-current' asks which
         ;; language to run: an Rmd buffer is no ESS buffer.
         (setq-local ess-dialect "R")
         (setq-local ess-language "S")
-        (setq-local overblock-md-preview-regions-function
-                    #'overblock-rmd--prose)
         (overblock-rmd--stay-in-host)
         (add-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host nil t)
-        (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer))
-    (overblock-live-stop 'md-preview)
+        (overblock-live-start 'rmd #'overblock-rmd-render-buffer))
+    (overblock-live-stop 'rmd)
+    (remove-hook 'overblock-md-preview-mode-hook #'overblock-rmd--no-preview t)
     (overblock-run-detach)
     (remove-hook 'polymode-init-host-hook #'overblock-rmd--stay-in-host t)
     (overblock-rmd--stay-in-host 'off)
     (kill-local-variable 'ess-dialect)
-    (kill-local-variable 'ess-language)
-    (kill-local-variable 'overblock-md-preview-regions-function)))
+    (kill-local-variable 'ess-language)))
 
 ;;;###autoload
 (defun overblock-rmd-mode-maybe ()

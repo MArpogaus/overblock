@@ -349,7 +349,8 @@ The render function must leave alone each region for which
   in. With KEEP, it is the region point is in, while point stays in
   the text that a rendering last came off.
 
-=overblock-md-preview-mode= starts its cycle without KEEP.
+=overblock-md-preview-mode= and =overblock-rmd-mode= start their cycles
+without KEEP.
 =overblock-pydoc= and =overblock-pycell= start theirs with KEEP,
 because the reader works in the rendering.
 

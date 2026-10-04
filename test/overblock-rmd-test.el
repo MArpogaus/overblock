@@ -33,6 +33,7 @@
 
 (require 'ert)
 (require 'overblock-rmd)
+(require 'overblock-test-common)
 
 (defconst overblock-rmd-test--document
   "\
@@ -104,25 +105,31 @@ without removing the hooks."
 
 ;;;; The chunk walk
 
-(ert-deftest overblock-md-preview-test-a-refusal-leaves-rmd-alone ()
-  "Refusing the mode over an Rmd buffer stops nothing.
-Both modes render prose through the live cycle of the kind
-`md-preview', so the refusal must not stop the cycle of
-`overblock-rmd-mode'."
+(ert-deftest overblock-rmd-test-the-preview-stays-off ()
+  "The preview goes off under the mode, in whichever order the two start.
+Both would render the same prose over each other.  The cycle of the
+mode goes on."
   (skip-unless (fboundp 'markdown-mode))
+  (require 'overblock-md-preview)
   (with-temp-buffer
     (insert "Some prose.\n\n```{r one}\n1 + 1\n```\n\nMore prose.\n")
     (markdown-mode)
+    (overblock-md-preview-mode 1)
     (overblock-rmd-mode 1)
     (unwind-protect
         (progn
-          (should (assq 'md-preview overblock-live--specs))
+          (should-not overblock-md-preview-mode)
           (overblock-md-preview-mode 1)
           (should-not overblock-md-preview-mode)
           (should overblock-rmd-mode)
-          (should (assq 'md-preview overblock-live--specs))
+          (should (assq 'rmd overblock-live--specs))
+          (should-not (assq 'md-preview overblock-live--specs))
           (should (memq #'overblock-live--settle post-command-hook)))
-      (overblock-rmd-mode -1))))
+      (overblock-rmd-mode -1))
+    ;; With the mode off, the preview is free again.
+    (overblock-md-preview-mode 1)
+    (should overblock-md-preview-mode)
+    (overblock-md-preview-mode -1)))
 
 (ert-deftest overblock-rmd-test-the-walk-takes-the-r-chunks ()
   "Only the R chunks, and only the ones holding code."
@@ -239,10 +246,29 @@ finds the chunk from there."
         (forward-line (1- line))
         (should-not (overblock-rmd--chunk-at))))))
 
+(ert-deftest overblock-rmd-test-the-prose-renders-and-the-chunks-do-not ()
+  "Each paragraph gets a rendering of the kind `rmd', and no chunk does."
+  (skip-unless (overblock-md-program))
+  (overblock-rmd-test--with-document overblock-rmd-test--document
+    (goto-char (point-max))
+    (overblock-rmd-mode 1)
+    (unwind-protect
+        (progn
+          (overblock-test-common-wait
+           (lambda () (= 2 (length (overblock-in (point-min) (point-max) 'rmd))))
+           10)
+          (should (equal (mapcar (lambda (block)
+                                   (line-number-at-pos (overlay-start block)))
+                                 (sort (overblock-in (point-min) (point-max) 'rmd)
+                                       (lambda (a b)
+                                         (< (overlay-start a) (overlay-start b)))))
+                         '(1 8))))
+      (overblock-rmd-mode -1))))
+
 (ert-deftest overblock-rmd-test-the-prose-is-what-the-chunks-are-not ()
   "The regions to render are the paragraphs; no chunk line is among them."
   (overblock-rmd-test--with-document overblock-rmd-test--document
-    (let ((prose (overblock-rmd--prose))
+    (let ((prose (overblock-rmd--regions))
           (chunks (overblock-rmd-chunks)))
       (should (= (length prose) 2))
       (should (equal (buffer-substring-no-properties (car (car prose))

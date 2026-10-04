@@ -333,18 +333,14 @@ reads no comments. =overblock-rmd= renders its prose so, because its
 chunks are run and not rendered. It takes its chunks from
 =overblock-md-fences=.
 
-=overblock-md-preview-regions-function= is buffer-local. It is called
-with no arguments, and gives the regions in order. =overblock-rmd= sets
-it to the prose only.
-
 * The preview mode
 
 =overblock-md-preview-mode= is =overblock-live-start= with three
 answers: which regions, what to render them with, and when. The layer
 shows the rendering, hides the source under it, and removes it on an
 edit. The mode works only where the major mode derives from
-=markdown-mode=. It stays off while =overblock-rmd-mode= is on, because
-that mode renders the prose through the same cycle.
+=markdown-mode=. =overblock-rmd-mode= renders the prose of an Rmd file
+itself, and turns this mode off there.
 
 ** When, and at what cost
 

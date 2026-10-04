@@ -590,6 +590,7 @@ before it.
 | =overblock-run-restart=             | restart R, and remove the results                         |
 | =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
 | =overblock-live-edit=               | show the source of the prose at point                     |
+| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                 |
 
 The commands of a result and of a pass are those of
 [[#results][overblock-pycell]].

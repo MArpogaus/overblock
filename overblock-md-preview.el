@@ -36,9 +36,8 @@
 ;; its lines, a piece to a line, so a tall rendering scrolls like text.
 ;;
 ;; `overblock-pydoc-mode' and `overblock-rmd-mode' use the same live
-;; cycle, each in a package of its own.
-;; `overblock-md-preview-regions-function' is where another mode says
-;; which regions it renders.
+;; cycle, each in a package of its own.  `overblock-rmd-mode' renders
+;; the prose of an Rmd file itself, and turns this mode off there.
 ;;
 ;; This file says which regions to render, what to render them with,
 ;; and when.  `overblock-md' knows what a block of markdown is.  The
@@ -55,16 +54,6 @@
   :group 'text
   :group 'overblock
   :prefix "overblock-md-preview-")
-
-(defvar-local overblock-md-preview-regions-function
-  #'overblock-md-regions
-  "Function that returns the regions of this buffer to render.
-It is called with no arguments, and returns a list of conses in
-order.  The default returns every block of markdown.
-
-A mode that reads part of the buffer as something else sets this.  In
-an Rmd file the fenced chunks are R code that runs, so `overblock-rmd'
-returns the prose alone.")
 
 
 ;;;; What to render them with
@@ -92,7 +81,7 @@ reader does not wait for it.
 `overblock-md-render-regions' is the batch."
   (interactive)
   (overblock-md-render-regions
-   (funcall overblock-md-preview-regions-function)
+   (overblock-md-regions)
    'md-preview #'overblock-md-source #'overblock-md-preview--show))
 
 ;;;###autoload
@@ -106,21 +95,11 @@ rendering shows its source to edit it.
 `overblock-md-command' converts the markdown.  The mode does nothing
 when none of its candidates is installed."
   :lighter " MdPrev"
-  ;; `overblock-rmd-mode' renders its prose through this same live
-  ;; cycle, and this mode would take the cycle over. A message, not an
-  ;; error: a configuration can hook both modes onto
-  ;; `markdown-mode-hook'.
   (when overblock-md-preview-mode
     (overblock-only-in 'overblock-md-preview-mode 'markdown-mode))
-  (cond
-   ;; Refused, and nothing else: the two modes share the kind, so the
-   ;; last branch would stop the cycle of `overblock-rmd-mode'.
-   ((and overblock-md-preview-mode (bound-and-true-p overblock-rmd-mode))
-    (setq overblock-md-preview-mode nil)
-    (message "overblock-md-preview: off, overblock-rmd-mode renders this prose"))
-   (overblock-md-preview-mode
-    (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer))
-   (t (overblock-live-stop 'md-preview))))
+  (if overblock-md-preview-mode
+      (overblock-live-start 'md-preview #'overblock-md-preview-render-buffer)
+    (overblock-live-stop 'md-preview)))
 
 (provide 'overblock-md-preview)
 ;;; overblock-md-preview.el ends here
