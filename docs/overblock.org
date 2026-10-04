@@ -37,14 +37,12 @@ These options apply to every package of the repository.
 | =overblock-run-max-line-length= |    2000 | the characters of a result line that show inline |
 | =overblock-run-scroll=          |       t | a pass scrolls until you type, scroll or click   |
 
-A block that is taller than the window stops the wheel. Thus
-=overblock-image-height= caps an inline image. Zero shows an image at
-its own size, or at the size its tag gives. The two result limits
-apply to every notebook, and zero shows all. Set the options with
-=setopt=. A change of a result limit draws the results on the screen
-again at once. A change of =overblock-image-height= or
-=overblock-terminal-glyphs= applies to the next block that a mode
-draws.
+=overblock-image-height= caps an inline image; see [[*The image cap]].
+Zero shows an image at its own size, or at the size its tag gives. The
+two result limits apply to every notebook, and zero shows all. Set the
+options with =setopt=. A change of a result limit draws the results on
+the screen again at once. A change of =overblock-image-height= or
+=overblock-terminal-glyphs= applies to the next block that a mode draws.
 
 ** Faces
 
@@ -126,6 +124,12 @@ calls a renderer.
 | =overblock-stale-when-edited=    | remove a block on the next edit under it    |
 | =overblock-goto-event=           | select the window of a click and go there   |
 | =overblock-only-in=              | keep a minor mode off in other major modes  |
+
+=overblock-show-rendering= takes the PROPS of =overblock-show=:
+
+#+begin_src emacs-lisp
+  (overblock-show-rendering BEG END RENDERED FACE &rest PROPS)
+#+end_src
 
 The anchor covers the region and holds the properties. It stops before
 the newline that ends the region. Thus a window that starts at the next
@@ -270,6 +274,13 @@ for what the bar stands on, and the buttons at the right edge.
 | =overblock-button-type=  | the customize type of a list of descriptors            |
 | =overblock-glyph=        | the first of several candidates the frame can draw     |
 
+The two that a mode calls most:
+
+#+begin_src emacs-lisp
+  (overblock-bar-line BOL EOL KIND GLYPH LABEL ICONS)
+  (overblock-glyph &rest CANDIDATES)
+#+end_src
+
 A bar on a line of the buffer, such as a notebook cell line or an R
 chunk header, goes through =overblock-bar-line=. A line has one bar:
 =overblock-bar-line= draws the bar of its kind again, and removes each
@@ -286,7 +297,8 @@ counts the room in pixels and fills it with spaces.
 
 Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=:
 
-- KEY names the button. Nothing reads it.
+- KEY names the button. The layer does not read it. Use it to find a
+  button in the list, as in [[*Change the buttons]].
 - GLYPHS are the candidates for the label. The first one that the frame
   can draw wins. Keep a plain word at the end, because each frame can
   draw the last label.
@@ -733,6 +745,10 @@ its own limits.
   side window beside a wide one cuts each label in both.
 - The wheel and the scroll commands have limits near a block. See
   [[*Scrolling][Scrolling]].
+
+These limits apply to the notebooks, overblock-pycell and overblock-rmd,
+only:
+
 - One region runs at a time for each interpreter. A region sent while
   another runs, or while the interpreter starts, waits in the queue.
 - A table in a result is a copy with the columns as plain text. Thus
