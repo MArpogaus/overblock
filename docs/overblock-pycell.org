@@ -195,7 +195,7 @@ same for each language. This package gives the loop a plist:
 =overblock-pycell--backend=. It tells how to reach the interpreter, how
 to send a cell and what a prompt looks like. It also tells how to clean
 the output, and which button option a result reads. The slots are in
-[[file:overblock.org][the notes of the layer]].
+[[file:custom-mode.org::*The backend][docs/custom-mode.org]].
 
 The copy must change before a block can show it. =overblock-repl-detach=
 makes those changes; see the layer notes. A vtable keeps its table
