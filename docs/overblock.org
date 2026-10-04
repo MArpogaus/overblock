@@ -489,7 +489,7 @@ running output is read in the shell buffer, cut to the result limits.
 | Function                       | What it does                                                 |
 |--------------------------------+--------------------------------------------------------------|
 | =overblock-run-attach=         | make this buffer a notebook with a backend                   |
-| =overblock-run-detach=         | stop being a notebook                                        |
+| =overblock-run-detach=         | stop being a notebook, and remove its results and bars       |
 | =overblock-run-region=         | run one region, and start the shell where there is none      |
 | =overblock-run-cells=          | run several regions in order, to the first error             |
 | =overblock-run-on-prompt=      | queue regions to run when a new shell prompts                |

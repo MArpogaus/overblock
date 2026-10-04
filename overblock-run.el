@@ -1200,12 +1200,13 @@ bars when the reader stops."
 
 (defun overblock-run-detach ()
   "Stop this buffer being a notebook, and take its results and bars down.
-Every block goes, whatever made it."
+The blocks of other modes stay, such as the doc strings of a Python
+buffer."
   (overblock-live-stop 'bar)
   (kill-local-variable 'overblock-run-backend)
   (remove-hook 'overblock-width-functions #'overblock-run--redraw t)
   (mapc #'delete-overlay (overblock-bars))
-  (overblock-clear))
+  (overblock-run-clear-results))
 
 (defun overblock-run--redraw ()
   "Draw the results and the bars of this notebook again.

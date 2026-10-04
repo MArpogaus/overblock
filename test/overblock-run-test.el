@@ -541,5 +541,17 @@ cycle of its mode."
       (should drawn))
     (overblock-run-detach)))
 
+(ert-deftest overblock-run-test-a-detach-leaves-other-blocks ()
+  "A notebook that goes off takes its results down, and no other block.
+A Python buffer can hold the doc strings of another mode."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (overblock-run-attach (overblock-run-test--backend))
+    (overblock-run-show 1 4 "out" 0.1)
+    (overblock-show 5 8 :kind 'other :over "rendered")
+    (overblock-run-detach)
+    (should-not (overblock-in (point-min) (point-max) 'result))
+    (should (overblock-in (point-min) (point-max) 'other))))
+
 (provide 'overblock-run-test)
 ;;; overblock-run-test.el ends here
