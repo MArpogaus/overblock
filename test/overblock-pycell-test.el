@@ -2085,7 +2085,7 @@ binding of the reader must arrive."
         (progn (keymap-set overblock-pycell-md-map "RET" #'overblock-pycell-md-edit)
                (should (eq (key-binding (kbd "RET")) #'overblock-pycell-md-edit)))
       (keymap-unset overblock-pycell-md-map "RET" t))
-    (should (eq (key-binding [mouse-1]) #'overblock-pycell-md-raw))
+    (should (eq (key-binding [mouse-1]) #'overblock-live-edit))
     (should (get-char-property (point) 'help-echo))))
 
 (ert-deftest overblock-pycell-test-a-link-can-be-followed-from-the-keyboard ()
@@ -2104,7 +2104,7 @@ links."
     (overblock-pycell-test--render-all)
     (goto-char (point-min))
     (forward-line 1)
-    (let* ((block (overblock-pycell--md-at nil))
+    (let* ((block (overblock-at 'pycell))
            (links (overblock-md--links block)))
       (should (equal (mapcar #'cdr links)
                      '("https://ctan.org/" "https://gnu.org/")))
@@ -2148,7 +2148,7 @@ one: `overblock-md--image-file' returns nil for every path there."
       (overblock-pycell-test--render-all))
     (goto-char (point-min))
     (forward-line 1)
-    (should (equal (mapcar #'cdr (overblock-md--links (overblock-pycell--md-at nil)))
+    (should (equal (mapcar #'cdr (overblock-md--links (overblock-at 'pycell)))
                    '("https://colab.google/" "https://gnu.org/")))))
 
 (ert-deftest overblock-pycell-test-a-pop-out-follows-a-running-cell ()
@@ -2718,7 +2718,7 @@ The `:set' of the option draws the bars again."
 
 (ert-deftest overblock-pycell-test-a-cell-taken-back-to-its-source-keeps-a-bar ()
   "Taking a cell back to its source leaves it a bar to be rendered from.
-`overblock-pycell-md-raw' is the command, and the render button is on
+`overblock-live-edit' is the command, and the render button is on
 that bar.  Taking a rendering down deletes its bar and changes no text,
 so nothing else would draw one."
   (skip-unless (overblock-md-program))
@@ -2732,7 +2732,7 @@ so nothing else would draw one."
       (should (eq (funcall kind) 'markdown))
       (goto-char (point-min))
       (forward-line 1)
-      (overblock-pycell-md-raw)
+      (overblock-live-edit)
       (should (eq (funcall kind) 'source))
       ;; One bar, not two.
       (should (= 1 (length (seq-filter

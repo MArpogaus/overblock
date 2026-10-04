@@ -137,7 +137,7 @@ button for the source: a click on the rendering shows it."
           overblock-pycell--move-buttons)
   "The buttons on the bar of a markdown cell that shows its source.
 An entry has the shape `overblock-buttons' reads.  Such a cell is new,
-or was taken back to its source with `overblock-pycell-md-raw'; the
+or was taken back to its source with `overblock-live-edit'; the
 render button renders it."
   :type overblock-button-type
   :set #'overblock-run-set-and-redraw)
@@ -286,9 +286,10 @@ the first boundary line has none."
 Only the mouse is bound: overblock-pycell binds no keys.  Put your own
 here, for example `overblock-pycell-md-edit' and
 `overblock-md-follow-link'.  Point never enters the rendering,
-so the overlays of the cell carry this map."
-  "<mouse-2>" #'overblock-pycell-md-edit
-  "<mouse-1>" #'overblock-pycell-md-raw)
+so the overlays of the cell carry this map.  `overblock-live-map' is
+its parent, so a click shows the source."
+  :parent overblock-live-map
+  "<mouse-2>" #'overblock-pycell-md-edit)
 
 (defun overblock-pycell--drop-rendering (block)
   "Take BLOCK down, and bar the boundary line a rendering leaves behind.
@@ -593,14 +594,6 @@ prompt.  A cell sent while the shell is busy or starts is queued."
           (goto-char end)))
     (overblock-run-region start end)))
 
-(defun overblock-pycell--md-at (event)
-  "Return the markdown block at point, or at the click in EVENT.
-A click on the bar finds the block too: the bar is attached to it.
-Signal a `user-error' where there is no rendered cell."
-  (overblock-goto-event event)
-  (or (overblock-at 'pycell)
-      (user-error "No rendered markdown cell here")))
-
 ;;;###autoload
 (defun overblock-pycell-md-render-cell (&optional event)
   "Render the markdown cell at point, or the one whose button EVENT clicked.
@@ -612,14 +605,6 @@ button on the bar of a cell that shows its source."
     (unless (overblock-pycell--md-cell-start beg)
       (user-error "This is not a markdown cell"))
     (overblock-pycell--show beg end)))
-
-;;;###autoload
-(defun overblock-pycell-md-raw (&optional event)
-  "Show the markdown cell at point, or the one in EVENT, as plain source.
-The cell is then editable in place, and renders again when point
-leaves it.  The button on its bar renders it at once."
-  (interactive (list last-input-event))
-  (overblock-take-down (overblock-pycell--md-at event)))
 
 (defun overblock-pycell--md-comment (text)
   "Prefix each line of TEXT as a jupytext markdown comment."
@@ -653,7 +638,10 @@ The body opens in its own buffer, without the comment prefixes, in
 `markdown-mode' when that is installed.  `overblock-edit-commit' puts
 it back and renders it; `overblock-edit-abort' discards the edit."
   (interactive (list last-input-event))
-  (pcase-let* ((block (overblock-pycell--md-at event))
+  ;; A click on the bar finds the block too: the bar is attached to it.
+  (overblock-goto-event event)
+  (pcase-let* ((block (or (overblock-at 'pycell)
+                          (user-error "No rendered markdown cell here")))
                (`(,beg . ,end) (overblock-get block :data)))
     (overblock-edit-in-buffer
      beg end
