@@ -221,8 +221,9 @@ bar left on the line could not be swept."
     (should-not (seq-filter #'overblock-bar-kind
                             (overlays-in (point-min) (point-max))))))
 
-(ert-deftest overblock-pycell-test-md-a-failed-cell-shows-its-markdown ()
-  "A cell the converter fails on shows its markdown, and goes no more."
+(ert-deftest overblock-pycell-test-md-a-failed-cell-keeps-its-source ()
+  "A cell the converter fails on keeps its source in view, and goes no more.
+The block stays, empty, and keeps the bar of the cell."
   (with-temp-buffer
     (insert "# %% [markdown]\n# Some *text*.\n# %%\nprint(1)\n")
     (python-mode)
@@ -230,8 +231,8 @@ bar left on the line could not be swept."
     (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
       (let ((block (overblock-pycell--show 17 31)))
         (should block)
-        (should (string-match-p "Some \\*text\\*"
-                                (overblock-get block :over)))))))
+        (should-not (overblock-get block :over))
+        (should (overblock-get block :attached))))))
 
 (ert-deftest overblock-pycell-test-md-an-anchor-link-finds-a-cell-heading ()
   "A #slug link finds the heading of a markdown cell, not a comment."

@@ -304,64 +304,41 @@ reader stops."
 (defun overblock-pycell--show (beg end &optional html)
   "Render the markdown cell BEG..END over its own source, and return the block.
 HTML is the answer of the converter for it, when a batch converted the
-whole buffer.
-
-The rendering hangs on the source lines, a piece to a line (see
-`overblock--pieces'), so the cell scrolls like text and is as tall as
-its source; when the rendering is shorter, a cloak hides the lines
-left over.  A cell that renders to nothing gets an empty piece and a
-cloak like any shorter rendering, and its =# %%= line stays visible.
+whole buffer.  `overblock-md-show' renders it: a conversion that fails
+leaves the source in view.
 
 Only the word =markdown= of the boundary line carries the header, so
 =# %%= looks like every other cell boundary and `outline-minor-mode'
 still finds its heading."
   (when-let* (;; Still a markdown cell: the boundary line can change
               ;; while an edit buffer is open.
-              ((overblock-pycell--md-cell-start beg))
+              (from (overblock-pycell--md-cell-start beg))
               ;; An empty cell has no region for a block. This can run
               ;; in the comint filter, where an error is costly.
               ((< beg end))
               ;; Without a converter the cell stays plain text.
-              ((overblock-md-program))
-              (markdown (overblock-pycell--source beg end))
-              ;; A conversion that fails shows the markdown as it is,
-              ;; so the cell does not go to the converter on every pass.
-              (rendered (or (let ((overblock-md-width (overblock-md-columns)))
-                              (overblock-md-rendered markdown html))
-                            markdown)))
-    (overblock-pycell--md-block beg end rendered)))
-
-(defun overblock-pycell--md-block (beg end rendered)
-  "Show RENDERED over the markdown cell BEG..END, with a bar above it.
-See `overblock-pycell--show', which renders and calls this."
-  (let* ((help "mouse-2: edit this markdown cell, mouse-1: show source")
-         (text (overblock-fill-props
-                (overblock-faced rendered 'default)
-                'keymap overblock-pycell-md-map 'help-echo help))
-         ;; The bar covers the boundary line up to its newline. The old
-         ;; rendering goes first, with its bar, so this bar is new.
-         (hov (progn (overblock-clear beg end 'pycell)
-                     (overblock-pycell--md-bar
-                      (overblock-pycell--md-cell-start beg) (1- beg))))
-         ;; The block covers the source of the cell, not the bar.
-         (block (overblock-show beg end
-                                :kind 'pycell
-                                ;; The source for the editor, as markers
-                                ;; that follow edits above the cell.
-                                ;; They outlive the block: the click
-                                ;; that opens the editor removes the
-                                ;; rendering first.
-                                :data (cons (copy-marker beg)
-                                            (copy-marker end t))
-                                :over text
-                                :keymap overblock-pycell-md-map
-                                :help-echo help
-                                :attached (list hov))))
-    (overlay-put hov 'keymap overblock-pycell-md-map)
-    ;; An edit of the source removes the rendering and the bar, which no
-    ;; edit of the cell reaches.
-    (overblock-stale-when-edited block #'overblock-pycell--drop-rendering)
-    block))
+              ((overblock-md-program)))
+    ;; The bar covers the boundary line up to its newline. The old
+    ;; rendering goes first, with its bar, so this bar is new.
+    (let* ((bar (progn (overblock-clear beg end 'pycell)
+                       (overblock-pycell--md-bar from (1- beg))))
+           (block (overblock-md-show
+                   beg end (overblock-pycell--source beg end) html 'default
+                   :kind 'pycell
+                   ;; The source for the editor, as markers that follow
+                   ;; edits above the cell. They outlive the block: the
+                   ;; click that opens the editor removes the rendering
+                   ;; first.
+                   :data (cons (copy-marker beg) (copy-marker end t))
+                   :keymap overblock-pycell-md-map
+                   :help-echo "mouse-2: edit this markdown cell, mouse-1: show source"
+                   :attached (list bar))))
+      (overlay-put bar 'keymap overblock-pycell-md-map)
+      ;; An edit of the source removes the rendering and the bar, which no
+      ;; edit of the cell reaches.
+      (when block
+        (overblock-stale-when-edited block #'overblock-pycell--drop-rendering))
+      block)))
 
 ;;;###autoload
 (defun overblock-pycell-render-buffer ()

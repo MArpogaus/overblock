@@ -943,7 +943,11 @@ a macro, an undo.  Point moving into the region reveals nothing.
 `overblock-md-show' uses this."
   (when-let* ((block
                (if (string-empty-p (string-trim rendered))
-                   (overblock-show beg end :kind (plist-get props :kind))
+                   ;; No keymap: a click in the source sets point.
+                   (overblock-show beg end
+                                   :kind (plist-get props :kind)
+                                   :data (plist-get props :data)
+                                   :attached (plist-get props :attached))
                  (apply #'overblock-show beg end
                         :over (overblock-fill-props
                                (overblock-faced rendered face)
