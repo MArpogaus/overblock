@@ -84,8 +84,9 @@ A command of a notebook mode is autoloaded and can be called anywhere."
 
 (defun overblock-run--notebook-p (buffer)
   "Return non-nil where BUFFER is a notebook.
-Its shell has a copy of the backend too, but draws no bars."
-  (assq 'bar (buffer-local-value 'overblock-live--specs buffer)))
+Its shell has a copy of the backend too, and a process."
+  (and (buffer-local-value 'overblock-run--backend buffer)
+       (not (get-buffer-process buffer))))
 
 (defun overblock-run--name ()
   "Return the word that the messages of this backend carry."
