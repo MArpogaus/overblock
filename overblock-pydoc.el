@@ -132,8 +132,7 @@ nothing has to measure it.")
 
 (defvar-local overblock-pydoc--regions-cache nil
   "The doc strings of this buffer, for `overblock-cached'.
-The live cycle re-arms from `post-command-hook', and without the cache
-each motion of point walks the whole buffer again for the same answer.")
+The live cycle asks for them each time the reader stops.")
 
 ;;;; Regions
 
