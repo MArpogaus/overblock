@@ -54,7 +54,7 @@ whole buffer."
   "Render every block of the buffer that wants it.
 One asynchronous converter process does all of them, so the reader
 does not wait.  `overblock-live-start' calls this again whenever the
-reader stops.  `overblock-md-render-regions' is the batch."
+reader stops."
   (interactive)
   (overblock-md-render-regions
    (overblock-md-regions)

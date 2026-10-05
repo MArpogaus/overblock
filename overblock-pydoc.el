@@ -415,9 +415,7 @@ the column of BEG, which for a raw doc string includes its prefix."
   "Render every doc string of the buffer that wants it.
 One asynchronous converter process does all of them, so the reader
 does not wait.  `overblock-live-start' calls this again whenever the
-reader stops.  `overblock-md-render-regions' is the batch, and says
-what happens to a doc string the reader reaches while the process
-runs."
+reader stops."
   (interactive)
   (let ((overblock-md-command (overblock-pydoc--command-for-markup)))
     (overblock-md-render-regions (overblock-pydoc--regions)

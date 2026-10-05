@@ -313,13 +313,7 @@ buffer, so `outline-minor-mode' still finds its heading."
   "Render every markdown cell of the buffer that wants it.
 One asynchronous converter process does all of them, so the reader
 does not wait.  `overblock-live-start' calls this again whenever the
-reader stops.
-
-A markdown cell is one whose boundary line reads \"# %% [markdown]\".
-`overblock-live-wanted-p' says which want rendering: not those
-rendered already, and not the one whose rendering came off while point
-is still in it.  Nothing happens without a converter;
-`overblock-pycell-mode' says so once when it goes on."
+reader stops."
   (interactive)
   (overblock-md-render-regions
    (overblock-pycell--regions)
