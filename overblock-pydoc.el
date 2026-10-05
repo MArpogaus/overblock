@@ -340,7 +340,7 @@ lines off the ends, and a row of spaces is a blank line."
                       'face 'overblock-pydoc-footer)
           (overblock-bar "" "" "" 'overblock-pydoc-footer indent)))
 
-(defun overblock-pydoc--bar (summary indent)
+(defun overblock-pydoc--header (summary indent)
   "Return the bar of a rendered doc string, INDENT columns in.
 The bar holds the glyph, the SUMMARY as its label, and the buttons at
 the edge of the window, under the rule its face draws.
@@ -372,11 +372,11 @@ leaves the indentation of the source in view (the `:indent' of
 `overblock-show')."
   (pcase-let ((`(,summary . ,body) (split-string prose "\n")))
     (if body
-        (string-join `(,(overblock-pydoc--bar summary indent)
+        (string-join `(,(overblock-pydoc--header summary indent)
                        ,@body
                        ,(overblock-pydoc--rule indent))
                      "\n")
-      (overblock-pydoc--bar summary indent))))
+      (overblock-pydoc--header summary indent))))
 
 (defun overblock-pydoc--show (beg end &optional html)
   "Render the doc string BEG..END over its own source, and return the block.

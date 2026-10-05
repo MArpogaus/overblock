@@ -360,7 +360,7 @@ A rule under one row would box it in."
     (set-window-buffer nil (current-buffer))
     (cl-letf (((symbol-function 'overblock--window-width)
                (lambda () (* 40 (frame-char-width)))))
-      (let ((bar (overblock-pydoc--bar (make-string 80 ?x) 4)))
+      (let ((bar (overblock-pydoc--header (make-string 80 ?x) 4)))
         (should (string-search "…" bar))
         (should (< (string-width bar) 60))))))
 
