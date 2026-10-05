@@ -67,6 +67,15 @@
     (overblock-quote-mode 1)
     (should (equal (overblock-examples-test--quotes) '("two\n")))))
 
+(ert-deftest overblock-examples-test-the-quotes-are-cached ()
+  "A second walk without an edit gives the same list, and an edit a new one."
+  (with-temp-buffer
+    (insert "> one\ntext\n")
+    (let ((first (overblock-quote--regions)))
+      (should (eq (overblock-quote--regions) first))
+      (insert "> two\n")
+      (should (equal (overblock-quote--regions) '((1 . 7) (12 . 18)))))))
+
 (ert-deftest overblock-examples-test-the-quote-mode-wants-text ()
   "The quote mode refuses a buffer that is not text, and stays off."
   (with-temp-buffer

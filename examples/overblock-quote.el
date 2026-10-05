@@ -33,8 +33,8 @@
 ;; To try it, evaluate this file with M-x load-file, open a text file
 ;; or a mail with quoted lines, and turn on M-x overblock-quote-mode.
 ;;
-;; It has the sections of a render mode: Options, Faces, Regions,
-;; Rendering, Mode.  A mode whose regions come from overblock-md, such as
+;; It has the sections of a render mode: Options, Faces, State,
+;; Regions, Rendering, Mode.  A mode whose regions come from overblock-md, such as
 ;; overblock-md-preview, has no Regions.  The live cycle of the layer
 ;; does the rest: `overblock-live-start' calls
 ;; `overblock-quote-render-buffer' when the reader stops, and
@@ -57,12 +57,21 @@
 (defface overblock-quote '((t :inherit (italic font-lock-comment-face)))
   "Face of a rendered quote.")
 
+;;;; State
+
+(defvar-local overblock-quote--regions-cache nil
+  "The quotes of this buffer, for `overblock-cached'.")
+
 ;;;; Regions
 
 (defun overblock-quote--regions ()
   "Return every run of quoted lines of the buffer, in order.
 Each is a cons of the start of its first line and the start of the
 line after it, so the region holds whole lines."
+  (overblock-cached 'overblock-quote--regions-cache #'overblock-quote--walk))
+
+(defun overblock-quote--walk ()
+  "Find every run of quoted lines of the buffer, for `overblock-quote--regions'."
   (save-excursion
     (goto-char (point-min))
     (let (regions)
