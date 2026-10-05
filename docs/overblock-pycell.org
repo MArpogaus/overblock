@@ -213,8 +213,9 @@ needs a final newline, as [[*Known limits]] says.
 
 [[*Options]] lists the four button options, and [[*Results]] the
 buttons of a result. Each of the four lists ends with the pair that
-moves a cell, so the pair is at the same place on each bar. The fold arrow and
-the spinner are in no option, because they tell what the result does.
+moves a cell, so the pair is at the same place on each bar. The fold
+arrow and the spinner are in no option, because they tell what the
+result does.
 
 ** The bar over a boundary line
 

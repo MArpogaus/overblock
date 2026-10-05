@@ -245,7 +245,8 @@ ends in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
 turns =overblock-md-preview-mode= off, because it renders the prose
 itself.
 
-To run a chunk, click the middle run button on its bar.
+To run a chunk, click the middle run button on its bar. At the first
+run, ESS can ask for the start directory of R.
 [[file:docs/overblock-rmd.org::*Use][Use]] in docs/overblock-rmd.org
 tells the buttons, the commands and the options.
 
@@ -298,7 +299,8 @@ Install the hooks of =.pre-commit-config.yaml=:
 #+end_src
 
 Before a commit, the hooks check the indentation, the documentation
-strings, the declarations and the complexity of each function. Most of
+strings, the regexps, the declarations and the complexity of each
+function. Most of
 them come from
 [[https://github.com/MArpogaus/emacs-pre-commit-hooks][emacs-pre-commit-hooks]].
 Before a push, they run package-lint, the compilation and the tests. A

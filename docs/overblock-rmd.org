@@ -58,18 +58,18 @@ before it.
 
 ** Commands and options
 
-| Command                             | Action                                                    |
-|-------------------------------------+-----------------------------------------------------------|
-| =overblock-rmd-mode=                | turn the mode on or off for a buffer                      |
-| =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= buffer only, for a major mode hook |
-| =overblock-run-this=                | run the chunk at point                                    |
-| =overblock-run-and-step=            | run the chunk at point, and move to the next              |
-| =overblock-run-forward=             | move to the next chunk                                    |
-| =overblock-run-backward=            | move to the previous chunk                                |
-| =overblock-run-restart=             | restart R, and remove the results                         |
-| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                     |
-| =overblock-live-edit=               | show the source of the prose at point                     |
-| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                 |
+| Command                             | Action                                                              |
+|-------------------------------------+---------------------------------------------------------------------|
+| =overblock-rmd-mode=                | turn the mode on or off for a buffer                                |
+| =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= or =.rmd= buffer only, for a major mode hook |
+| =overblock-run-this=                | run the chunk at point                                              |
+| =overblock-run-and-step=            | run the chunk at point, and move to the next                        |
+| =overblock-run-forward=             | move to the next chunk                                              |
+| =overblock-run-backward=            | move to the previous chunk                                          |
+| =overblock-run-restart=             | restart R, and remove the results                                   |
+| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                               |
+| =overblock-live-edit=               | show the source of the prose at point                               |
+| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                           |
 
 The commands of a result and of a pass are those of
 [[file:overblock-pycell.org::*Results][overblock-pycell]].

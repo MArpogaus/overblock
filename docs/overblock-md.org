@@ -80,9 +80,9 @@ strings and the prose of an Rmd file use the same map.
 [[*The converter]] gives the default list.
 
 =overblock-md-code-modes= maps the language names that do not spell
-their mode, such as =elisp=, =bash= and =r=. The package tries each other name
-as =LANGUAGE-mode=. Set the option to nil, and each fenced block gets the
-face =overblock-md-code=.
+their mode, such as =elisp=, =bash= and =r=. The package tries each
+other name as =LANGUAGE-mode=. Set the option to nil, and each fenced
+block gets the face =overblock-md-code=.
 
 The face =overblock-md-code= draws inline code. Change it with
 =set-face-attribute=, as for the faces of

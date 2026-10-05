@@ -30,7 +30,8 @@ indentation, in an
 the closing quotes of a doc string with several lines on a line of
 their own, as PEP 257 says.
 
-=overblock-live-map= holds only the click, as in the Markdown preview.
+=overblock-live-map= holds only the click, as
+[[file:overblock-md.org::*Commands and options][in the Markdown preview]].
 
 | Option                        | Default                       | Meaning                                |
 |-------------------------------+-------------------------------+----------------------------------------|

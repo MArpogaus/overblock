@@ -69,8 +69,8 @@ entry. This example removes the discard button of a notebook result:
 
 Put such forms in the =:config= of the =use-package= form of the
 package. At startup Emacs has not loaded the package yet, and its
-variables do not exist. Use =setopt= and not =setq=. With =setopt=, the bars of
-every open buffer change at once.
+variables do not exist. Use =setopt= and not =setq=. With =setopt=,
+the bars of every open buffer change at once.
 
 * The block layer
 
@@ -302,8 +302,8 @@ Each descriptor is =(KEY GLYPHS HELP COMMAND WHEN)=:
 - HELP is the tooltip.
 - COMMAND runs on a click, with the click in =last-input-event=.
 - WHEN is =t=, =image=, =lines=, =running= or =done=. Only the result
-  header of a notebook reads it, as [[*The backend][The backend]] tells. A bar shows each
-  button of its list.
+  header of a notebook reads it, as [[*The backend][The backend]]
+  tells. A bar shows each button of its list.
 
 Use three candidates: a codicon of a nerd font, a character of an
 ordinary monospace font, and a short word. Use a word and not a letter,

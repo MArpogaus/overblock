@@ -281,9 +281,9 @@ Each row names what a mode uses, and links to the reference.
   line prompts after each line. The first prompt then ends the run.
   Send the region as one unit: a =source= call in R, a group in bash.
   A continuation prompt, such as =PS2= in bash, must print nothing.
-- *The prompt must be unique.* =:prompt-p= gets the newest output
-  and up to 256 characters before it, without ANSI escapes. Output that ends like
-  the prompt ends the run too early.
+- *The prompt must be unique.* =:prompt-p= gets the newest output and
+  up to 256 characters before it, without ANSI escapes. Output that
+  ends like the prompt ends the run too early.
 - *A tool without a prompt.* Let =:send= print a marker of its own
   after each region, and let =:prompt-p= take that marker for the
   prompt.
