@@ -36,6 +36,9 @@
 (require 'overblock-test-common)
 (require 'overblock-md-preview)
 
+;; The variable of polymode, which a test sets without polymode.
+(defvar pm/polymode)
+
 (defconst overblock-rmd-test--document
   "\
 Some prose about the data.
