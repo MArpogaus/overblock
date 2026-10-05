@@ -151,17 +151,16 @@ narrowing changes."
               (push (list (car fence) code-beg code-end) chunks))))))
     (nreverse chunks)))
 
-(defun overblock-rmd--chunk-at (&optional pos)
-  "Return the chunk POS, or point, stands in, or nil for none.
+(defun overblock-rmd--chunk-at ()
+  "Return the chunk point stands in, or nil for none.
 Both fence lines count as part of the chunk, so a click on the bar and
 a point at the end of the code find the same one."
-  (let ((pos (or pos (point))))
-    (seq-find (lambda (chunk)
-                (and (<= (nth 0 chunk) pos)
-                     (<= pos (save-excursion
-                               (goto-char (nth 2 chunk))
-                               (pos-eol)))))
-              (overblock-rmd--chunks))))
+  (seq-find (lambda (chunk)
+              (and (<= (nth 0 chunk) (point))
+                   (<= (point) (save-excursion
+                                 (goto-char (nth 2 chunk))
+                                 (pos-eol)))))
+            (overblock-rmd--chunks)))
 
 (defun overblock-rmd--region-at ()
   "Return the chunk point is in as (OPEN . CODE-END), or nil for none.
