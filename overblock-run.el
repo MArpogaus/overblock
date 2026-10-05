@@ -40,6 +40,7 @@
 (require 'map)
 (require 'ansi-color)
 (require 'vtable)
+(require 'pulse)
 
 ;;;; Options
 
@@ -1530,14 +1531,16 @@ The copy keeps its text properties, so images survive a yank."
 (defun overblock-run-this (&optional event)
   "Run the region at point, or the one whose button EVENT clicked.
 The `:code-at' of the backend says what of it goes to the shell, where
-it has one.  The result grows below the region while it runs.  A
-region sent while another one runs is queued behind it."
+it has one.  The region flashes, as `code-cells-eval' flashes a cell.
+The result grows below the region while it runs.  A region sent while
+another one runs is queued behind it."
   (interactive (list last-input-event))
   (overblock-goto-event event)
   (overblock-run--must)
   (pcase-let ((`(,beg . ,end)
                (or (overblock-run--code-at)
                    (user-error "No %s to run here" (overblock-run--unit)))))
+    (pulse-momentary-highlight-region beg end)
     (overblock-run-region beg end)))
 
 ;;;###autoload

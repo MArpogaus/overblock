@@ -566,6 +566,22 @@ Its start message must not cover the done it says at once."
         (should (overblock-run--step-at (point-min-marker)))
         (should (equal sent (cons 1 (point-max))))))))
 
+(ert-deftest overblock-run-test-run-this-flashes-the-code-it-sends ()
+  "The region that `overblock-run-this' sends flashes, as a cell of code-cells does."
+  (with-temp-buffer
+    (insert "# head\ncode\n")
+    (setq-local overblock-run--backend
+                (list :region-at (lambda () (cons 1 (point-max)))
+                      :code-at (lambda () (cons 8 (point-max)))))
+    (let (flashed sent)
+      (cl-letf (((symbol-function 'pulse-momentary-highlight-region)
+                 (lambda (beg end &rest _) (setq flashed (cons beg end))))
+                ((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (setq sent (cons beg end)))))
+        (overblock-run-this)
+        (should (equal flashed (cons 8 (point-max))))
+        (should (equal sent flashed))))))
+
 (ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
   "A failed result says so, and a folded one claims to show nothing.
 A traceback looked like any other output, and a folded result of thirty
