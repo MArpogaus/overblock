@@ -172,8 +172,8 @@ docs/custom-mode.org lists the slots.  The mode of a notebook
 sets it and removes it when turned off, so the runner draws only in a
 buffer that has one.
 
-`overblock-run--send' copies it into the shell buffer, where the filter
-and the ticker read it.")
+`overblock-run--shell' and `overblock-run--send' copy it into the shell
+buffer, where the filter and the ticker read it.")
 
 ;;;; Backend
 
