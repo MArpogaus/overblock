@@ -1,98 +1,207 @@
 # Inspired by: https://github.com/othneildrew/Best-README-Template
 #+OPTIONS: toc:nil
 
-[[https://github.com/MArpogaus/pycell/graphs/contributors][https://img.shields.io/github/contributors/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/network/members][https://img.shields.io/github/forks/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/stargazers][https://img.shields.io/github/stars/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/issues][https://img.shields.io/github/issues/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/blob/main/COPYING][https://img.shields.io/github/license/MArpogaus/pycell.svg?style=flat-square]]
-[[https://github.com/MArpogaus/pycell/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/pycell/test.yml.svg?branch=main&label=tests&style=flat-square]]
-[[https://melpa.org/#/pycell][https://melpa.org/packages/pycell-badge.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/graphs/contributors][https://img.shields.io/github/contributors/MArpogaus/overblock.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/network/members][https://img.shields.io/github/forks/MArpogaus/overblock.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/stargazers][https://img.shields.io/github/stars/MArpogaus/overblock.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/issues][https://img.shields.io/github/issues/MArpogaus/overblock.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/blob/main/COPYING][https://img.shields.io/github/license/MArpogaus/overblock.svg?style=flat-square]]
+[[https://github.com/MArpogaus/overblock/actions/workflows/test.yml][https://img.shields.io/github/actions/workflow/status/MArpogaus/overblock/test.yml.svg?branch=main&label=tests&style=flat-square]]
 [[https://linkedin.com/in/MArpogaus][https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555]]
 
-* pycell :TOC_3_gh:noexport:
+* overblock :TOC_3_gh:noexport:
   - [[#about-the-project][About The Project]]
-    - [[#how-it-works][How It Works]]
-  - [[#getting-started][Getting Started]]
-    - [[#prerequisites][Prerequisites]]
-    - [[#installation][Installation]]
-    - [[#example-configuration][Example Configuration]]
-    - [[#scrolling][Scrolling]]
-  - [[#usage][Usage]]
-    - [[#results][Results]]
-    - [[#markdown-cells][Markdown Cells]]
-  - [[#commands][Commands]]
-  - [[#customization][Customization]]
+  - [[#which-one-do-you-want][Which One Do You Want]]
+  - [[#overblock-the-block-layer][overblock: the block layer]]
+  - [[#overblock-md-markup-rendered-to-text][overblock-md: markup rendered to text]]
+  - [[#overblock-pydoc-python-doc-strings][overblock-pydoc: Python doc strings]]
+  - [[#overblock-pycell-python-notebook-cells][overblock-pycell: Python notebook cells]]
+  - [[#overblock-rmd-r-chunks-in-an-rmd-file][overblock-rmd: R chunks in an Rmd file]]
+  - [[#prerequisites][Prerequisites]]
   - [[#known-limits][Known Limits]]
-  - [[#comparison-with-other-packages][Comparison with Other Packages]]
+  - [[#development][Development]]
   - [[#contributions][Contributions]]
+  - [[#use-of-llm-coding-tools][Use of LLM Coding Tools]]
   - [[#license][License]]
   - [[#contact][Contact]]
 
 ** About The Project
 
-Notebook style results for Python code cells, without a Jupyter kernel.
-=pycell= builds on [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]] and needs nothing beyond
-=python.el=: no =emacs-jupyter=, no =zmq= module, no =.ipynb= files.
+This repository holds five Emacs packages with one idea. A *block*
+shows text over a region of a buffer, or after it. The buffer text does
+not change, so files, undo and a language server see nothing.
 
-Evaluate a cell and the result grows below it — text, tables and
-figures — while the =*Python*= buffer keeps the complete log.  Markdown
-cells render in place, LaTeX fragments included.
+A block that shows text over a region puts each rendered line on the
+source line it came from. Thus a tall rendering scrolls like text and
+does not jump past in one step.
+
+The four modes render Markdown in place, and show Python doc strings
+as documentation. They also show the output of a Python cell or an R
+chunk under its code.
 
 [[file:img/demo.gif]]
 
-*** How It Works
+The animation shows the four modes in turn. It shows a Markdown file,
+the doc strings of a Python module, a =# %%= notebook and an =.Rmd=
+file. A real Emacs session recorded it with the setup in
+[[file:demo/init.el][=demo/init.el=]].
+[[file:demo/README.org][=demo/README.org=]] tells how to record it
+again.
 
-=python-shell-send-string= wraps the code in =__PYTHON_EL_eval=, which
-returns the value of a trailing expression.  That value passes through
-IPython's display hook, where comint-mime has installed its renderers.
-Output therefore flows into the REPL as it always did; =pycell= only
-mirrors it: a marker at =process-mark= before sending, and once the next
-prompt arrives the region up to it is copied out of the REPL /with/ its
-text properties, images and all.
+** Which One Do You Want
 
-The result is drawn as a =display= property over the newline that ends
-the cell.  Display properties anchored to real buffer text scroll
-smoothly, unlike tall overlay strings.  Nothing is written to the
-buffer, so files, LSP and undo are unaffected.
+| Package            | What you get                                      | It needs                                                         |
+|--------------------+---------------------------------------------------+------------------------------------------------------------------|
+| =overblock=        | the layer, a library for other packages           | Emacs 29.1                                                       |
+| =overblock-md=     | markup rendered to text, and a Markdown preview   | =overblock=, latex-to-svg-backend; markdown-mode for the preview |
+| =overblock-pydoc=  | Python doc strings rendered in place              | =overblock=, =overblock-md=                                      |
+| =overblock-pycell= | inline results for =# %%= Python cells            | =overblock=, =overblock-md=, code-cells                          |
+| =overblock-rmd=    | inline results for the R chunks of an =.Rmd= file | =overblock=, =overblock-md=, ESS, markdown-mode                  |
 
-** Getting Started
+No package is on MELPA yet. Thus a package manager cannot find the
+packages of this repository by name. Each package that you use needs a
+recipe of its own, and so does each package of this repository that it
+needs. Declare them from the bottom up: =overblock= first, then
+=overblock-md=, then the mode. Leave out the =:hook= of overblock-md
+where you do not want the preview.
 
-*** Prerequisites
+The snippets below are for [[https://github.com/progfolio/elpaca][elpaca]]
+and =use-package=. Each recipe gives its package a clone of its own with
+=:repo ("MArpogaus/overblock" . "NAME")=. Two packages in one clone
+can make elpaca hang. Install the other dependencies, such as
+latex-to-svg-backend or code-cells, as usual.
 
-- Emacs 29.1 or later.
-- [[https://github.com/astoff/code-cells.el][code-cells]] and [[https://github.com/astoff/comint-mime][comint-mime]], both installed as dependencies.
-- IPython for rich output.  A plain =python3= shell yields text only,
-  because comint-mime installs its renderers through IPython.
-- A markdown to HTML converter for markdown cells: pycell looks for
-  =markdown=, =pandoc=, =markdown_py=, =cmark= and =cmark-gfm=, in that
-  order.  See =pycell-markdown-command=.
-- =latex= and =dvipng= or =dvisvgm= for the formulas your converter
-  cannot handle.  Pandoc, for one, renders simple math as text by
-  itself; only the rest becomes a preview image, and without a LaTeX
-  installation it stays as written.
-
-*** Installation
-
-Install from MELPA with the built in package manager:
+For plain Emacs or package.el, put a clone on the load path. Install
+the dependencies with package.el, so that their autoloads load. Leave
+out the lines of each package that you do not use.
 
 #+begin_src emacs-lisp
-  (use-package pycell
-    :ensure t)
+  (add-to-list 'load-path "/path/to/overblock")
+
+  (require 'overblock-md-preview)
+  (add-hook 'markdown-mode-hook #'overblock-md-preview-mode)
+
+  (require 'overblock-pydoc)
+  (add-hook 'python-base-mode-hook #'overblock-pydoc-mode)
+
+  (require 'overblock-pycell)                                    ; only with code-cells
+  (add-hook 'python-base-mode-hook #'code-cells-mode-maybe)      ; only with code-cells
+  (add-hook 'code-cells-mode-hook #'overblock-pycell-mode-maybe) ; only with code-cells
+  (add-hook 'inferior-python-mode-hook #'comint-mime-setup)      ; only with comint-mime
+
+  (require 'overblock-rmd)                                       ; only with ESS
+  (add-to-list 'auto-mode-alist '("\\.[rR]md\\'" . markdown-mode)) ; only with ESS
+  (add-hook 'markdown-mode-hook #'overblock-rmd-mode-maybe)      ; only with ESS
 #+end_src
 
-*** Example Configuration
+[[*overblock-pycell: Python notebook cells][overblock-pycell]] gives the
+IPython settings.
+
+No package installs a hook or binds a key in your buffers. Installing a
+package does not change how Emacs behaves.
+
+** overblock: the block layer
+
+=overblock= shows blocks and knows nothing about a language, a cell or
+markup. It also holds the run loop that the two notebooks share. It
+shows nothing by itself, so install it when another package needs it:
 
 #+begin_src emacs-lisp
-  (use-package pycell
-    :ensure t
-    :custom
-    ;; A block is one buffer line, so a long result makes a long jump
-    ;; when scrolled past.  Keep the inline part short.
-    (pycell-max-lines 12)
-    (pycell-markdown-command "pandoc -f gfm -t html"))
+  (use-package overblock
+    :ensure (overblock :host github
+                       :repo ("MArpogaus/overblock" . "overblock")
+                       :files ("overblock.el" "overblock-repl.el"
+                               "overblock-run.el")))
+#+end_src
 
-  ;; IPython, when the project provides one, gives rich output.
+[[file:docs/overblock.org::*Use][Use]] in docs/overblock.org tells how
+to change what every package shows. The API for a package that shows
+blocks is in [[file:docs/overblock.org][docs/overblock.org]].
+[[file:docs/custom-mode.org][docs/custom-mode.org]] tells how to write
+a mode of your own, with two small example modes.
+
+** overblock-md: markup rendered to text
+
+[[file:img/overblock-md.gif]]
+
+=overblock-md= turns Markdown into one propertized string. A converter
+writes HTML, and shr renders it. LaTeX formulas become images through
+[[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]].
+The package also holds =overblock-md-preview-mode=, which shows a
+Markdown buffer rendered over its own source.
+
+#+begin_src emacs-lisp
+  (use-package markdown-mode :ensure t)
+
+  (use-package overblock-md
+    :ensure (overblock-md :host github
+                          :repo ("MArpogaus/overblock" . "overblock-md")
+                          :files ("overblock-md.el"
+                                  "overblock-md-preview.el"))
+    :hook (markdown-mode . overblock-md-preview-mode))
+#+end_src
+
+The hook turns the preview on in each Markdown buffer. Without the
+hook, use =M-x overblock-md-preview-mode=.
+
+[[file:docs/overblock-md.org::*Use][Use]] in docs/overblock-md.org
+tells the commands and the options. It also tells how eglot shows the
+documentation of a language server with this package.
+
+** overblock-pydoc: Python doc strings
+
+[[file:img/overblock-pydoc.gif]]
+
+=overblock-pydoc-mode= shows the doc strings of a Python buffer as
+documentation. The quotes and the indentation go, the markup renders,
+and the code stays as it is. A click on a doc string shows its source.
+Point that moves into a doc string changes nothing.
+
+It works in =python-mode= and in =python-ts-mode=.
+
+#+begin_src emacs-lisp
+  (use-package overblock-pydoc
+    :ensure (overblock-pydoc :host github
+                             :repo ("MArpogaus/overblock" . "overblock-pydoc")
+                             :files ("overblock-pydoc.el")))
+#+end_src
+
+Turn the mode on with =M-x overblock-pydoc-mode=. To turn it on in each
+Python buffer, add it to =python-base-mode-hook=.
+
+[[file:docs/overblock-pydoc.org::*Use][Use]] in
+docs/overblock-pydoc.org tells the commands, the options and the
+markup of a project.
+
+** overblock-pycell: Python notebook cells
+
+[[file:img/overblock-pycell.gif]]
+
+=overblock-pycell= shows the results of Python cells in the buffer, as
+a notebook does. It needs no Jupyter kernel. The cells go to the Python
+interpreter of =python.el=, so the =*Python*= buffer keeps the full
+log. The files stay plain Python with =# %%= markers, as jupytext
+writes them.
+
+#+begin_src emacs-lisp
+  ;; Cells in plain Python files, with the "# %%" convention.
+  (use-package code-cells
+    :ensure t
+    :hook (python-base-mode . code-cells-mode-maybe))
+
+  ;; Figures and tables in the output.
+  (use-package comint-mime
+    :ensure t
+    :hook (inferior-python-mode . comint-mime-setup))
+
+  (use-package overblock-pycell
+    :ensure (overblock-pycell :host github
+                              :repo ("MArpogaus/overblock" . "overblock-pycell")
+                              :files ("overblock-pycell.el"))
+    :hook (code-cells-mode . overblock-pycell-mode-maybe))
+
+  ;; IPython gives rich output. Leave out this form where IPython is
+  ;; not installed: a plain python3 gives text only.
   (use-package python
     :ensure nil
     :custom
@@ -100,139 +209,120 @@ Install from MELPA with the built in package manager:
     (python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
 #+end_src
 
-=pycell-mode= turns itself on with =code-cells-mode= in Python buffers,
-and =code-cells-eval= routes through it while the mode is on.  Turn the
-mode off and cell evaluation falls back to =python-shell-send-region=.
+Open a Python file with =# %%= cells, and run a cell with
+=code-cells-eval=. The result shows below the cell. Turn
+=overblock-pycell-mode= off, and the blocks go. Then =code-cells-eval=
+uses =python-shell-send-region= again.
 
-*** Scrolling
+To run a cell, click the middle run button on its bar.
+[[file:docs/overblock-pycell.org::*Use][Use]] in
+docs/overblock-pycell.org tells the buttons, the commands, the keymaps
+and the options.
 
-A block is one buffer line, and it can be taller than the window.  Only
-pixel scrolling moves through such a line a part at a time, so turn it
-on for the mouse wheel:
+** overblock-rmd: R chunks in an Rmd file
+
+[[file:img/overblock-rmd.gif]]
+
+=overblock-rmd-mode= runs the R chunks of an =.Rmd= file and shows the
+output under each chunk. The prose between the chunks renders as in
+=overblock-md-preview-mode=. There is no knitr run. The chunks go to
+the R interpreter of ESS, so the R buffer keeps the full log.
+
+Add =:mode ("\\.[rR]md\\'" . markdown-mode)= to the markdown-mode form
+of overblock-md. That line opens an =.Rmd= file in =markdown-mode=.
+=poly-markdown+r-mode= of polymode also works.
 
 #+begin_src emacs-lisp
-  (pixel-scroll-precision-mode 1)
+  (use-package overblock-rmd
+    :ensure (overblock-rmd :host github
+                           :repo ("MArpogaus/overblock" . "overblock-rmd")
+                           :files ("overblock-rmd.el"))
+    :hook (markdown-mode . overblock-rmd-mode-maybe))
 #+end_src
 
-Measured on a rendered markdown cell of 1262 pixels in a window of 680
-pixels: with the mode on, the wheel walks through the block in steps of
-40 pixels.  Without it, line scrolling crosses the whole block in one
-step and never shows a part of it.
+=overblock-rmd-mode-maybe= turns the mode on in a buffer whose file
+ends in =.Rmd= or =.rmd=, and does nothing in other buffers. The mode
+turns =overblock-md-preview-mode= off, because it renders the prose
+itself.
 
-The mode also sets =make-cursor-line-fully-visible= to nil in its
-buffers.  No scroll can bring the whole cursor line into view when the
-block is taller than the window, and while redisplay tries, it puts the
-window start back below the block.  You see that as a jump while you
-scroll up.  Nothing else helped in the same measurement:
-=scroll-conservatively=, =auto-window-vscroll= and
-=scroll-up-aggressively= all made no difference.
+To run a chunk, click the middle run button on its bar. At the first
+run, ESS can ask for the start directory of R.
+[[file:docs/overblock-rmd.org::*Use][Use]] in docs/overblock-rmd.org
+tells the buttons, the commands and the options.
 
-** Usage
+** Prerequisites
 
-*** Results
+[[*Which One Do You Want]] lists the Emacs packages. The packages also
+need:
 
-Evaluate a cell as usual, with =code-cells-eval= or
-=code-cells-eval-and-step=.  While the cell runs, the header bar shows a
-spinner and a stopwatch; afterwards it shows the line count and the
-runtime.  A cell that printed nothing keeps a header saying /no output/,
-so an evaluated cell is recognizable as such.
-
-The header bar carries buttons, aligned right:
-
-| Button | Action                                       |
-|--------+----------------------------------------------|
-| =▾=    | fold or unfold the result                    |
-| =⤓=    | save the result's image to a file            |
-| =⧉=    | copy the result, images included             |
-| =↗=    | open the full result in its own buffer       |
-| =✕=    | discard the result                           |
-
-=TAB= at the end of a cell folds as well.  When the interpreter dies
-mid-cell, the header shows =⚠= and the result ends with a notice.
-
-*** Markdown Cells
-
-A cell whose boundary line reads =# %% [markdown]= renders in place: the
-commented source turns invisible and the header bar takes the place of
-the =# %%= line.  =$…$= and =$$…$$= fragments become preview images,
-cached under =~/.cache/pycell-math=.
-
-Formulas take the shortest road: whatever the converter renders stays
-text, and only what it passes through becomes a preview image.
-
-=RET= or =mouse-2= opens the cell in its own buffer for editing, as
-=org-edit-special= does for source blocks; =C-c C-c= puts it back and
-renders it again, =C-c C-k= discards the edit.  =mouse-1= reveals the
-plain source, so the cell can be edited in place or removed.
-
-** Commands
-
-| Command                       | Action                                     |
-|-------------------------------+--------------------------------------------|
-| =pycell-mode=                 | toggle the feature for a buffer            |
-| =pycell-toggle-output=        | fold or unfold the result at point         |
-| =pycell-copy-output=          | copy the result at point                   |
-| =pycell-pop-output=           | show the result at point in its own buffer |
-| =pycell-save-image=           | write the result's image to a file         |
-| =pycell-discard-output=       | remove the result at point                 |
-| =pycell-remove-overlays=      | remove every result in the buffer          |
-| =pycell-interrupt=            | send a KeyboardInterrupt to the cell       |
-| =pycell-restart=              | restart the interpreter, drop all results  |
-| =pycell-restart-and-run-all=  | restart, then run every cell in order      |
-| =pycell-md-render-all=        | render every markdown cell                 |
-| =pycell-md-unrender=          | show every markdown cell as source         |
-
-=pycell= binds none of these, apart from the mouse and =TAB= actions on
-the blocks themselves.  Bind what you use, for example in
-=code-cells-mode-map=.
-
-** Customization
-
-| Option                     | Meaning                                          |
-|----------------------------+--------------------------------------------------|
-| =pycell-max-lines=         | result lines drawn inline, the rest in the popup |
-| =pycell-markdown-command=  | shell command that turns Markdown into HTML      |
-| =pycell-header=            | face of the header bar                           |
-| =pycell-output=            | face of the result body                          |
+- Emacs 29.1 or later, with libxml2 for each package that renders
+  markup. shr reads the HTML with it.
+- A converter from Markdown to HTML, see
+  [[file:docs/overblock-md.org::*The converter][=overblock-md-command=]].
+  The package uses the first one on =exec-path=. Without a converter or
+  without libxml2, the text stays as it is.
+- =latex= and =dvisvgm= for the formulas, which latex-to-svg-backend
+  runs.
+- =pandoc= for =overblock-pydoc=, because both commands of
+  =overblock-pydoc-command= are pandoc commands.
+- A Python for =overblock-pycell=. Images and tables need IPython and
+  comint-mime. A plain =python3= gives text only.
+- An R for =overblock-rmd=.
+- A nerd font for the icons on the bars. Without one, each button shows
+  a plain character or a word.
 
 ** Known Limits
 
-- A block belongs to a single buffer line, because it is a display
-  string.  =next-line= and =previous-line= therefore cross it in one
-  step, whatever the scroll settings are, because a window can only
-  start at a buffer position.  The mouse wheel does better, see
-  [[#scrolling][Scrolling]].  =pycell-max-lines= bounds how far a result reaches.
-- Display properties do not nest.  A result that contains an image
-  therefore rides the overlay's after-string, which scrolls less
-  smoothly than the text path.  At most one figure is drawn inline; the
-  rest waits in the popup buffer.
-- One cell runs at a time per inferior process.  Sending a cell while
-  another is still running is refused.
+The notes of each package list its limits:
+[[file:docs/overblock.org::*Known limits][overblock]], which also holds
+the limits that all packages share,
+[[file:docs/overblock-md.org::*Known limits][overblock-md]],
+[[file:docs/overblock-pydoc.org::*Known limits][overblock-pydoc]],
+[[file:docs/overblock-pycell.org::*Known limits][overblock-pycell]] and
+[[file:docs/overblock-rmd.org::*Known limits][overblock-rmd]].
 
-** Comparison with Other Packages
+** Development
 
-[[https://github.com/emacs-jupyter/jupyter][emacs-jupyter]] speaks the Jupyter protocol and needs the =zmq= module;
-it gives you kernels for many languages and a notebook UI.  =pycell=
-stays with the inferior Python process that =python.el= already starts,
-which costs a build dependency less and keeps the REPL in reach.
+=make= runs what the CI runs: byte compilation with warnings as errors,
+package-lint, relint and the batch tests. =make test STRICT=1= fails
+when a test would skip for a missing tool: a Markdown converter,
+markdown-mode, vtable, libxml2 or =sh=. =make test-live= runs the
+tests against a real IPython, R and bash, and skips each one that is
+not installed. =make scroll= tests the scrolling in a graphic frame. It
+runs under =xvfb-run= where that is installed, and else needs a
+display.
 
-[[https://github.com/astoff/code-cells.el][code-cells]] provides the cell concept, the navigation and the
-evaluation command; =pycell= adds what happens to the output.
+Install the hooks of =.pre-commit-config.yaml=:
 
-[[https://github.com/millejoh/emacs-ipython-notebook][EIN]] edits =.ipynb= files directly.  =pycell= works on plain Python
-files with jupytext style cell markers, so the files stay diffable.
+#+begin_src shell
+  pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
+#+end_src
+
+Before a commit, the hooks check the indentation, the documentation
+strings, the regexps, the declarations and the complexity of each
+function. Most of them come from
+[[https://github.com/MArpogaus/emacs-pre-commit-hooks][emacs-pre-commit-hooks]].
+Before a push, they run package-lint, the compilation and the tests. A
+workflow runs the same hooks on each push.
+
+The notes of each package are in =docs/=, one file for each package.
 
 ** Contributions
 
-Contributions are greatly appreciated!  Feel free to check the
-[[https://github.com/MArpogaus/pycell/issues][issues page]] or submit a [[https://github.com/MArpogaus/pycell/pulls][pull request]].
+Contributions are welcome. See the
+[[https://github.com/MArpogaus/overblock/issues][issues page]], or open a
+[[https://github.com/MArpogaus/overblock/pulls][pull request]].
+
+** Use of LLM Coding Tools
+
+A large language model (LLM) coding assistant helped to write parts of
+these packages. A person reviewed and tested each change before the
+commit.
 
 ** License
 
-Distributed under the [[file:COPYING][GPLv3]] License.
+The [[file:COPYING][GPLv3]] License applies.
 
 ** Contact
 
 [[https://github.com/MArpogaus/][Marcel Arpogaus]] - [[mailto:znepry.necbtnhf@tznvy.pbz][znepry.necbtnhf@tznvy.pbz]] (encrypted with [[https://rot13.com/][ROT13]])
-
-Project Link: [[https://github.com/MArpogaus/pycell][https://github.com/MArpogaus/pycell]]

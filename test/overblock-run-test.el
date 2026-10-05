@@ -1,0 +1,823 @@
+;;; overblock-run-test.el --- Tests for overblock-run -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Marcel Arpogaus
+
+;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
+;; Assisted-by: Claude:claude-opus-5
+;; URL: https://github.com/MArpogaus/overblock
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Run with: make test
+;;
+;; The runner with a process at the other end, and no language: the
+;; backend here is a plist over `cat', which is enough for every way a
+;; run ends.  The notebook suites have no process, so an interpreter
+;; cannot die in them; this file tests that.
+
+;;; Code:
+
+(require 'ert)
+(require 'overblock-run)
+(require 'comint)
+
+;;;; A backend over `cat'
+
+(defvar overblock-run-test-buttons
+  '((stop ("" "□" "stop") "Stop" overblock-run-interrupt running)
+    (discard ("" "✕" "drop") "Discard" overblock-run-discard-output t))
+  "Two buttons, which is enough to tell a running header from a done one.")
+
+(defvar overblock-run-test-results nil
+  "The buttons of a header test.")
+
+(defvar overblock-run-test--shell nil
+  "The shell buffer of the run in hand, for the backend's `:process'.")
+
+(defun overblock-run-test--backend ()
+  "Return the backend plist of the fixture, over `cat'."
+  (list :name "runtest" :unit "cell"
+        :process (lambda () (get-buffer-process overblock-run-test--shell))
+        ;; The tests call the filter by hand.
+        :send (lambda (_proc _beg _end) nil)
+        :prompt-p (lambda (tail) (string-suffix-p ">>> " tail))
+        :clean (lambda (text) (string-trim (string-remove-suffix ">>> " text)))
+        :error-p (lambda (text) (string-match-p "Error" text))
+        :buttons 'overblock-run-test-buttons))
+
+(defmacro overblock-run-test--with-run (&rest body)
+  "Run BODY with a region of the notebook running in a shell over `cat'.
+`notebook' and `shell' are bound to the two buffers, and the shell is
+current, as for the filter, the ticker and the end of a run.  Both
+buffers go afterwards, and so does the timer of the ticker where the
+run in BODY did not end."
+  (declare (indent 0))
+  `(let* ((notebook (generate-new-buffer " *overblock-run-test-notebook*"))
+          (shell (generate-new-buffer " *overblock-run-test-shell*"))
+          (overblock-run-test--shell shell)
+          (proc (make-process :name "overblock-run-test" :command '("cat")
+                              :buffer shell :noquery t)))
+     (unwind-protect
+         (with-current-buffer notebook
+           (insert "one\ntwo\nthree\n")
+           (setq-local overblock-run--backend (overblock-run-test--backend))
+           (with-current-buffer shell
+             (comint-mode)
+             (setq-local overblock-run--backend
+                         (buffer-local-value 'overblock-run--backend notebook)))
+           ;; The first line is the region that runs.
+           (goto-char (point-min))
+           (overblock-run--send proc (point-min) (pos-eol))
+           (with-current-buffer shell ,@body))
+       (when-let* ((timer (plist-get (buffer-local-value 'overblock-run--state
+                                                         shell)
+                                     :timer)))
+         (cancel-timer timer))
+       (when (process-live-p proc) (delete-process proc))
+       (kill-buffer notebook)
+       (kill-buffer shell))))
+
+(defun overblock-run-test--result (buffer)
+  "Return the result block of BUFFER, or nil for none."
+  (with-current-buffer buffer
+    (car (overblock-in (point-min) (point-max) 'result))))
+
+(defun overblock-run-test--shown (buffer)
+  "Return the header and the body a result of BUFFER shows.
+The header is a string on the anchor and the body the display of the
+newline the block hangs on, which is where `overblock-run--update' puts
+them."
+  (when-let* ((block (overblock-run-test--result buffer)))
+    (substring-no-properties
+     (concat (overlay-get block 'after-string)
+             (when-let* ((nl (overblock-get block :newline))
+                         ((overlayp nl)))
+               (overlay-get nl 'display))))))
+
+;;;; A run that ends at a prompt
+
+(ert-deftest overblock-run-test-a-prompt-ends-the-run ()
+  "The filter sees the closing prompt and the result is what was printed.
+Nothing is left running, and the markers of the run, which are in the
+shell, are freed."
+  (overblock-run-test--with-run
+    (let ((from (plist-get overblock-run--state :from)))
+      (goto-char (point-max))
+      (insert "hello\n>>> ")
+      (overblock-run--filter "hello\n>>> ")
+      (should-not overblock-run--state)
+      (should (string-search "hello" (overblock-run-test--shown notebook)))
+      ;; No spinner: the run is over.
+      (should-not (string-search "⠋" (overblock-run-test--shown notebook)))
+      (should-not (marker-position from)))))
+
+(ert-deftest overblock-run-test-the-shell-is-its-own-shell ()
+  "In the shell buffer, the shell is that buffer, whatever `:process' says.
+A `:process' that finds the shell by the name of the notebook answers
+nil in the shell, where the filter ends a run and takes the next
+region of a pass."
+  (overblock-run-test--with-run
+    (let ((overblock-run-test--shell nil))
+      (should (eq (overblock-run--shell) shell)))))
+
+(ert-deftest overblock-run-test-the-shell-is-no-notebook ()
+  "The fold advice goes with the last notebook, though its shell stays.
+The shell has a copy of the backend, but no bars to draw."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (overblock-run-attach (overblock-run-test--backend))
+      (overblock-run-detach))
+    (should-not (advice-member-p #'overblock-run--keep-result-newline
+                                 'outline-flag-region))))
+
+(ert-deftest overblock-run-test-first-lines-of-zero-is-every-line ()
+  "A limit of zero takes every line, as the options that pass one mean."
+  (should (equal (overblock-run--first-lines "a\nb\nc\n" 0) '("a" "b" "c" "")))
+  (should (equal (overblock-run--first-lines "a\nb\nc\n" 2) '("a" "b"))))
+
+(ert-deftest overblock-run-test-a-dead-shell-is-no-notebook ()
+  "A shell whose process ended is no notebook, though it keeps the backend."
+  (with-temp-buffer
+    (comint-mode)
+    (setq-local overblock-run--backend (overblock-run-test--backend))
+    (should-not (overblock-run--notebook-p (current-buffer)))))
+
+(ert-deftest overblock-run-test-a-restart-without-restart-starts-anew ()
+  "A backend without `:restart' restarts through `:start'.
+The old process goes first."
+  (overblock-run-test--with-run
+    (let ((started 0))
+      (with-current-buffer notebook
+        (setq-local overblock-run--backend
+                    (plist-put (overblock-run-test--backend)
+                               :start (lambda () (cl-incf started) nil)))
+        (overblock-run-restart))
+      (should (= started 1))
+      (should-not (process-live-p proc)))))
+
+(ert-deftest overblock-run-test-an-error-stops-the-pass ()
+  "A result the backend calls an error empties the queue.
+The rest of a pass is dropped where one region failed."
+  (overblock-run-test--with-run
+    (setq overblock-run--queue (list (copy-marker 1)))
+    (goto-char (point-max))
+    (insert "Error: no\n>>> ")
+    (overblock-run--filter "Error: no\n>>> ")
+    (should-not overblock-run--queue)))
+
+(ert-deftest overblock-run-test-a-backend-with-no-arm-never-waits ()
+  "Arming a shell whose backend cannot arm leaves it free."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (with-current-buffer notebook
+      (overblock-run--arm)
+      (should-not (overblock-run--busy-p)))))
+
+;;;; The three ways a run dies
+
+(ert-deftest overblock-run-test-the-ticker-finds-a-dead-interpreter ()
+  "The interpreter goes away under a running region and the ticker says so.
+Nothing else notices: the prompt the filter waits for never comes."
+  (overblock-run-test--with-run
+    (setq overblock-run--queue (list (copy-marker 1)))
+    ;; Set from the shell: the home starts the scrolling in its notebook.
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (should (memq notebook overblock-run--scrolled))
+    (should-not (memq shell overblock-run--scrolled))
+    (delete-process proc)
+    (overblock-run--tick shell (plist-get overblock-run--state :timer))
+    (should-not overblock-run--state)
+    (let ((shown (overblock-run-test--shown notebook)))
+      (should (string-match-p "died\\|Process" shown)))
+    ;; A death drops the pass too, its home and its scrolling.
+    (should-not overblock-run--queue)
+    (should-not overblock-run--home)
+    (should-not (memq notebook overblock-run--scrolled))))
+
+(ert-deftest overblock-run-test-a-killed-shell-ends-the-run ()
+  "Killing the shell under a running region ends it as a death.
+`kill-buffer-hook' in the shell catches it, and finishes the block in
+the notebook, which is another buffer."
+  (overblock-run-test--with-run
+    (kill-buffer shell)
+    (should (string-match-p "died\\|Process"
+                            (overblock-run-test--shown notebook)))))
+
+(ert-deftest overblock-run-test-a-killed-notebook-takes-its-entries-along ()
+  "The entries of a killed notebook go, and the rest of the queue runs on.
+The home goes where it was in that notebook: else the next single
+region says done, and a pass does not scroll.  What a reopened
+notebook on the same shell asked for runs."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (let ((other (generate-new-buffer " *overblock-run-test-gone*"))
+          stepped)
+      (setq overblock-run--queue
+            (list (with-current-buffer other (point-marker))
+                  (with-current-buffer notebook (point-marker))))
+      (setq overblock-run--home (with-current-buffer other (point-marker)))
+      (kill-buffer other)
+      (cl-letf (((symbol-function 'overblock-run--step)
+                 (lambda (&rest _) (setq stepped (current-buffer)) t)))
+        (overblock-run--next))
+      (should (eq stepped notebook))))
+  ;; A pass asked for while the home is that of a killed notebook takes
+  ;; it over.
+  (overblock-run-test--with-run
+    (let ((other (generate-new-buffer " *overblock-run-test-gone*")))
+      (setq overblock-run--home (with-current-buffer other (point-marker)))
+      (kill-buffer other)
+      (with-current-buffer notebook
+        (goto-char (point-max))
+        (overblock-run--cells (list (point-marker)) "running"))
+      (should (eq (marker-buffer overblock-run--home) notebook)))))
+
+(ert-deftest overblock-run-test-a-killed-notebook-says-no-done ()
+  "A pass whose notebook was killed ends without a done, and frees its home.
+Else the next region sent to the idle shell would say done."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (let ((other (generate-new-buffer " *overblock-run-test-gone*"))
+          said)
+      (setq overblock-run--home (with-current-buffer other (point-marker)))
+      (kill-buffer other)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (&rest args) (setq said (apply #'format args)))))
+        (overblock-run--next))
+      (should-not (and said (string-match-p "done" said)))
+      (should-not overblock-run--home))))
+
+(ert-deftest overblock-run-test-a-killed-shell-frees-a-waiting-home ()
+  "Killing a shell where no region runs frees the home of its pass.
+Then the notebook no longer scrolls."
+  (overblock-run-test--with-run
+    (cancel-timer (plist-get overblock-run--state :timer))
+    (setq overblock-run--state nil)
+    (with-current-buffer notebook (overblock-run--home-set (point-marker)))
+    (should (memq notebook overblock-run--scrolled))
+    (kill-buffer shell)
+    (should-not (memq notebook overblock-run--scrolled))))
+
+(ert-deftest overblock-run-test-a-restarted-shell-ends-the-run ()
+  "A restart reinitializes the major mode of the shell, which ends the run.
+`change-major-mode-hook' catches it.  A restart is no unexpected
+death: the block shows the reason of the caller."
+  (overblock-run-test--with-run
+    (overblock-run--abort "runtest: restarted")
+    (should-not overblock-run--state)
+    (should (string-search "restarted" (overblock-run-test--shown notebook)))))
+
+(ert-deftest overblock-run-test-the-major-mode-hook-is-armed ()
+  "A send arms the two hooks that catch the shell going away.
+Only they call `overblock-run--abort' for a shell that goes away."
+  (overblock-run-test--with-run
+    (should (memq #'overblock-run--abort kill-buffer-hook))
+    (should (memq #'overblock-run--abort change-major-mode-hook))
+    ;; The mode change ends the run.
+    (fundamental-mode)
+    (should-not overblock-run--state)))
+
+(ert-deftest overblock-run-test-a-second-region-waits-for-the-first ()
+  "A shell that is busy refuses the next region rather than losing it.
+Else both results would hang on the markers of the second region."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (should-error (overblock-run--send proc (point-min) (point-max))
+                    :type 'user-error))))
+
+(ert-deftest overblock-run-test-a-region-sent-while-busy-runs-as-sent ()
+  "A region queued behind a running one is sent as it was, not as its cell.
+The `:step' of the backend, which runs the whole cell, is not called
+for it."
+  (overblock-run-test--with-run
+    (let (stepped from to)
+      (with-current-buffer notebook
+        (setq overblock-run--backend
+              (plist-put overblock-run--backend :step
+                         (lambda () (setq stepped t))))
+        (goto-char (point-min))
+        (forward-line 2)
+        (setq from (point) to (pos-eol))
+        (overblock-run-region from to))
+      (goto-char (point-max))
+      (insert "one\n>>> ")
+      (overblock-run--filter "one\n>>> ")
+      (should-not stepped)
+      (should (equal (list (marker-position (plist-get overblock-run--state :beg))
+                           (marker-position (plist-get overblock-run--state :end)))
+                     (list from to))))))
+
+;;;; What a restart does
+
+(ert-deftest overblock-run-test-a-restart-ends-what-runs ()
+  "A restart ends the running region, drops the queue and the results.
+The two notebook suites stub the abort and the queue away, so only
+this test runs them."
+  (overblock-run-test--with-run
+    (setq overblock-run--queue (list (copy-marker 1)))
+    (let (restarted)
+      (with-current-buffer notebook
+        (setq-local overblock-run--backend
+                    (append (list :restart
+                                  (lambda (proc) (setq restarted (or proc t))))
+                            overblock-run--backend))
+        (overblock-run-restart))
+      (should restarted)
+      (should-not overblock-run--state)
+      (should-not overblock-run--queue)
+      ;; A pass whose region runs: the restart takes point home, before
+      ;; the abort drops the home.
+      (with-current-buffer notebook
+        (goto-char (point-min))
+        (overblock-run--home-set (point-marker))
+        (goto-char (point-max)))
+      (with-current-buffer shell
+        (setq overblock-run--state
+              (list :from (point-max) :beg (with-current-buffer notebook
+                                             (copy-marker (point-min)))
+                    :end (with-current-buffer notebook
+                           (copy-marker (point-max) t))
+                    :start (float-time) :timer (timer-create))))
+      (with-current-buffer notebook
+        (overblock-run-restart)
+        (should (= (point) (point-min))))
+      ;; A pass that waits while nothing runs: the restart takes point
+      ;; home and frees the home, so the prompt of the new shell takes
+      ;; no point back, and the notebook no longer scrolls.
+      (with-current-buffer notebook
+        (overblock-run--home-set (point-marker))
+        (overblock-run-restart))
+      (should-not overblock-run--home)
+      (should-not (memq notebook overblock-run--scrolled))
+      ;; A backend that can arm waits for the first prompt again.
+      (with-current-buffer notebook
+        (setq-local overblock-run--backend
+                    (append (list :arm #'ignore) overblock-run--backend))
+        (overblock-run-restart)
+        (should (overblock-run--busy-p)))
+      ;; The result of the running region goes too.
+      (should-not (overblock-run-test--result notebook)))))
+
+(ert-deftest overblock-run-test-the-notebook-finds-the-running-region ()
+  "`overblock-run-running-in-p' reads the state in the shell.
+Called in the notebook, it finds the region that runs there."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (should (overblock-run-running-in-p (point-min) (point-min))))
+    ;; Nothing once the run is over.
+    (goto-char (point-max))
+    (insert ">>> ")
+    (overblock-run--filter ">>> ")
+    (with-current-buffer notebook
+      (should-not (overblock-run-running-in-p (point-min) (point-max))))))
+
+(ert-deftest overblock-run-test-a-follower-gets-the-output-as-it-comes ()
+  "A buffer that follows the run is written what the region prints.
+This is what a popped out result does while its region runs.  The
+marker of what is copied is in the shell, and the follower also gets
+what was printed before it asked."
+  (overblock-run-test--with-run
+    (goto-char (point-max))
+    (insert "first\n")
+    (let ((out (generate-new-buffer " *overblock-run-test-follow*")))
+      (unwind-protect
+          (progn
+            (with-current-buffer notebook (overblock-run--follow out))
+            ;; The output so far.
+            (should (equal (with-current-buffer out (buffer-string)) "first\n"))
+            ;; Then only what is new.
+            (goto-char (point-max))
+            (insert "second\n")
+            (overblock-run--follow-tick)
+            (should (equal (with-current-buffer out (buffer-string))
+                           "first\nsecond\n")))
+        (kill-buffer out)))))
+
+(ert-deftest overblock-run-test-a-running-result-offers-no-discard ()
+  "The discard button waits for the region to end.
+While the region runs, the next tick would draw the result again."
+  (let ((overblock-run--backend (list :buttons 'overblock-run-test-results))
+        (overblock-run-test-results (overblock-run-result-buttons "cell" "image")))
+    (should-not (string-search "drop" (overblock-run--header nil 1 1 0.1 'running nil)))
+    (should (string-search "drop" (overblock-run--header nil 1 1 0.1 nil nil)))))
+
+(ert-deftest overblock-run-test-the-header-shows-what-applies ()
+  "The header shows a button where its WHEN holds, in the order of the list."
+  (let ((overblock-run--backend (list :buttons 'overblock-run-test-results))
+        (overblock-run-test-results '((one ("A") "first" ignore t)
+                                      (two ("B") "second" ignore lines)
+                                      (three ("C") "third" ignore image)
+                                      (four ("D") "fourth" ignore running)
+                                      (five ("E") "fifth" ignore done))))
+    (cl-flet ((shows (total state imagep)
+                (let ((bar (substring-no-properties
+                            (overblock-run--header nil total total 0.1 state imagep))))
+                  (seq-filter (lambda (n) (string-search n bar))
+                              '("A " "B " "C " "D " "E ")))))
+      (should (equal (shows 0 nil nil) '("A " "E ")))
+      (should (equal (shows 3 nil nil) '("A " "B " "E ")))
+      (should (equal (shows 3 nil t) '("A " "B " "C " "E ")))
+      (should (equal (shows 3 'running nil) '("A " "B " "D "))))))
+
+(ert-deftest overblock-run-test-both-notebooks-draw-the-same-five ()
+  "The five buttons of a result header are one list, drawn for both.
+So a .py file and an Rmd file show the same row."
+  (let ((buttons (overblock-run-result-buttons "cell" "image")))
+    (should (= (length buttons) 5))
+    (should (equal (mapcar #'car buttons)
+                   '(stop save-image copy pop discard)))
+    ;; The unit and the word for a picture reach the tooltips.
+    (should (string-search "cell" (nth 2 (assq 'stop buttons))))
+    (should (string-search "image" (nth 2 (assq 'save-image buttons))))
+    ;; A chunk, with figures.
+    (let ((chunk (overblock-run-result-buttons "chunk" "figure")))
+      (should (string-search "chunk" (nth 2 (assq 'stop chunk))))
+      (should (string-search "figure" (nth 2 (assq 'save-image chunk)))))))
+
+(ert-deftest overblock-run-test-both-notebooks-run-from-the-same-three ()
+  "The three buttons of a region bar are one list, drawn for both."
+  (let ((buttons (overblock-run-bar-buttons "chunk")))
+    (should (equal (mapcar #'car buttons) '(run-above run run-below)))
+    (should (equal (mapcar (lambda (button) (nth 3 button)) buttons)
+                   '(overblock-run-above overblock-run-this overblock-run-below)))
+    (should (seq-every-p (lambda (button) (string-search "chunk" (nth 2 button)))
+                         buttons))))
+
+;;;; The mark at the head of a result bar
+
+(ert-deftest overblock-run-test-the-end-of-a-pass-says-so ()
+  "The last region of a pass leaves a message that the pass is over."
+  (overblock-run-test--with-run
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (let (said)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (and format-string
+                                   (apply #'format format-string args))))))
+        (goto-char (point-max))
+        (insert "ok\n>>> ")
+        (overblock-run--filter "ok\n>>> "))
+      (should (equal said "runtest: done")))))
+
+(ert-deftest overblock-run-test-a-pass-that-ends-in-an-error-says-so ()
+  "A pass whose last region fails says it stopped, not that it is done.
+Point stays on the failed region, and the home goes."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (goto-char (point-min))
+      (overblock-run--home-set (point-marker))
+      (goto-char (point-max)))
+    (let (said)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (and format-string
+                                   (apply #'format format-string args))))))
+        (goto-char (point-max))
+        (insert "Error\n>>> ")
+        (overblock-run--filter "Error\n>>> "))
+      (should (equal said "runtest: stopped at error"))
+      (should (= (with-current-buffer notebook (point))
+                 (with-current-buffer notebook (point-max))))
+      (should-not overblock-run--home))))
+
+(ert-deftest overblock-run-test-a-pass-ending-on-a-cell-without-output-says-done ()
+  "A pass whose last region the notebook answers itself still says done.
+A markdown cell is rendered, not sent, so no run ends after it."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (setq overblock-run--backend
+            (plist-put overblock-run--backend :step #'ignore)))
+    (overblock-run--home-set (with-current-buffer notebook (point-marker)))
+    (overblock-run--queue-set
+     (list (with-current-buffer notebook (copy-marker (point-max)))))
+    (let (said)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (and format-string
+                                   (apply #'format format-string args))))))
+        (goto-char (point-max))
+        (insert "ok\n>>> ")
+        (overblock-run--filter "ok\n>>> "))
+      (should (equal said "runtest: done")))))
+
+(ert-deftest overblock-run-test-a-pass-with-nothing-to-wait-for-says-done-last ()
+  "A pass of regions the notebook answers itself ends on done.
+Its start message must not cover the done it says at once."
+  (overblock-run-test--with-run
+    (let (said)
+      (with-current-buffer notebook
+        (setq overblock-run--backend
+              (plist-put overblock-run--backend :step #'ignore))
+        (cl-letf (((symbol-function 'message)
+                   (lambda (format-string &rest args)
+                     (setq said (and format-string
+                                     (apply #'format format-string args))))))
+          (overblock-run--pass (list (copy-marker (point-max)))
+                               "runtest: running the cells")))
+      (should (equal said "runtest: done")))))
+
+(ert-deftest overblock-run-test-an-interrupt-says-so ()
+  "An interrupt says so in the echo area, with the regions it dropped."
+  (overblock-run-test--with-run
+    (let (said)
+      (cl-letf (((symbol-function 'interrupt-process) #'ignore)
+                ((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq said (apply #'format format-string args)))))
+        (with-current-buffer notebook
+          (overblock-run--queue-set (list (copy-marker 5) (copy-marker 9)))
+          (overblock-run-interrupt)
+          (should (equal said "runtest: interrupted, 2 cells left unrun"))
+          (overblock-run-interrupt)
+          (should (equal said "runtest: interrupted")))))))
+
+(ert-deftest overblock-run-test-a-backend-without-step-sends-the-code ()
+  "With no `:step', a pass sends the code at point and waits for it."
+  (with-temp-buffer
+    (insert "# head\ncode\n")
+    (setq-local overblock-run--backend
+                (list :region-at (lambda () (cons 1 (point-max)))
+                      :code-at (lambda () (cons 8 (point-max)))))
+    (let (sent)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (setq sent (cons beg end)))))
+        (should (overblock-run--step-at (point-min-marker)))
+        (should (equal sent (cons 8 (point-max))))
+        (setq overblock-run--backend
+              (list :region-at (lambda () (cons 1 (point-max)))))
+        (should (overblock-run--step-at (point-min-marker)))
+        (should (equal sent (cons 1 (point-max))))))))
+
+(ert-deftest overblock-run-test-run-this-flashes-the-code-it-sends ()
+  "The region that `overblock-run-this' sends flashes, as a cell of code-cells does."
+  (with-temp-buffer
+    (insert "# head\ncode\n")
+    (setq-local overblock-run--backend
+                (list :region-at (lambda () (cons 1 (point-max)))
+                      :code-at (lambda () (cons 8 (point-max)))))
+    (let (flashed sent)
+      (cl-letf (((symbol-function 'pulse-momentary-highlight-region)
+                 (lambda (beg end &rest _) (setq flashed (cons beg end))))
+                ((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (setq sent (cons beg end)))))
+        (overblock-run-this)
+        (should (equal flashed (cons 8 (point-max))))
+        (should (equal sent flashed))))))
+
+(ert-deftest overblock-run-test-the-header-says-what-the-result-is ()
+  "A failed result says so, and a folded one claims to show nothing.
+A traceback looked like any other output, and a folded result of thirty
+lines read showing 12."
+  (let ((overblock-run--backend (overblock-run-test--backend)))
+    (should (string-search
+             "error" (substring-no-properties
+                      (overblock-run--header nil 3 3 0.1 'failed nil))))
+    (should-not (string-search
+                 "error" (substring-no-properties
+                          (overblock-run--header nil 3 3 0.1 nil nil))))
+    (should (string-search
+             "showing 12" (substring-no-properties
+                           (overblock-run--header nil 30 12 0.1 nil nil))))
+    (should-not (string-search
+                 "showing" (substring-no-properties
+                            (overblock-run--header t 30 12 0.1 nil nil))))))
+
+(ert-deftest overblock-run-test-a-result-the-backend-calls-an-error-fails ()
+  "The end of a run marks a result `failed' where `:error-p' says so."
+  (overblock-run-test--with-run
+    (goto-char (point-max))
+    (insert "ZeroDivisionError\n>>> ")
+    (overblock-run--filter "ZeroDivisionError\n>>> ")
+    (should (eq (plist-get (overblock-get (overblock-run-test--result notebook)
+                                          :data)
+                           :state)
+                'failed))))
+
+(ert-deftest overblock-run-test-the-mark-says-which-state-it-is-in ()
+  "Four states, four marks: a spinner, a warning, a fold arrow, a tick.
+The four marks differ on every display."
+  (let ((overblock-run--backend (overblock-run-test--backend)))
+    ;; Running: the next tick shows another spinner frame.
+    (let ((one (overblock-run--mark nil 0 0.0 'running))
+          (two (overblock-run--mark nil 0 overblock-run--interval 'running)))
+      (should-not (equal one two))
+      ;; Four distinct marks, whatever glyphs this display draws.
+      (let ((died (overblock-run--mark nil 0 1.0 'died))
+            (empty (overblock-run--mark nil 0 1.0 nil))
+            (fold (overblock-run--mark nil 3 1.0 nil)))
+        (should (= 4 (length (seq-uniq (list one died empty fold)
+                                       #'equal))))
+        ;; The fold arrow turns with the fold and is a button; the
+        ;; others are not buttons.
+        (should-not (equal fold (overblock-run--mark t 3 1.0 nil)))
+        ;; The mark is the first character of the bar.
+        (should (get-text-property 0 'keymap fold))
+        (should-not (get-text-property 0 'keymap died))))))
+
+(ert-deftest overblock-run-test-a-new-width-redraws-the-results ()
+  "A notebook draws its results again for a new width by itself.
+Only a live cycle watches the width, and a notebook can have no live
+cycle of its mode."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (set-window-buffer nil (current-buffer))
+    (overblock-run-attach (overblock-run-test--backend))
+    (overblock-run--show 1 4 "out" 0.1)
+    (let (drawn)
+      (cl-letf (((symbol-function 'window-max-chars-per-line)
+                 (lambda (&rest _) 20))
+                ((symbol-function 'overblock-run--update)
+                 (lambda (&rest _) (setq drawn t))))
+        (run-hooks 'window-configuration-change-hook))
+      (should drawn))
+    (overblock-run-detach)))
+
+(ert-deftest overblock-run-test-a-detach-leaves-other-blocks ()
+  "A notebook that goes off takes its results down, and no other block.
+A Python buffer can hold the doc strings of another mode."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (overblock-run-attach (overblock-run-test--backend))
+    (overblock-run--show 1 4 "out" 0.1)
+    (overblock-show 5 8 :kind 'other :over "rendered")
+    (overblock-run-detach)
+    (should-not (overblock-in (point-min) (point-max) 'result))
+    (should (overblock-in (point-min) (point-max) 'other))))
+
+(ert-deftest overblock-run-test-the-bars-follow-the-starts ()
+  "Each start gets the bars `:bar' draws there, and no other bar stays.
+A bar of a block goes with its block."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n")
+    (let ((starts '(1 9)))
+      (overblock-run-attach
+       (append (list :starts (lambda () (mapcar #'copy-marker starts))
+                     :bar (lambda () (overblock-bar-line (pos-bol) (pos-eol)
+                                                         'test "" "bar" "")))
+               (overblock-run-test--backend)))
+      (should (= 2 (length (overblock-bars))))
+      (setq starts '(9))
+      (overblock-run--bars)
+      (should (equal (mapcar #'overlay-start (overblock-bars)) '(9)))
+      (let* ((bar (overblock--bar-over 1 4))
+             (block (overblock-show 5 8 :kind 'other :over "x"
+                                    :attached (list bar))))
+        (overblock-run--bars)
+        (should-not (overlay-buffer block))))
+    (overblock-run-detach)
+    (should-not (overblock-bars))))
+
+(ert-deftest overblock-run-test-restart-and-run-all-takes-every-region ()
+  "A restart and run all queues every start, now or on the first prompt.
+A shell that is ready runs the pass at once, and one that prompts later
+runs it on that prompt."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (let ((overblock-run-test--shell (current-buffer))
+          busy ran)
+      (setq-local overblock-run--backend
+                  (append (list :starts (lambda () (list (copy-marker 1)
+                                                         (copy-marker 5))))
+                          (overblock-run-test--backend)))
+      (cl-letf (((symbol-function 'overblock-run--busy-p) (lambda () busy))
+                ((symbol-function 'overblock-run--pass)
+                 (lambda (starts said) (push (list 'now (length starts) said) ran)))
+                ((symbol-function 'overblock-run--on-prompt)
+                 (lambda (starts said) (push (list 'prompt (length starts) said) ran))))
+        (overblock-run-restart-and-run-all)
+        (setq busy t)
+        (overblock-run-restart-and-run-all))
+      (should (equal ran '((prompt 2 "runtest: running every cell")
+                           (now 2 "runtest: running every cell")))))))
+
+(ert-deftest overblock-run-test-the-region-commands-walk-the-starts ()
+  "A run sends the `:code-at' of the region at point, else the region.
+Forward and backward go from start to start, and the step runs and
+moves on, and stays after the last region."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n")
+    (let ((backend (append (list :starts (lambda () (list (copy-marker 1)
+                                                          (copy-marker 9)))
+                                 :region-at (lambda ()
+                                              (if (< (point) 9)
+                                                  (cons 1 9)
+                                                (cons 9 (point-max)))))
+                           (overblock-run-test--backend)))
+          sent)
+      (setq-local overblock-run--backend backend)
+      (cl-letf (((symbol-function 'overblock-run-region)
+                 (lambda (beg end) (push (cons beg end) sent))))
+        (goto-char 2)
+        (overblock-run-this)
+        (should (equal (car sent) '(1 . 9)))
+        (setq-local overblock-run--backend
+                    (append (list :code-at (lambda () (cons 5 9))) backend))
+        (overblock-run-this)
+        (should (equal (car sent) '(5 . 9)))
+        (setq-local overblock-run--backend backend)
+        (goto-char 2)
+        (overblock-run-forward)
+        (should (= (point) 9))
+        (should-error (overblock-run-forward) :type 'user-error)
+        (goto-char 12)
+        (overblock-run-backward)
+        (should (= (point) 9))
+        (overblock-run-backward)
+        (should (= (point) 1))
+        (should-error (overblock-run-backward) :type 'user-error)
+        (overblock-run-and-step)
+        (should (= (point) 9))
+        (overblock-run-and-step)
+        (should (= (point) 9))
+        (should (= (length sent) 4))))))
+
+(ert-deftest overblock-run-test-a-stepped-entry-points-nowhere ()
+  "The runner frees the marker of an entry once it is stepped."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (setq overblock-run--backend
+            (plist-put overblock-run--backend :step #'ignore))
+      (let ((start (copy-marker 5)))
+        (overblock-run--pass (list start) "runtest: running the cells")
+        (should-not (marker-buffer start))))))
+
+(ert-deftest overblock-run-test-a-start-left-out-points-nowhere ()
+  "Above and below free the starts they do not queue."
+  (with-temp-buffer
+    (insert "# a\none\n# b\ntwo\n# c\nthree\n")
+    (let (starts queued)
+      (setq-local overblock-run--backend
+                  (list :starts (lambda ()
+                                  (setq starts (list (copy-marker 1)
+                                                     (copy-marker 9)
+                                                     (copy-marker 17))))
+                        :region-at (lambda () (cons 9 17))))
+      (cl-letf (((symbol-function 'overblock-run--cells)
+                 (lambda (cells _message) (setq queued cells))))
+        (goto-char 10)
+        (overblock-run-above)
+        (should (equal (mapcar #'marker-position queued) '(1)))
+        (should-not (seq-some #'marker-buffer (cdr starts)))
+        (overblock-run-below)
+        (should (equal (mapcar #'marker-position queued) '(9 17)))
+        (should-not (marker-buffer (car starts)))))))
+
+(ert-deftest overblock-run-test-a-guarded-key-answers-at-the-result ()
+  "The filter lets a key through at the end of a region that has a result.
+A reader binds TAB in the result map, and TAB indents everywhere else
+in the region: the filter keeps the two apart."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (setq-local overblock-run--backend (overblock-run-test--backend))
+    (let ((block (overblock-run--show 1 5 "42" 0.3)))
+      ;; At the end of the region, next to the result.
+      (goto-char (overlay-end block))
+      (should (overblock-run-tab-filter 'a-command))
+      ;; Nowhere else in it.
+      (goto-char 1)
+      (should-not (overblock-run-tab-filter 'a-command))
+      (goto-char (1- (overlay-end block)))
+      (should-not (overblock-run-tab-filter 'a-command)))))
+
+(ert-deftest overblock-run-test-a-result-record-comes-back ()
+  "A result kept as a record shows again as it was, with its fold."
+  (with-temp-buffer
+    (insert "one\ntwo\n")
+    (setq-local overblock-run--backend (overblock-run-test--backend))
+    (let ((block (overblock-run--show 1 5 "first\nsecond" 0.3)))
+      (goto-char 1)
+      (overblock-run-toggle-output)
+      (let ((record (overblock-run-result-record 1 5)))
+        (overblock-delete block)
+        (should-not (overblock-run-result-record 1 5))
+        (overblock-run-result-restore 1 5 record)
+        (should (equal (overblock-run-result-record 1 5) record))
+        (should (plist-get record :folded))))))
+
+(ert-deftest overblock-run-test-the-running-region-is-found-in-a-range ()
+  "A range holds the running region where its start is in it."
+  (overblock-run-test--with-run
+    (with-current-buffer notebook
+      (should (overblock-run-running-in-p 1 3))
+      (should-not (overblock-run-running-in-p 5 9)))))
+
+(provide 'overblock-run-test)
+;;; overblock-run-test.el ends here

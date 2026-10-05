@@ -1,0 +1,221 @@
+;;; overblock-md-preview-test.el --- Tests for the markdown preview  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Marcel Arpogaus
+
+;; Author: Marcel Arpogaus <znepry.necbtnhf@tznvy.pbz>
+;; Assisted-by: Claude:claude-opus-5
+;; URL: https://github.com/MArpogaus/overblock
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Run with: make test
+;;
+;; The tests that need a converter skip themselves where none is
+;; installed; `make test STRICT=1' refuses to skip.
+
+;;; Code:
+
+(require 'ert)
+(require 'overblock-md-preview)
+(require 'overblock-test-common)
+
+(defmacro overblock-md-preview-test--with (text &rest body)
+  "Evaluate BODY in a buffer holding TEXT with the mode on."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (insert ,text)
+     (markdown-mode)
+     (goto-char (point-min))
+     (overblock-md-preview-mode 1)
+     (unwind-protect (progn ,@body)
+       (overblock-md-preview-mode -1))))
+
+(defun overblock-md-preview-test--wait (count)
+  "Wait until COUNT blocks carry a rendering, and return how many do.
+The conversion runs in a process that nothing waits for, so a test
+must wait."
+  (overblock-test-common-wait
+   (lambda () (>= (length (overblock-md-preview-test--blocks)) count)) 10)
+  (length (overblock-md-preview-test--blocks)))
+
+(defun overblock-md-preview-test--blocks ()
+  "Return the preview blocks of this buffer."
+  (overblock-in (point-min) (point-max) 'md-preview))
+
+(defun overblock-md-preview-test--sources ()
+  "Return the source line of every rendered line, in order."
+  (mapcar (lambda (block)
+            (string-trim (buffer-substring-no-properties
+                          (overlay-start block) (overlay-end block))))
+          (overblock-md-preview-test--blocks)))
+
+(ert-deftest overblock-md-preview-test-a-table-renders-as-a-table ()
+  "A table reaches the converter whole, and comes back with its columns.
+A row alone renders as a paragraph, and the rule as empty cells."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "| a | b |\n|---|---|\n| 1 | 2 |\n")
+    (let* ((region (car (overblock-md-regions)))
+           (block (overblock-md-preview--show (car region) (cdr region)))
+           (shown (substring-no-properties (overblock-get block :over))))
+      ;; The rule is gone and the cells are in their columns.
+      (should-not (string-match-p "---" shown))
+      (should (string-match-p "a +b" shown))
+      (should (string-match-p "1 +2" shown)))))
+
+(ert-deftest overblock-md-preview-test-indented-code-renders-as-code ()
+  "A block converted by itself keeps the indent that makes it code."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "Para.\n\n    def f():\n        return 1\n")
+    (let* ((region (cadr (overblock-md-regions)))
+           (block (overblock-md-preview--show (car region) (cdr region)))
+           (rows (split-string (substring-no-properties
+                                (overblock-get block :over))
+                               "\n")))
+      (should (= 2 (length rows))))))
+
+(ert-deftest overblock-md-preview-test-a-rendering-fits-the-window ()
+  "The rendering is filled to the columns the window has.
+The window is made narrower than the frame, so the test fails if the
+width does not reach shr.  One column is kept back, because a row that
+fills the last one wraps."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with
+      (concat "A paragraph long enough to need filling, of ordinary "
+              "words and no markup at all, so that what comes back is "
+              "as wide as the filling made it.\n")
+    (set-window-buffer nil (current-buffer))
+    (cl-letf (((symbol-function 'window-max-chars-per-line) (lambda (&rest _) 30)))
+      (let ((block (overblock-md-preview--show (point-min) (point-max))))
+        (should block)
+        (dolist (row (split-string (overblock-get block :over) "\n"))
+          (should (<= (string-width row) 29)))
+        ;; The filling did it, not a short answer.
+        (should (seq-find (lambda (row) (> (string-width row) 20))
+                          (split-string (overblock-get block :over) "\n")))))))
+
+(ert-deftest overblock-md-preview-test-every-line-is-rendered ()
+  "Each line of markdown carries its own rendering."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with "# A heading\n\nsome *emphasis*\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (should (equal (overblock-md-preview-test--sources)
+                   '("# A heading" "some *emphasis*")))
+    ;; The markup is gone from what the reader sees.
+    (let ((shown (overblock-get (car (overblock-md-preview-test--blocks))
+                                :over)))
+      (should (equal (string-trim (substring-no-properties shown))
+                     "A heading")))))
+
+(ert-deftest overblock-md-preview-test-an-edited-block-shows-its-source ()
+  "A block taken down with `overblock-live-edit' shows its source.
+With point elsewhere, the next pass renders it again."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 3) 3))
+    (should (equal (overblock-md-preview-test--sources)
+                   '("# One" "two" "three")))
+    (goto-char (point-min))
+    (overblock-live-edit)
+    (should (equal (overblock-md-preview-test--sources) '("two" "three")))
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 3) 3))
+    (should (equal (overblock-md-preview-test--sources)
+                   '("# One" "two" "three")))))
+
+(ert-deftest overblock-md-preview-test-an-edit-drops-the-rendering ()
+  "An edit of a rendered line takes its rendering down.
+The edit here is a replacement over the buffer."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with "# One\n\ntwo\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (should (equal (overblock-md-preview-test--sources) '("# One" "two")))
+    (goto-char (point-min))
+    (while (search-forward "One" nil t) (replace-match "Three"))
+    (should (equal (overblock-md-preview-test--sources) '("two")))))
+
+(ert-deftest overblock-md-preview-test-a-fence-in-a-paragraph-renders-once ()
+  "A fence with no blank line around it interrupts the paragraph.
+The prose before it, the fence and the prose after it are three blocks,
+and no two of them cover the same line."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with
+      "before the fence\n```\ncode\n```\nafter it\n\nlast\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    (should (equal (overblock-md-preview-test--wait 4) 4))
+    ;; Not `:key': the keyword form of `sort' is Emacs 30, and this
+    ;; package supports 29.1.
+    (let ((blocks (sort (overblock-md-preview-test--blocks)
+                        (lambda (a b)
+                          (< (overlay-start a) (overlay-start b))))))
+      (should (= (length blocks) 4))
+      (while (cdr blocks)
+        (should (< (overlay-end (car blocks)) (overlay-start (cadr blocks))))
+        (pop blocks)))))
+
+(ert-deftest overblock-md-preview-test-the-answer-lands-nowhere-near-point ()
+  "A block the reader walked into is left alone when its HTML lands.
+The answer arrives later, when point can be in another block, which
+then stays source."
+  (skip-unless (overblock-md-program))
+  (overblock-md-preview-test--with "# One\n\ntwo\n\nthree\n"
+    (goto-char (point-max))
+    (overblock-md-preview-render-buffer)
+    ;; Point moves into the first block while the converter runs.
+    (goto-char (point-min))
+    (should (equal (overblock-md-preview-test--wait 2) 2))
+    (should (equal (overblock-md-preview-test--sources) '("two" "three")))))
+
+(ert-deftest overblock-md-preview-test-the-mode-leaves-nothing-behind ()
+  "Turning the mode off gives the buffer back as it was."
+  (skip-unless (overblock-md-program))
+  (with-temp-buffer
+    (insert "# One\n\ntwo\n")
+    (markdown-mode)
+    (let ((before (buffer-string)))
+      (overblock-md-preview-mode 1)
+      (goto-char (point-max))
+      (overblock-md-preview-render-buffer)
+      (should (equal (overblock-md-preview-test--wait 2) 2))
+      (overblock-md-preview-mode -1)
+      (should-not (overblock-md-preview-test--blocks))
+      ;; The live cycle stops too.
+      (should-not overblock-live--timer)
+      (should-not overblock-live--specs)
+      (should (equal (buffer-string) before)))))
+
+(ert-deftest overblock-md-preview-test-a-failed-conversion-is-a-block ()
+  "A region the converter fails on gets an empty block, and goes no more."
+  (with-temp-buffer
+    (insert "---\ntitle: x: y\n---\n")
+    (setq-local overblock-live--specs (list (list 'md-preview #'ignore)))
+    (cl-letf (((symbol-function 'overblock-md-rendered) #'ignore))
+      (should (overblock-md-preview--show 1 (1- (point-max)))))
+    (should-not (overblock-live-wanted-p 1 (1- (point-max)) 'md-preview))))
+
+(provide 'overblock-md-preview-test)
+;;; overblock-md-preview-test.el ends here
