@@ -71,7 +71,7 @@ slots are in the same column on every bar.")
   "The buttons on the bar of a code cell, left to right.
 An entry has the shape `overblock-buttons' reads.  The bar shows
 every entry, whatever its WHEN.  The three that run come from
-`overblock-run-bar-buttons', shared with the Rmd notebook.
+`overblock-run-bar-buttons', shared by every notebook.
 
 The two move buttons come last, as on every bar (see
 `overblock-pycell--move-buttons')."
@@ -84,7 +84,7 @@ The two move buttons come last, as on every bar (see
           overblock-pycell--move-buttons)
   "The buttons on the header of a result, left to right.
 An entry has the shape `overblock-buttons' reads.  The five of every
-result come from `overblock-run-result-buttons', shared with the Rmd
+result come from `overblock-run-result-buttons', shared by every
 notebook; the pair that moves a cell belongs to this notebook.
 
 Drop, reorder or change entries as you like.  The fold arrow and the

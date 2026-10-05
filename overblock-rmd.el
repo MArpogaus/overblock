@@ -70,9 +70,9 @@
 An entry has the shape `overblock-buttons' reads.  The bar shows
 every entry, whatever its WHEN.
 
-The default is `overblock-run-bar-buttons' worded for a chunk: the row
-of the `.py' notebook without the two that move a cell, because a
-chunk sits inside prose about it."
+The default is `overblock-run-bar-buttons' worded for a chunk, the row
+shared by every notebook.  It has no button that moves the chunk,
+because a chunk sits inside prose about it."
   :type overblock-button-type
   :initialize #'custom-initialize-default
   :set #'overblock-run-set-and-redraw)
