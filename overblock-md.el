@@ -43,7 +43,7 @@
 ;; from there.
 ;;
 ;; Rendering a whole buffer of blocks calls the program once, with
-;; `overblock-md--html-batch-async'.
+;; `overblock-md-render-regions'.
 ;;
 ;; `overblock-md-regions' cuts a markdown buffer into the blocks that
 ;; go to the converter whole.  `overblock-md-source' is the text of one
@@ -524,7 +524,7 @@ asks this before it hides a line.")
 (defun overblock-md-fences (&optional comments)
   "Return the bounds of the front matter and every fenced block, in order.
 Each is a cons of the start of the opening fence line and the end of
-the closing one.  Public because a mode takes its code chunks from it.
+the closing one.
 
 A fence opens a block and the next fence closes it, whatever blank
 lines stand between them.  As in CommonMark, the closing fence is of
