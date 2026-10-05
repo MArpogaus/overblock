@@ -163,13 +163,6 @@ display, the frame font and `overblock-terminal-glyphs'), so a graphic
 frame and a terminal frame of one daemon get their own rows, and a
 plain `setq' of the option takes effect.")
 
-;; The press runs the command, not the release: in the text area a
-;; press reaches `mouse-drag-region', which keeps the release, and a
-;; bar redrawn between press and release would lose it. A command that
-;; moves the text under the pointer, such as a move button, turns the
-;; release into a drag, so the drag is bound too. Reading the release
-;; clears the echo area, so the release says the newest message again,
-;; such as the one of the press.
 (defvar overblock--button-keymaps (make-hash-table :test #'eq)
   "The keymap each button command is pressed through.
 A keymap depends only on the command, and the header of a running
@@ -1587,6 +1580,13 @@ no log, the message of the press is."
   "Return LABEL as a button.
 A left click calls COMMAND, and HELP becomes the tooltip.  The keymap
 is kept per command in `overblock--button-keymaps'."
+  ;; The press runs the command, not the release: in the text area a
+  ;; press reaches `mouse-drag-region', which keeps the release, and a
+  ;; bar redrawn between press and release would lose it. A command that
+  ;; moves the text under the pointer, such as a move button, turns the
+  ;; release into a drag, so the drag is bound too. Reading the release
+  ;; clears the echo area, so the release says the newest message again,
+  ;; such as the one of the press.
   (propertize label 'mouse-face 'highlight 'help-echo help
               'keymap (with-memoization
                           (gethash command overblock--button-keymaps)
