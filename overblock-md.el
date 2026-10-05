@@ -346,11 +346,14 @@ nil in the list; see `overblock-md--batch-answer'.  CALLBACK gets nil
 where the converter is missing or a text holds the marker.
 
 Nothing waits for the process, so Emacs does not freeze.  When the
-buffer that asked dies first, the answer is dropped."
+buffer that asked dies first, the answer is dropped.  The answer sees
+the `overblock-md-command' of the call, so the halves and CALLBACK
+convert as the batch did."
   (if-let* ((program (overblock-md-program))
             (joined (overblock-md--batch-text texts)))
       (let* ((output (generate-new-buffer " *overblock-md*"))
              (buffer (current-buffer))
+             (command overblock-md-command)
              (process
               (make-process
                :name "overblock-md"
@@ -375,8 +378,9 @@ buffer that asked dies first, the answer is dropped."
                      (kill-buffer output)
                      (when (buffer-live-p buffer)
                        (with-current-buffer buffer
-                         (overblock-md--batch-answer page texts
-                                                     callback)))))))))
+                         (let ((overblock-md-command command))
+                           (overblock-md--batch-answer page texts
+                                                       callback))))))))))
         (process-send-string process joined)
         (process-send-eof process)
         process)

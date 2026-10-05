@@ -311,6 +311,29 @@ An HTML comment split at a blank line takes the marker between its halves."
     ;; The whole, then each half.
     (should (= runs 3))))
 
+(ert-deftest overblock-md-test-the-halves-of-a-batch-keep-its-command ()
+  "The halves of a batch run the converter that the batch ran.
+A mode binds `overblock-md-command' only around the call, and the
+halves start from the sentinel, after that binding has ended."
+  (skip-unless (executable-find "pandoc"))
+  (let ((answered 'not-yet)
+        (texts (list "one" "<!-- a" "b -->" "four"))
+        (bound "pandoc --wrap=none -f markdown+hard_line_breaks")
+        commands)
+    (cl-letf* ((make (symbol-function 'make-process))
+               ((symbol-function 'make-process)
+                (lambda (&rest args)
+                  (when (equal (plist-get args :name) "overblock-md")
+                    (push (plist-get args :command) commands))
+                  (apply make args))))
+      (let ((overblock-md-command bound))
+        (overblock-md--html-batch-async
+         texts (lambda (htmls) (setq answered htmls))))
+      (overblock-test-common-wait (lambda () (not (eq answered 'not-yet))) 10))
+    (should (= (length commands) 3))
+    (should (seq-every-p (lambda (c) (equal c (split-string-shell-command bound)))
+                         commands))))
+
 (ert-deftest overblock-md-test-a-block-with-no-language-wears-the-code-face ()
   "A fenced block that names no language still looks like code."
   (skip-unless (overblock-md-program))
