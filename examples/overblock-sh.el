@@ -37,8 +37,8 @@
 ;; It has the sections of a notebook mode: Options, Regions, Bars,
 ;; Backend, Mode.  The backend is a plist of functions, and
 ;; `overblock-run-attach' gives it to the runner, which holds the
-;; queue, the results and every command.  docs/custom-mode.org walks
-;; through this file.
+;; queue, the results and every command.
+;; docs/custom-mode.org walks through this file.
 
 ;;; Code:
 

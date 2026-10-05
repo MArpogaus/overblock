@@ -216,7 +216,7 @@ the line editor and the history file:
            process-environment))
   ...
   (make-comint-in-buffer
-   "overblock-sh" (format "*overblock-sh: %s*" (buffer-name))
+   "overblock-sh" (overblock-sh--shell-name)
    "bash" nil "--norc" "--noprofile" "--noediting" "-i")
 #+end_src
 

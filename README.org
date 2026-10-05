@@ -300,8 +300,7 @@ Install the hooks of =.pre-commit-config.yaml=:
 
 Before a commit, the hooks check the indentation, the documentation
 strings, the regexps, the declarations and the complexity of each
-function. Most of
-them come from
+function. Most of them come from
 [[https://github.com/MArpogaus/emacs-pre-commit-hooks][emacs-pre-commit-hooks]].
 Before a push, they run package-lint, the compilation and the tests. A
 workflow runs the same hooks on each push.
