@@ -132,10 +132,14 @@ or bash where it has none."
   "The prompt of the bash of a notebook.
 Set through the environment, so no start-up file can change it.")
 
+(defun overblock-sh--shell-name ()
+  "Return the name of the shell buffer of this notebook."
+  (format "*overblock-sh: %s*" (buffer-name)))
+
 (defun overblock-sh--process ()
   "Return the live bash of this notebook, or nil for none.
 This is the `:process' of the backend.  Each notebook has its own."
-  (get-buffer-process (format "*overblock-sh: %s*" (buffer-name))))
+  (get-buffer-process (overblock-sh--shell-name)))
 
 (defun overblock-sh--start ()
   "Start a bash for this notebook, and return it once it has prompted.
@@ -149,7 +153,7 @@ second prompt keeps a cell of several lines silent."
           (append (list (concat "PS1=" overblock-sh--prompt) "PS2=" "HISTFILE=")
                   process-environment))
          (buffer (make-comint-in-buffer
-                  "overblock-sh" (format "*overblock-sh: %s*" (buffer-name))
+                  "overblock-sh" (overblock-sh--shell-name)
                   "bash" nil "--norc" "--noprofile" "--noediting" "-i"))
          (proc (get-buffer-process buffer))
          ;; A restart starts in the old buffer, which ends at a prompt.
@@ -222,7 +226,7 @@ Every cell gets a bar with run buttons.  The commands of
 bars and the results.  The mode binds no keys: `overblock-sh-mode-map'
 is empty."
   :lighter " ShNb"
-  (overblock-only-in 'overblock-sh-mode 'sh-mode)
+  (overblock-only-in 'overblock-sh-mode 'sh-base-mode)
   (if overblock-sh-mode
       (overblock-run-attach (overblock-sh--backend))
     (overblock-run-detach)))

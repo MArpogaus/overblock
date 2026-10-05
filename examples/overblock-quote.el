@@ -34,9 +34,9 @@
 ;; or a mail with quoted lines, and turn on M-x overblock-quote-mode.
 ;;
 ;; It has the sections of a render mode: Options, Faces, State,
-;; Regions, Rendering, Mode.  A mode whose regions come from overblock-md, such as
-;; overblock-md-preview, has no Regions.  The live cycle of the layer
-;; does the rest: `overblock-live-start' calls
+;; Regions, Rendering, Mode.  A mode whose regions come from
+;; overblock-md, such as overblock-md-preview, has no Regions.  The
+;; live cycle of the layer does the rest: `overblock-live-start' calls
 ;; `overblock-quote-render-buffer' when the reader stops, and
 ;; `overblock-live-map' answers the click.
 ;; docs/custom-mode.org walks through this file.
