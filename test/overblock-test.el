@@ -1401,9 +1401,11 @@ A bar of a block takes its block with it, and the source comes back."
         (should (eq new (overblock-bar-line 1 5 'source "" "again" "")))))))
 
 (ert-deftest overblock-test-a-failing-cycle-leaves-the-others ()
-  "One live cycle that signals does not stop the next one."
+  "One live cycle that signals does not stop the next one.
+As in a running Emacs, `debug-on-error' is nil: ERT on Emacs 29 sets
+it, and then `with-demoted-errors' lets the error through."
   (with-temp-buffer
-    (let (ran fail)
+    (let (ran fail debug-on-error)
       (overblock-live-start 'second (lambda () (setq ran t)))
       (overblock-live-start 'first (lambda () (when fail (error "Font lock"))))
       (setq ran nil fail t)
