@@ -877,6 +877,24 @@ pydoc paints its prose in `font-lock-doc-face'."
                (lambda (face &rest _) (if (eq face 'font-lock-doc-face) "#777777" "#000000"))))
       (should (equal (overblock-md--color nil) "#777777")))))
 
+(ert-deftest overblock-md-test-the-x-height-of-a-font-is-kept ()
+  "A font is opened once for its x-height, and a font without one has none."
+  (let ((overblock-md--x-heights nil)
+        (opened 0)
+        (ascent 9))
+    (cl-letf (((symbol-function 'find-font) (lambda (&rest _) 'entity))
+              ((symbol-function 'font-info) (lambda (&rest _) [nil nil 16]))
+              ((symbol-function 'open-font) (lambda (&rest _) (cl-incf opened) 'font))
+              ((symbol-function 'font-get-glyphs)
+               (lambda (&rest _) (vector (and ascent (vector 0 0 120 0 8 0 0 ascent))))))
+      (should (eql (overblock-md--font-x-height "Mono-12") 9))
+      (should (eql (overblock-md--font-x-height "Mono-12") 9))
+      (should (= opened 1))
+      (setq ascent nil)
+      (should-not (overblock-md--font-x-height "NoX-12"))
+      (setq ascent 0)
+      (should-not (overblock-md--font-x-height "Zero-12")))))
+
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
 A terminal and an Emacs without SVG; neither is a failure to report."

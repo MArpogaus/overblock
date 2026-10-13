@@ -1137,13 +1137,30 @@ here and a timer does the work."
           (overblock-md--drop-and-settle 'overblock-md-pending))))))
 
 (defun overblock-md--color (frame)
-  "Return the colour of `overblock-md-math-face' in FRAME as `#rrggbb'."
+  "Return the colour of `overblock-md-math-face' in FRAME as `#rrggbb', or nil."
   (let ((color (face-foreground overblock-md-math-face frame 'default)))
-    (if (string-match-p "\\`#[[:xdigit:]]\\{6\\}\\'" color)
-        (downcase color)
-      (apply #'format "#%02x%02x%02x"
-             (mapcar (lambda (v) (round (* v 255) 65535))
-                     (color-values color frame))))))
+    (cond
+     ((null color) nil)
+     ((string-match-p "\\`#[[:xdigit:]]\\{6\\}\\'" color) (downcase color))
+     ((when-let* ((values (color-values color frame)))
+        (apply #'format "#%02x%02x%02x"
+               (mapcar (lambda (v) (round (* v 255) 65535)) values)))))))
+
+(defvar overblock-md--x-heights nil
+  "Alist of font names and the ascent of `x' in that font, in pixels.")
+
+(defun overblock-md--font-x-height (name)
+  "Return the ascent of `x' in the font NAME, in pixels, or nil.
+The value is kept per font: it does not change, and opening a font for
+every formula is slow."
+  (or (cdr (assoc name overblock-md--x-heights))
+      (when-let* ((entity (find-font (font-spec :name name)))
+                  (font (open-font entity (aref (font-info name) 2)))
+                  (glyph (aref (font-get-glyphs font 0 1 "x") 0))
+                  (ascent (aref glyph 7))
+                  ((> ascent 0)))
+        (push (cons name ascent) overblock-md--x-heights)
+        ascent)))
 
 (defun overblock-md--appearance (buffer)
   "Return the :color and :x-height arguments for BUFFER, or nil.
@@ -1152,19 +1169,17 @@ Both are read in the frame of a window that shows BUFFER: the colour of
 of the `default' face, scaled by the line height in BUFFER, so
 `text-scale-adjust' sizes the formulas too.
 
-Return nil where no graphic window shows the buffer.  The engine then
-compiles the equation and returns nil, and the caller asks again when
-the buffer shows."
+Return nil where no graphic window shows the buffer, or where neither
+can be read.  The engine then compiles the equation and returns nil,
+and the caller asks again when the buffer shows."
   (when-let* (((buffer-live-p buffer))
               (window (get-buffer-window buffer 'visible))
               (frame (window-frame window))
               ((display-graphic-p frame)))
     (with-selected-frame frame
-      (let* ((name (face-font 'default))
-             (font (open-font (find-font (font-spec :name name))
-                              (aref (font-info name) 2)))
-             (x-height (aref (aref (font-get-glyphs font 0 1 "x") 0) 7)))
-        (list :color (overblock-md--color frame)
+      (when-let* ((color (overblock-md--color frame))
+                  (x-height (overblock-md--font-x-height (face-font 'default))))
+        (list :color color
               :x-height (* x-height
                            (/ (float (with-current-buffer buffer
                                        (default-font-height)))
