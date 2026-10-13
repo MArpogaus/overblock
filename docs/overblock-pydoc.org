@@ -1,0 +1,236 @@
+#+TITLE: How overblock-pydoc works
+#+OPTIONS: toc:2
+
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the implementation. Two packages of this repository
+do the work that is not Python. overblock puts a block on the screen
+([[file:overblock.org][its notes]]), and overblock-md turns markup
+into a string that a block can show
+([[file:overblock-md.org][its notes]]).
+
+=overblock-pydoc-mode= is =overblock-live-start= with three answers:
+which regions, what to render them with, and when. =overblock-pydoc.el=
+holds the first two, and the rows that a rendering is drawn on.
+
+* Use
+
+** Commands and options
+
+| Command                         | Action                                |
+|---------------------------------+---------------------------------------|
+| =overblock-pydoc-mode=          | turn the rendering on or off          |
+| =overblock-pydoc-render-buffer= | render what is not rendered yet       |
+| =overblock-pydoc-edit=          | edit the doc string in its own buffer |
+| =overblock-live-edit=           | show the source of one doc string     |
+
+=overblock-pydoc-edit= opens the prose without the quotes and the
+indentation, in an
+[[file:overblock.org::*The edit buffer][edit buffer]]. The commit puts
+the closing quotes of a doc string with several lines on a line of
+their own, as PEP 257 says.
+
+=overblock-live-map= holds only the click, as
+[[file:overblock-md.org::*Commands and options][in the Markdown preview]].
+
+| Option                        | Default                       | Meaning                                |
+|-------------------------------+-------------------------------+----------------------------------------|
+| =overblock-pydoc-markup=      | =markdown=                    | the markup of the doc strings          |
+| =overblock-pydoc-command=     | a =pandoc= command per markup | the shell command for a doc string     |
+| =overblock-pydoc-modes=       | =rst-mode=, =markdown-mode=   | the major mode of the edit buffer      |
+| =overblock-pydoc-bar-buttons= | one edit button               | the buttons on the bar of a doc string |
+
+=overblock-pydoc-markup= selects the command and the edit mode. The
+default is Markdown, as in a numpy style doc string that mkdocstrings
+reads. A Sphinx project writes reStructuredText. Set the markup for
+such a project in =.dir-locals.el=:
+
+#+begin_src emacs-lisp
+  ;;; .dir-locals.el
+  ((python-base-mode . ((overblock-pydoc-markup . rst))))
+#+end_src
+
+The face =overblock-pydoc-footer= draws the rule under a doc string.
+Change it with =set-face-attribute=, as for the faces of
+[[file:overblock.org::*Faces][overblock]].
+
+For the button format, see
+[[file:overblock.org::*Change the buttons][Change the buttons]].
+
+* Which strings are documentation
+
+Font lock decides it. python.el paints the doc string of a module, a
+definition or an assignment with =font-lock-doc-face=, and each other
+string with =font-lock-string-face=. Its tree-sitter fontifier paints
+the same face. Thus the mode needs no parser and no grammar, and a
+string that is data stays as it is.
+
+The face is read as a list, because a theme can add its own face to
+that of font lock.
+
+=font-lock-ensure= runs first. jit-lock paints only what was on the
+screen, and a doc string below the window would not be found.
+
+** Where a doc string begins
+
+A region is rendered only where the string starts where the code of
+its line starts. Blanks before it are allowed, and so is a string
+prefix, such as the =r= of a raw doc string.
+
+This rule rejects what a wrong pair of quotes leaves. A quote sequence
+inside the prose of one doc string ends it early, and each later string
+pairs the wrong way round. Such a region begins in the middle of a
+line, and a rendering over it would hide code. As source it is only not
+rendered.
+
+** Where one ends
+
+The syntax scan finds the end, not font lock and not =scan-sexps=.
+
+=parse-partial-sexp=, told to stop at the end of a string, walks from
+inside the doc string to just past its closing quotes. The end of what
+font lock painted can be shorter, because an escape sequence in the
+prose has a face of its own. =scan-sexps= reads the first two of three
+quotes as an empty string.
+
+The scan starts after the opening quotes and not between the first two.
+=python-mode= gives the first of three quotes the syntax of a plain
+string delimiter. Two quotes are added back at the end, because the
+scan stops at the first of the three closing quotes. An unterminated
+doc string is not rendered.
+
+* What to render them with
+
+=overblock-pydoc-markup= tells which markup the doc strings of a buffer
+are written in. Two options are read through it:
+=overblock-pydoc-command= for the shell command and
+=overblock-pydoc-modes= for the major mode of the edit buffer. One
+option selects both, so that the rendering and the edit buffer agree.
+A markup that the options do not name gets =overblock-md-command= and
+=markdown-mode=. =text-mode= answers for a mode that is not installed.
+
+The doc strings of the buffer go through
+=overblock-md--html-batch-async= with =overblock-md-command= bound to
+the command for the markup. This is one process for the buffer, and
+nothing waits for it. A doc string that the converter fails on stays
+source, and goes to the converter again only after an edit.
+
+[[*Commands and options]] tells why Markdown is the default. A numpy
+style doc string has numpydoc section titles over a Markdown body: a
+fenced block, a pipe table, bold. Neither reader of pandoc knows the
+markup of the other:
+
+- The reStructuredText reader runs a pipe table together into one
+  paragraph of pipes.
+- The Markdown reader runs the parameter entries together into one
+  paragraph. CommonMark has no definition list, and reads an indented
+  line after a paragraph line as more of the paragraph.
+
+Thus the Markdown command asks for =hard_line_breaks=. Each source
+line stays a line, and an entry and its description stay apart. Only
+the indent of the description is lost. There is no reader for both, so
+the option is a choice. Both commands carry =--no-highlight= and
+=--wrap=none=, for the reasons in
+[[file:overblock-md.org][the notes of overblock-md]]. The Markdown
+command also turns off =implicit_figures=, as =overblock-md-command=
+does, so an image alone in a paragraph shows its alt text once.
+
+In a Markdown doc string, a doctest outside a fence and less than four
+spaces in goes into a =pycon= fence. Thus its =>>>= prompts stay, and
+Markdown does not read them as quotes. A doctest four or more spaces
+in is an indented code block already, and gets no fence.
+
+The quotes and the shared indent come off before the text is rendered,
+because the prose reads from the left margin. The edit buffer of
+[[*Commands and options]] gets the same plain text.
+
+* The rows a rendering is drawn on
+
+Each row begins at the column where the block begins, and not at the
+indent of that line. The block keeps that many columns of each source
+line in view (the =:indent= of =overblock-show=). Thus the indent
+under a rendering is the text of the buffer, and the bars of an indent
+guide run through the doc string. A description line with a deeper
+indent is covered from that column on, so each row aligns. The
+rendering itself has no padding. Only a line that shares a row with
+another gets padding from the layer. The block of a raw doc string
+begins at the letter before its quotes, so its rows begin at that
+column.
+
+** Padded with spaces, not with a stretch
+
+A row of a rendering is padded with spaces, as
+[[file:overblock.org::*The header bars][The header bars]] tells, and
+keeps [[file:overblock.org::*A column of slack][a column of slack]].
+The indent columns are not part of the row. Padded to the full width
+of the window, the buttons of an indented doc string would wrap to a
+row of their own.
+
+** The rules
+
+The rule above is the =:overline= of the face =overblock-bar=, which
+each bar wears. The rule below is the =:underline= of
+=overblock-pydoc-footer=. A rule that a face draws runs the width of
+its row. It begins where the text of the row begins, which is the
+indent column, and ends at the window edge. Nothing must measure it.
+
+The footer row carries the rule and nothing else. It starts with a
+zero-width space. =overblock--pieces= trims blank lines off the ends of
+a rendering, and a row of spaces is a blank line.
+
+** The summary is on the bar
+
+The first line of the prose is on the bar, in the place of the label.
+The bar shows the glyph, the summary and the buttons at the window
+edge. The bar is the one row that a rendering adds to its doc string.
+With the summary on it, the rendering has as many rows as the doc
+string. Thus each piece has a line of its own, and two doc strings of
+the same shape render the same way.
+
+A doc string of one line is all bar, without a rule under it. The
+glyph and the buttons take room on the bar. The prose is filled
+narrower by that room, so the first line fits on the bar. A summary
+that is still too long is cut with an ellipsis.
+
+** The width one is built for
+
+A rendering is built for a width. The prose is filled to it, and the
+rule of the bar is spaces up to it.
+
+The prose has the columns of the narrowest window that shows the
+buffer, less the indent of the doc string. It also loses the room of
+the bar (=overblock-pydoc--bar-room=), and one column.
+=overblock-pydoc--show= binds =overblock-md-width= to that number; see
+[[file:overblock-md.org][the notes of overblock-md]].
+
+Each block carries the width it was built for, for the width watch of
+[[file:overblock.org::*The live cycle][the live cycle]]. A doc string
+committed from its edit buffer can render while no window shows its
+buffer. Its width is then nil, and the buffer coming back into a
+window renders it again.
+
+** When a bar is drawn again
+
+The =:set= of =overblock-pydoc-bar-buttons= is
+=overblock-live-set-and-redraw=. When you set the option with =setopt=,
+the renderings of each live buffer come down and render again with the
+new bars.
+
+* Known limits
+
+At a text scale of -2 or below, the bar of a doc string can run a few
+pixels past the edge of the window.
+
+* The tests
+
+=test/overblock-pydoc-test.el= tests these things:
+
+- Which strings are documentation, and which are data.
+- The indent taken off, and the markup with its command.
+- The bar and the rule, and a doctest in a Markdown doc string.
+- The edit, and the mode that leaves nothing behind.
+
+=test/overblock-pydoc-scroll-test.el= scrolls up over a file of
+rendered doc strings, and checks that the window moves one way only.
+=make scroll= runs it, because it needs a graphic frame. See
+[[file:../README.org::*Development][Development]] in the README.

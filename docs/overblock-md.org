@@ -1,0 +1,459 @@
+#+TITLE: How overblock-md works
+#+OPTIONS: toc:2
+
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the API and the implementation. The block layer
+under it is another package of this repository:
+[[file:overblock.org][its notes]].
+
+The package has two files. =overblock-md.el= turns markup into one
+propertized string, and cuts a Markdown buffer into the blocks that go
+to the converter. =overblock-md-preview.el= is a minor mode that shows
+a Markdown buffer over its own source.
+
+* Use
+
+** The preview
+
+The unit of the preview is a Markdown block. A block is one of these:
+
+- the front matter at the top of the file
+- a fenced code block
+- an HTML comment at the left margin that starts the file, or follows
+  a blank line, a heading, a fence or the front matter
+- the run of lines between two blank lines or fences
+
+In a Markdown file a comment that holds a blank line is a block of its
+own. A fence indented under a list item is part of that item.
+
+A click on a rendered block shows its source, and a click (=mouse-1= or
+=mouse-2=) on a link opens the link. A URL with a scheme opens in the
+browser. A relative path opens its file, and =#slug= moves to its
+heading, as on GitHub. Edit the source, and the block renders again when
+point leaves it. A marked region also shows its source, so you copy or
+cut the source.
+
+A fenced block that names its language, such as =```python=, gets the
+font lock of that language. A local image shows in the buffer. The package
+fetches an image with a URL once and keeps it in the folder
+=overblock-images/= of the XDG cache folder, =~/.cache= by default.
+
+A formula renders in the buffer that shows it. Thus a LaTeX preamble
+that you set for latex-to-svg-backend in =.dir-locals.el= applies. A
+formula that fails stays text.
+
+** Documentation from a language server
+
+eglot can render the documentation of a language server with this
+package:
+
+#+begin_src emacs-lisp
+  (setopt eglot-documentation-renderer #'overblock-md-eglot-renderer)
+#+end_src
+
+Then a hover shows tables in columns, the signature in the colours of
+its language, and formulas as images. This applies wherever eldoc shows
+the text. =eglot-documentation-renderer= needs eglot 1.24 or later,
+which Emacs 31 includes and GNU ELPA has for older Emacs versions.
+
+** Commands and options
+
+| Command                              | Action                                      |
+|--------------------------------------+---------------------------------------------|
+| =overblock-md-preview-mode=          | turn the preview on or off                  |
+| =overblock-md-preview-render-buffer= | render what is not rendered yet             |
+| =overblock-md-forget-failed-images=  | try again the images that could not be read |
+| =overblock-live-edit=                | show the source of the block at point       |
+
+=overblock-live-map= holds only the click, for your own keys. The doc
+strings and the prose of an Rmd file use the same map.
+
+| Option                       | Default                        | Meaning                                 |
+|------------------------------+--------------------------------+-----------------------------------------|
+| =overblock-md-command=       | =pandoc=, then four candidates | the shell command from Markdown to HTML |
+| =overblock-md-remote-images= | =t=                            | whether to fetch an image named by URL  |
+| =overblock-md-code-modes=    | ten language names             | the major mode for a fenced block       |
+| =overblock-md-eldoc-width=   | 72                             | the columns of a language server's text |
+
+=overblock-md-command= is one shell command, or a list of candidates.
+[[*The converter]] gives the default list.
+
+=overblock-md-code-modes= maps the language names that do not spell
+their mode, such as =elisp=, =bash= and =r=. The package tries each
+other name as =LANGUAGE-mode=. Set the option to nil, and each fenced
+block gets the face =overblock-md-code=.
+
+The face =overblock-md-code= draws inline code. Change it with
+=set-face-attribute=, as for the faces of
+[[file:overblock.org::*Faces][overblock]].
+
+* Markup rendered
+
+=overblock-md-rendered= takes markup and gives one propertized string.
+
+| Function                      | What it does                                   |
+|-------------------------------+------------------------------------------------|
+| =overblock-md-rendered=       | markup in, one propertized string out          |
+| =overblock-md-render-regions= | render the regions of a buffer in one process  |
+| =overblock-md-show=           | show a rendering over its own source           |
+| =overblock-md-columns=        | the columns that a window gives a rendering    |
+| =overblock-md-program=        | the converter that is installed, or nil        |
+| =overblock-md-missing=        | why nothing renders, or nil                    |
+| =overblock-md-follow-link=    | open a rendered link, clicked or at point      |
+| =overblock-md-eglot-renderer= | render the documentation of a language server  |
+| =overblock-md-regions=        | the Markdown blocks of a buffer                |
+| =overblock-md-fences=         | the front matter and the fenced blocks         |
+| =overblock-md-source=         | the text of a block, as the converter reads it |
+
+** The converter
+
+=overblock-md-command= names the command that turns Markdown into
+HTML. The candidates are in this order:
+
+1. =pandoc --mathjax --no-highlight --wrap=none -f markdown-implicit_figures=
+2. =markdown_py -x tables -x fenced_code=
+3. =cmark-gfm -e table=
+4. =markdown=
+5. =cmark=
+
+The candidates that can do a table and a code fence come first. Each
+one leaves the math alone for the preview images:
+
+- =--mathjax=, because plain =pandoc= renders a formula itself, and the
+  inline math is then lost.
+- =--wrap=none=, because a line that pandoc wraps can cut a formula in
+  two.
+- =--no-highlight=, because shr reads no CSS class. The colours of
+  pandoc are lost, and only the time to load the syntax definitions
+  stays.
+- =-f markdown-implicit_figures=, because pandoc otherwise puts an image
+  alone in a paragraph into a =figure= with a =figcaption=. shr has no
+  handler for it, and the alt text shows twice.
+
+=markdown_py= without its extensions turns a table into one line of
+pipes. =cmark= can do a fence but no table. Perl =markdown= can do
+neither. =overblock-pydoc-command= asks pandoc for the same; see
+[[file:overblock-pydoc.org][its notes]].
+
+The [[file:../README.org::*Prerequisites][README]] tells what a
+rendering needs. =overblock-md-missing= tells which part is missing.
+=overblock-pycell-mode= says it once, and the other modes give no
+message.
+
+=overblock-md--html-batch-async= sends many texts to the converter in
+one call, and does not wait for the answer. It puts a marker between
+the texts and cuts the HTML at that marker. One process for a buffer
+is much faster than one for each region. Where the number of pieces is
+not the number of texts, a text swallowed the markers. Each half of
+the texts then goes again in a process of its own. A text alone that
+still fails leaves its text to be converted alone. A converter that
+fails on a batch halves it the same way. pandoc fails so where a
+marker lands in a YAML block below the top. A text that holds the
+marker itself makes no batch, and each text converts alone.
+
+=overblock-md-render-regions= sends one batch of a kind at a time. A
+cycle that comes while the batch is with the converter waits. When the
+batch lands, the live cycle of that kind runs again. A batch first
+shows the regions that a window shows. A timer then shows the rest,
+=overblock-md--slice= (fifty) at a time, so a large buffer does not
+hold the reader. A rendering that signals ends the flight of its batch,
+so the next cycle of that kind does not wait for good. A batch shows
+its regions over the whole buffer, also under a narrowing.
+
+The answer is nil where no converter is installed. A converter that
+exits with an error gives nil for a text alone, and halves a batch. The
+check is where the program is called and not in each caller. A signal
+from a minor mode body would leave the mode on with nothing rendered,
+and stop the rest of the hook.
+
+** Images
+
+shr fetches an image with =url-queue-retrieve=, which answers after the
+rendering is done. A rendering in a temporary buffer then keeps the
+grey placeholder of shr.
+
+Thus =overblock-md--tag-img= draws a file itself, through
+=shr-external-rendering-functions=. The alt text carries the image, so a
+terminal still tells what is there. The package fetches an image named by
+URL once into the cache folder of [[*The preview]], and draws it from
+there. It does not ask again for a URL that failed in the session,
+until =overblock-md-forget-failed-images=. An answer that is not an image,
+such as the error page of a 404, is a failure too, and the file is not
+kept. With =overblock-md-remote-images= nil, the package fetches nothing
+and shows such an image as its alt text. shr does not get it, because
+shr would fetch it.
+
+A terminal draws no image, and the placeholder of shr is itself an
+image that hides the text under it. Thus where images cannot show, the
+label goes in as text: the alt text, or the file name in brackets for a
+local file. A remote image that is not fetched shows only its alt text,
+and nothing where the alt text is empty.
+
+On any display, a local file that is not there, or that holds no image
+such as a git-lfs pointer, shows its label. A file counts as an image by
+its content: a header that Emacs knows, or an svg tag first.
+
+The package draws an image at the =width= and =height= of its tag, in
+pixels, as ~<img width="80">~ or pandoc's ={width=80}= gives them. It
+ignores a value such as =50%=. The cap still holds over that size.
+
+The cap of an image is the work of the layer: =overblock-image-cap=
+and =overblock-image-height=, in
+[[file:overblock.org][the notes of the layer]].
+
+** Links
+
+A rendering is a display string. =shr-browse-url= reads the URL at
+point, which is buffer text, and point cannot be on a display string.
+Thus each link of a rendering gets =overblock-md-link-map= in place of
+=shr-map=. =<mouse-2>= runs =overblock-md-follow-link=, which reads the
+URL from the clicked string. The parent is =shr-map=, whose
+=follow-link= makes =mouse-1= on a link do the same. Thus both buttons
+open a link, as [[*The preview]] says. From a key,
+=overblock-md-follow-link= reads the links of the block at point, and
+offers them.
+
+=overblock-md--browse= opens the link as [[*The preview]] tells. The
+id of a heading is the one that pandoc or GitHub makes. A path is
+relative to the file of the buffer, and can end in a =#slug= too. A
+heading is a line of =#= or a line of text over a line of ~===~ or
+~---~. In a Markdown buffer a =#= line in a fenced block is code, and
+no heading. In a notebook the fences of a markdown cell are comments,
+and are not seen. An HTML anchor, ~id="slug"~ or ~name="slug"~, counts
+too, and the second of two equal headings is =slug-1=. A path that
+starts with a slash is from the root of the repository. As GitHub
+links code, =#L12= is line 12 of the file, and =#L4-L5= begins at line
+4. =#l2= in lower case is the id of a heading. A link to a file that
+is not there says so and opens nothing. An image path is from the file
+of the buffer, whatever binds =default-directory= when the answer
+arrives.
+
+An image inside a link keeps the link. shr puts the link around what
+the renderer inserted, and =overblock--fill-props= writes the keymap of
+a block only where the rendering has none.
+
+** Formulas
+
+A =$...$= or =$$...$$= fragment becomes a preview image.
+[[https://github.com/alberti42/latex-to-svg-backend][latex-to-svg-backend]]
+makes it. It runs =latex= and =dvisvgm= in a process of its own. It
+compiles each equation once, and keeps a cache by the content of the
+equation. Nothing waits. A fragment that still compiles shows as text,
+and the =overblock-md-pending= property marks it. It shows as an image
+when the image arrives.
+
+The engine is asked from the buffer that shows the rendering, and not
+from the temporary buffer of shr. The engine reads its options in that
+buffer, as [[*The preview]] tells. A failed equation warns once for
+that buffer. The font height also comes from that buffer, so the
+formulas follow =text-scale-adjust= without a new compile. The colour
+is the foreground of the face in the variable
+=overblock-md-math-face=, =default= by default. =overblock-pydoc=
+binds it to =font-lock-doc-face=, so the formulas have the colour of
+the doc string. A theme change draws each formula again in the new
+colour. A code block or a table is painted in the background colour of
+the theme, and a theme change draws it again too.
+
+What the converter renders stays text, and only the rest becomes an
+image. pandoc renders simple math as text. Such text loses its =\(=
+and =\)= delimiters, and keeps the dollars.
+
+A formula inside a table is an image with a stretch after it. The
+stretch makes up the width of the marks, so the row keeps its columns.
+
+The engine reports a failed formula once, with the log of LaTeX.
+=latex-to-svg-backend-invalidate= forgets one equation, so that it
+compiles again.
+
+** Tables
+
+shr renders a table without rules, and gives a header cell and inline
+code no face of their own. The renderer draws =th= in bold and =code=
+in =overblock-md-code=, through =shr-external-rendering-functions=. The
+columns and the bold header carry the table, without rules. shr draws
+each image of a table a second time under the table, through
+=shr-collect-extra-strings-in-table=; the renderer draws it in its cell
+only.
+
+A table is laid out in characters and not in pixels. Thus its columns
+align over the fixed-pitch lines of a buffer, and a face cannot move
+them.
+
+shr paints the background of a code block or a table row only as far
+as the text of each row. The renderer paints each row to the width of
+the longest row, indentation included.
+
+** Headings
+
+shr draws a heading of level 3 in italic and one of level 4 to 6
+plain. A font with no italic then shows them as body text. The
+renderer draws them bold over their =shr-h3= to =shr-h6= faces. A
+level 2 heading is bold too, so the renderer draws it 1.1 high, a step
+above them. A level 1 heading keeps =shr-h1=.
+
+** Task lists
+
+shr draws no checkbox, so a task list item lost whether it is done.
+The renderer draws a box, ticked where it is checked. It draws =[ ]=
+and =[x]= where the font has no box, and in a terminal unless
+=overblock-terminal-glyphs= is set.
+
+** Code blocks
+
+[[*Commands and options]] tells how a fenced block finds the mode of its
+language. The name =LANGUAGE-mode= goes through
+=major-mode-remap-alist=. A block that names no language, or one whose
+mode this Emacs does not have, wears =overblock-md-code=. A =<pre>= of
+raw HTML that holds markup other than =<code>= is no fenced block: shr
+draws it with its tags and line breaks.
+
+** The width of a rendering
+
+shr fills a paragraph to a width. A rendering happens in a temporary
+buffer that no window shows, and shr then fills to the width of the
+frame. A block is usually narrower, so the rows would run past the
+edge of the window.
+
+Thus the mode that renders binds =overblock-md-width=, because it
+knows where its block is. =overblock-md-show= does it for a rendering
+over its source. =overblock-md-columns= measures the room: the columns
+of the narrowest window that shows the buffer, less the indent that
+the mode gives, less one column. A row that fills the last column
+wraps. The answer is never less than twenty columns.
+
+Nil is a legal answer, and a buffer in no window gives it. shr then
+fills as it does by itself. The layer renders the blocks again when the
+buffer changes width; see [[file:overblock.org][its notes]].
+
+** A language server's documentation
+
+=overblock-md-eglot-renderer= is a value for
+=eglot-documentation-renderer=. eglot calls the renderer in a temporary
+buffer with the Markdown of the server, and then runs
+=font-lock-ensure=. The function puts =overblock-md-rendered= of the
+text in place of the text, and sets =font-lock-fontified=. Thus the
+=font-lock-ensure= that follows keeps the faces.
+
+The function changes one thing in the Markdown first. A server writes
+its signature in a fence, a rule of three dashes under it, and the
+first paragraph under the rule. pandoc reads a rule, text and then a
+setext underline as one simple table. A blank line after the rule
+prevents this.
+
+The function keeps up to two hundred renderings by their text, because
+eldoc asks again after each move. A rendering that waits for a formula
+is not kept. A theme change and a change of =overblock-md-eldoc-width=
+empty the table.
+
+* The blocks of a Markdown buffer
+
+The unit is the Markdown block and not the line, because a line of
+Markdown is often not Markdown alone. The lines of a table, of a fence
+and of a list render wrong one at a time. The whole block goes to the
+converter, and the rendering is put back over its lines, one piece for
+each line.
+
+[[*The preview]] tells what a block is. Front matter runs from a first
+line of three dashes, with text right under it, to the next line of
+three dashes or three dots. A blank line in it does not end it. A
+comment runs to its =-->=, whatever blank lines stand in it, and a fence
+in it opens nothing. In an Rmd file a comment is no block; see
+[[file:overblock-rmd.org::*Known limits][its limits]].
+=overblock-md-fences= finds the fences first. =overblock-md--paragraphs=
+then walks the buffer with those bounds. It jumps over a fence, so a
+blank line inside a fence ends no paragraph. A fence also ends the
+paragraph that touches it, as in CommonMark. Thus prose with no blank
+line before a fence is a block of its own. A fence under a list item
+does not end the item, which goes on after it.
+
+A backtick fence with another backtick on its line is inline code and
+opens no block. Outside a list item, a fence four or more spaces in is
+the text of an indented code block and opens no block. A closing fence
+is at most three columns in. Under a list item, an opening fence can
+be at or right of the text of the item. Then a fence up to three
+columns deeper than its own closes it. An opening fence left of that
+text closes as at the margin. A fence on the line of a list item, as
+in =1. ```bash=, opens a block in that item and closes none. A block
+goes to the converter with its closing fence under its opening marks,
+and with one where it closes none. The converter then reads it as the
+preview pairs it, alone and in a batch. Each block also goes out with
+the link reference definitions it uses: the lines =[ref]: url= whose
+label it holds. Thus a =[text][ref]= link or badge renders in a block
+that holds no definition. The converter writes nothing for the
+definitions. A line that pandoc reads as text, as
+=[1]: Smith, J. (2020)=, is no definition. The columns are counted in
+the text, because a rendering hides the indentation from
+=current-indentation=. A later paragraph of a list item ends at the
+next item. In one block with that paragraph, the converter reads the
+item as more text of the paragraph, and the item loses its bullet.
+
+Under a list item, a block goes to the converter without the spaces
+that indent its first line. Thus a fence under a later paragraph is not
+deeper than the line before it, and does not become inline code. Only
+spaces go, and a tab stays for the converter to read. Elsewhere the
+indentation stays, because it makes a code block.
+
+The walk reads the whole buffer, because only that tells whether a
+line is inside a fence. A fence that is not closed runs to the end of
+the buffer.
+
+=overblock-md-regions= with PROSE-ONLY gives the paragraphs alone, and
+reads no comments. =overblock-rmd= renders its prose so, because its
+chunks are run and not rendered. It takes its chunks from
+=overblock-md-fences=.
+
+* The preview mode
+
+=overblock-md-preview-mode= is =overblock-live-start= with three
+answers: which regions, what to render them with, and when. The layer
+shows the rendering, hides the source under it, and removes it on an
+edit. The mode works only where the major mode derives from
+=markdown-mode=. In an Rmd file
+[[file:../README.org::*overblock-rmd: R chunks in an Rmd file][overblock-rmd]]
+turns it off.
+
+** When, and at what cost
+
+=overblock-md-preview-render-buffer= sends the whole buffer through one
+converter process, and does not wait.
+
+=overblock-live-wanted-p= is asked twice: once to choose what to send,
+and again when the answer arrives. The reader can click, type and move
+while the process runs.
+
+A rendering comes off on each edit under it, through
+=overblock-stale-when-edited=: typing, a replacement over the buffer,
+a macro and an undo.
+[[file:overblock.org::*The live cycle][The live cycle]] tells what
+point does to a rendering.
+
+A block that renders to nothing, such as YAML front matter or a lone
+HTML comment, stays as it is and is not blanked. It gets an empty
+block all the same, so the live cycle does not convert it again. So
+does a block the converter fails on, until it is edited. Front matter
+goes to the converter as nothing, so a YAML error in it fails no batch.
+
+* Known limits
+
+- One converter run renders all blocks of a buffer. A footnote of
+  Markdown therefore shows under the last block of the run, and its
+  definition stays as source.
+- A table column aligned with =:---:= or =---:= shows left aligned,
+  because shr reads no cell style.
+
+* The tests
+
+- =test/overblock-md-test.el=: the converter, the batch of texts, the
+  math previews, the tables in characters, and the images. The image
+  tests check which paths name a file, and that the file shows. They
+  also check that a link on an image keeps the click, and how a remote
+  image is fetched. The block tests check what one Markdown block is,
+  and the text of a block that goes to the converter.
+- =test/overblock-md-preview-test.el=: a fence inside a paragraph, and
+  the source of the region at point. It also tests the edit that
+  removes a rendering, an answer that arrives far from point, and the
+  mode that leaves nothing behind.
+
+[[file:overblock.org::*The tests][The tests]] of the layer tell how
+many tests need a converter.

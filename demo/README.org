@@ -1,0 +1,91 @@
+#+TITLE: The animations, and how to record them again
+
+The animations in [[file:../README.org][the README]] come from a real
+Emacs session. There is no screen recorder. Emacs exports its own frame
+with =x-export-frames=, so the pictures show no mouse pointer and no
+window decoration.
+
+Everything the pictures were taken with is in this directory:
+
+| File           | What                                                    |
+|----------------+---------------------------------------------------------|
+| =init.el=      | the whole configuration: a built-in theme and one font  |
+| =record.el=    | the scenarios: what a reader does, and what is held     |
+| =assemble.sh=  | the frames into one animation                           |
+| =shapes.py=    | numpy style Markdown doc strings, for =overblock-pydoc= |
+| =notes.md=     | the markdown of the =overblock-md= animation            |
+| =demo.py=      | the notebook of the =overblock-pycell= animation        |
+| =report.Rmd=   | the R Markdown of the =overblock-rmd= animation         |
+| =scrolling.py= | a notebook with a tall markdown cell, to try scrolling  |
+
+* What you need
+
+- An Emacs with X support and a display. A machine without one can use
+  ~Xvfb :99 -screen 0 1920x1080x24~ and ~DISPLAY=:99~.
+- =pandoc= for each rendering, and =latex= with =dvisvgm= for the math.
+  Without them a formula stays text, and the engine reports it with a
+  link to the LaTeX log.
+- =latex-to-svg-backend= for =overblock-md=, =code-cells= and
+  =comint-mime= for the notebook, =ESS= and an =R= for
+  the chunks, =markdown-mode= for the prose. =init.el= expects them
+  from a package archive. It names a notebook whose package is
+  missing. Without latex-to-svg-backend, =init.el= stops with an error.
+- IPython, numpy and matplotlib for the cells that make output.
+- =ffmpeg= and =gifsicle= to turn the frames into the animation.
+- A nerd font for the icons on the bars. Without one the bars fall back
+  to plain characters, which is what a terminal without the font shows;
+  see =overblock-terminal-glyphs=.
+
+* How to record one
+
+#+begin_src shell
+  OB_GIF=md emacs -Q -l demo/init.el -l demo/record.el
+  sh demo/assemble.sh md
+#+end_src
+
+=OB_GIF= names the scenario: =md=, =pydoc=, =pycell=, =rmd=, or
+=family= for the tour of all four at the top of the README.
+The frames and their hold times go to
+=$TMPDIR/overblock-demo/SCENARIO/=, or to the folder in =OB_GIF_OUT=.
+Emacs exits when the scenario ends. =assemble.sh= writes =SCENARIO.gif=
+beside the frames. It does not read =OB_GIF_OUT=. For frames in another
+folder, give that folder as the third argument:
+
+#+begin_src shell
+  sh demo/assemble.sh md 1.0 /path/to/frames
+#+end_src
+
+Copy =family.gif= to =img/demo.gif=, and each other =SCENARIO.gif= to
+=img/overblock-SCENARIO.gif=.
+
+Each scenario asks for the frame height that it needs, so the
+animations share one width and differ in height. The text area is 820
+pixels wide (=ob-gif-width= in =record.el=), and the two fringes make
+each animation 836 pixels wide. The frames are written at the
+width they are shown at, because scaled text is blurred.
+
+A scenario takes a picture of the frame after each step, and says how
+long to hold it, in hundredths of a second. =assemble.sh= scales those
+holds. Thus =sh demo/assemble.sh md 0.6= makes a faster animation of
+the same recording.
+
+* What each one shows
+
+- *md*: a Markdown file rendered over its source. A click shows the
+  source of one block, and a new heading renders when the typing stops.
+- *pydoc*: the doc strings of =shapes.py= rendered with a bar each.
+  The class doc string is numpy style Markdown with sections, math, a
+  table and a code block. Then one doc string opens in its own buffer,
+  changes and goes back.
+- *pycell*: a =# %%= notebook. A markdown cell renders, and a cell runs
+  with its output under it. A matplotlib figure shows in the buffer, and
+  an output folds to its bar.
+- *rmd*: an R Markdown file with its prose rendered, three R chunks run
+  in place, and two results folded to their bars.
+- *family*: all four in one session, each picture the same size.
+
+* Why the frame is asked for in pixels
+
+=set-frame-size= is a request, and a bare X server with no window
+manager can ignore a size in characters. Thus the frame is asked for in
+pixels, and each animation is 836 pixels wide.

@@ -1,0 +1,367 @@
+#+TITLE: How overblock-rmd works
+#+OPTIONS: toc:2
+
+The [[file:../README.org][README]] tells you how to install the
+package, and [[*Use][Use]] tells how to use it. The rest of this
+document describes the implementation.
+
+The text uses these terms:
+
+- *chunk*: a fenced piece of code in an Rmd file that names R as its
+  engine: ```{r} and what can follow.
+- *prose*: all text between the chunks. It is Markdown, and it renders.
+- *pass*: a run over several chunks in order.
+
+Two packages of this repository do the work that is not R. overblock
+puts a block on the screen and holds the run loop
+([[file:overblock.org][its notes]]). overblock-md turns Markdown into a
+string that a block can show, and finds the fences and paragraphs of a
+buffer ([[file:overblock-md.org][its notes]]). This document is about
+the part that knows R and Rmd. The other notebook,
+[[file:overblock-pycell.org][overblock-pycell]], runs Python cells
+through the same loop.
+
+* Use
+
+** Chunks
+
+A bar stands in place of the fence line of each =```{r}= chunk. The
+bar shows the chunk name that knitr reads, so =```{r plot-one,
+echo=FALSE}= shows /plot-one/. The bar has the buttons of
+=overblock-rmd-bar-buttons=. =⇈= runs each chunk above this one, and
+=▷= runs this chunk. =⇊= runs this chunk and each one below it. Like
+knitr, a pass skips a chunk with =eval=FALSE= or =#| eval: false=. =▷=
+still runs it.
+
+The closing fence is hidden, and the file does not change. A chunk of
+another engine, such as =```{python}=, stays as it is. The bars show
+when you stop typing.
+
+** Results
+
+A result works as in
+[[file:overblock-pycell.org::*Results][overblock-pycell]]: the same bar,
+the same pop-out buffer and the same commands.
+=overblock-rmd-result-buttons= holds its buttons; see
+[[file:overblock-pycell.org::*The header bars][The header bars]].
+
+A chunk that plots shows its figure under the output. The size comes
+from =fig.width=, =fig.height= and =dpi= in the chunk header, as with
+knitr. Each must be a plain number. A chunk without them uses
+=overblock-rmd-figure-size= at 96 dots per inch.
+
+A chunk goes to R as one statement. Thus a syntax error names =<text>=
+and counts lines from the top of the chunk.
+
+An interrupt stops the pass, and the result keeps what the chunk printed
+before it.
+
+** Commands and options
+
+| Command                             | Action                                                              |
+|-------------------------------------+---------------------------------------------------------------------|
+| =overblock-rmd-mode=                | turn the mode on or off for a buffer                                |
+| =overblock-rmd-mode-maybe=          | the same, in an =.Rmd= or =.rmd= buffer only, for a major mode hook |
+| =overblock-run-this=                | run the chunk at point                                              |
+| =overblock-run-and-step=            | run the chunk at point, and move to the next                        |
+| =overblock-run-forward=             | move to the next chunk                                              |
+| =overblock-run-backward=            | move to the previous chunk                                          |
+| =overblock-run-restart=             | restart R, and remove the results                                   |
+| =overblock-run-restart-and-run-all= | restart, then run each chunk in order                               |
+| =overblock-live-edit=               | show the source of the prose at point                               |
+| =overblock-rmd-render-buffer=       | render the prose that is not rendered yet                           |
+
+The commands of a result and of a pass are those of
+[[file:overblock-pycell.org::*Results][overblock-pycell]].
+
+The package binds only the mouse on its bars and blocks.
+=overblock-rmd-mode-map= answers in the buffer, and
+=overblock-run-result-map= in a chunk with a result. Both are empty.
+Put the keys in the =:config= of the package:
+
+#+begin_src emacs-lisp
+  (keymap-set overblock-rmd-mode-map "C-<return>" #'overblock-run-this)
+  (keymap-set overblock-rmd-mode-map "S-<return>" #'overblock-run-and-step)
+  (keymap-set overblock-rmd-mode-map "C-c C-k" #'overblock-run-interrupt)
+  (keymap-set overblock-rmd-mode-map "C-c C-q" #'overblock-run-stop)
+#+end_src
+
+| Option                         | Default   | Meaning                                     |
+|--------------------------------+-----------+---------------------------------------------|
+| =overblock-rmd-figure-size=    | =(7 . 5)= | the width and height of a figure, in inches |
+| =overblock-rmd-bar-buttons=    | three     | the buttons on the bar of a chunk           |
+| =overblock-rmd-result-buttons= | five      | the buttons on the bar of a result          |
+
+For the button format, see
+[[file:overblock.org::*Change the buttons][Change the buttons]].
+
+* Composed, not copied
+
+An Rmd file is the inverse of a =# %%= notebook. A =.py= notebook is
+code with markers that cut it into cells. An Rmd file is Markdown prose
+with fenced chunks of code in it. Both need the same three things, and
+each already has an owner:
+
+| What                     | Whose                                     |
+|--------------------------+-------------------------------------------|
+| the chunks               | =overblock-md-fences=                     |
+| the prose, rendered live | =overblock-md-regions= and the live cycle |
+| the run, and the result  | =overblock-run=                           |
+
+Thus =overblock-rmd-mode= is one =overblock-live-start= of the kind
+=rmd=, and a backend plist for the runner. The live cycle renders the
+paragraphs that =overblock-md-regions= gives with PROSE-ONLY, through
+=overblock-md-show=. The rest of the file is about R. It holds a few
+calls of ESS, the shape of a chunk header, and the statement that a
+chunk goes to R in.
+
+=overblock-rmd-mode-maybe= reads the file name, as the
+[[file:../README.org::*overblock-rmd: R chunks in an Rmd file][README]]
+tells. The mode itself refuses a major mode that does not derive from
+=markdown-mode=. The chunks are found in the text of the buffer, so
+polymode and plain =markdown-mode= use one path.
+
+** Under polymode
+
+Under polymode, the mode sets the =keep-in-mode= slot of the polymode
+object of the buffer to =host=, and resets it when the mode goes off.
+polymode otherwise shows a chunk in an indirect buffer when point enters
+it, and moves each overlay into that buffer. The bars and the blocks are
+overlays, and their owners, the live cycle and the runner, stay in the
+base buffer. They would draw their work again, and get the old set back
+when point left the chunk. polymode still fontifies and indents the
+chunks. The keymap of ESS is lost, as [[*Known limits]] says.
+
+The mode sets the slot when it goes on, and again from
+=polymode-init-host-hook=. polymode runs =markdown-mode-hook= before it
+sets =pm/polymode= in the buffer.
+
+* One statement, one prompt
+
+A chunk goes to R inside this call:
+
+#+begin_src R
+  source(exprs = parse(text = "..."), print.eval = TRUE)
+#+end_src
+
+This makes the result collectable. Sent line by line, R prompts after
+each statement of the chunk, and the prompts land in the middle of the
+output. Wrapped, the chunk is one statement, and one prompt comes back
+at the end. =print.eval= prints the value of each top level expression,
+as a notebook cell does. A bare =eval= does not.
+
+ESS has its own send and collect, but it does not fit. =ess-command= is
+synchronous and would freeze Emacs while a chunk runs.
+=ess-async-command= is for background jobs, and its docstring says that
+long output goes into the process buffer.
+
+R parses the chunk from a string. [[*Results]] tells what a syntax
+error then names.
+
+** The chunk as an R string
+
+=overblock-rmd--r-string= prints the chunk as a string literal, with
+the newlines escaped, so that the whole chunk goes as one line. A
+literal newline inside the string is legal R. But comint would send it
+as a line of its own, and R would answer with a continuation prompt in
+the middle of the result.
+
+The mode uses =ess-send-string= and not =ess-send-region=. The region
+is not what goes to R, and =ess-send-region= gives a chunk to
+ess-tracebug where that is on.
+
+** The prompt comes off the end
+
+=overblock-repl-strip-trailing-prompt= removes the prompt at the end of
+the output, and nothing in the middle. A chunk is one statement, so one
+prompt comes back, and it comes back last.
+
+=inferior-ess-primary-prompt= tells what a prompt looks like, and not
+=comint-prompt-regexp=. ess-tracebug, which is on by default, binds
+=comint-prompt-regexp= to =^$= around =comint-output-filter=. The
+filter of the runner runs inside that binding, where the real value is
+out of reach.
+
+The newlines before the first line of output go too, but not the
+spaces. R prints a table with its header indented, and the columns of a
+=summary= align on those spaces.
+
+** What counts as a failure
+
+A pass stops at the first chunk that failed. =overblock-rmd--error-p=
+decides it: a line that starts with =Error in=, with =Error:=, or with
+=Error= alone is the report of an R error.
+
+A chunk whose own output holds such a line, for example a log that it
+prints, also counts as a failure. The two cannot be told apart. R writes
+its errors to the same stream, in the same shape, as the other output of
+the chunk.
+
+* R at the other end
+
+=ess-local-process-name= tells which process a buffer talks to.
+=ess-force-buffer-current= takes the one R that runs, asks where there
+are several, and starts one where there is none. It reads
+=ess-dialect=, so the mode sets that and =ess-language= in the buffer.
+An Rmd buffer is not an ESS buffer, and without them the reader would
+be asked which language to run.
+
+The =:start= of the backend gives the process, and not nil as in the
+Python notebook. =inferior-ess= waits for the first prompt before it
+returns, so R can take a chunk at once. Thus the backend has no =:arm=.
+
+=overblock-rmd--process= adopts the one R of the session where this
+buffer has none yet, and writes its name into the buffer. This getter
+has a side effect because of the restart. Without it, a file that had
+not run a chunk yet would find no process of its own to restart.
+
+Only an R counts. =ess-process-name-list= holds each inferior ESS of
+the session, so the list is filtered by the =ess-dialect= of each
+process buffer.
+
+** The restart
+
+ESS has no restart that asks nothing: =ess-quit= runs =ess-cleanup=,
+which offers to kill the buffers of the session. Thus
+=overblock-rmd--restart=, the =:restart= of the backend, kills the
+process, and =inferior-ess= starts a new one in the same buffer.
+
+=overblock-run-restart= runs it, after the steps that
+[[file:overblock.org::*The functions][The functions]] of the run loop
+list.
+
+After the kill, =update-ess-process-name-list= runs. ESS keeps the
+names of its processes in a list, and reads it to find a free name.
+With the list refreshed, the new R takes the same name and the same
+buffer.
+
+** An interrupt stops the pass
+
+R answers an interrupt with a new prompt and nothing more. The pass
+stops too, as [[*Results]] says. In the Python notebook, an interrupted
+cell raises =KeyboardInterrupt=, and the traceback stops the pass. R
+leaves nothing to read, so the command asks for the stop.
+
+* The bars
+
+Each chunk header has a bar in place of its line. The overlay and its
+strings belong to the layer ([[file:overblock.org][its notes]]). The
+label is the name of the chunk, and the buttons are
+=overblock-rmd-bar-buttons=, the three of =overblock-run-bar-buttons=
+with the words for a chunk.
+[[file:overblock-pycell.org::*The header bars][The header bars]] of
+overblock-pycell tells the buttons of a result.
+
+=overblock-rmd--chunk-regexp= reads the whole engine name. After it
+can come a blank before the chunk name, a comma before the options, or
+the closing brace. Thus a ```{python} chunk is left alone, and a
+```{rmarkdown} chunk is not taken for R. The name is the word that
+knitr reads, after the engine and before the first comma or brace. A
+header of =r echo=FALSE= names no chunk.
+
+=overblock-rmd--bar= is the =:bar= of the backend: it draws the bar of
+one header and hides the closing fence of its chunk. The runner draws
+the bars when the reader stops; see
+[[file:overblock.org::*The backend][The backend]] in the notes of the
+layer. The walk over the chunks reads the whole buffer, and
+=overblock-rmd--chunks= keeps it until the text changes.
+
+=overblock-bar-line= moves the overlay to the end of the header line
+at each draw. Text typed at the end of that line falls outside the
+overlay.
+
+A bar that is not on a chunk header is deleted. This happens when the
+reader turns a chunk into prose or changes its engine.
+
+** The closing fence
+
+=overblock-bar-hide= hides the closing fence line as a bar of the kind
+=chunk-end=, so the sweep of the bars also removes it. A fence under a
+result tells the reader nothing, because the chunk has a bar above it
+and its result has a bar too. [[*Chunks]] says that the file does not
+change.
+
+A rule in place of the fence does not work. Font lock gives the fence
+line the background of =markdown-code-face=, and that face shows
+through a display string.
+
+** The width a bar was cut for
+
+=overblock-bar= cuts the label to the room that the icons leave, and
+the cut is part of the string.
+[[file:overblock.org::*The live cycle][The live cycle]] tells how the
+layer watches the width. =overblock-run-attach= puts the redraw of the
+runner on =overblock-width-functions=, and that redraw calls
+=overblock-run--bars=.
+
+* Figures
+
+R draws to a graphics device and not to its terminal. Thus
+=overblock-rmd--send= opens a PNG device before the =source=, and closes
+it on exit, whatever the chunk did. The exit writes the name of each
+file that the device wrote, on a line of its own after
+=overblock-figure:=. =overblock-repl-file-images= reads those lines back
+in the shell buffer, as part of the clean. Each becomes what comint-mime
+gives the Python notebook: one space that carries the image. From there
+the two notebooks share the cap, the save button, the pop-out buffer and
+the label that a terminal shows.
+
+[[*Results]] tells where the device size comes from.
+=overblock-rmd--figure-size= reads the header. An expression in it is
+for R to evaluate, and not for this file, so it counts as no size.
+
+The files are temporary files of R and go with the session.
+
+* What a clear must sweep
+
+=overblock-run-restart= removes the results and keeps the renderings of
+the prose, because a rendering does not depend on the interpreter. A
+clear that names a kind cannot sweep an orphan, because an orphan has
+no kind. Thus =overblock-run-clear-results= calls
+=overblock-sweep-orphans= after the clear. Without it, the cloak of a
+lost block could keep lines of the buffer invisible.
+
+* Known limits
+
+- Under polymode with =overblock-rmd-mode= on, the keymap of ESS does
+  not work inside a chunk. Bind your keys in =overblock-rmd-mode-map=.
+- In an =.Rmd= file an HTML comment is no block of its own, because a
+  chunk inside it still runs. A paragraph with blank lines above and
+  below it in a comment shows as text. Keep a comment in an Rmd file to
+  one paragraph.
+
+* The tests
+
+=test/overblock-rmd-test.el= is the batch suite. It tests these things:
+
+- Which fences are R chunks, and where the code of a chunk begins and
+  ends.
+- The name that knitr reads, the chunk at point, and the prose.
+- The chunk as an R string, and the prompt removed from a result.
+- A table that keeps the indent of its header.
+- An error that stops a pass, and the figure size from the header.
+- The bars: one for each header, drawn once, and gone with the header.
+- The folded, copied and discarded results.
+- An edit that removes a result, and the mode that leaves nothing
+  behind.
+
+Two tests check the glyphs. No two buttons draw the same glyph in a
+row, and a glyph on two bars means the same command. Each button has
+three candidates, none of them empty: a nerd glyph, a character of an
+ordinary monospace font, and a short word.
+
+=test/overblock-rmd-live-test.el= drives a real R, and =make test-live=
+runs it where R is installed. It tests what only a live interpreter can
+show:
+
+- A chunk with its value, and each top level statement printed.
+- A table with its columns.
+- A chunk of quotes, backslashes and newlines.
+- An error, and a pass that stops at it and keeps the state of the
+  chunks before it.
+- The stop while the last chunk runs.
+- A restart that forgets what R knew.
+- A second chunk queued while one runs.
+
+=test/overblock-run-test.el= tests the run loop itself; see
+[[file:overblock.org][the notes of the layer]].
