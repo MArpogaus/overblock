@@ -74,6 +74,7 @@
 ;; `overblock-md-program' returns nil there. A build without image
 ;; support has no `image-size'; the calls are behind `display-images-p'.
 (declare-function image-size "ext:image.c" (spec &optional pixels frame))
+(declare-function font-info "ext:font.c" (name &optional frame))
 (declare-function libxml-parse-html-region "ext:xml.c"
                   (start end &optional base-url discard-comments))
 (declare-function eldoc-print-current-symbol-info "eldoc" (&optional interactive))
