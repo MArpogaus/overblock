@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-5
 ;; Assisted-by: Claude:claude-fable-5
 ;; Version: 1.0
-;; Package-Requires: ((emacs "29.1") (overblock "1.0") (latex-to-svg-backend "0.8"))
+;; Package-Requires: ((emacs "29.1") (overblock "1.0") (latex-to-svg-backend "0.14"))
 ;; Keywords: convenience, tools
 ;; URL: https://github.com/MArpogaus/overblock
 
@@ -1136,19 +1136,39 @@ here and a timer does the work."
         (with-current-buffer buffer
           (overblock-md--drop-and-settle 'overblock-md-pending))))))
 
-(defun overblock-md--font-height (buffer)
-  "Return the pixel height of the font BUFFER is shown in, or nil.
-The height is measured in the frame of a window that shows BUFFER, not
-the selected frame, and in BUFFER, so `text-scale-adjust' sizes the
-formulas too.
+(defun overblock-md--color (frame)
+  "Return the colour of `overblock-md-math-face' in FRAME as `#rrggbb'."
+  (let ((color (face-foreground overblock-md-math-face frame 'default)))
+    (if (string-match-p "\\`#[[:xdigit:]]\\{6\\}\\'" color)
+        (downcase color)
+      (apply #'format "#%02x%02x%02x"
+             (mapcar (lambda (v) (round (* v 255) 65535))
+                     (color-values color frame))))))
 
-Return nil where no window shows the buffer.  The engine then compiles
-the equation and returns nil, and the caller asks again when the buffer
-shows."
+(defun overblock-md--appearance (buffer)
+  "Return the :color and :x-height arguments for BUFFER, or nil.
+Both are read in the frame of a window that shows BUFFER: the colour of
+`overblock-md-math-face' as `#rrggbb', and the ascent of `x' in the font
+of the `default' face, scaled by the line height in BUFFER, so
+`text-scale-adjust' sizes the formulas too.
+
+Return nil where no graphic window shows the buffer.  The engine then
+compiles the equation and returns nil, and the caller asks again when
+the buffer shows."
   (when-let* (((buffer-live-p buffer))
-              (window (get-buffer-window buffer 'visible)))
-    (with-selected-frame (window-frame window)
-      (with-current-buffer buffer (default-font-height)))))
+              (window (get-buffer-window buffer 'visible))
+              (frame (window-frame window))
+              ((display-graphic-p frame)))
+    (with-selected-frame frame
+      (let* ((name (face-font 'default))
+             (font (open-font (find-font (font-spec :name name))
+                              (aref (font-info name) 2)))
+             (x-height (aref (aref (font-get-glyphs font 0 1 "x") 0) 7)))
+        (list :color (overblock-md--color frame)
+              :x-height (* x-height
+                           (/ (float (with-current-buffer buffer
+                                       (default-font-height)))
+                              (frame-char-height))))))))
 
 (defun overblock-md--char-width ()
   "Return the pixel width of a column of the buffer the rendering is for.
@@ -1194,16 +1214,14 @@ scrolled past."
            (image (with-current-buffer (if (buffer-live-p buffer)
                                            buffer
                                          (current-buffer))
-                    (latex-to-svg-backend
-                     frag
-                     :color (face-attribute overblock-md-math-face :foreground
-                                            nil 'default)
-                     :font-height (overblock-md--font-height buffer)
-                     :callback (let ((asker overblock-md--eldoc-asker))
-                                 (lambda ()
-                                   (if asker
-                                       (overblock-md--eldoc-arrived asker)
-                                     (overblock-md--latex-arrived buffer)))))))
+                    (apply #'latex-to-svg-backend
+                           frag
+                           :callback (let ((asker overblock-md--eldoc-asker))
+                                       (lambda ()
+                                         (if asker
+                                             (overblock-md--eldoc-arrived asker)
+                                           (overblock-md--latex-arrived buffer))))
+                           (overblock-md--appearance buffer))))
            (limit (overblock-image-limit)))
       (cond
        ((and image limit)

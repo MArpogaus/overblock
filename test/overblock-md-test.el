@@ -793,12 +793,9 @@ in its own buffer."
                    (lambda (latex &rest keys)
                      (push latex asked)
                      (setq callback (plist-get keys :callback))
-                     ;; The colour of the buffer that asked, not of the
-                     ;; temporary buffer of shr.
-                     (should (equal (plist-get keys :color)
-                                    (with-current-buffer buffer
-                                      (face-attribute 'default :foreground
-                                                      nil t))))
+                     ;; No window shows the buffer: no colour and no
+                     ;; x-height, the engine only compiles.
+                     (should-not (plist-member keys :x-height))
                      nil)))
           ;; No image yet: the fragment is text, and a callback is set.
           (should (eq (overblock-md--latex-image "$x$") 'pending))
@@ -875,16 +872,10 @@ eglot renders in a temporary buffer that is gone by then."
 (ert-deftest overblock-md-test-a-formula-wears-the-colour-of-its-prose ()
   "The face of a caller gives the formulas their colour.
 pydoc paints its prose in `font-lock-doc-face'."
-  (let ((overblock-md--buffer nil)
-        (overblock-md-math-face 'font-lock-doc-face)
-        color)
-    (cl-letf (((symbol-function 'latex-to-svg-backend-available-p) (lambda () t))
-              ((symbol-function 'face-attribute)
-               (lambda (face &rest _) (if (eq face 'font-lock-doc-face) "#777777" "#000000")))
-              ((symbol-function 'latex-to-svg-backend)
-               (lambda (_latex &rest keys) (setq color (plist-get keys :color)) nil)))
-      (overblock-md--latex-image "$x$"))
-    (should (equal color "#777777"))))
+  (let ((overblock-md-math-face 'font-lock-doc-face))
+    (cl-letf (((symbol-function 'face-foreground)
+               (lambda (face &rest _) (if (eq face 'font-lock-doc-face) "#777777" "#000000"))))
+      (should (equal (overblock-md--color nil) "#777777")))))
 
 (ert-deftest overblock-md-test-no-engine-no-preview ()
   "Where equations cannot be drawn at all, a fragment stays text.
